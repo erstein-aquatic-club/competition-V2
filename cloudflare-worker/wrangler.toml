@@ -1,0 +1,15 @@
+name = "suivi-natation-api"
+main = "src/index.js"
+compatibility_date = "2024-12-01"
+
+[vars]
+AUTH_SECRET = "ersteinaquaticclub2026"
+SHARED_TOKEN = "ersteinaquaticclub2026"
+
+[triggers]
+crons = ["0 6 * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "suivi-natation"
+database_id = "606242a3-813e-4fc8-ab4e-b79b19b2cf9c"

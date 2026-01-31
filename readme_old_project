@@ -1,0 +1,274 @@
+# Ce readme concerne le détail de contexte de l'ancienne app "Suivi Natation"
+
+Application web statique (HTML/CSS/JS) pour le suivi des séances de natation, le calcul de KPIs, les graphiques et les vues Coach (suivi nageurs + musculation). Le front repose sur un endpoint Cloudflare Worker connecté à D1.
+
+## Vue d’ensemble (comment ça marche aujourd’hui)
+**Flux principal**
+1. L’utilisateur saisit une séance dans le front (page principale).
+2. La séance est sauvegardée localement (`localStorage`) puis envoyée au Worker Cloudflare.
+3. Le Worker valide le token, enregistre la séance dans D1, puis renvoie un `OK`.
+4. L’onglet **Progression > Mes séances enregistrées** reconstruit l’historique depuis le cache local et/ou un GET du Worker.
+
+**Points clés qui doivent être alignés pour que ça fonctionne**
+- **Endpoint unique** configuré dans `js/config.js` (ou override via `window.SWIM_SYNC_ENDPOINT`).
+- **Token partagé** identique entre le front et le Worker (`SWIM_SYNC_TOKEN` côté front, `SHARED_TOKEN` côté Worker).
+- **Schéma D1** conforme aux tables attendues (ex: `DIM_sessions`, `DIM_exercices`).
+- **Code Worker à jour** (même version que `cloudflare-worker/src/index.js` du repo).
+
+## Contexte rapide
+- **Front-end**: fichiers statiques (`index.html`, `style.css`, `script.js` → charge `js/main.js`).
+- **Modules JS**: logique principale dans `js/main.js`, helpers dans `js/core/`, Hall of Fame dans `js/modules/hallOfFame.js`.
+- **Fonctions clés**:
+  - Saisie de séances côté nageur
+  - KPIs + graphiques
+  - Hall of Fame
+  - Outils Coach (suivi, musculation)
+- **Stockage**: cache local via `localStorage` + sync via Cloudflare Worker/D1.
+
+## Objectifs fonctionnels (cible produit)
+> Les éléments marqués **(à venir)** ne sont pas encore implémentés dans le projet.
+
+### 🏊‍♂️ Nageur (utilisateur final)
+**Fonctionnalités générales**
+- Se connecter avec son nom pour accéder à ses données.
+- Accéder à une « fiche nageur » (UI en place, contenu détaillé **à venir**).
+- Onglet « Notifications » pour les séances/messagerie coach **(à venir)**.
+
+**Suivi des séances de natation en bassin**
+- Saisir une séance de natation (date, créneau, effort, ressenti).
+- Consulter son historique de séances.
+- Suivre sa progression via des indicateurs de performance sur différentes périodes (7 / 30 / 365 jours).
+- Visualiser des graphiques sur ses ressentis (effort, performance, engagement, fatigue).
+- Exporter ses données (CSV / JSON) et réinitialiser son historique local.
+- Accéder au Hall of Fame pour se comparer à d’autres nageurs (distance, performance, engagement).
+
+**Suivi des séances de musculation**
+- Choisir un cycle de travail (Endurance, hypertrophie, force) **(à venir)**.
+- Choisir une séance de musculation **(à venir)**.
+- Être guidé au cours de sa séance de musculation **(à venir)** :
+  - Inscription sur une séance (suivi de la progression intra séance : avancement = 100 %) **(à venir)**.
+  - Suivi des temps de récupération entre séries et exercices avec timers pilotables (durées définies dans les bases) **(à venir)**.
+  - Calcul automatique de la charge de travail à partir d’un pourcentage de la 1RM **(à venir)**.
+  - Recalcul automatique d’une nouvelle 1RM si l’athlète augmente la charge **(à venir)**.
+- Garder en mémoire la progression par exercice **(à venir)**.
+- Reprendre une séance interrompue au même stade d’avancement **(à venir)**.
+- Consulter son historique de séances de musculation **(à venir)**.
+- Suivre sa progression via des indicateurs (7 / 30 / 365 jours) **(à venir)**.
+- Visualiser des graphiques sur ses ressentis (effort, performance, engagement, fatigue) **(à venir)**.
+- Accéder au Hall of Fame musculation **(à venir)**.
+
+**Fiche nageur**
+- Modifier ses informations personnelles (groupe, anniversaire, objectifs) **(à venir)**.
+- Visualisation des records de natation par épreuves et par bassin (25 m / 50 m) **(à venir)**.
+- Visualisation/modification des 1RM par exercice **(à venir)**.
+
+### 🧑‍🏫 Coach
+**Fonctionnalités générales**
+- Se connecter en mode coach (mot de passe aujourd’hui ; nom + mot de passe **à venir**).
+- Accéder aux fiches des nageurs de son groupe **(à venir)**.
+- Notifications en avance pour les anniversaires **(à venir)**.
+- Envoyer des messages à un groupe ou à des athlètes (affichés dans « Notifications ») **(à venir)**.
+
+**Suivi des séances de natation en bassin**
+- Créer des séances de natation **(à venir)**.
+- Assigner des séances de natation à un groupe ou un nageur **(à venir)**.
+- Sélectionner un nageur pour consulter ses données.
+- Suivre la progression d’un nageur (KPIs + graphiques, périodes 7/30/365 jours).
+- Consulter l’historique détaillé des séances du nageur.
+
+**Suivi des séances de musculation**
+- Créer / modifier des exercices de musculation.
+- Créer / modifier des exercices type échauffement (sans notion de cycle/charge) **(à venir)**.
+- Créer / modifier des séances de musculation (choisir les exercices et organiser l’ordre).
+- Assigner des séances de musculation à un groupe ou à un nageur **(à venir)**.
+- Suivre la progression d’un nageur en musculation (KPIs + graphiques, périodes 7/30/365 jours) **(à venir)**.
+- Consulter l’historique détaillé des séances de musculation du nageur **(à venir)**.
+
+## Structure
+```
+/
+├── index.html
+├── style.css
+├── script.js              # shim module
+├── js/
+│   ├── main.js            # logique principale
+│   ├── core/              # helpers, api, charts
+│   └── modules/           # features spécifiques (ex: hall of fame)
+├── cloudflare-worker/     # Worker Cloudflare + D1 (API)
+│   ├── src/index.js        # endpoints D1
+│   ├── schema.sql          # schéma de référence
+│   └── migrations/         # migrations D1
+└── logo-eac.png
+```
+
+## Contrat de données (features « à venir »)
+Le mapping détaillé **front ↔ Worker ↔ D1**, les tables nécessaires par feature et les endpoints à prévoir sont documentés ici :
+- `docs/roadmap-data-contract.md`
+
+## Configuration & déploiement (Cloudflare)
+
+### 1) Endpoint côté front
+Par défaut, le front utilise l’URL définie dans `js/config.js` (sans token dans l’URL) :
+```
+https://suivi-natation-api.francois-wagner.workers.dev/
+```
+Vous pouvez surcharger cette URL en injectant `window.SWIM_SYNC_ENDPOINT` avant le chargement de `script.js`.
+
+### 2) Token partagé (header Authorization)
+Le Worker utilise la variable d’environnement `SHARED_TOKEN`. Le front envoie ce token dans
+un header `Authorization: Bearer <token>` via `window.SWIM_SYNC_TOKEN`.
+
+**Exemple (dans `index.html` avant `script.js`)**
+```html
+<script>
+  window.SWIM_SYNC_ENDPOINT = "https://suivi-natation-api.francois-wagner.workers.dev/";
+  window.SWIM_SYNC_TOKEN = "votre-token-ici";
+</script>
+<script type="module" src="./script.js"></script>
+```
+
+### 3) Base D1
+Le Worker s’attend à un schéma D1 conforme aux tables listées plus bas (notamment `DIM_sessions`, `DIM_exercices`).  
+Si la base est vide ou incohérente, les insertions échouent.
+
+### 4) Déployer ou mettre à jour le Worker
+Le code **source de référence** est `cloudflare-worker/src/index.js`.
+
+**Mise à jour manuelle (si nécessaire via le Dashboard)**
+1. Ouvrir Cloudflare Dashboard → **Workers & Pages** → `suivi-natation-api`.
+2. Cliquer sur **Edit code**.
+3. Remplacer le contenu par **le code de `cloudflare-worker/src/index.js`** (depuis ce repo).
+4. Sauvegarder / déployer.
+
+Cette manipulation est nécessaire si un déploiement automatisé n’est pas en place ou si le Worker actif ne correspond pas à la version du repo.
+
+## Dépannage rapide (symptômes courants)
+- **“Load failed” / erreurs CORS en POST**
+  - Vérifier que le Worker renvoie bien `OK` en POST.
+  - Vérifier que le code du Worker déployé est à jour (sinon risque d’erreurs D1).
+- **Erreur “no such table: sessions”**
+  - Le Worker déployé n’est pas à jour ou la base D1 n’est pas migrée.
+  - Solution : mettre à jour le Worker + migrer D1 si besoin.
+- **Progression > Mes séances enregistrées vide**
+  - Vérifier l’endpoint utilisé par le front.
+  - Vérifier que le GET `action=get` renvoie bien `sessions`.
+
+## Schéma D1 (état réel) — Tables & champs
+La section ci-dessous est basée sur la sortie SQL fournie (`sqlite_master.sql`) et reflète **exactement** les tables et champs existants dans la base D1 à ce jour.
+
+### DIM_exercices
+**Intérêt** : référentiel des exercices de musculation (nom, description, paramètres par cycle).
+Champs :
+`id`, `numero_exercice`, `nom_exercice`, `description`, `illustration_gif`, `exercise_type`,
+`Nb_series_endurance`, `Nb_reps_endurance`, `Pourcentage_charge_1RM_endurance`, `recup_series_endurance`,
+`recup_exercices_endurance`, `Nb_series_hypertrophie`, `Nb_reps_hypertrophie`,
+`Pourcentage_charge_1RM_hypertrophie`, `recup_series_hypertrophie`, `recup_exercices_hypertrophie`,
+`Nb_series_force`, `Nb_reps_force`, `Pourcentage_charge_1RM_force`, `recup_series_force`,
+`recup_exercices_force`.
+
+### DIM_sessions
+**Intérêt** : historique des séances de natation saisies par les nageurs (charge, ressenti, commentaires).
+Champs :
+`id`, `athlete_id`, `athleteName`, `timestamp_reception`, `sessionDate`, `timeSlot`, `distance`, `duration`,
+`rpe`, `performance`, `engagement`, `fatigue`, `training_load`, `comments`, `userAgent`, `raw_payload`,
+`created_at`, `updated_at`.
+
+### _cf_KV
+**Intérêt** : table interne Cloudflare KV (système).
+Champs :
+`key`, `value`.
+
+### dim_seance
+**Intérêt** : catalogue des séances coach (nom + description).
+Champs :
+`id`, `numero_seance`, `nom_seance`, `description`.
+
+### dim_seance_deroule
+**Intérêt** : séquençage des séances coach (ordre des exercices).
+Champs :
+`id`, `numero_seance`, `ordre`, `numero_exercice`.
+
+### group_members
+**Intérêt** : association entre utilisateurs et groupes.
+Champs :
+`id`, `group_id`, `user_id`, `role_in_group`, `joined_at`.
+
+### groups
+**Intérêt** : groupes d’entraînement.
+Champs :
+`id`, `name`, `description`.
+
+### notification_targets
+**Intérêt** : cible des notifications (utilisateur ou groupe).
+Champs :
+`id`, `notification_id`, `target_user_id`, `target_group_id`, `read_at`.
+
+### notifications
+**Intérêt** : notifications envoyées par un coach (messages, assignments).
+Champs :
+`id`, `title`, `body`, `type`, `created_by`, `created_at`, `expires_at`, `metadata`.
+
+### one_rm_records
+**Intérêt** : records de 1RM par exercice.
+Champs :
+`id`, `athlete_id`, `exercise_id`, `one_rm`, `source_run_id`, `recorded_at`.
+
+### session_assignments
+**Intérêt** : assignation de séances (natation ou musculation) à un nageur ou un groupe.
+Champs :
+`id`, `assignment_type`, `swim_catalog_id`, `strength_session_id`, `target_user_id`, `target_group_id`,
+`assigned_by`, `scheduled_date`, `due_at`, `status`, `created_at`, `updated_at`.
+
+### strength_session_items
+**Intérêt** : items/exercices d’une séance de musculation (ordre, paramètres, bloc).
+Champs :
+`id`, `session_id`, `ordre`, `exercise_id`, `block`, `cycle_type`, `sets`, `reps`, `pct_1rm`,
+`rest_series_s`, `rest_exercise_s`, `notes`, `raw_payload`.
+
+### strength_session_runs
+**Intérêt** : exécutions réelles des séances de musculation.
+Champs :
+`id`, `assignment_id`, `athlete_id`, `status`, `progress_pct`, `started_at`, `completed_at`, `raw_payload`.
+
+### strength_sessions
+**Intérêt** : séances de musculation définies par un coach.
+Champs :
+`id`, `name`, `description`, `created_by`, `created_at`, `updated_at`.
+
+### strength_set_logs
+**Intérêt** : logs de séries effectuées lors d’une séance de musculation.
+Champs :
+`id`, `run_id`, `exercise_id`, `set_index`, `reps`, `weight`, `pct_1rm_suggested`, `rest_seconds`,
+`rpe`, `notes`, `completed_at`, `raw_payload`.
+
+### swim_records
+**Intérêt** : records de natation par nageur.
+Champs :
+`id`, `athlete_id`, `event_name`, `pool_length`, `time_seconds`, `record_date`, `notes`.
+
+### swim_session_items
+**Intérêt** : items/exercices composant une séance de natation.
+Champs :
+`id`, `catalog_id`, `ordre`, `label`, `distance`, `duration`, `intensity`, `notes`, `raw_payload`.
+
+### swim_sessions_catalog
+**Intérêt** : catalogue des séances de natation.
+Champs :
+`id`, `name`, `description`, `created_by`, `created_at`, `updated_at`.
+
+### user_profiles
+**Intérêt** : profil détaillé d’un utilisateur (objectifs, bio, avatar).
+Champs :
+`user_id`, `group_label`, `objectives`, `bio`, `avatar_url`, `updated_at`.
+
+### users
+**Intérêt** : comptes utilisateurs (nageurs et coachs).
+Champs :
+`id`, `first_name`, `last_name`, `display_name`, `role`, `email`, `password_hash`, `birthdate`,
+`created_at`, `updated_at`, `is_active`.
+
+## Démarrage local (optionnel)
+```bash
+python -m http.server 8000
+```
+Ouvrir ensuite http://localhost:8000

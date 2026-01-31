@@ -1,0 +1,26 @@
+import type { ReactNode } from "react";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+type CoachSectionHeaderProps = {
+  title: string;
+  description?: string;
+  onBack: () => void;
+  actions?: ReactNode;
+};
+
+const CoachSectionHeader = ({ title, description, onBack, actions }: CoachSectionHeaderProps) => (
+  <div className="flex flex-wrap items-start justify-between gap-4">
+    <div className="space-y-1">
+      <Button variant="ghost" size="sm" className="-ml-2" onClick={onBack}>
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        Retour à l'accueil
+      </Button>
+      <h2 className="text-2xl font-display font-semibold uppercase italic text-primary">{title}</h2>
+      {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+    </div>
+    {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
+  </div>
+);
+
+export default CoachSectionHeader;

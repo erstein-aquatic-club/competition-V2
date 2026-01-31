@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="refresh"
+      content="0; url=/competition/#/"
+    />
+    <script>
+      (function () {
+        var base = "/competition/";
+        var path = window.location.pathname;
+        if (path.startsWith(base)) {
+          path = path.slice(base.length);
+        } else if (path.startsWith("/")) {
+          path = path.slice(1);
+        }
+        var redirect = base + "#/" + path + window.location.search;
+        window.location.replace(redirect);
+      })();
+    </script>
+    <title>Redirecting...</title>
+  </head>
+  <body></body>
+</html>
