@@ -65,6 +65,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Deploy Cloudflare Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: cloudflare-worker
+
       - name: Upload Cloudflare Worker secrets
         working-directory: cloudflare-worker
         run: |
@@ -74,12 +80,6 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           AUTH_SECRET_VALUE: ${{ secrets.CF_AUTH_SECRET }}
           SHARED_TOKEN_VALUE: ${{ secrets.CF_SHARED_TOKEN }}
-
-      - name: Deploy Cloudflare Worker
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          workingDirectory: cloudflare-worker
 
   deploy:
     environment:
