@@ -16,6 +16,7 @@ export async function setupVite(server: Server, app: Express) {
 
   const vite = await createViteServer({
     configFile: path.resolve(import.meta.dirname, "..", "vite.config.ts"),
+    root: path.resolve(import.meta.dirname, "..", "client"),
     customLogger: {
       ...viteLogger,
       error: (msg, options) => {
@@ -36,15 +37,14 @@ export async function setupVite(server: Server, app: Express) {
       const clientTemplate = path.resolve(
         import.meta.dirname,
         "..",
-        "client",
         "index.html",
       );
 
       // always reload the index.html file from disk incase it changes
       let template = await fs.promises.readFile(clientTemplate, "utf-8");
       template = template.replace(
-        `src="/src/main.tsx"`,
-        `src="/src/main.tsx?v=${nanoid()}"`,
+        `src="/client/src/main.tsx"`,
+        `src="/client/src/main.tsx?v=${nanoid()}"`,
       );
       const page = await vite.transformIndexHtml(url, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
