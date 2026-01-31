@@ -1,14 +1,13 @@
-
 import { create } from "zustand";
-import { syncConfig } from "./config";
+import { supabase } from "./supabase";
+import type { Session, User as SupabaseUser } from "@supabase/supabase-js";
 
-const ACCESS_TOKEN_KEY = "swim_access_token";
-const REFRESH_TOKEN_KEY = "swim_refresh_token";
-const USER_KEY = "swimmer_user";
-const USER_ID_KEY = "swimmer_user_id";
-const USER_ROLE_KEY = "swimmer_user_role";
 const COACH_SELECTED_ATHLETE_ID_KEY = "coach_selected_athlete_id";
 const COACH_SELECTED_ATHLETE_NAME_KEY = "coach_selected_athlete_name";
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 const readStorageValue = (key: string) => {
   if (typeof window === "undefined") return null;
@@ -18,30 +17,6 @@ const readStorageValue = (key: string) => {
     console.warn(`[auth] Unable to read ${key} from storage`, error);
     return null;
   }
-};
-
-const readStoredUserId = () => {
-  const raw = readStorageValue(USER_ID_KEY);
-  if (!raw) return null;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
-const readStoredUserRole = () => {
-  const raw = readStorageValue(USER_ROLE_KEY);
-  return raw || null;
-};
-
-const readStoredSelectedAthleteId = () => {
-  const raw = readStorageValue(COACH_SELECTED_ATHLETE_ID_KEY);
-  if (!raw) return null;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
-const readStoredSelectedAthleteName = () => {
-  const raw = readStorageValue(COACH_SELECTED_ATHLETE_NAME_KEY);
-  return raw || null;
 };
 
 const setStorageValue = (key: string, value: string | null) => {
@@ -57,88 +32,64 @@ const setStorageValue = (key: string, value: string | null) => {
   }
 };
 
-const clearStoredSession = () => {
-  if (typeof window === "undefined") return;
-  window.localStorage.removeItem(USER_KEY);
-  window.localStorage.removeItem(USER_ID_KEY);
-  window.localStorage.removeItem(USER_ROLE_KEY);
-  window.localStorage.removeItem(ACCESS_TOKEN_KEY);
-  window.localStorage.removeItem(REFRESH_TOKEN_KEY);
-  window.localStorage.removeItem(COACH_SELECTED_ATHLETE_ID_KEY);
-  window.localStorage.removeItem(COACH_SELECTED_ATHLETE_NAME_KEY);
+const readStoredSelectedAthleteId = () => {
+  const raw = readStorageValue(COACH_SELECTED_ATHLETE_ID_KEY);
+  if (!raw) return null;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : null;
 };
 
-const parseUserName = (user: any, fallback = "") => {
-  const displayName = String(user?.display_name || user?.displayName || "").trim();
-  if (displayName) return displayName;
-  const email = String(user?.email || "").trim();
-  return email || fallback;
+const readStoredSelectedAthleteName = () => {
+  const raw = readStorageValue(COACH_SELECTED_ATHLETE_NAME_KEY);
+  return raw || null;
 };
 
-export const getStoredAccessToken = () => readStorageValue(ACCESS_TOKEN_KEY) ?? "";
-export const getStoredRefreshToken = () => readStorageValue(REFRESH_TOKEN_KEY) ?? "";
+// ---------------------------------------------------------------------------
+// Extract app-level user info from Supabase Auth user
+// The custom users.id and role are stored in user_metadata or app_metadata
+// set during registration or via a database trigger.
+// ---------------------------------------------------------------------------
 
-const safeJsonParse = (text: string) => {
-  if (!text) return {};
-  try {
-    return JSON.parse(text);
-  } catch (error) {
-    console.warn("[auth] Unable to parse auth response", error);
-    return {};
-  }
+const extractAppUserId = (supabaseUser: SupabaseUser | null | undefined): number | null => {
+  if (!supabaseUser) return null;
+  const meta = supabaseUser.app_metadata ?? supabaseUser.user_metadata ?? {};
+  const raw = meta.app_user_id ?? meta.user_id;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : null;
 };
 
-const requestAuthMe = async (token: string) => {
-  if (!syncConfig.endpoint) {
-    return { ok: false, status: 0, error: "Endpoint d'authentification non configuré." };
-  }
-  const url = new URL(syncConfig.endpoint);
-  url.searchParams.set("action", "auth_me");
-  try {
-    const res = await fetch(url.toString(), {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    const text = await res.text();
-    const payload = safeJsonParse(text);
-    if (!res.ok || payload?.ok !== true) {
-      return { ok: false, status: res.status, error: payload?.error || `Erreur ${res.status}` };
-    }
-    return { ok: true, status: res.status, user: payload?.data?.user ?? payload?.user };
-  } catch (error) {
-    console.warn("[auth] Auth request failed", error);
-    return { ok: false, status: 0, error: "Erreur réseau lors de l'authentification." };
-  }
+const extractAppUserRole = (supabaseUser: SupabaseUser | null | undefined): string | null => {
+  if (!supabaseUser) return null;
+  const meta = supabaseUser.app_metadata ?? supabaseUser.user_metadata ?? {};
+  return meta.app_user_role ?? meta.role ?? "athlete";
 };
 
-export const refreshStoredAccessToken = async () => {
-  const refreshToken = getStoredRefreshToken();
-  if (!syncConfig.endpoint || !refreshToken) return null;
-  const url = new URL(syncConfig.endpoint);
-  url.searchParams.set("action", "auth_refresh");
-  try {
-    const res = await fetch(url.toString(), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    });
-    const text = await res.text();
-    const payload = safeJsonParse(text);
-    if (!res.ok || payload?.ok !== true) return null;
-    const accessToken = payload?.data?.access_token;
-    if (!accessToken) return null;
-    setStorageValue(ACCESS_TOKEN_KEY, accessToken);
-    useAuth.getState().updateAccessToken(accessToken);
-    return accessToken;
-  } catch (error) {
-    console.warn("[auth] Token refresh failed", error);
-    return null;
-  }
+const extractDisplayName = (supabaseUser: SupabaseUser | null | undefined): string | null => {
+  if (!supabaseUser) return null;
+  const meta = supabaseUser.user_metadata ?? {};
+  return meta.display_name ?? meta.full_name ?? supabaseUser.email ?? null;
 };
+
+// ---------------------------------------------------------------------------
+// Public helpers (used by api.ts)
+// ---------------------------------------------------------------------------
+
+/** Returns the current Supabase access token, or empty string if none. */
+export const getStoredAccessToken = async (): Promise<string> => {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? "";
+};
+
+/** Refreshes the Supabase session and returns the new access token, or null. */
+export const refreshStoredAccessToken = async (): Promise<string | null> => {
+  const { data, error } = await supabase.auth.refreshSession();
+  if (error || !data.session) return null;
+  return data.session.access_token;
+};
+
+// ---------------------------------------------------------------------------
+// Zustand Auth Store
+// ---------------------------------------------------------------------------
 
 interface AuthState {
   user: string | null;
@@ -148,6 +99,10 @@ interface AuthState {
   selectedAthleteName: string | null;
   accessToken: string | null;
   refreshToken: string | null;
+
+  /** Called after Supabase login/register to populate store from session */
+  loginFromSession: (session: Session) => void;
+  /** Legacy login method (kept for compatibility during migration) */
   login: (payload: {
     user: string;
     accessToken: string;
@@ -155,37 +110,55 @@ interface AuthState {
     userId?: number | null;
     role?: string | null;
   }) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   updateAccessToken: (token: string) => void;
   setSelectedAthlete: (athlete: { id: number | null; name: string | null } | null) => void;
   loadUser: () => Promise<string | null>;
 }
 
 export const useAuth = create<AuthState>((set) => ({
-  user: readStorageValue(USER_KEY),
-  userId: readStoredUserId(),
-  role: readStoredUserRole(),
+  user: null,
+  userId: null,
+  role: null,
   selectedAthleteId: readStoredSelectedAthleteId(),
   selectedAthleteName: readStoredSelectedAthleteName(),
-  accessToken: readStorageValue(ACCESS_TOKEN_KEY),
-  refreshToken: readStorageValue(REFRESH_TOKEN_KEY),
+  accessToken: null,
+  refreshToken: null,
+
+  loginFromSession: (session: Session) => {
+    const supabaseUser = session.user;
+    const displayName = extractDisplayName(supabaseUser);
+    const userId = extractAppUserId(supabaseUser);
+    const role = extractAppUserRole(supabaseUser);
+    set({
+      user: displayName,
+      userId,
+      role,
+      accessToken: session.access_token,
+      refreshToken: session.refresh_token,
+    });
+  },
 
   login: ({ user, accessToken, refreshToken, userId, role }) => {
-    setStorageValue(USER_KEY, user);
-    setStorageValue(ACCESS_TOKEN_KEY, accessToken);
-    setStorageValue(REFRESH_TOKEN_KEY, refreshToken);
-    setStorageValue(USER_ID_KEY, userId !== null && userId !== undefined ? String(userId) : null);
-    setStorageValue(USER_ROLE_KEY, role ?? null);
     set({ user, accessToken, refreshToken, userId: userId ?? null, role: role ?? null });
   },
 
-  logout: () => {
-    clearStoredSession();
-    set({ user: null, userId: null, role: null, accessToken: null, refreshToken: null });
+  logout: async () => {
+    await supabase.auth.signOut();
+    setStorageValue(COACH_SELECTED_ATHLETE_ID_KEY, null);
+    setStorageValue(COACH_SELECTED_ATHLETE_NAME_KEY, null);
+    set({
+      user: null,
+      userId: null,
+      role: null,
+      accessToken: null,
+      refreshToken: null,
+      selectedAthleteId: null,
+      selectedAthleteName: null,
+    });
   },
 
   updateAccessToken: (token: string) => {
-    setStorageValue(ACCESS_TOKEN_KEY, token);
     set({ accessToken: token });
   },
 
@@ -205,28 +178,46 @@ export const useAuth = create<AuthState>((set) => ({
   },
 
   loadUser: async () => {
-    const accessToken = getStoredAccessToken();
-    if (!syncConfig.endpoint || !accessToken) return null;
-    let result = await requestAuthMe(accessToken);
-    if (!result.ok && result.status === 401) {
-      const refreshed = await refreshStoredAccessToken();
-      if (refreshed) {
-        result = await requestAuthMe(refreshed);
-      }
-    }
-    if (!result.ok) {
-      clearStoredSession();
+    const { data, error } = await supabase.auth.getSession();
+    if (error || !data.session) {
       set({ user: null, userId: null, role: null, accessToken: null, refreshToken: null });
       return null;
     }
-    const name = parseUserName(result.user, readStorageValue(USER_KEY) ?? "");
-    const rawUserId = Number(result.user?.id);
-    const userId = Number.isFinite(rawUserId) ? rawUserId : null;
-    const role = result.user?.role ? String(result.user.role) : null;
-    setStorageValue(USER_KEY, name);
-    setStorageValue(USER_ID_KEY, userId !== null ? String(userId) : null);
-    setStorageValue(USER_ROLE_KEY, role);
-    set({ user: name, userId, role });
-    return name;
+    const session = data.session;
+    const supabaseUser = session.user;
+    const displayName = extractDisplayName(supabaseUser);
+    const userId = extractAppUserId(supabaseUser);
+    const role = extractAppUserRole(supabaseUser);
+
+    set({
+      user: displayName,
+      userId,
+      role,
+      accessToken: session.access_token,
+      refreshToken: session.refresh_token,
+    });
+
+    return displayName;
   },
 }));
+
+// ---------------------------------------------------------------------------
+// Listen to Supabase auth state changes (token refresh, sign-out from
+// another tab, etc.) and keep the Zustand store in sync.
+// ---------------------------------------------------------------------------
+
+supabase.auth.onAuthStateChange((_event, session) => {
+  const state = useAuth.getState();
+  if (session) {
+    state.loginFromSession(session);
+  } else {
+    // Signed out
+    useAuth.setState({
+      user: null,
+      userId: null,
+      role: null,
+      accessToken: null,
+      refreshToken: null,
+    });
+  }
+});
