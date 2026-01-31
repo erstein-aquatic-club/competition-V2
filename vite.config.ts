@@ -6,7 +6,7 @@ import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { metaImagesPlugin } from "./vite-plugin-meta-images";
 
 export default defineConfig({
-  base: "/competition/",
+  base: "/competition-V2/",
   envDir: path.resolve(import.meta.dirname),
   define: {
     "import.meta.env.VITE_SWIM_SYNC_ENDPOINT": JSON.stringify(
