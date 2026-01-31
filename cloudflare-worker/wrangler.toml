@@ -1,6 +1,7 @@
 name = "suivi-natation-api"
 main = "src/index.js"
 compatibility_date = "2024-12-01"
+account_id = "f4660c9f0797192711ab2a80ddf6d07c"
 
 # Secrets are set via GitHub Actions or `wrangler secret put`.
 # Required secrets: AUTH_SECRET, SHARED_TOKEN
