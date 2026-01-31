@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Dumbbell, Calendar, Search, SlidersHorizontal, Info } from "lucide-react";
+import { ChevronLeft, ChevronRight, Dumbbell, Calendar, Search, SlidersHorizontal, Info, X, Play } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -748,198 +748,213 @@ export default function Strength() {
                <TabsTrigger value="history">Historique</TabsTrigger>
            </TabsList>
            
-           <TabsContent value="start" className="space-y-4 pt-4 md:space-y-6">
-               {screenMode === "list" && (
-                   <div className="space-y-4 md:space-y-6 animate-in fade-in">
-                       <div className="flex items-center justify-between">
-                           <div>
-                               <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Séances</p>
-                               <h2 className="text-2xl font-display font-bold uppercase text-primary">Musculation</h2>
-                           </div>
-                           <Button
-                             variant="ghost"
-                             size="icon"
-                             onClick={() => setScreenMode("settings")}
-                             className="rounded-full border border-muted/50 text-muted-foreground"
-                             aria-label="Ouvrir les réglages"
-                           >
-                               <SlidersHorizontal className="h-4 w-4" />
-                           </Button>
-                       </div>
+            <TabsContent value="start" className="space-y-5 pt-4">
+                {screenMode === "list" && (
+                    <div className="space-y-5 animate-in fade-in">
+                        {/* Hero header - minimalist */}
+                        <div className="text-center py-2">
+                            <h2 className="text-2xl font-bold tracking-tight">Musculation</h2>
+                            <p className="text-sm text-muted-foreground mt-1">
+                                {filteredDisplaySessions.length} séance{filteredDisplaySessions.length > 1 ? "s" : ""} disponible{filteredDisplaySessions.length > 1 ? "s" : ""}
+                            </p>
+                        </div>
 
-                       <Card className="border border-muted/60 shadow-sm">
-                           <CardContent className="grid gap-4 pt-6 md:grid-cols-[1fr_220px]">
-                               <div className="space-y-2">
-                                   <Label htmlFor="strength-search">Recherche</Label>
-                                   <div className="relative">
-                                       <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                       <Input
-                                         id="strength-search"
-                                         placeholder="Chercher une séance ou un objectif"
-                                         className="h-11 rounded-full bg-muted/30 pl-11"
-                                         value={searchQuery}
-                                         onChange={(event) => setSearchQuery(event.target.value)}
-                                       />
-                                   </div>
-                               </div>
-                               <div className="space-y-2">
-                                   <Label htmlFor="strength-cycle-select">Cycle</Label>
-                                   <Select
-                                       value={cycleType}
-                                       onValueChange={(value) => setCycleType(normalizeStrengthCycle(value))}
-                                   >
-                                       <SelectTrigger id="strength-cycle-select" className="h-11 rounded-full bg-muted/30">
-                                           <SelectValue placeholder="Sélectionner un cycle" />
-                                       </SelectTrigger>
-                                       <SelectContent>
-                                           {cycleOptions.map((option) => (
-                                               <SelectItem key={option.value} value={option.value}>
-                                                   {option.label}
-                                               </SelectItem>
-                                           ))}
-                                       </SelectContent>
-                                   </Select>
-                               </div>
-                           </CardContent>
-                       </Card>
+                        {/* Cycle selector - pill buttons */}
+                        <div className="flex justify-center gap-2">
+                            {cycleOptions.map((option) => (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() => setCycleType(normalizeStrengthCycle(option.value))}
+                                    className={cn(
+                                        "px-5 py-2.5 rounded-full text-sm font-semibold transition-all active:scale-95",
+                                        cycleType === option.value
+                                            ? "bg-primary text-primary-foreground shadow-md"
+                                            : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                                    )}
+                                >
+                                    {option.label}
+                                </button>
+                            ))}
+                        </div>
 
-                       {inProgressRun && (
-                           <Card className="border-l-4 border-l-amber-500 bg-amber-50/40">
-                               <CardHeader>
-                                   <div className="flex items-center justify-between">
-                                       <div>
-                                           <Badge variant={inProgressRunCompleted ? "default" : "secondary"} className="mb-2">
-                                             {inProgressRunCompleted ? "Séance complétée" : "Séance en cours"}
-                                           </Badge>
-                                           <CardTitle className="text-xl uppercase">
-                                             {inProgressAssignment?.title ?? "Séance en cours"}
-                                           </CardTitle>
-                                           <CardDescription>
-                                               Démarrée le {format(new Date(inProgressRun.started_at || new Date()), "dd/MM")}
-                                           </CardDescription>
-                                       </div>
-                                       <div className="text-right text-sm font-mono font-bold text-muted-foreground">
-                                           {Math.round(inProgressRun.progress_pct ?? 0)}%
-                                       </div>
-                                   </div>
-                               </CardHeader>
-                               <CardFooter>
-                                   <div className="flex w-full flex-col gap-2 sm:flex-row">
-                                     <Button
-                                       className="w-full"
-                                       disabled={!canResumeInProgress}
-                                       onClick={() => {
-                                         if (!inProgressAssignment) return;
-                                         const sessionItems = inProgressAssignment.items ?? [];
-                                         const cycle = normalizeStrengthCycle(
-                                             inProgressAssignment.cycle ??
-                                             sessionItems.find((item: any) => item.cycle_type)?.cycle_type,
-                                         );
-                                        const filteredItems = sessionItems.filter((item: any) => item.cycle_type === cycle);
-                                        const items = orderStrengthItems(filteredItems.length ? filteredItems : sessionItems);
-                                         setActiveAssignment(inProgressAssignment);
-                                         setActiveSession({
-                                             ...inProgressAssignment,
-                                             title: inProgressAssignment.title,
-                                             description: inProgressAssignment.description,
-                                             cycle,
-                                             items,
-                                         });
-                                         setActiveRunId(inProgressRun.id);
-                                         setActiveRunLogs(inProgressRun.logs ?? []);
-                                         setActiveRunnerStep(
-                                             resolveNextStep(items, inProgressRun.logs ?? [], inProgressRun.progress_pct),
-                                         );
-                                         setScreenMode("focus");
-                                       }}
-                                     >
-                                       {inProgressRunCompleted ? "Séance complétée" : "Reprendre la séance"}
-                                     </Button>
-                                     <Button
-                                       variant="destructive"
-                                       className="w-full"
-                                       disabled={inProgressRunCompleted || deleteStrengthRun.isPending}
-                                       onClick={() => {
-                                         if (!inProgressRun) return;
-                                         const confirmed = window.confirm(
-                                           "Supprimer la séance en cours ? Cette action efface la progression.",
-                                         );
-                                         if (!confirmed) return;
-                                         deleteStrengthRun.mutate(inProgressRun.id);
-                                       }}
-                                     >
-                                       Supprimer la séance
-                                     </Button>
-                                   </div>
-                               </CardFooter>
-                           </Card>
-                       )}
+                        {/* Search - minimal floating style */}
+                        <div className="relative">
+                            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                            <Input
+                                placeholder="Rechercher une séance..."
+                                className="h-12 rounded-2xl bg-muted/30 pl-11 pr-4 border-0 shadow-sm focus-visible:ring-2"
+                                value={searchQuery}
+                                onChange={(event) => setSearchQuery(event.target.value)}
+                            />
+                        </div>
 
-                       <div className="flex items-center justify-between">
-                           <h3 className="text-sm font-semibold uppercase tracking-[0.25em] text-muted-foreground flex items-center gap-2">
-                               <Calendar className="h-4 w-4 text-primary" /> Parcours des séances
-                           </h3>
-                           <Badge variant="outline">{filteredDisplaySessions.length} séances</Badge>
-                       </div>
+                        {/* In-progress session - prominent card */}
+                        {inProgressRun && (
+                            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-2 border-primary/30 p-5">
+                                <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-full blur-2xl -mr-8 -mt-8" />
+                                <div className="relative">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <span className="relative flex h-3 w-3">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                                        </span>
+                                        <span className="text-xs font-bold uppercase tracking-wider text-primary">
+                                            {inProgressRunCompleted ? "Complétée" : "En cours"}
+                                        </span>
+                                    </div>
+                                    <h3 className="text-xl font-bold tracking-tight mb-1">
+                                        {inProgressAssignment?.title ?? "Séance en cours"}
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground mb-4">
+                                        Démarrée le {format(new Date(inProgressRun.started_at || new Date()), "dd MMMM")}
+                                    </p>
+                                    
+                                    {/* Progress bar */}
+                                    <div className="mb-4">
+                                        <div className="flex justify-between text-xs font-semibold mb-1.5">
+                                            <span className="text-muted-foreground">Progression</span>
+                                            <span className="text-primary">{Math.round(inProgressRun.progress_pct ?? 0)}%</span>
+                                        </div>
+                                        <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                            <div 
+                                                className="h-full rounded-full bg-primary transition-all duration-500"
+                                                style={{ width: `${inProgressRun.progress_pct ?? 0}%` }}
+                                            />
+                                        </div>
+                                    </div>
 
-                       {filteredDisplaySessions.length > 0 ? (
-                           <div className="grid gap-3 md:grid-cols-2">
-                               {filteredDisplaySessions.map((session) => {
-                                   const cycleLabel = cycleOptions.find((option) => option.value === cycleType)?.label ?? "Cycle";
-                                   return (
-                                       <Card
-                                         key={session.key}
-                                         className="border border-muted/60 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                                         onClick={() => {
-                                           if (session.type === "assignment") {
-                                             startAssignment(session.assignment);
-                                             return;
-                                           }
-                                           startCatalogSession(session.session);
-                                         }}
-                                       >
-                                           <CardHeader className="pb-3">
-                                               <div className="flex items-start justify-between gap-4">
-                                                   <div className="space-y-2">
-                                                       <div className="flex flex-wrap gap-2">
-                                                           <Badge variant={session.type === "assignment" ? "default" : "secondary"}>
-                                                               {session.type === "assignment" ? "Assignée" : "Catalogue"}
-                                                           </Badge>
-                                                           {session.type === "assignment" && session.assignedDate ? (
-                                                               <Badge variant="outline">
-                                                                   Prévu le {format(new Date(session.assignedDate), "dd/MM")}
-                                                               </Badge>
-                                                           ) : null}
-                                                       </div>
-                                                       <CardTitle className="text-lg uppercase">{session.title}</CardTitle>
-                                                   </div>
-                                                   <div className="flex h-9 w-9 items-center justify-center rounded-full border border-muted/60 text-muted-foreground">
-                                                       <ChevronRight className="h-4 w-4" />
-                                                   </div>
-                                               </div>
-                                               {session.description && (
-                                                   <CardDescription className="line-clamp-2">
-                                                       {session.description}
-                                                   </CardDescription>
-                                               )}
-                                           </CardHeader>
-                                           <CardContent className="flex flex-wrap gap-2 text-xs font-semibold uppercase text-muted-foreground">
-                                               <Badge variant="secondary" className="uppercase">
-                                                   {session.exerciseCount} exercices
-                                               </Badge>
-                                               <Badge variant="outline">{cycleLabel}</Badge>
-                                           </CardContent>
-                                       </Card>
-                                   );
-                               })}
-                           </div>
-                       ) : (
-                           <div className="p-8 border-2 border-dashed rounded-lg text-center text-muted-foreground">
-                               <Dumbbell className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                               <p>Aucune séance à afficher.</p>
-                               <p className="text-sm mt-2">Essayez un autre mot-clé ou changez de cycle.</p>
-                           </div>
-                       )}
+                                    <div className="flex gap-2">
+                                        <Button
+                                            className="flex-1 h-12 rounded-xl font-semibold"
+                                            disabled={!canResumeInProgress}
+                                            onClick={() => {
+                                                if (!inProgressAssignment) return;
+                                                const sessionItems = inProgressAssignment.items ?? [];
+                                                const cycle = normalizeStrengthCycle(
+                                                    inProgressAssignment.cycle ??
+                                                    sessionItems.find((item: any) => item.cycle_type)?.cycle_type,
+                                                );
+                                                const filteredItems = sessionItems.filter((item: any) => item.cycle_type === cycle);
+                                                const items = orderStrengthItems(filteredItems.length ? filteredItems : sessionItems);
+                                                setActiveAssignment(inProgressAssignment);
+                                                setActiveSession({
+                                                    ...inProgressAssignment,
+                                                    title: inProgressAssignment.title,
+                                                    description: inProgressAssignment.description,
+                                                    cycle,
+                                                    items,
+                                                });
+                                                setActiveRunId(inProgressRun.id);
+                                                setActiveRunLogs(inProgressRun.logs ?? []);
+                                                setActiveRunnerStep(
+                                                    resolveNextStep(items, inProgressRun.logs ?? [], inProgressRun.progress_pct),
+                                                );
+                                                setScreenMode("focus");
+                                            }}
+                                        >
+                                            {inProgressRunCompleted ? "Voir le résumé" : "Reprendre"}
+                                        </Button>
+                                        {!inProgressRunCompleted && (
+                                            <Button
+                                                variant="outline"
+                                                className="h-12 w-12 rounded-xl p-0"
+                                                disabled={deleteStrengthRun.isPending}
+                                                onClick={() => {
+                                                    if (!inProgressRun) return;
+                                                    const confirmed = window.confirm("Supprimer la séance en cours ?");
+                                                    if (!confirmed) return;
+                                                    deleteStrengthRun.mutate(inProgressRun.id);
+                                                }}
+                                                aria-label="Supprimer la séance"
+                                            >
+                                                <X className="h-5 w-5" />
+                                            </Button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Section header */}
+                        {!inProgressRun && filteredDisplaySessions.length > 0 && (
+                            <div className="flex items-center gap-2 pt-2">
+                                <Dumbbell className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                    Choisir une séance
+                                </span>
+                            </div>
+                        )}
+
+                        {/* Sessions list - modern cards */}
+                        {filteredDisplaySessions.length > 0 ? (
+                            <div className="space-y-3">
+                                {filteredDisplaySessions.map((session) => (
+                                    <button
+                                        key={session.key}
+                                        type="button"
+                                        className="group w-full rounded-2xl border bg-card p-4 text-left shadow-sm transition-all active:scale-[0.98] hover:shadow-md hover:border-primary/30"
+                                        onClick={() => {
+                                            if (session.type === "assignment") {
+                                                startAssignment(session.assignment);
+                                                return;
+                                            }
+                                            startCatalogSession(session.session);
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            {/* Icon */}
+                                            <div className={cn(
+                                                "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl",
+                                                session.type === "assignment" 
+                                                    ? "bg-primary/10 text-primary" 
+                                                    : "bg-muted text-muted-foreground"
+                                            )}>
+                                                <Dumbbell className="h-5 w-5" />
+                                            </div>
+                                            
+                                            {/* Content */}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-0.5">
+                                                    {session.type === "assignment" && (
+                                                        <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
+                                                            Assignée
+                                                        </span>
+                                                    )}
+                                                    {session.type === "assignment" && session.assignedDate && (
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {format(new Date(session.assignedDate), "dd MMM")}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <h3 className="font-semibold tracking-tight truncate">
+                                                    {session.title}
+                                                </h3>
+                                                <p className="text-sm text-muted-foreground truncate">
+                                                    {session.exerciseCount} exercice{session.exerciseCount > 1 ? "s" : ""}
+                                                    {session.description ? ` · ${session.description}` : ""}
+                                                </p>
+                                            </div>
+                                            
+                                            {/* Arrow */}
+                                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted/50 text-muted-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                                                <Play className="h-4 w-4 ml-0.5" />
+                                            </div>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="py-12 text-center">
+                                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                                    <Dumbbell className="h-7 w-7 text-muted-foreground" />
+                                </div>
+                                <h3 className="font-semibold">Aucune séance</h3>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                    Essayez un autre mot-clé ou changez de cycle.
+                                </p>
+                            </div>
+                        )}
                    </div>
                )}
 
