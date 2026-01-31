@@ -27,14 +27,25 @@ const readEnvValue = (key: string) => {
       ? undefined
       : (import.meta as ImportMeta).env;
   if (!metaEnv) return "";
-  if (key === "VITE_SWIM_SYNC_ENDPOINT") {
-    return trimValue(metaEnv?.VITE_SWIM_SYNC_ENDPOINT);
-  }
-  if (key === "VITE_SWIM_SYNC_TOKEN") {
-    return trimValue(metaEnv?.VITE_SWIM_SYNC_TOKEN);
-  }
   return trimValue(metaEnv?.[key as keyof ImportMetaEnv] as string | undefined);
 };
+
+// ---------------------------------------------------------------------------
+// Supabase configuration (primary)
+// ---------------------------------------------------------------------------
+
+const supabaseUrl = readEnvValue("VITE_SUPABASE_URL");
+const supabaseAnonKey = readEnvValue("VITE_SUPABASE_ANON_KEY");
+
+export const supabaseConfig = {
+  url: supabaseUrl,
+  anonKey: supabaseAnonKey,
+  hasSupabase: Boolean(supabaseUrl && supabaseAnonKey),
+};
+
+// ---------------------------------------------------------------------------
+// Legacy Cloudflare sync configuration (kept for gradual migration)
+// ---------------------------------------------------------------------------
 
 const allowSameOriginApi =
   readQueryValue("allowSameOriginApi") === "1" ||
@@ -63,4 +74,9 @@ export const syncConfig = {
   hasCloudflareSync: Boolean(endpoint),
 };
 
-console.info("[syncConfig] hasCloudflareSync:", syncConfig.hasCloudflareSync);
+console.info(
+  "[config] supabase:",
+  supabaseConfig.hasSupabase,
+  "| cloudflare:",
+  syncConfig.hasCloudflareSync,
+);

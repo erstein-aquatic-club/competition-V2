@@ -362,7 +362,7 @@ const fetchJson = async (url: string, options: RequestInit) => {
       headers: buildHeaders(token),
     });
 
-  let res = await doFetch(getStoredAccessToken());
+  let res = await doFetch(await getStoredAccessToken());
   if (res.status === 401) {
     const refreshed = await refreshStoredAccessToken();
     if (refreshed) {

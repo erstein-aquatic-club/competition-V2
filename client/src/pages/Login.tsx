@@ -2,12 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
-import {
-  AUTH_ENDPOINT_MISSING_MESSAGE,
-  AUTH_ENDPOINT_INVALID_MESSAGE,
-  buildAuthUrl,
-} from "@/lib/authRequests";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,11 +15,10 @@ import eacLogo from "@assets/logo-eac.png";
 import {
   getLandingRouteForRole,
   shouldFocusSignup,
-  shouldOpenSignupOnAuthError,
 } from "@/pages/loginHelpers";
 
 export default function Login() {
-  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,7 +30,7 @@ export default function Login() {
   const [registerGroupId, setRegisterGroupId] = useState("");
   const [registerError, setRegisterError] = useState<string | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
-  const { login, loadUser } = useAuth();
+  const { loginFromSession, loadUser } = useAuth();
   const [, setLocation] = useLocation();
   const passwordInputRef = useRef<HTMLInputElement>(null);
   const registerNameInputRef = useRef<HTMLInputElement>(null);
@@ -58,27 +53,19 @@ export default function Login() {
     }
   }, [showRegister]);
 
-  const formatAuthError = (message: string, code?: string) => {
-    if (code === "config_error" || message.includes("AUTH_SECRET")) {
-      return "AUTH_SECRET manquant côté Worker. Ajoutez une variable d'environnement AUTH_SECRET puis redéployez le Worker.";
+  const formatAuthError = (message: string) => {
+    if (message.includes("Invalid login")) {
+      return "Identifiant ou mot de passe incorrect.";
+    }
+    if (message.includes("Email not confirmed")) {
+      return "Veuillez confirmer votre email avant de vous connecter.";
     }
     return message;
   };
 
-  const resolveAuthUrl = (action: string, onError: (message: string) => void = setError) => {
-    try {
-      return buildAuthUrl(action);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : AUTH_ENDPOINT_MISSING_MESSAGE;
-      const safeMessage = message === AUTH_ENDPOINT_INVALID_MESSAGE ? message : AUTH_ENDPOINT_MISSING_MESSAGE;
-      onError(safeMessage);
-      return null;
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const identifier = name.trim();
+    const identifier = email.trim();
     if (!identifier) return;
     if (!password.trim()) {
       setError("Mot de passe requis.");
@@ -88,45 +75,24 @@ export default function Login() {
     setIsSubmitting(true);
     setError(null);
     try {
-      const url = resolveAuthUrl("auth_login");
-      if (!url) {
-        throw new Error(AUTH_ENDPOINT_MISSING_MESSAGE);
-      }
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          identifier,
-          password,
-        }),
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: identifier,
+        password,
       });
-      const payload = await res.json();
-      if (!res.ok || payload?.ok !== true) {
-        const error = payload?.error || `Erreur ${res.status}`;
-        const code = payload?.code || payload?.data?.code;
-        const formatted = formatAuthError(error, code);
-        if (shouldOpenSignupOnAuthError(code)) {
-          setShowRegister(true);
-          setRegisterName(identifier);
-          setRegisterEmail(identifier.includes("@") ? identifier : "");
-        }
-        throw new Error(formatted);
+      if (authError) {
+        throw new Error(formatAuthError(authError.message));
       }
-      const { user, access_token: accessToken, refresh_token: refreshToken } = payload.data || {};
-      if (!accessToken || !refreshToken) {
-        throw new Error("Tokens manquants dans la réponse.");
+      if (!data.session) {
+        throw new Error("Session non reçue.");
       }
-      const displayName = user?.display_name || identifier;
-      const rawUserId = Number(user?.id);
-      const userId = Number.isFinite(rawUserId) ? rawUserId : null;
-      login({ user: displayName, accessToken, refreshToken, userId, role: user?.role ?? null });
+      loginFromSession(data.session);
       const hydrated = await loadUser();
       if (!hydrated) {
         throw new Error("Impossible de récupérer le profil utilisateur.");
       }
-      const role = user?.role ? String(user.role) : null;
+      const role = data.session.user?.app_metadata?.app_user_role
+        ?? data.session.user?.user_metadata?.role
+        ?? null;
       setLocation(getLandingRouteForRole(role), { replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Connexion impossible.";
@@ -140,7 +106,7 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-background relative overflow-hidden">
       {/* Background Elements */}
       <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-      
+
       <Card className="w-full max-w-sm relative z-10 shadow-2xl border-t-8 border-t-primary animate-in fade-in zoom-in duration-500">
         <CardHeader className="text-center pb-2">
           <div className="mx-auto mb-6 h-24 w-24 rounded-full bg-black flex items-center justify-center border-4 border-primary shadow-lg">
@@ -153,10 +119,11 @@ export default function Login() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Input
-                placeholder="Votre Nom (ex: Camille)"
-                value={name}
+                placeholder="Email"
+                type="email"
+                value={email}
                 onChange={(e) => {
-                  setName(e.target.value);
+                  setEmail(e.target.value);
                   if (showRegister) {
                     setShowRegister(false);
                   }
@@ -165,7 +132,7 @@ export default function Login() {
                 autoFocus
               />
               <p className="text-xs text-muted-foreground text-center">
-                Saisissez votre identifiant et votre mot de passe.
+                Saisissez votre email et votre mot de passe.
               </p>
               <Input
                 placeholder="Mot de passe"
@@ -182,7 +149,7 @@ export default function Login() {
             <Button
               type="submit"
               className="w-full h-12 text-lg font-bold uppercase tracking-wider shadow-md hover:scale-[1.02] transition-transform"
-              disabled={!name.trim() || !password.trim() || isSubmitting}
+              disabled={!email.trim() || !password.trim() || isSubmitting}
             >
               {isSubmitting ? "Connexion..." : "CONNEXION"}
             </Button>
@@ -191,9 +158,8 @@ export default function Login() {
                 type="button"
                 onClick={() => {
                   setShowRegister(true);
-                  const trimmedName = name.trim();
-                  setRegisterName(trimmedName);
-                  setRegisterEmail(trimmedName.includes("@") ? trimmedName : "");
+                  const trimmedEmail = email.trim();
+                  setRegisterEmail(trimmedEmail);
                 }}
                 className="text-xs text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               >
@@ -220,7 +186,7 @@ export default function Login() {
           <DialogHeader>
             <DialogTitle>Créer un compte</DialogTitle>
             <DialogDescription>
-              Ce compte n'existe pas encore. Complétez les informations pour créer votre profil.
+              Complétez les informations pour créer votre profil.
             </DialogDescription>
           </DialogHeader>
           <form
@@ -229,6 +195,10 @@ export default function Login() {
               event.preventDefault();
               if (!registerName.trim()) {
                 setRegisterError("Ajoutez votre nom.");
+                return;
+              }
+              if (!registerEmail.trim()) {
+                setRegisterError("Ajoutez votre email.");
                 return;
               }
               if (!registerGroupId) {
@@ -246,39 +216,35 @@ export default function Login() {
               setRegisterError(null);
               setIsRegistering(true);
               try {
-                const url = resolveAuthUrl("auth_register", setRegisterError);
-                if (!url) {
-                  throw new Error(AUTH_ENDPOINT_MISSING_MESSAGE);
-                }
-                const res = await fetch(url, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    identifier: registerName.trim(),
-                    email: registerEmail.trim() || undefined,
-                    password: registerPassword,
-                    birthdate: registerBirthdate,
-                    group_id: Number(registerGroupId),
-                  }),
+                const { data, error: signUpError } = await supabase.auth.signUp({
+                  email: registerEmail.trim(),
+                  password: registerPassword,
+                  options: {
+                    data: {
+                      display_name: registerName.trim(),
+                      birthdate: registerBirthdate,
+                      group_id: Number(registerGroupId),
+                    },
+                  },
                 });
-                const payload = await res.json();
-                if (!res.ok || payload?.ok !== true) {
-                  const message = payload?.error || `Erreur ${res.status}`;
-                  throw new Error(message);
+                if (signUpError) {
+                  throw new Error(signUpError.message);
                 }
-                const { user, access_token: accessToken, refresh_token: refreshToken } = payload.data || {};
-                if (!accessToken || !refreshToken) {
-                  throw new Error("Tokens manquants dans la réponse.");
+                if (!data.session) {
+                  // Email confirmation may be required
+                  setRegisterError(
+                    "Compte créé. Vérifiez votre email pour confirmer votre inscription.",
+                  );
+                  setIsRegistering(false);
+                  return;
                 }
-                const displayName = user?.display_name || registerName.trim();
-                const rawUserId = Number(user?.id);
-                const userId = Number.isFinite(rawUserId) ? rawUserId : null;
-                login({ user: displayName, accessToken, refreshToken, userId, role: user?.role ?? null });
+                loginFromSession(data.session);
                 const hydrated = await loadUser();
                 if (!hydrated) {
                   throw new Error("Impossible de récupérer le profil utilisateur.");
                 }
                 setShowRegister(false);
+                setLocation("/", { replace: true });
               } catch (err) {
                 const message = err instanceof Error ? err.message : "Création impossible.";
                 setRegisterError(message);
@@ -295,6 +261,17 @@ export default function Login() {
                 onChange={(event) => setRegisterName(event.target.value)}
                 placeholder="Votre nom"
                 ref={registerNameInputRef}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="register-email">Email</Label>
+              <Input
+                id="register-email"
+                type="email"
+                value={registerEmail}
+                onChange={(event) => setRegisterEmail(event.target.value)}
+                placeholder="prenom.nom@email.com"
+                required
               />
             </div>
             <div className="space-y-2">
@@ -335,16 +312,6 @@ export default function Login() {
                 placeholder="Choisissez un mot de passe"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="register-email">Email (optionnel)</Label>
-              <Input
-                id="register-email"
-                type="email"
-                value={registerEmail}
-                onChange={(event) => setRegisterEmail(event.target.value)}
-                placeholder="ex: prenom.nom@email.com"
-              />
-            </div>
             {registerError ? (
               <p className="text-sm text-destructive">{registerError}</p>
             ) : null}
@@ -354,7 +321,7 @@ export default function Login() {
           </form>
         </DialogContent>
       </Dialog>
-      
+
       <div className="absolute bottom-4 text-xs text-muted-foreground opacity-50 uppercase font-bold tracking-widest">
         EAC Performance Tracking
       </div>
