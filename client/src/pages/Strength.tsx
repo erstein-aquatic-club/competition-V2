@@ -610,8 +610,8 @@ export default function Strength() {
       queryClient.invalidateQueries({ queryKey: ["strength_history"] });
       queryClient.invalidateQueries({ queryKey: ["assignments", user, "strength"] });
       const fallbackMessage =
-        data?.source === "local_fallback"
-          ? "Suppression locale : l'endpoint n'est pas disponible."
+        data?.source === "local"
+          ? "Suppression locale : le serveur n'est pas disponible."
           : undefined;
       toast({
         title: "Séance supprimée",

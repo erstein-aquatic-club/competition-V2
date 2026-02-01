@@ -35,13 +35,12 @@ const allowlist = [
 async function buildAll() {
   await rm("dist", { recursive: true, force: true });
 
-  const endpoint = process.env.VITE_SWIM_SYNC_ENDPOINT;
   if (process.env.GITHUB_ACTIONS === "true") {
-    if (!endpoint) {
-      console.error("VITE_SWIM_SYNC_ENDPOINT is missing. Configure the GitHub secret before deploying.");
+    if (!process.env.VITE_SUPABASE_URL || !process.env.VITE_SUPABASE_ANON_KEY) {
+      console.error("VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY is missing. Configure the GitHub secrets before deploying.");
       process.exit(1);
     }
-    console.log("VITE_SWIM_SYNC_ENDPOINT is set.");
+    console.log("Supabase env vars are set.");
   }
 
   console.log("building client...");

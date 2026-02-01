@@ -2557,10 +2557,8 @@ export const api = {
         coach_id: payload.coach_id,
         shift_date: payload.shift_date,
         start_time: payload.start_time,
-        end_time: payload.end_time,
-        location_id: payload.location_id ?? null,
-        location_name: payload.location_name ?? null,
-        notes: payload.notes ?? null,
+        end_time: payload.end_time ?? null,
+        location_name: payload.location ?? null,
       });
       if (error) throw new Error(error.message);
       return { status: "created" };
