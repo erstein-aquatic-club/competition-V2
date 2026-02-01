@@ -34,10 +34,11 @@ export default function Login() {
   const [, setLocation] = useLocation();
   const passwordInputRef = useRef<HTMLInputElement>(null);
   const registerNameInputRef = useRef<HTMLInputElement>(null);
-  const { data: groups = [], isLoading: groupsLoading } = useQuery({
+  const { data: groups = [], isLoading: groupsLoading, isError: groupsError } = useQuery({
     queryKey: ["register-groups"],
     queryFn: () => api.getGroups(),
     enabled: showRegister,
+    retry: 2,
   });
 
   useEffect(() => {
@@ -291,7 +292,7 @@ export default function Login() {
                 disabled={groupsLoading || groups.length === 0}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={groupsLoading ? "Chargement..." : "Sélectionnez un groupe"} />
+                  <SelectValue placeholder={groupsLoading ? "Chargement..." : groupsError ? "Erreur de chargement" : "Sélectionnez un groupe"} />
                 </SelectTrigger>
                 <SelectContent>
                   {groups.map((group) => (
