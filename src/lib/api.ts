@@ -265,7 +265,7 @@ export type ApiErrorInfo = {
   status?: number;
 };
 
-// client/src/lib/api.ts
+// src/lib/api.ts
 
 
 
