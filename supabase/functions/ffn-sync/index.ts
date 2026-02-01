@@ -3,7 +3,7 @@
 // Scrapes the FFN Extranat website for best personal performances and upserts into swim_records
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.38/deno-dom-wasm.ts";
+import { DOMParser, Element } from "https://deno.land/x/deno_dom@v0.1.38/deno-dom-wasm.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -130,7 +130,8 @@ function parseMppFromHtml(html: string, poolLength: number): MppRecord[] {
 
   // Walk through all elements to detect pool sections and data rows
   const allElements = doc.querySelectorAll("*");
-  for (const el of allElements) {
+  for (const node of allElements) {
+    const el = node as Element;
     const text = clean(el.textContent ?? "");
 
     // Detect pool section headers
@@ -142,7 +143,8 @@ function parseMppFromHtml(html: string, poolLength: number): MppRecord[] {
 
   // Parse table rows
   const rows = doc.querySelectorAll("tr");
-  for (const row of rows) {
+  for (const rowNode of rows) {
+    const row = rowNode as Element;
     const cells = row.querySelectorAll("td, th");
     if (cells.length < 2) continue;
 
