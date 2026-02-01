@@ -128,31 +128,34 @@ CREATE OR REPLACE FUNCTION get_strength_history_aggregate(
 RETURNS TABLE(period TEXT, tonnage NUMERIC, volume NUMERIC)
 LANGUAGE sql STABLE
 AS $$
-  SELECT
-    CASE p_period
-      WHEN 'week'  THEN to_char(date_trunc('week', r.completed_at), 'IYYY-"W"IW')
-      WHEN 'month' THEN to_char(date_trunc('month', r.completed_at), 'YYYY-MM')
-      ELSE               to_char(date_trunc('day', r.completed_at), 'YYYY-MM-DD')
-    END AS period,
-    SUM(s.reps * s.weight)::numeric AS tonnage,
-    SUM(s.reps)::numeric AS volume
-  FROM strength_set_logs s
-  JOIN strength_session_runs r ON r.id = s.run_id
-  WHERE r.athlete_id = p_athlete_id
-    AND r.completed_at IS NOT NULL
-    AND (p_from IS NULL OR r.completed_at >= p_from)
-    AND (p_to   IS NULL OR r.completed_at <  (p_to + INTERVAL '1 day'))
-    AND s.reps IS NOT NULL
-    AND s.weight IS NOT NULL
-  GROUP BY
-    CASE p_period
-      WHEN 'week'  THEN to_char(date_trunc('week', r.completed_at), 'IYYY-"W"IW')
-      WHEN 'month' THEN to_char(date_trunc('month', r.completed_at), 'YYYY-MM')
-      ELSE               to_char(date_trunc('day', r.completed_at), 'YYYY-MM-DD')
-    END
+  SELECT t.period, t.tonnage, t.volume
+  FROM (
+    SELECT
+      CASE p_period
+        WHEN 'week'  THEN to_char(date_trunc('week', r.completed_at), 'IYYY-"W"IW')
+        WHEN 'month' THEN to_char(date_trunc('month', r.completed_at), 'YYYY-MM')
+        ELSE               to_char(date_trunc('day', r.completed_at), 'YYYY-MM-DD')
+      END AS period,
+      SUM(s.reps * s.weight)::numeric AS tonnage,
+      SUM(s.reps)::numeric AS volume
+    FROM strength_set_logs s
+    JOIN strength_session_runs r ON r.id = s.run_id
+    WHERE r.athlete_id = p_athlete_id
+      AND r.completed_at IS NOT NULL
+      AND (p_from IS NULL OR r.completed_at >= p_from)
+      AND (p_to   IS NULL OR r.completed_at <  (p_to + INTERVAL '1 day'))
+      AND s.reps IS NOT NULL
+      AND s.weight IS NOT NULL
+    GROUP BY
+      CASE p_period
+        WHEN 'week'  THEN to_char(date_trunc('week', r.completed_at), 'IYYY-"W"IW')
+        WHEN 'month' THEN to_char(date_trunc('month', r.completed_at), 'YYYY-MM')
+        ELSE               to_char(date_trunc('day', r.completed_at), 'YYYY-MM-DD')
+      END
+  ) t
   ORDER BY
-    CASE WHEN p_order = 'asc' THEN period END ASC,
-    CASE WHEN p_order <> 'asc' THEN period END DESC
+    CASE WHEN p_order = 'asc'  THEN t.period END ASC,
+    CASE WHEN p_order <> 'asc' THEN t.period END DESC
   LIMIT p_limit
   OFFSET p_offset;
 $$;
