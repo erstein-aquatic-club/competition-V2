@@ -53,6 +53,7 @@ export const userProfiles = pgTable(
     objectives: text("objectives"),
     bio: text("bio"),
     avatarUrl: text("avatar_url"),
+    ffnIuf: text("ffn_iuf"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
   (table) => [index("idx_user_profiles_updated").on(table.updatedAt)]
@@ -236,6 +237,8 @@ export const swimRecords = pgTable(
     timeSeconds: doublePrecision("time_seconds"),
     recordDate: date("record_date"),
     notes: text("notes"),
+    ffnPoints: doublePrecision("ffn_points"),
+    recordType: text("record_type"),
   },
   (table) => [
     index("idx_swim_records_athlete").on(table.athleteId),
@@ -391,6 +394,8 @@ export const dimExercices = pgTable("dim_exercices", {
   pourcentageCharge1rmForce: doublePrecision("pourcentage_charge_1rm_force"),
   recupSeriesForce: integer("recup_series_force"),
   recupExercicesForce: integer("recup_exercices_force"),
+  warmupReps: integer("warmup_reps"),
+  warmupDuration: integer("warmup_duration"),
 });
 
 export const strengthSessions = pgTable(
@@ -500,6 +505,8 @@ export const strengthSessionRuns = pgTable(
     progressPct: doublePrecision("progress_pct"),
     startedAt: timestamp("started_at", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),
+    fatigue: integer("fatigue"),
+    comments: text("comments"),
     rawPayload: jsonb("raw_payload"),
   },
   (table) => [
