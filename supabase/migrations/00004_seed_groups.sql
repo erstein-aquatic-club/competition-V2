@@ -1,29 +1,21 @@
--- Seed default swimming groups for Erstein Aquatic Club.
--- Mirrors the old Cloudflare D1 DIM_groupes table structure.
--- These can be edited/extended later via the admin panel.
+-- Seed the real Erstein Aquatic Club groups (from Cloudflare D1 DIM_groupes).
+-- These replace any previous generic seeds.
 
--- Populate the groups table (used by api.getGroups() and group_members)
-INSERT INTO groups (name, description) VALUES
-  ('Avenirs',    'Nageurs de 6 à 9 ans'),
-  ('Poussins',   'Nageurs de 9 à 11 ans'),
-  ('Benjamins',  'Nageurs de 11 à 13 ans'),
-  ('Minimes',    'Nageurs de 13 à 15 ans'),
-  ('Cadets',     'Nageurs de 15 à 17 ans'),
-  ('Juniors',    'Nageurs de 17 à 18 ans'),
-  ('Seniors',    'Nageurs de 18 ans et plus'),
-  ('Maîtres',    'Nageurs adultes (25+)'),
-  ('Loisirs',    'Pratique loisir, tous âges')
+DELETE FROM groups WHERE true;
+DELETE FROM dim_groupes WHERE true;
+
+INSERT INTO groups (id, name, description) VALUES
+  (1, 'Elite', NULL),
+  (2, 'Performance', NULL),
+  (3, 'Excellence', NULL)
 ON CONFLICT (name) DO NOTHING;
 
--- Keep dim_groupes in sync (legacy dimension table used by the old Worker)
-INSERT INTO dim_groupes (name, description) VALUES
-  ('Avenirs',    'Nageurs de 6 à 9 ans'),
-  ('Poussins',   'Nageurs de 9 à 11 ans'),
-  ('Benjamins',  'Nageurs de 11 à 13 ans'),
-  ('Minimes',    'Nageurs de 13 à 15 ans'),
-  ('Cadets',     'Nageurs de 15 à 17 ans'),
-  ('Juniors',    'Nageurs de 17 à 18 ans'),
-  ('Seniors',    'Nageurs de 18 ans et plus'),
-  ('Maîtres',    'Nageurs adultes (25+)'),
-  ('Loisirs',    'Pratique loisir, tous âges')
+INSERT INTO dim_groupes (id, name, description) VALUES
+  (1, 'Elite', NULL),
+  (2, 'Performance', NULL),
+  (3, 'Excellence', NULL)
 ON CONFLICT (name) DO NOTHING;
+
+-- Reset sequences
+SELECT setval('groups_id_seq', (SELECT COALESCE(MAX(id), 0) FROM groups));
+SELECT setval('dim_groupes_id_seq', (SELECT COALESCE(MAX(id), 0) FROM dim_groupes));

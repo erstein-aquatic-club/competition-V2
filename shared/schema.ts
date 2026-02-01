@@ -396,6 +396,7 @@ export const dimExercices = pgTable("dim_exercices", {
   recupExercicesForce: integer("recup_exercices_force"),
   warmupReps: integer("warmup_reps"),
   warmupDuration: integer("warmup_duration"),
+  exerciseSubtype: text("exercise_subtype"),
 });
 
 export const strengthSessions = pgTable(
@@ -576,7 +577,7 @@ export const dimSeance = pgTable(
   "dim_seance",
   {
     id: serial("id").primaryKey(),
-    numeroSeance: integer("numero_seance"),
+    numeroSeance: text("numero_seance"),
     nomSeance: text("nom_seance"),
     description: text("description"),
   },
@@ -585,7 +586,7 @@ export const dimSeance = pgTable(
 
 export const dimSeanceDeroule = pgTable("dim_seance_deroule", {
   id: serial("id").primaryKey(),
-  numeroSeance: integer("numero_seance"),
+  numeroSeance: text("numero_seance"),
   ordre: integer("ordre"),
   numeroExercice: integer("numero_exercice"),
 });
