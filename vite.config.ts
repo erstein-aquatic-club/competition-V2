@@ -9,11 +9,11 @@ export default defineConfig(({ mode }) => ({
   base: process.env.NODE_ENV === "production" ? "/competition-V2/" : "/",
   envDir: path.resolve(import.meta.dirname),
   define: {
-    "import.meta.env.VITE_SWIM_SYNC_ENDPOINT": JSON.stringify(
-      process.env.VITE_SWIM_SYNC_ENDPOINT ?? "",
+    "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(
+      process.env.VITE_SUPABASE_URL ?? "",
     ),
-    "import.meta.env.VITE_SWIM_SYNC_TOKEN": JSON.stringify(
-      process.env.VITE_SWIM_SYNC_TOKEN ?? "",
+    "import.meta.env.VITE_SUPABASE_ANON_KEY": JSON.stringify(
+      process.env.VITE_SUPABASE_ANON_KEY ?? "",
     ),
   },
   plugins: [
