@@ -570,29 +570,7 @@ export const oneRmRecords = pgTable(
 );
 
 // =============================================================================
-// 6. LEGACY COACH SESSIONS
-// =============================================================================
-
-export const dimSeance = pgTable(
-  "dim_seance",
-  {
-    id: serial("id").primaryKey(),
-    numeroSeance: text("numero_seance"),
-    nomSeance: text("nom_seance"),
-    description: text("description"),
-  },
-  (table) => [index("idx_dim_seance_numero").on(table.numeroSeance)]
-);
-
-export const dimSeanceDeroule = pgTable("dim_seance_deroule", {
-  id: serial("id").primaryKey(),
-  numeroSeance: text("numero_seance"),
-  ordre: integer("ordre"),
-  numeroExercice: integer("numero_exercice"),
-});
-
-// =============================================================================
-// 7. TIMESHEET
+// 6. TIMESHEET (dim_seance/dim_seance_deroule removed — migrated to strength_sessions)
 // =============================================================================
 
 export const timesheetLocations = pgTable("timesheet_locations", {
