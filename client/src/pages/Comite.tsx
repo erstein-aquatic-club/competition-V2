@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { syncConfig } from "@/lib/config";
+import { supabaseConfig } from "@/lib/config";
 import {
   calculateTimesheetTotals,
   formatMinutes,
@@ -48,7 +48,7 @@ export default function Comite() {
   const { data: capabilities, error: capabilitiesError } = useQuery({
     queryKey: ["capabilities", "timesheet"],
     queryFn: () => api.getCapabilities(),
-    enabled: syncConfig.hasCloudflareSync,
+    enabled: supabaseConfig.hasSupabase,
   });
 
   const totals = calculateTimesheetTotals(shifts);
@@ -76,7 +76,7 @@ export default function Comite() {
 
   const capabilityMessage = capabilitiesError
     ? summarizeApiError(capabilitiesError, "Impossible de vérifier le module de pointage.").message
-    : capabilities?.mode === "cloudflare" && !capabilities.timesheet.available
+    : capabilities?.mode === "supabase" && !capabilities.timesheet.available
       ? "Pointage heures indisponible (tables manquantes côté D1)."
       : null;
   const shiftsErrorMessage = shiftsError

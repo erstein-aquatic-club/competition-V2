@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, summarizeApiError, type Notification } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { syncConfig } from "@/lib/config";
+import { supabaseConfig } from "@/lib/config";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -162,7 +162,7 @@ export default function Notifications() {
   const { data: capabilities, error: capabilitiesError } = useQuery({
     queryKey: ["capabilities", "messaging"],
     queryFn: () => api.getCapabilities(),
-    enabled: syncConfig.hasCloudflareSync,
+    enabled: supabaseConfig.hasSupabase,
   });
 
   const markRead = useMutation({
@@ -259,7 +259,7 @@ export default function Notifications() {
     : null;
   const canReply =
     Boolean(activeThread?.counterpartyId || activeThread?.targetGroupId) &&
-    (role !== "athlete" || !syncConfig.hasCloudflareSync || Boolean(activeThread?.replyTargetId));
+    (role !== "athlete" || !supabaseConfig.hasSupabase || Boolean(activeThread?.replyTargetId));
 
   const handleOpenThread = (thread: NotificationThread) => {
     setSelectedThreadKey(thread.key);
@@ -271,7 +271,7 @@ export default function Notifications() {
 
   const capabilityMessage = capabilitiesError
     ? summarizeApiError(capabilitiesError, "Impossible de vérifier la messagerie.").message
-    : capabilities?.mode === "cloudflare" && !capabilities.messaging.available
+    : capabilities?.mode === "supabase" && !capabilities.messaging.available
       ? "Messagerie indisponible (tables manquantes côté D1)."
       : null;
 
@@ -451,7 +451,7 @@ export default function Notifications() {
                         targetGroupId,
                         message: messageBody,
                         replyTargetId:
-                          role === "athlete" && syncConfig.hasCloudflareSync ? activeThread.replyTargetId : null,
+                          role === "athlete" && supabaseConfig.hasSupabase ? activeThread.replyTargetId : null,
                       });
                     }}
                     disabled={!messageBody.trim() || sendMessage.isPending}

@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { api, summarizeApiError, type TimesheetLocation } from "@/lib/api";
-import { syncConfig } from "@/lib/config";
+import { supabaseConfig } from "@/lib/config";
 import { useToast } from "@/hooks/use-toast";
 import { SafeArea } from "@/components/shared/SafeArea";
 import { Button } from "@/components/ui/button";
@@ -91,7 +91,7 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
   const { data: capabilities, error: capabilitiesError } = useQuery({
     queryKey: ["capabilities", "timesheet"],
     queryFn: () => api.getCapabilities(),
-    enabled: syncConfig.hasCloudflareSync,
+    enabled: supabaseConfig.hasSupabase,
   });
 
   const defaultLocation = useMemo(() => resolveDefaultLocation(locations), [locations]);
@@ -252,7 +252,7 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
 
   const capabilityMessage = capabilitiesError
     ? summarizeApiError(capabilitiesError, "Impossible de vérifier le module de pointage.").message
-    : capabilities?.mode === "cloudflare" && !capabilities.timesheet.available
+    : capabilities?.mode === "supabase" && !capabilities.timesheet.available
       ? "Pointage heures indisponible (tables manquantes côté D1)."
       : null;
   const shiftsErrorMessage = shiftsError

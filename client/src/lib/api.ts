@@ -1,8 +1,8 @@
 
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { syncConfig } from "./config";
-import { getStoredAccessToken, refreshStoredAccessToken } from "./auth";
+import { supabaseConfig } from "./config";
+import { supabase } from "./supabase";
 
 // --- Types ---
 
@@ -13,7 +13,7 @@ const isNetworkAvailable = () => {
   return navigator.onLine;
 };
 
-const canUseRemoteSync = () => syncConfig.hasCloudflareSync && isNetworkAvailable();
+const canUseSupabase = () => supabaseConfig.hasSupabase && isNetworkAvailable();
 
 export interface Session {
   id: number;
@@ -256,7 +256,7 @@ export type ApiCapabilities = {
   version?: string | null;
   timesheet: FeatureCapability;
   messaging: FeatureCapability;
-  mode: "cloudflare" | "local";
+  mode: "supabase" | "local";
 };
 
 export type ApiErrorInfo = {
@@ -290,17 +290,6 @@ const defaultTimesheetLocations = ["Piscine", "Compétition"];
 
 // --- API Service ---
 
-const withSharedToken = (payload: Record<string, unknown>) => {
-  if (!syncConfig.token) return payload;
-  return { ...payload, token: syncConfig.token };
-};
-
-const appendSharedToken = (url: URL) => {
-  if (syncConfig.token) {
-    url.searchParams.set("token", syncConfig.token);
-  }
-};
-
 const parseRawPayload = (raw: unknown) => {
   if (!raw) return null;
   if (typeof raw === "string") {
@@ -315,88 +304,65 @@ const parseRawPayload = (raw: unknown) => {
 };
 
 const fetchUserGroupIds = async (userId?: number | null): Promise<number[]> => {
-  if (!syncConfig.endpoint || !userId || !canUseRemoteSync()) return [];
-  const url = new URL(syncConfig.endpoint);
-  url.searchParams.set("action", "groups_get");
-  appendSharedToken(url);
-  const payload = await fetchJson(url.toString(), {
-    method: "GET",
-    redirect: "follow",
-    headers: {},
-  }).then(unwrapOk);
-  const groups = Array.isArray(payload?.groups) ? payload.groups : [];
-  if (!groups.length) return [];
-  const memberships = await Promise.all(
-    groups.map(async (group: any) => {
-      const groupUrl = new URL(syncConfig.endpoint as string);
-      groupUrl.searchParams.set("action", "groups_get");
-      groupUrl.searchParams.set("group_id", String(group.id));
-      appendSharedToken(groupUrl);
-      const groupPayload = await fetchJson(groupUrl.toString(), {
-        method: "GET",
-        redirect: "follow",
-        headers: {},
-      }).then(unwrapOk);
-      const members = Array.isArray(groupPayload?.members) ? groupPayload.members : [];
-      const isMember = members.some(
-        (member: any) => safeOptionalInt(member.user_id ?? member.userId ?? member.id) === userId,
-      );
-      return isMember ? safeInt(group.id, 0) : null;
-    }),
-  );
-  return memberships.filter((id): id is number => typeof id === "number" && id > 0);
+  if (!userId || !canUseSupabase()) return [];
+  const { data, error } = await supabase
+    .from("group_members")
+    .select("group_id")
+    .eq("user_id", userId);
+  if (error || !data) return [];
+  return data.map((m: any) => m.group_id).filter((id: number) => id > 0);
 };
 
-const fetchJson = async (url: string, options: RequestInit) => {
-  const buildHeaders = (token?: string | null) => {
-    const headers = new Headers(options.headers || {});
-    if (token) {
-      headers.set("Authorization", `Bearer ${token}`);
-    }
-    return headers;
-  };
+/** Map DB row (dim_exercices) → frontend Exercise interface */
+const mapDbExerciseToApi = (row: any): Exercise => ({
+  id: safeInt(row.id),
+  numero_exercice: safeOptionalInt(row.numero_exercice),
+  nom_exercice: row.nom_exercice ?? "",
+  description: row.description ?? null,
+  illustration_gif: row.illustration_gif ?? null,
+  exercise_type: normalizeExerciseType(row.exercise_type),
+  warmup_reps: null,
+  warmup_duration: null,
+  Nb_series_endurance: safeOptionalInt(row.nb_series_endurance),
+  Nb_reps_endurance: safeOptionalInt(row.nb_reps_endurance),
+  pct_1rm_endurance: safeOptionalNumber(row.pourcentage_charge_1rm_endurance),
+  recup_endurance: safeOptionalInt(row.recup_series_endurance),
+  recup_exercices_endurance: safeOptionalInt(row.recup_exercices_endurance),
+  Nb_series_hypertrophie: safeOptionalInt(row.nb_series_hypertrophie),
+  Nb_reps_hypertrophie: safeOptionalInt(row.nb_reps_hypertrophie),
+  pct_1rm_hypertrophie: safeOptionalNumber(row.pourcentage_charge_1rm_hypertrophie),
+  recup_hypertrophie: safeOptionalInt(row.recup_series_hypertrophie),
+  recup_exercices_hypertrophie: safeOptionalInt(row.recup_exercices_hypertrophie),
+  Nb_series_force: safeOptionalInt(row.nb_series_force),
+  Nb_reps_force: safeOptionalInt(row.nb_reps_force),
+  pct_1rm_force: safeOptionalNumber(row.pourcentage_charge_1rm_force),
+  recup_force: safeOptionalInt(row.recup_series_force),
+  recup_exercices_force: safeOptionalInt(row.recup_exercices_force),
+});
 
-  const doFetch = (token?: string | null) =>
-    fetch(url, {
-      ...options,
-      headers: buildHeaders(token),
-    });
-
-  let res = await doFetch(await getStoredAccessToken());
-  if (res.status === 401) {
-    const refreshed = await refreshStoredAccessToken();
-    if (refreshed) {
-      res = await doFetch(refreshed);
-    }
-  }
-  const text = await res.text();
-  let payload: any = null;
-  if (text) {
-    try {
-      payload = JSON.parse(text);
-    } catch {
-      payload = null;
-    }
-  }
-  if (!res.ok) {
-    const errorMessage = payload?.error ? String(payload.error) : `HTTP ${res.status}`;
-    const error = new Error(errorMessage);
-    (error as ApiErrorInfo).status = res.status;
-    (error as ApiErrorInfo).code = payload?.code;
-    throw error;
-  }
-  if (payload !== null) {
-    return payload;
-  }
-  return text ? JSON.parse(text) : {};
-};
-
-const unwrapOk = (payload: any) => {
-  if (!payload || payload.ok !== true) {
-    throw new Error(payload?.error || "Format inattendu");
-  }
-  return payload.data || {};
-};
+/** Map frontend Exercise → DB row (dim_exercices) for insert/update */
+const mapApiExerciseToDb = (exercise: any) => ({
+  numero_exercice: exercise.numero_exercice ?? null,
+  nom_exercice: exercise.nom_exercice ?? exercise.name ?? "",
+  description: exercise.description ?? null,
+  illustration_gif: exercise.illustration_gif ?? null,
+  exercise_type: exercise.exercise_type ?? "strength",
+  nb_series_endurance: exercise.Nb_series_endurance ?? null,
+  nb_reps_endurance: exercise.Nb_reps_endurance ?? null,
+  pourcentage_charge_1rm_endurance: exercise.pct_1rm_endurance ?? null,
+  recup_series_endurance: exercise.recup_endurance ?? null,
+  recup_exercices_endurance: exercise.recup_exercices_endurance ?? null,
+  nb_series_hypertrophie: exercise.Nb_series_hypertrophie ?? null,
+  nb_reps_hypertrophie: exercise.Nb_reps_hypertrophie ?? null,
+  pourcentage_charge_1rm_hypertrophie: exercise.pct_1rm_hypertrophie ?? null,
+  recup_series_hypertrophie: exercise.recup_hypertrophie ?? null,
+  recup_exercices_hypertrophie: exercise.recup_exercices_hypertrophie ?? null,
+  nb_series_force: exercise.Nb_series_force ?? null,
+  nb_reps_force: exercise.Nb_reps_force ?? null,
+  pourcentage_charge_1rm_force: exercise.pct_1rm_force ?? null,
+  recup_series_force: exercise.recup_force ?? null,
+  recup_exercices_force: exercise.recup_exercices_force ?? null,
+});
 
 const safeInt = (value: unknown, fallback = 0) => {
   const num = Number(value);
@@ -428,9 +394,9 @@ export const summarizeApiError = (error: unknown, fallbackMessage: string): ApiE
   const code = info.code;
   let message = info.message || fallbackMessage;
   if (code === "unknown_action") {
-    message = "Action inconnue côté Worker. Déploiement incomplet ?";
+    message = "Action inconnue côté serveur.";
   } else if (code === "table_missing") {
-    message = "Base D1 non initialisée (table manquante).";
+    message = "Base de données non initialisée (table manquante).";
   } else if (status === 401) {
     message = "Authentification expirée ou manquante.";
   } else if (status === 403) {
@@ -593,12 +559,12 @@ interface StrengthHistoryAggregateResult {
 
 type SyncSessionInput = Omit<Session, "id" | "created_at"> & { athlete_id?: number | string | null };
 
-const mapToBackendSession = (session: SyncSessionInput) => {
-  // UI is on a 1–5 scale; backend dashboards historically expect 1–10.
+const mapToDbSession = (session: SyncSessionInput) => {
+  // UI is on a 1–5 scale; DB stores 1–10.
   const payload: Record<string, unknown> = {
-    athleteName: session.athlete_name,
-    sessionDate: session.date,
-    timeSlot: session.slot,
+    athlete_name: session.athlete_name,
+    session_date: session.date,
+    time_slot: session.slot,
     distance: session.distance,
     duration: session.duration,
     rpe: expandScaleToTen(session.effort),
@@ -613,10 +579,10 @@ const mapToBackendSession = (session: SyncSessionInput) => {
   return payload;
 };
 
-const mapFromBackendSession = (raw: any): Session | null => {
+const mapFromDbSession = (raw: any): Session | null => {
   if (!raw) return null;
-  const athleteName = String(raw.athleteName || raw.athlete_name || "").trim();
-  const date = String(raw.sessionDate || raw.date || "").trim();
+  const athleteName = String(raw.athlete_name || "").trim();
+  const date = String(raw.session_date || raw.date || "").trim();
   if (!athleteName || !date) return null;
   const rpe = normalizeScaleToFive(safeOptionalInt(raw.rpe ?? raw.effort));
   const performance = normalizeScaleToFive(safeOptionalInt(raw.performance ?? raw.feeling));
@@ -626,12 +592,12 @@ const mapFromBackendSession = (raw: any): Session | null => {
   const feeling = normalizeScaleToFive(
     safeOptionalInt(raw.performance ?? raw.engagement ?? raw.fatigue ?? raw.feeling),
   ) ?? 3;
-    return {
-      id: safeInt(raw.id, Date.now()),
-      athlete_id: raw.athlete_id ? safeInt(raw.athlete_id) : undefined,
-      athlete_name: athleteName,
-      date,
-      slot: String(raw.timeSlot || raw.slot || ""),
+  return {
+    id: safeInt(raw.id, Date.now()),
+    athlete_id: raw.athlete_id ? safeInt(raw.athlete_id) : undefined,
+    athlete_name: athleteName,
+    date,
+    slot: String(raw.time_slot || raw.slot || ""),
     effort,
     feeling,
     rpe,
@@ -647,7 +613,7 @@ const mapFromBackendSession = (raw: any): Session | null => {
 
 export const api = {
   async getCapabilities(): Promise<ApiCapabilities> {
-    if (!syncConfig.endpoint) {
+    if (!canUseSupabase()) {
       return {
         mode: "local",
         version: null,
@@ -655,93 +621,63 @@ export const api = {
         messaging: { available: true },
       };
     }
-    const url = new URL(syncConfig.endpoint);
-    url.searchParams.set("action", "capabilities");
-    appendSharedToken(url);
-    const payload = await fetchJson(url.toString(), {
-      method: "GET",
-      redirect: "follow",
-      headers: {},
-    }).then(unwrapOk);
     return {
-      mode: "cloudflare",
-      version: payload?.version ?? null,
-      timesheet: payload?.capabilities?.timesheet ?? { available: false },
-      messaging: payload?.capabilities?.messaging ?? { available: false },
+      mode: "supabase",
+      version: null,
+      timesheet: { available: true },
+      messaging: { available: true },
     };
   },
 
-  // ✅ AJOUTE ÇA ICI (dans le même objet)
   async syncFfnSwimRecords(params: { athleteId?: number; athleteName?: string; iuf: string }) {
-    if (!syncConfig.endpoint) {
-      throw new Error("Sync endpoint not configured");
+    if (!canUseSupabase()) {
+      throw new Error("Supabase not configured");
     }
-
-    const url = new URL(syncConfig.endpoint);
-    url.pathname = "/api/swim/ffn/sync";
-    url.search = "";
-    appendSharedToken(url);
-
-    const payload = await fetchJson(url.toString(), {
-      method: "POST",
-      redirect: "follow",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    const { data, error } = await supabase.functions.invoke("ffn-sync", {
+      body: {
         athlete_id: params.athleteId ?? null,
         athlete_name: params.athleteName ?? null,
         iuf: params.iuf,
-      }),
-    }).then(unwrapOk);
-
-    return payload as { inserted: number; updated: number; skipped: number };
+      },
+    });
+    if (error) throw new Error(error.message);
+    return (data ?? { inserted: 0, updated: 0, skipped: 0 }) as { inserted: number; updated: number; skipped: number };
   },
   
 
   // --- SWIM SESSIONS ---
   async syncSession(session: SyncSessionInput): Promise<{ status: string }> {
+    if (canUseSupabase()) {
+      const dbPayload = mapToDbSession(session);
+      const { error } = await supabase.from("dim_sessions").insert(dbPayload);
+      if (error) throw new Error(error.message);
+      return { status: "ok" };
+    }
+
     await delay(300);
     const sessions = this._get(STORAGE_KEYS.SESSIONS) || [];
     const newSession = { ...session, id: Date.now(), created_at: new Date().toISOString() };
     this._save(STORAGE_KEYS.SESSIONS, [...sessions, newSession]);
-
-    if (syncConfig.hasCloudflareSync) {
-      const payload = withSharedToken(mapToBackendSession(session));
-      await fetchJson(syncConfig.endpoint, {
-        method: "POST",
-        redirect: "follow",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(payload),
-      }).then(unwrapOk);
-    }
-
     return { status: "ok" };
   },
 
   async getSessions(athleteName: string, athleteId?: number | string | null): Promise<Session[]> {
-    await delay(200);
     const hasAthleteId = athleteId !== null && athleteId !== undefined && String(athleteId) !== "";
-    if (syncConfig.hasCloudflareSync) {
-      const url = new URL(syncConfig.endpoint);
-      url.searchParams.set("action", "get");
+    if (canUseSupabase()) {
+      let query = supabase.from("dim_sessions").select("*").order("session_date", { ascending: false });
       if (hasAthleteId) {
-        url.searchParams.set("athlete_id", String(athleteId));
+        query = query.eq("athlete_id", Number(athleteId));
       } else {
-        url.searchParams.set("athleteName", athleteName);
+        query = query.eq("athlete_name", athleteName);
       }
-      appendSharedToken(url);
-      const payload = await fetchJson(url.toString(), {
-        method: "GET",
-        redirect: "follow",
-        headers: {},
-      }).then(unwrapOk);
-      const mapped: Session[] = Array.isArray(payload.sessions)
-        ? (payload.sessions as unknown[])
-            .map(mapFromBackendSession)
-            .filter((session): session is Session => Boolean(session))
-        : [];
-      return mapped.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      const { data, error } = await query;
+      if (error) throw new Error(error.message);
+      return (data ?? [])
+        .map(mapFromDbSession)
+        .filter((session): session is Session => Boolean(session));
     }
 
+    await delay(200);
     const sessions = this._get(STORAGE_KEYS.SESSIONS) || [];
     return sessions
       .filter((s: Session) => {
@@ -763,6 +699,24 @@ export const api = {
   },
 
   async updateSession(session: Session): Promise<{ status: string }> {
+    if (canUseSupabase()) {
+      const dbPayload: Record<string, unknown> = {
+        athlete_name: session.athlete_name,
+        session_date: session.date,
+        time_slot: session.slot,
+        distance: session.distance,
+        duration: session.duration,
+        rpe: expandScaleToTen(session.effort),
+        performance: expandScaleToTen(session.performance ?? session.feeling),
+        engagement: expandScaleToTen(session.engagement ?? session.feeling),
+        fatigue: expandScaleToTen(session.feeling),
+        comments: session.comments,
+      };
+      const { error } = await supabase.from("dim_sessions").update(dbPayload).eq("id", session.id);
+      if (error) throw new Error(error.message);
+      return { status: "updated" };
+    }
+
     await delay(200);
     const sessions = this._get(STORAGE_KEYS.SESSIONS) || [];
     const index = sessions.findIndex((entry: Session) => entry.id === session.id);
@@ -776,6 +730,12 @@ export const api = {
   },
 
   async deleteSession(sessionId: number): Promise<{ status: string }> {
+    if (canUseSupabase()) {
+      const { error } = await supabase.from("dim_sessions").delete().eq("id", sessionId);
+      if (error) throw new Error(error.message);
+      return { status: "deleted" };
+    }
+
     await delay(200);
     const sessions = this._get(STORAGE_KEYS.SESSIONS) || [];
     const updatedSessions = sessions.filter((session: Session) => session.id !== sessionId);
@@ -784,54 +744,38 @@ export const api = {
   },
 
   async getHallOfFame() {
-    if (syncConfig.hasCloudflareSync) {
-      const url = new URL(syncConfig.endpoint);
-      url.searchParams.set("action", "hall");
-      appendSharedToken(url);
-      const strengthUrl = new URL(syncConfig.endpoint);
-      strengthUrl.searchParams.set("action", "strength_hall");
-      appendSharedToken(strengthUrl);
-      const [swimPayload, strengthPayload] = await Promise.all([
-        fetchJson(url.toString(), {
-          method: "GET",
-          redirect: "follow",
-          headers: {},
-        }).then(unwrapOk),
-        fetchJson(strengthUrl.toString(), {
-          method: "GET",
-          redirect: "follow",
-          headers: {},
-        }).then(unwrapOk),
-      ]);
-      const hallOfFame = Array.isArray(swimPayload?.hall_of_fame) ? swimPayload.hall_of_fame : [];
-      const swimDistance = [...hallOfFame]
-        .map((item: any) => ({
-          athlete_name: item.athlete_name,
-          total_distance: Number(item.total_distance ?? 0),
-        }))
-        .sort((a, b) => b.total_distance - a.total_distance)
-        .slice(0, 5);
-      const swimPerformance = [...hallOfFame]
-        .map((item: any) => ({
-          athlete_name: item.athlete_name,
-          avg_effort: Number(item.avg_performance ?? item.avg_engagement ?? 0),
-        }))
-        .sort((a, b) => b.avg_effort - a.avg_effort)
-        .slice(0, 5);
-      const swimEngagement = [...hallOfFame]
-        .map((item: any) => ({
-          athlete_name: item.athlete_name,
-          avg_engagement: Number(item.avg_engagement ?? 0),
-        }))
-        .sort((a, b) => b.avg_engagement - a.avg_engagement)
-        .slice(0, 5);
-      const strength = Array.isArray(strengthPayload?.strength) ? strengthPayload.strength : [];
-      return {
-        distance: swimDistance,
-        performance: swimPerformance,
-        engagement: swimEngagement,
-        strength,
-      };
+    if (canUseSupabase()) {
+      const { data: rpcData, error: rpcError } = await supabase.rpc("get_hall_of_fame");
+      if (!rpcError && rpcData) {
+        const hallOfFame = Array.isArray(rpcData) ? rpcData : [];
+        const swimDistance = [...hallOfFame]
+          .map((item: any) => ({
+            athlete_name: item.athlete_name,
+            total_distance: Number(item.total_distance ?? 0),
+          }))
+          .sort((a, b) => b.total_distance - a.total_distance)
+          .slice(0, 5);
+        const swimPerformance = [...hallOfFame]
+          .map((item: any) => ({
+            athlete_name: item.athlete_name,
+            avg_effort: Number(item.avg_performance ?? item.avg_engagement ?? 0),
+          }))
+          .sort((a, b) => b.avg_effort - a.avg_effort)
+          .slice(0, 5);
+        const swimEngagement = [...hallOfFame]
+          .map((item: any) => ({
+            athlete_name: item.athlete_name,
+            avg_engagement: Number(item.avg_engagement ?? 0),
+          }))
+          .sort((a, b) => b.avg_engagement - a.avg_engagement)
+          .slice(0, 5);
+        return {
+          distance: swimDistance,
+          performance: swimPerformance,
+          engagement: swimEngagement,
+          strength: [] as any[],
+        };
+      }
     }
 
     await delay(300);
@@ -905,52 +849,22 @@ export const api = {
     age?: number | null;
     event_code?: string | null;
   }): Promise<ClubRecord[]> {
-    if (!syncConfig.hasCloudflareSync) {
-      return [];
-    }
-    const url = new URL(syncConfig.endpoint);
-    url.pathname = "/api/records/club";
-    url.search = "";
-    if (filters.pool_m) {
-      url.searchParams.set("bassin", String(filters.pool_m));
-    }
-    if (filters.sex) {
-      url.searchParams.set("sexe", String(filters.sex));
-    }
-    if (filters.age) {
-      url.searchParams.set("age", String(filters.age));
-    }
-    if (filters.event_code) {
-      url.searchParams.set("event_code", filters.event_code);
-    }
-    appendSharedToken(url);
-    const payload = await fetchJson(url.toString(), {
-      method: "GET",
-      redirect: "follow",
-      headers: {},
-    }).then(unwrapOk);
-    return Array.isArray(payload?.records) ? payload.records : [];
+    if (!canUseSupabase()) return [];
+    let query = supabase.from("club_records").select("*");
+    if (filters.pool_m) query = query.eq("pool_m", filters.pool_m);
+    if (filters.sex) query = query.eq("sex", filters.sex);
+    if (filters.age) query = query.eq("age", filters.age);
+    if (filters.event_code) query = query.eq("event_code", filters.event_code);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return data ?? [];
   },
 
   async getClubRecordSwimmers(): Promise<ClubRecordSwimmer[]> {
-    if (!syncConfig.hasCloudflareSync) {
-      return [];
-    }
-    const url = new URL(syncConfig.endpoint);
-    url.pathname = "/api/records/swimmers";
-    appendSharedToken(url);
-    const payload = await fetchJson(url.toString(), {
-      method: "GET",
-      redirect: "follow",
-      headers: {},
-    });
-    const data = payload?.ok === true ? payload.data : payload;
-    const swimmers = Array.isArray(data?.swimmers)
-      ? data.swimmers
-      : Array.isArray(data?.items)
-        ? data.items
-        : data;
-    return Array.isArray(swimmers) ? swimmers : [];
+    if (!canUseSupabase()) return [];
+    const { data, error } = await supabase.from("club_record_swimmers").select("*");
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((s: any) => ({ ...s, is_active: s.is_active ? 1 : 0 }));
   },
 
   async createClubRecordSwimmer(payload: {
@@ -960,105 +874,75 @@ export const api = {
     birthdate?: string | null;
     is_active?: boolean;
   }): Promise<ClubRecordSwimmer | null> {
-    if (!syncConfig.hasCloudflareSync) {
-      return null;
-    }
-    const url = new URL(syncConfig.endpoint);
-    url.pathname = "/api/records/swimmers";
-    appendSharedToken(url);
-    const response = await fetchJson(url.toString(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }).then(unwrapOk);
-    return response?.swimmer ?? null;
+    if (!canUseSupabase()) return null;
+    const { data, error } = await supabase.from("club_record_swimmers").insert({
+      source_type: "manual",
+      display_name: payload.display_name,
+      iuf: payload.iuf ?? null,
+      sex: payload.sex ?? null,
+      birthdate: payload.birthdate ?? null,
+      is_active: payload.is_active !== false,
+    }).select().single();
+    if (error) throw new Error(error.message);
+    return data ? { ...data, is_active: data.is_active ? 1 : 0 } : null;
   },
 
   async updateClubRecordSwimmer(
     id: number,
     payload: { iuf?: string | null; is_active?: boolean; sex?: "M" | "F" | null; birthdate?: string | null },
   ): Promise<ClubRecordSwimmer | null> {
-    if (!syncConfig.hasCloudflareSync) {
-      return null;
-    }
-    const url = new URL(syncConfig.endpoint);
-    url.pathname = `/api/records/swimmers/${id}`;
-    appendSharedToken(url);
-    const response = await fetchJson(url.toString(), {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }).then(unwrapOk);
-    return response?.swimmer ?? null;
+    if (!canUseSupabase()) return null;
+    const updatePayload: Record<string, unknown> = {};
+    if (payload.iuf !== undefined) updatePayload.iuf = payload.iuf;
+    if (payload.is_active !== undefined) updatePayload.is_active = payload.is_active;
+    if (payload.sex !== undefined) updatePayload.sex = payload.sex;
+    if (payload.birthdate !== undefined) updatePayload.birthdate = payload.birthdate;
+    const { data, error } = await supabase.from("club_record_swimmers").update(updatePayload).eq("id", id).select().single();
+    if (error) throw new Error(error.message);
+    return data ? { ...data, is_active: data.is_active ? 1 : 0 } : null;
   },
 
   async updateClubRecordSwimmerForUser(
     userId: number,
     payload: { iuf?: string | null; is_active?: boolean; sex?: "M" | "F" | null; birthdate?: string | null },
   ): Promise<ClubRecordSwimmer | null> {
-    if (!syncConfig.hasCloudflareSync) {
-      return null;
-    }
-    const url = new URL(syncConfig.endpoint);
-    url.pathname = `/api/records/swimmers/user/${userId}`;
-    appendSharedToken(url);
-    const response = await fetchJson(url.toString(), {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }).then(unwrapOk);
-    return response?.swimmer ?? null;
+    if (!canUseSupabase()) return null;
+    const updatePayload: Record<string, unknown> = {};
+    if (payload.iuf !== undefined) updatePayload.iuf = payload.iuf;
+    if (payload.is_active !== undefined) updatePayload.is_active = payload.is_active;
+    if (payload.sex !== undefined) updatePayload.sex = payload.sex;
+    if (payload.birthdate !== undefined) updatePayload.birthdate = payload.birthdate;
+    const { data, error } = await supabase.from("club_record_swimmers").update(updatePayload).eq("user_id", userId).eq("source_type", "user").select().single();
+    if (error) throw new Error(error.message);
+    return data ? { ...data, is_active: data.is_active ? 1 : 0 } : null;
   },
 
   async importClubRecords(): Promise<any> {
-    if (!canUseRemoteSync()) {
-      return null;
-    }
-    const url = new URL(syncConfig.endpoint);
-    url.pathname = "/api/records/import";
-    appendSharedToken(url);
-    const response = await fetchJson(url.toString(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    }).then(unwrapOk);
-    return response?.summary ?? response;
+    if (!canUseSupabase()) return null;
+    const { data, error } = await supabase.functions.invoke("import-club-records");
+    if (error) throw new Error(error.message);
+    return data?.summary ?? data;
   },
 
   // --- STRENGTH ---
   async getExercises(): Promise<Exercise[]> {
-      if (canUseRemoteSync()) {
-        const url = new URL(syncConfig.endpoint);
-        url.searchParams.set("action", "exercises");
-        appendSharedToken(url);
-        const payload = await fetchJson(url.toString(), {
-          method: "GET",
-          redirect: "follow",
-          headers: {},
-        }).then(unwrapOk);
-        const rawExercises = payload.exercises ?? payload;
-        const list = Array.isArray(rawExercises) ? rawExercises : [];
-        return list.map((exercise: any) => normalizeExercise(exercise));
+      if (canUseSupabase()) {
+        const { data, error } = await supabase.from("dim_exercices").select("*");
+        if (error) throw new Error(error.message);
+        return (data ?? []).map(mapDbExerciseToApi);
       }
       const exercises = this._get(STORAGE_KEYS.EXERCISES) || [];
       const list = Array.isArray(exercises) ? exercises : [];
       return list.map((exercise: any) => normalizeExercise(exercise));
   },
-  
+
   async createExercise(exercise: Omit<Exercise, "id">) {
       const exercise_type = assertExerciseType(exercise.exercise_type);
 
-      if (canUseRemoteSync()) {
-        const url = new URL(syncConfig.endpoint);
-        url.searchParams.set("action", "exercises_add");
-        appendSharedToken(url);
-        await fetchJson(url.toString(), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...exercise,
-            exercise_type,
-          }),
-        }).then(unwrapOk);
+      if (canUseSupabase()) {
+        const dbRow = mapApiExerciseToDb({ ...exercise, exercise_type });
+        const { error } = await supabase.from("dim_exercices").insert(dbRow);
+        if (error) throw new Error(error.message);
         return { status: "created" };
       }
 
@@ -1075,18 +959,10 @@ export const api = {
   async updateExercise(exercise: Exercise) {
       const exercise_type = assertExerciseType(exercise.exercise_type);
 
-      if (canUseRemoteSync()) {
-        const url = new URL(syncConfig.endpoint);
-        url.searchParams.set("action", "exercises_update");
-        appendSharedToken(url);
-        await fetchJson(url.toString(), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...exercise,
-            exercise_type,
-          }),
-        }).then(unwrapOk);
+      if (canUseSupabase()) {
+        const dbRow = mapApiExerciseToDb({ ...exercise, exercise_type });
+        const { error } = await supabase.from("dim_exercices").update(dbRow).eq("id", exercise.id);
+        if (error) throw new Error(error.message);
         return { status: "updated" };
       }
 
@@ -1107,15 +983,9 @@ export const api = {
   },
 
   async deleteExercise(exerciseId: number) {
-      if (canUseRemoteSync()) {
-        const url = new URL(syncConfig.endpoint);
-        url.searchParams.set("action", "exercises_delete");
-        appendSharedToken(url);
-        await fetchJson(url.toString(), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: exerciseId }),
-        }).then(unwrapOk);
+      if (canUseSupabase()) {
+        const { error } = await supabase.from("dim_exercices").delete().eq("id", exerciseId);
+        if (error) throw new Error(error.message);
         return { status: "deleted" };
       }
 
@@ -1134,29 +1004,27 @@ export const api = {
   },
 
   async getStrengthSessions(): Promise<StrengthSessionTemplate[]> {
-      if (canUseRemoteSync()) {
-        const url = new URL(syncConfig.endpoint);
-        url.searchParams.set("action", "strength_catalog_list");
-        appendSharedToken(url);
-        const payload = await fetchJson(url.toString(), {
-          method: "GET",
-          redirect: "follow",
-          headers: {},
-        }).then(unwrapOk);
-        const sessions = Array.isArray(payload.sessions) ? payload.sessions : [];
-        return sessions.map((session: any) => {
-          const rawItems = Array.isArray(session.items) ? session.items : [];
-          const cycle = normalizeCycleType(
-            session.cycle ?? session.cycle_type ?? rawItems[0]?.cycle_type,
-          );
+      if (canUseSupabase()) {
+        const { data: sessions, error } = await supabase
+          .from("strength_sessions")
+          .select("*, strength_session_items(*, dim_exercices(nom_exercice, exercise_type))")
+          .order("created_at", { ascending: false });
+        if (error) throw new Error(error.message);
+        return (sessions ?? []).map((session: any) => {
+          const rawItems = Array.isArray(session.strength_session_items) ? session.strength_session_items : [];
+          const cycle = normalizeCycleType(rawItems[0]?.cycle_type);
           return {
             id: safeInt(session.id, Date.now()),
-            title: String(session.name || session.title || ""),
+            title: String(session.name || ""),
             description: session.description ?? "",
             cycle,
-            items: rawItems.map((item: any, index: number) =>
-              normalizeStrengthItem(item, index, cycle),
-            ),
+            items: rawItems
+              .sort((a: any, b: any) => (a.ordre ?? 0) - (b.ordre ?? 0))
+              .map((item: any, index: number) => ({
+                ...normalizeStrengthItem(item, index, cycle),
+                exercise_name: item.dim_exercices?.nom_exercice ?? undefined,
+                category: item.dim_exercices?.exercise_type ?? undefined,
+              })),
           };
         });
       }
@@ -1183,29 +1051,35 @@ export const api = {
            notes: item.notes,
          }));
 
-       if (syncConfig.hasCloudflareSync) {
-         const url = new URL(syncConfig.endpoint);
-         url.searchParams.set("action", "strength_catalog_create");
-         appendSharedToken(url);
-         await fetchJson(url.toString(), {
-           method: "POST",
-           headers: { "Content-Type": "application/json" },
-           body: JSON.stringify({
-             session: {
-               id: session?.id ?? null,
-               name: session?.title ?? session?.name ?? "",
-               description: session?.description ?? "",
-               cycle_type: cycle,
-             },
-             items: itemsPayload,
-           }),
-         }).then(unwrapOk);
-         return { status: "created" };
+       if (canUseSupabase()) {
+         const { data: created, error } = await supabase.from("strength_sessions").insert({
+           name: session?.title ?? session?.name ?? "",
+           description: session?.description ?? "",
+         }).select("id").single();
+         if (error) throw new Error(error.message);
+         const sessionId = created.id;
+         if (itemsPayload.length > 0) {
+           const { error: itemsError } = await supabase.from("strength_session_items").insert(
+             itemsPayload.map((item) => ({
+               session_id: sessionId,
+               ordre: item.ordre,
+               exercise_id: item.exercise_id,
+               block: "main",
+               cycle_type: item.cycle_type ?? cycle,
+               sets: item.sets,
+               reps: item.reps,
+               pct_1rm: item.pct_1rm,
+               rest_series_s: item.rest_series_s,
+               notes: item.notes,
+             })),
+           );
+           if (itemsError) throw new Error(itemsError.message);
+         }
+         return { status: "created", id: sessionId };
        }
 
        const s = this._get(STORAGE_KEYS.STRENGTH_SESSIONS) || [];
        const id = Date.now();
-       // Enrich items with exercise details for easier display
        const enrichedItems = normalizedItems.map((item: StrengthSessionItem) => {
          const ex = (this._get(STORAGE_KEYS.EXERCISES) || []).find((e: any) => e.id === item.exercise_id);
          return { ...item, exercise_name: ex?.nom_exercice, category: ex?.exercise_type };
@@ -1246,23 +1120,31 @@ export const api = {
            notes: item.notes,
          }));
 
-       if (syncConfig.hasCloudflareSync) {
-         const url = new URL(syncConfig.endpoint);
-         url.searchParams.set("action", "strength_catalog_upsert");
-         appendSharedToken(url);
-         await fetchJson(url.toString(), {
-           method: "POST",
-           headers: { "Content-Type": "application/json" },
-           body: JSON.stringify({
-             session: {
-               id: session?.id ?? null,
-               name: session?.title ?? session?.name ?? "",
-               description: session?.description ?? "",
-               cycle_type: cycle,
-             },
-             items: itemsPayload,
-           }),
-         }).then(unwrapOk);
+       if (canUseSupabase()) {
+         const { error } = await supabase.from("strength_sessions").update({
+           name: session?.title ?? session?.name ?? "",
+           description: session?.description ?? "",
+         }).eq("id", session.id);
+         if (error) throw new Error(error.message);
+         // Replace items: delete old, insert new
+         await supabase.from("strength_session_items").delete().eq("session_id", session.id);
+         if (itemsPayload.length > 0) {
+           const { error: itemsError } = await supabase.from("strength_session_items").insert(
+             itemsPayload.map((item) => ({
+               session_id: session.id,
+               ordre: item.ordre,
+               exercise_id: item.exercise_id,
+               block: "main",
+               cycle_type: item.cycle_type ?? cycle,
+               sets: item.sets,
+               reps: item.reps,
+               pct_1rm: item.pct_1rm,
+               rest_series_s: item.rest_series_s,
+               notes: item.notes,
+             })),
+           );
+           if (itemsError) throw new Error(itemsError.message);
+         }
          return { status: "updated" };
        }
 
@@ -1289,79 +1171,14 @@ export const api = {
   },
 
   async persistStrengthSessionOrder(session: StrengthSessionTemplate) {
-       if (!session?.id) {
-         throw new Error("Session id manquant");
-       }
-       const cycle = normalizeCycleType(session?.cycle ?? session?.cycle_type);
-       const rawItems: unknown[] = Array.isArray(session?.items) ? session.items : [];
-       const normalizedItems: StrengthSessionItem[] = rawItems.map((item, index) =>
-         normalizeStrengthItem(item, index, cycle),
-       );
-       validateStrengthItems(normalizedItems);
-       const itemsPayload = normalizedItems
-         .sort((a, b) => a.order_index - b.order_index)
-         .map((item) => ({
-           ordre: item.order_index,
-           exercise_id: item.exercise_id,
-           cycle_type: item.cycle_type,
-           sets: item.sets,
-           reps: item.reps,
-           pct_1rm: item.percent_1rm,
-           rest_series_s: item.rest_seconds,
-           notes: item.notes,
-         }));
-
-       if (syncConfig.hasCloudflareSync) {
-         const url = new URL(syncConfig.endpoint);
-         url.searchParams.set("action", "strength_catalog_upsert");
-         appendSharedToken(url);
-         await fetchJson(url.toString(), {
-           method: "POST",
-           headers: { "Content-Type": "application/json" },
-           body: JSON.stringify({
-             session: {
-               id: session?.id ?? null,
-               name: session?.title ?? session?.name ?? "",
-               description: session?.description ?? "",
-               cycle_type: cycle,
-             },
-             items: itemsPayload,
-           }),
-         }).then(unwrapOk);
-         return { status: "updated" };
-       }
-
-       const sessions = this._get(STORAGE_KEYS.STRENGTH_SESSIONS) || [];
-       const index = sessions.findIndex((item: StrengthSessionTemplate) => item.id === session.id);
-       if (index === -1) {
-         throw new Error("Séance introuvable");
-       }
-       const enrichedItems = normalizedItems.map((item: StrengthSessionItem) => {
-         const ex = (this._get(STORAGE_KEYS.EXERCISES) || []).find((e: any) => e.id === item.exercise_id);
-         return { ...item, exercise_name: ex?.nom_exercice, category: ex?.exercise_type };
-       });
-       const updatedSessions = [...sessions];
-       updatedSessions[index] = {
-         ...sessions[index],
-         ...session,
-         title: session?.title ?? session?.name ?? "",
-         cycle,
-         items: enrichedItems,
-       };
-       this._save(STORAGE_KEYS.STRENGTH_SESSIONS, updatedSessions);
-       return { status: "updated" };
+       // Delegates to updateStrengthSession which handles both Supabase and local
+       return this.updateStrengthSession(session);
   },
 
   async deleteStrengthSession(sessionId: number) {
-      if (canUseRemoteSync()) {
-        const url = new URL(syncConfig.endpoint);
-        url.searchParams.set("action", "strength_catalog_delete");
-        appendSharedToken(url);
-        await fetchJson(url.toString(), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ session_id: sessionId }),
-        }).then(unwrapOk);
+      if (canUseSupabase()) {
+        const { error } = await supabase.from("strength_sessions").delete().eq("id", sessionId);
+        if (error) throw new Error(error.message);
         return { status: "deleted" };
       }
 
@@ -1379,16 +1196,19 @@ export const api = {
     cycle_type?: string;
     progress_pct?: number;
   }) {
-      if (canUseRemoteSync()) {
-        const url = new URL(syncConfig.endpoint);
-        url.searchParams.set("action", "strength_run_start");
-        appendSharedToken(url);
-        const payload = await fetchJson(url.toString(), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
-        }).then(unwrapOk);
-        return payload;
+      if (canUseSupabase()) {
+        const { data: run, error } = await supabase.from("strength_session_runs").insert({
+          assignment_id: data.assignment_id ?? null,
+          athlete_id: data.athlete_id ?? null,
+          status: "in_progress",
+          progress_pct: data.progress_pct ?? 0,
+          started_at: new Date().toISOString(),
+        }).select("id").single();
+        if (error) throw new Error(error.message);
+        if (data.assignment_id) {
+          await supabase.from("session_assignments").update({ status: "in_progress" }).eq("id", data.assignment_id);
+        }
+        return { run_id: run.id };
       }
       const runs = this._get(STORAGE_KEYS.STRENGTH_RUNS) || [];
       const run_id = Date.now();
@@ -1442,7 +1262,7 @@ export const api = {
         );
         const current = existingByExercise.get(payload.exercise_id) ?? 0;
         if (estimate <= current) return null;
-        if (canUseRemoteSync() && (athleteId === null || athleteId === undefined || athleteId === "")) {
+        if (canUseSupabase() && (athleteId === null || athleteId === undefined || athleteId === "")) {
           return null;
         }
         await this.update1RM({
@@ -1468,15 +1288,20 @@ export const api = {
         };
       };
 
-      if (canUseRemoteSync()) {
-        const logUrl = new URL(syncConfig.endpoint);
-        logUrl.searchParams.set("action", "strength_set_log");
-        appendSharedToken(logUrl);
-        await fetchJson(logUrl.toString(), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }).then(unwrapOk);
+      if (canUseSupabase()) {
+        const { error } = await supabase.from("strength_set_logs").insert({
+          run_id: payload.run_id,
+          exercise_id: payload.exercise_id,
+          set_index: payload.set_index ?? null,
+          reps: payload.reps ?? null,
+          weight: payload.weight ?? null,
+          pct_1rm_suggested: payload.pct_1rm_suggested ?? null,
+          rest_seconds: payload.rest_seconds ?? null,
+          rpe: payload.rpe ?? null,
+          notes: payload.notes ?? null,
+          completed_at: new Date().toISOString(),
+        });
+        if (error) throw new Error(error.message);
         const context = resolveAthleteContext();
         const updated = await maybeUpdateOneRm(context);
         return { status: "ok", one_rm_updated: Boolean(updated), one_rm: updated ?? undefined };
@@ -1503,21 +1328,17 @@ export const api = {
     status?: "in_progress" | "completed" | "abandoned";
     [key: string]: any;
   }) {
-      if (canUseRemoteSync()) {
-        const updateUrl = new URL(syncConfig.endpoint);
-        updateUrl.searchParams.set("action", "strength_run_update");
-        appendSharedToken(updateUrl);
-        await fetchJson(updateUrl.toString(), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            run_id: update.run_id,
-            progress_pct: update.progress_pct,
-            status: update.status,
-            fatigue: update.fatigue,
-            comments: update.comments,
-          }),
-        }).then(unwrapOk);
+      if (canUseSupabase()) {
+        const updatePayload: Record<string, unknown> = {};
+        if (update.progress_pct !== undefined) updatePayload.progress_pct = update.progress_pct;
+        if (update.status) updatePayload.status = update.status;
+        if (update.status === "completed") updatePayload.completed_at = new Date().toISOString();
+        if (update.fatigue !== undefined) updatePayload.raw_payload = { fatigue: update.fatigue, comments: update.comments };
+        const { error } = await supabase.from("strength_session_runs").update(updatePayload).eq("id", update.run_id);
+        if (error) throw new Error(error.message);
+        if (update.status === "completed" && update.assignment_id) {
+          await supabase.from("session_assignments").update({ status: "completed" }).eq("id", update.assignment_id);
+        }
         return { status: "ok" };
       }
 
@@ -1553,21 +1374,10 @@ export const api = {
   },
 
   async deleteStrengthRun(runId: number) {
-      const supportsRemoteDelete = canUseRemoteSync();
-      if (supportsRemoteDelete) {
-        try {
-          const url = new URL(syncConfig.endpoint);
-          url.searchParams.set("action", "strength_run_delete");
-          appendSharedToken(url);
-          await fetchJson(url.toString(), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ run_id: runId }),
-          }).then(unwrapOk);
-          return { status: "deleted", source: "remote" as const };
-        } catch {
-          // Fallback localStorage si l'endpoint n'est pas disponible.
-        }
+      if (canUseSupabase()) {
+        const { error } = await supabase.from("strength_session_runs").delete().eq("id", runId);
+        if (error) throw new Error(error.message);
+        return { status: "deleted", source: "remote" as const };
       }
 
       const runs = this._get(STORAGE_KEYS.STRENGTH_RUNS) || [];
@@ -1581,55 +1391,43 @@ export const api = {
         );
         this._save(STORAGE_KEYS.ASSIGNMENTS, nextAssignments);
       }
-      return {
-        status: "deleted",
-        source: supportsRemoteDelete ? "local_fallback" as const : "local" as const,
-      };
+      return { status: "deleted", source: "local" as const };
   },
 
   async saveStrengthRun(run: any) {
-      if (canUseRemoteSync()) {
+      if (canUseSupabase()) {
         let runId = run.run_id;
+        // Step 1: Create run if needed
         if (!runId) {
-          const startUrl = new URL(syncConfig.endpoint);
-          startUrl.searchParams.set("action", "strength_run_start");
-          appendSharedToken(startUrl);
-          const startData = await fetchJson(startUrl.toString(), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              assignment_id: run.assignment_id,
-              athlete_id: run.athlete_id ?? null,
-              athleteName: run.athlete_name ?? null,
-              progress_pct: run.progress_pct ?? 0,
-            }),
-          }).then(unwrapOk);
-          runId = startData.run_id;
+          const { data: newRun, error } = await supabase.from("strength_session_runs").insert({
+            assignment_id: run.assignment_id ?? null,
+            athlete_id: run.athlete_id ?? null,
+            status: "in_progress",
+            progress_pct: run.progress_pct ?? 0,
+            started_at: new Date().toISOString(),
+          }).select("id").single();
+          if (error) throw new Error(error.message);
+          runId = newRun.id;
         }
 
+        // Step 2: Insert all set logs
         if (runId && Array.isArray(run.logs) && run.logs.length > 0) {
-          const logUrl = new URL(syncConfig.endpoint);
-          logUrl.searchParams.set("action", "strength_set_log");
-          appendSharedToken(logUrl);
-          await Promise.all(
-            run.logs.map((log: any, index: number) =>
-              fetchJson(logUrl.toString(), {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  run_id: runId,
-                  exercise_id: log.exercise_id,
-                  set_index: log.set_index ?? log.set_number ?? index,
-                  reps: log.reps ?? null,
-                  weight: log.weight ?? null,
-                  rpe: log.rpe ?? null,
-                  notes: log.notes ?? null,
-                }),
-              }).then(unwrapOk),
-            ),
+          const { error: logsError } = await supabase.from("strength_set_logs").insert(
+            run.logs.map((log: any, index: number) => ({
+              run_id: runId,
+              exercise_id: log.exercise_id,
+              set_index: log.set_index ?? log.set_number ?? index,
+              reps: log.reps ?? null,
+              weight: log.weight ?? null,
+              rpe: log.rpe ?? null,
+              notes: log.notes ?? null,
+              completed_at: new Date().toISOString(),
+            })),
           );
+          if (logsError) throw new Error(logsError.message);
         }
 
+        // Step 3: Calculate 1RM estimates and upsert records
         const estimatedRecords = new Map<number, number>();
         const logs = Array.isArray(run.logs) ? run.logs : [];
         logs.forEach((log: any) => {
@@ -1645,7 +1443,7 @@ export const api = {
         if (estimatedRecords.size > 0) {
           const athleteId = run.athlete_id ?? null;
           const athleteName = run.athlete_name ?? null;
-          if (!(canUseRemoteSync() && (athleteId === null || athleteId === undefined || athleteId === ""))) {
+          if (athleteId !== null && athleteId !== undefined && athleteId !== "") {
             const existing = await this.get1RM({ athleteName, athleteId });
             const existingByExercise = new Map<number, number>(
               (existing || []).map((record: any) => [record.exercise_id, Number(record.weight ?? 0)]),
@@ -1665,19 +1463,18 @@ export const api = {
           }
         }
 
+        // Step 4: Mark run as completed
         if (runId) {
-          const updateUrl = new URL(syncConfig.endpoint);
-          updateUrl.searchParams.set("action", "strength_run_update");
-          appendSharedToken(updateUrl);
-          await fetchJson(updateUrl.toString(), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              run_id: runId,
-              progress_pct: run.progress_pct ?? 100,
-              status: "completed",
-            }),
-          }).then(unwrapOk);
+          await supabase.from("strength_session_runs").update({
+            progress_pct: run.progress_pct ?? 100,
+            status: "completed",
+            completed_at: new Date().toISOString(),
+          }).eq("id", runId);
+        }
+
+        // Step 5: Mark assignment completed if applicable
+        if (run.assignment_id) {
+          await supabase.from("session_assignments").update({ status: "completed" }).eq("id", run.assignment_id);
         }
         return { status: "ok", run_id: runId ?? null };
       }
@@ -1745,25 +1542,18 @@ export const api = {
       athleteName?: string | null;
       progressPct?: number;
   }) {
-      if (canUseRemoteSync()) {
-        const url = new URL(syncConfig.endpoint);
-        url.searchParams.set("action", "strength_run_start");
-        appendSharedToken(url);
-        const payload = await fetchJson(url.toString(), {
-          method: "POST",
-          redirect: "follow",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            assignment_id: data.assignmentId,
-            athlete_id: data.athleteId,
-            athleteName: data.athleteName,
-            progress_pct: data.progressPct ?? 0,
-          }),
-        });
-        if (!payload || payload.ok !== true) {
-          throw new Error(payload?.error || "Format inattendu");
-        }
-        return payload.data || payload;
+      if (canUseSupabase()) {
+        const athleteId = data.athleteId ? Number(data.athleteId) : null;
+        const { data: run, error } = await supabase.from("strength_session_runs").insert({
+          assignment_id: data.assignmentId,
+          athlete_id: athleteId,
+          status: "in_progress",
+          progress_pct: data.progressPct ?? 0,
+          started_at: new Date().toISOString(),
+        }).select("id").single();
+        if (error) throw new Error(error.message);
+        await supabase.from("session_assignments").update({ status: "in_progress" }).eq("id", data.assignmentId);
+        return { run_id: run.id };
       }
 
       const runId = Date.now();
@@ -1811,39 +1601,26 @@ export const api = {
     const athleteId = options?.athleteId;
     const hasAthleteId = athleteId !== null && athleteId !== undefined && athleteId !== "";
 
-    if (canUseRemoteSync()) {
-      const url = new URL(syncConfig.endpoint);
-      url.searchParams.set("action", "strength_history");
+    if (canUseSupabase()) {
+      let query = supabase.from("strength_session_runs")
+        .select("*, strength_set_logs(*)")
+        .order("started_at", { ascending: order === "asc" })
+        .range(offset, offset + limit - 1);
       if (hasAthleteId) {
-        url.searchParams.set("athlete_id", String(athleteId));
-      } else if (athleteName) {
-        url.searchParams.set("athleteName", athleteName);
+        query = query.eq("athlete_id", Number(athleteId));
       }
-      url.searchParams.set("limit", String(limit));
-      url.searchParams.set("offset", String(offset));
-      url.searchParams.set("order", order);
       if (options?.status) {
-        url.searchParams.set("status", options.status);
+        query = query.eq("status", options.status);
       }
       if (options?.from) {
-        url.searchParams.set("from", options.from);
+        query = query.gte("started_at", options.from);
       }
       if (options?.to) {
-        url.searchParams.set("to", options.to);
+        query = query.lte("started_at", options.to + "T23:59:59");
       }
-      appendSharedToken(url);
-      const payload = await fetchJson(url.toString(), {
-        method: "GET",
-        redirect: "follow",
-        headers: {},
-      });
-      if (!payload || payload.ok !== true) {
-        throw new Error(payload?.error || "Format inattendu");
-      }
-      const runs = Array.isArray(payload?.data?.runs) ? payload.data.runs : [];
-      const exercise_summary = Array.isArray(payload?.data?.exercise_summary) ? payload.data.exercise_summary : [];
-      const pagination = payload?.meta?.pagination || { limit, offset, total: runs.length };
-      return { runs, pagination, exercise_summary };
+      const { data: runs, error, count } = await query;
+      if (error) throw new Error(error.message);
+      return { runs: runs ?? [], pagination: { limit, offset, total: count ?? (runs ?? []).length }, exercise_summary: [] };
     }
 
     const runs = this._get(STORAGE_KEYS.STRENGTH_RUNS) || [];
@@ -1949,39 +1726,15 @@ export const api = {
     const hasAthleteId = athleteId !== null && athleteId !== undefined && athleteId !== "";
     const period = options?.period ?? "day";
 
-    if (syncConfig.hasCloudflareSync) {
-      const url = new URL(syncConfig.endpoint);
-      url.searchParams.set("action", "strength_history_aggregate");
-      if (hasAthleteId) {
-        url.searchParams.set("athlete_id", String(athleteId));
-      } else if (athleteName) {
-        url.searchParams.set("athleteName", athleteName);
-      }
-      url.searchParams.set("limit", String(limit));
-      url.searchParams.set("offset", String(offset));
-      url.searchParams.set("order", order);
-      url.searchParams.set("period", period);
-      if (options?.status) {
-        url.searchParams.set("status", options.status);
-      }
-      if (options?.from) {
-        url.searchParams.set("from", options.from);
-      }
-      if (options?.to) {
-        url.searchParams.set("to", options.to);
-      }
-      appendSharedToken(url);
-      const payload = await fetchJson(url.toString(), {
-        method: "GET",
-        redirect: "follow",
-        headers: {},
-      });
-      if (!payload || payload.ok !== true) {
-        throw new Error(payload?.error || "Format inattendu");
-      }
-      const periods = Array.isArray(payload?.data?.periods) ? payload.data.periods : [];
-      const pagination = payload?.meta?.pagination || { limit, offset, total: periods.length };
-      return { periods, pagination };
+    if (canUseSupabase()) {
+      const rpcParams: Record<string, unknown> = { p_period: period };
+      if (hasAthleteId) rpcParams.p_athlete_id = Number(athleteId);
+      if (options?.from) rpcParams.p_from = options.from;
+      if (options?.to) rpcParams.p_to = options.to;
+      const { data: rpcData, error: rpcError } = await supabase.rpc("get_strength_history_aggregate", rpcParams);
+      if (rpcError) throw new Error(rpcError.message);
+      const periods = Array.isArray(rpcData) ? rpcData : [];
+      return { periods, pagination: { limit, offset, total: periods.length } };
     }
 
     const runs = this._get(STORAGE_KEYS.STRENGTH_RUNS) || [];
@@ -2040,28 +1793,19 @@ export const api = {
   async get1RM(athlete: string | { athleteName?: string | null; athleteId?: number | string | null }) {
       const athleteName = typeof athlete === "string" ? athlete : (athlete?.athleteName ?? null);
       const athleteId = typeof athlete === "string" ? null : (athlete?.athleteId ?? null);
-      if (canUseRemoteSync()) {
-        const url = new URL(syncConfig.endpoint);
-        url.searchParams.set("action", "one_rm_upsert");
+      if (canUseSupabase()) {
+        let query = supabase.from("one_rm_records").select("*");
         if (athleteId !== null && athleteId !== undefined && String(athleteId) !== "") {
-          url.searchParams.set("athlete_id", String(athleteId));
-        } else if (athleteName) {
-          url.searchParams.set("athleteName", athleteName);
+          query = query.eq("athlete_id", Number(athleteId));
         }
-        appendSharedToken(url);
-        const payload = await fetchJson(url.toString(), {
-          method: "GET",
-          redirect: "follow",
-          headers: {},
-        }).then(unwrapOk);
-        const rawRecords = payload.records ?? payload;
-        const records = Array.isArray(rawRecords) ? rawRecords : [];
-        return records.map((record: any) => ({
+        const { data, error } = await query;
+        if (error) throw new Error(error.message);
+        return (data ?? []).map((record: any) => ({
           id: safeOptionalInt(record.id),
           athlete_id: safeOptionalInt(record.athlete_id),
           exercise_id: safeInt(record.exercise_id),
-          weight: Number(record.one_rm ?? record.weight ?? 0),
-          recorded_at: record.recorded_at ?? record.date ?? null,
+          weight: Number(record.one_rm ?? 0),
+          recorded_at: record.recorded_at ?? null,
         }));
       }
       const records = this._get(STORAGE_KEYS.ONE_RM) || [];
@@ -2077,25 +1821,19 @@ export const api = {
       one_rm?: number;
       weight?: number;
     }) {
-      if (canUseRemoteSync()) {
+      if (canUseSupabase()) {
         const athleteId = record.athlete_id ?? record.athleteId;
         const oneRm = record.one_rm ?? record.weight;
         if (athleteId === null || athleteId === undefined || athleteId === "" || oneRm === null || oneRm === undefined) {
           throw new Error("athlete_id et one_rm sont requis");
         }
-        const url = new URL(syncConfig.endpoint);
-        url.searchParams.set("action", "one_rm_upsert");
-        appendSharedToken(url);
-        await fetchJson(url.toString(), {
-          method: "POST",
-          redirect: "follow",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            athlete_id: athleteId,
-            exercise_id: record.exercise_id,
-            one_rm: oneRm,
-          }),
-        }).then(unwrapOk);
+        const { error } = await supabase.from("one_rm_records").upsert({
+          athlete_id: Number(athleteId),
+          exercise_id: record.exercise_id,
+          one_rm: oneRm,
+          recorded_at: new Date().toISOString(),
+        }, { onConflict: "athlete_id,exercise_id" });
+        if (error) throw new Error(error.message);
         return { status: "ok" };
       }
       const records = this._get(STORAGE_KEYS.ONE_RM) || [];
@@ -2109,52 +1847,17 @@ export const api = {
   },
 
   async getSwimRecords(options: { athleteId?: number | null; athleteName?: string | null }) {
-      if (syncConfig.endpoint) {
-        const baseUrl = new URL(syncConfig.endpoint);
-        baseUrl.searchParams.set("action", "swim_records");
+      if (canUseSupabase()) {
+        let query = supabase.from("swim_records").select("*").order("record_date", { ascending: false });
         if (options.athleteId) {
-          baseUrl.searchParams.set("athlete_id", String(options.athleteId));
-        } else if (options.athleteName) {
-          baseUrl.searchParams.set("athleteName", options.athleteName);
+          query = query.eq("athlete_id", options.athleteId);
         }
-        appendSharedToken(baseUrl);
-
-        const limit = 200; // worker cap = 200
-        const hardCap = 2000; // safety guard
-        let offset = 0;
-        let total = 0;
-        const all: any[] = [];
-
-        while (true) {
-          const pageUrl = new URL(baseUrl.toString());
-          pageUrl.searchParams.set("limit", String(limit));
-          pageUrl.searchParams.set("offset", String(offset));
-
-          const payload = await fetchJson(pageUrl.toString(), {
-            method: "GET",
-            redirect: "follow",
-            headers: {},
-          });
-          if (!payload || payload.ok !== true) {
-            throw new Error(payload?.error || "Format inattendu");
-          }
-
-          const pageRecords = Array.isArray(payload?.data?.records) ? payload.data.records : [];
-          const pagination = payload?.meta?.pagination || {};
-          total = Number(pagination.total || total || 0);
-
-          all.push(...pageRecords);
-          offset += pageRecords.length;
-
-          if (pageRecords.length === 0) break;
-          if (total && offset >= total) break;
-          if (offset >= hardCap) break;
-          if (pageRecords.length < limit) break;
-        }
-
+        const { data, error } = await query;
+        if (error) throw new Error(error.message);
+        const records = data ?? [];
         return {
-          records: all,
-          pagination: { limit: all.length, offset: 0, total: total || all.length },
+          records,
+          pagination: { limit: records.length, offset: 0, total: records.length },
         };
       }
 
@@ -2182,16 +1885,22 @@ export const api = {
     ffn_points?: number | null;
     record_type?: "training" | "comp" | string | null;
   }) {
-      if (syncConfig.endpoint) {
-        const url = new URL(syncConfig.endpoint);
-        url.searchParams.set("action", "swim_records_upsert");
-        appendSharedToken(url);
-        await fetchJson(url.toString(), {
-          method: "POST",
-          redirect: "follow",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }).then(unwrapOk);
+      if (canUseSupabase()) {
+        const dbPayload: Record<string, unknown> = {
+          athlete_id: payload.athlete_id ?? null,
+          event_name: payload.event_name,
+          pool_length: payload.pool_length ?? null,
+          time_seconds: payload.time_seconds ?? null,
+          record_date: payload.record_date ?? null,
+          notes: payload.notes ?? null,
+        };
+        if (payload.id) {
+          const { error } = await supabase.from("swim_records").update(dbPayload).eq("id", payload.id);
+          if (error) throw new Error(error.message);
+        } else {
+          const { error } = await supabase.from("swim_records").insert(dbPayload);
+          if (error) throw new Error(error.message);
+        }
         return { status: "ok" };
       }
 
@@ -2217,35 +1926,33 @@ export const api = {
 
   // --- SWIM CATALOG ---
   async getSwimCatalog(): Promise<SwimSessionTemplate[]> {
-      if (syncConfig.hasCloudflareSync) {
-        const url = new URL(syncConfig.endpoint);
-        url.searchParams.set("action", "swim_catalog_list");
-        appendSharedToken(url);
-        const payload = await fetchJson(url.toString(), {
-          method: "GET",
-          redirect: "follow",
-          headers: {},
-        }).then(unwrapOk);
-        const catalogs = Array.isArray(payload.catalogs) ? payload.catalogs : [];
-        return catalogs.map((catalog: any) => ({
+      if (canUseSupabase()) {
+        const { data: catalogs, error } = await supabase
+          .from("swim_sessions_catalog")
+          .select("*, swim_session_items(*)")
+          .order("created_at", { ascending: false });
+        if (error) throw new Error(error.message);
+        return (catalogs ?? []).map((catalog: any) => ({
           id: safeInt(catalog.id, Date.now()),
           name: String(catalog.name || ""),
           description: catalog.description ?? null,
           created_by: safeOptionalInt(catalog.created_by) ?? null,
           created_at: catalog.created_at ?? null,
           updated_at: catalog.updated_at ?? null,
-          items: Array.isArray(catalog.items)
-            ? catalog.items.map((item: any, index: number) => ({
-                id: safeOptionalInt(item.id) ?? undefined,
-                catalog_id: safeOptionalInt(item.catalog_id) ?? undefined,
-                ordre: safeOptionalInt(item.ordre) ?? index,
-                label: item.label ?? null,
-                distance: safeOptionalInt(item.distance) ?? null,
-                duration: safeOptionalInt(item.duration) ?? null,
-                intensity: item.intensity ?? null,
-                notes: item.notes ?? null,
-                raw_payload: parseRawPayload(item.raw_payload),
-              }))
+          items: Array.isArray(catalog.swim_session_items)
+            ? catalog.swim_session_items
+                .sort((a: any, b: any) => (a.ordre ?? 0) - (b.ordre ?? 0))
+                .map((item: any, index: number) => ({
+                  id: safeOptionalInt(item.id) ?? undefined,
+                  catalog_id: safeOptionalInt(item.catalog_id) ?? undefined,
+                  ordre: safeOptionalInt(item.ordre) ?? index,
+                  label: item.label ?? null,
+                  distance: safeOptionalInt(item.distance) ?? null,
+                  duration: safeOptionalInt(item.duration) ?? null,
+                  intensity: item.intensity ?? null,
+                  notes: item.notes ?? null,
+                  raw_payload: parseRawPayload(item.raw_payload),
+                }))
             : [],
         }));
       }
@@ -2282,10 +1989,7 @@ export const api = {
   },
 
   async createSwimSession(session: any) {
-      if (syncConfig.hasCloudflareSync) {
-        const url = new URL(syncConfig.endpoint);
-        url.searchParams.set("action", "swim_catalog_upsert");
-        appendSharedToken(url);
+      if (canUseSupabase()) {
         const items = Array.isArray(session.items)
           ? session.items.map((item: any, index: number) => ({
               ordre: item.ordre ?? index,
@@ -2297,19 +2001,34 @@ export const api = {
               raw_payload: item.raw_payload ?? null,
             }))
           : [];
-        await fetchJson(url.toString(), {
-          method: "POST",
-          redirect: "follow",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            catalog: {
-              id: session.id ?? undefined,
-              name: session.name,
-              description: session.description ?? null,
-            },
-            items,
-          }),
-        }).then(unwrapOk);
+        if (session.id) {
+          // Update existing
+          const { error } = await supabase.from("swim_sessions_catalog").update({
+            name: session.name,
+            description: session.description ?? null,
+          }).eq("id", session.id);
+          if (error) throw new Error(error.message);
+          await supabase.from("swim_session_items").delete().eq("catalog_id", session.id);
+          if (items.length > 0) {
+            const { error: itemsError } = await supabase.from("swim_session_items").insert(
+              items.map((item: any) => ({ ...item, catalog_id: session.id })),
+            );
+            if (itemsError) throw new Error(itemsError.message);
+          }
+          return { status: "updated" };
+        }
+        // Create new
+        const { data: created, error } = await supabase.from("swim_sessions_catalog").insert({
+          name: session.name,
+          description: session.description ?? null,
+        }).select("id").single();
+        if (error) throw new Error(error.message);
+        if (items.length > 0) {
+          const { error: itemsError } = await supabase.from("swim_session_items").insert(
+            items.map((item: any) => ({ ...item, catalog_id: created.id })),
+          );
+          if (itemsError) throw new Error(itemsError.message);
+        }
         return { status: "created" };
       }
 
@@ -2327,16 +2046,9 @@ export const api = {
   },
 
   async deleteSwimSession(sessionId: number) {
-      if (syncConfig.hasCloudflareSync) {
-        const url = new URL(syncConfig.endpoint);
-        url.searchParams.set("action", "swim_catalog_delete");
-        appendSharedToken(url);
-        await fetchJson(url.toString(), {
-          method: "POST",
-          redirect: "follow",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ catalog_id: sessionId }),
-        }).then(unwrapOk);
+      if (canUseSupabase()) {
+        const { error } = await supabase.from("swim_sessions_catalog").delete().eq("id", sessionId);
+        if (error) throw new Error(error.message);
         return { status: "deleted" };
       }
       const sessions = this._get(STORAGE_KEYS.SWIM_SESSIONS) || [];
@@ -2346,7 +2058,7 @@ export const api = {
   },
 
   async getAssignmentsForCoach(): Promise<Assignment[] | null> {
-      if (canUseRemoteSync()) {
+      if (canUseSupabase()) {
         return null;
       }
       await delay(100);
@@ -2359,43 +2071,28 @@ export const api = {
     athleteId?: number | null,
     options?: { assignmentType?: "swim" | "strength"; status?: string },
   ): Promise<Assignment[]> {
-      if (canUseRemoteSync()) {
+      if (canUseSupabase()) {
         const groupIds = await fetchUserGroupIds(athleteId ?? null);
-        const targets = [
-          ...(athleteId !== null && athleteId !== undefined ? [{ type: "user" as const, id: athleteId }] : []),
-          ...groupIds.map((id) => ({ type: "group" as const, id })),
-        ];
-        if (!targets.length) return [];
-        const rawAssignments = (
-          await Promise.all(
-            targets.map(async (target) => {
-              const url = new URL(syncConfig.endpoint);
-              url.searchParams.set("action", "assignments_list");
-              if (target.type === "user") {
-                url.searchParams.set("target_user_id", String(target.id));
-              } else {
-                url.searchParams.set("target_group_id", String(target.id));
-              }
-              if (options?.assignmentType) {
-                url.searchParams.set("assignment_type", options.assignmentType);
-              }
-              if (options?.status) {
-                url.searchParams.set("status", options.status);
-              }
-              appendSharedToken(url);
-              const payload = await fetchJson(url.toString(), {
-                method: "GET",
-                redirect: "follow",
-                headers: {},
-              });
-              if (!payload || payload.ok !== true) {
-                throw new Error(payload?.error || "Format inattendu");
-              }
-              return Array.isArray(payload?.data?.assignments) ? payload.data.assignments : [];
-            }),
-          )
-        ).flat();
-        if (rawAssignments.length === 0) return [];
+        const orFilters: string[] = [];
+        if (athleteId !== null && athleteId !== undefined) {
+          orFilters.push(`target_user_id.eq.${athleteId}`);
+        }
+        groupIds.forEach((gid) => orFilters.push(`target_group_id.eq.${gid}`));
+        if (!orFilters.length) return [];
+
+        let query = supabase.from("session_assignments").select("*").or(orFilters.join(","));
+        if (options?.assignmentType) {
+          query = query.eq("assignment_type", options.assignmentType);
+        }
+        if (options?.status) {
+          query = query.eq("status", options.status);
+        } else {
+          query = query.neq("status", "completed");
+        }
+        const { data: rawAssignments, error } = await query;
+        if (error) throw new Error(error.message);
+        if (!rawAssignments?.length) return [];
+
         const [swimCatalogs, strengthCatalogs] = await Promise.all([
           this.getSwimCatalog(),
           this.getStrengthSessions(),
@@ -2409,7 +2106,7 @@ export const api = {
               safeOptionalInt(
                 sessionType === "swim" ? assignment.swim_catalog_id : assignment.strength_session_id,
               ) ?? 0;
-            const scheduledDate = assignment.scheduled_date || assignment.due_at || assignment.created_at || "";
+            const scheduledDate = assignment.scheduled_date || assignment.created_at || "";
             const status = String(assignment.status || "assigned");
             const swimSession = sessionType === "swim" ? swimById.get(sessionId) : undefined;
             const strengthSession = sessionType === "strength" ? strengthById.get(sessionId) : undefined;
@@ -2430,8 +2127,7 @@ export const api = {
               base.cycle = strengthSession?.cycle ?? "endurance";
             }
             return base;
-          })
-          .filter((assignment: Assignment) => assignment.status !== "completed");
+          });
         const unique = new Map(mapped.map((assignment) => [assignment.id, assignment]));
         return Array.from(unique.values());
       }
@@ -2465,22 +2161,36 @@ export const api = {
       const assignmentType = data.assignment_type ?? data.session_type;
       if (!assignmentType) return { status: "error" };
       const scheduledDate = data.scheduled_date ?? data.assigned_date ?? new Date().toISOString();
-      if (syncConfig.hasCloudflareSync) {
-        const payload: Record<string, unknown> = {
+      if (canUseSupabase()) {
+        const insertPayload: Record<string, unknown> = {
           assignment_type: assignmentType,
-          session_id: data.session_id,
           scheduled_date: scheduledDate,
+          status: "assigned",
         };
-        if (data.target_user_id !== null && data.target_user_id !== undefined) {
-          payload.target_user_id = data.target_user_id;
-        } else if (data.target_group_id !== null && data.target_group_id !== undefined) {
-          payload.target_group_id = data.target_group_id;
+        if (assignmentType === "swim") {
+          insertPayload.swim_catalog_id = data.session_id;
+        } else {
+          insertPayload.strength_session_id = data.session_id;
         }
-        await fetchJson(`${syncConfig.endpoint}?action=assignments_create`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }).then(unwrapOk);
+        if (data.target_user_id !== null && data.target_user_id !== undefined) {
+          insertPayload.target_user_id = data.target_user_id;
+        } else if (data.target_group_id !== null && data.target_group_id !== undefined) {
+          insertPayload.target_group_id = data.target_group_id;
+        }
+        const { data: created, error } = await supabase.from("session_assignments").insert(insertPayload).select("id").single();
+        if (error) throw new Error(error.message);
+        // Create notification
+        const { data: notif, error: notifError } = await supabase.from("notifications").insert({
+          title: "Nouvelle séance assignée",
+          body: `Séance prévue le ${scheduledDate}.`,
+          type: "assignment",
+        }).select("id").single();
+        if (!notifError && notif) {
+          const targetPayload: Record<string, unknown> = { notification_id: notif.id };
+          if (data.target_user_id) targetPayload.target_user_id = data.target_user_id;
+          if (data.target_group_id) targetPayload.target_group_id = data.target_group_id;
+          await supabase.from("notification_targets").insert(targetPayload);
+        }
         return { status: "assigned" };
       }
 
@@ -2531,11 +2241,9 @@ export const api = {
   },
 
   async assignments_delete(assignmentId: number) {
-      if (syncConfig.hasCloudflareSync) {
-        const url = new URL(syncConfig.endpoint);
-        url.searchParams.set("action", "assignments_delete");
-        url.searchParams.set("assignment_id", String(assignmentId));
-        await fetchJson(url.toString(), { method: "DELETE" }).then(unwrapOk);
+      if (canUseSupabase()) {
+        const { error } = await supabase.from("session_assignments").delete().eq("id", assignmentId);
+        if (error) throw new Error(error.message);
         return { status: "deleted" };
       }
 
@@ -2558,12 +2266,23 @@ export const api = {
     targets: Array<{ target_user_id?: number | null; target_group_id?: number | null }>;
     reply_to_target_id?: number;
   }) {
-    if (syncConfig.hasCloudflareSync) {
-      await fetchJson(`${syncConfig.endpoint}?action=notifications_send`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }).then(unwrapOk);
+    if (canUseSupabase()) {
+      const { data: notif, error } = await supabase.from("notifications").insert({
+        title: payload.title,
+        body: payload.body ?? null,
+        type: payload.type,
+      }).select("id").single();
+      if (error) throw new Error(error.message);
+      if (notif && payload.targets.length > 0) {
+        const { error: targetError } = await supabase.from("notification_targets").insert(
+          payload.targets.map((target) => ({
+            notification_id: notif.id,
+            target_user_id: target.target_user_id ?? null,
+            target_group_id: target.target_group_id ?? null,
+          })),
+        );
+        if (targetError) throw new Error(targetError.message);
+      }
       return { status: "sent" };
     }
     const notifs = this._get(STORAGE_KEYS.NOTIFICATIONS) || [];
@@ -2610,87 +2329,62 @@ export const api = {
     const offset = Number.isFinite(offsetRaw) ? Math.max(Number(offsetRaw), 0) : 0;
     const order = options.order === "asc" ? "asc" : "desc";
 
-    if (syncConfig.hasCloudflareSync) {
+    if (canUseSupabase()) {
       const groupIds = await fetchUserGroupIds(options.targetUserId ?? null);
-      const targets = [
-        ...(options.targetUserId ? [{ type: "user" as const, id: options.targetUserId }] : []),
-        ...groupIds.map((id) => ({ type: "group" as const, id })),
-      ];
-      if (!targets.length) {
+      const orFilters: string[] = [];
+      if (options.targetUserId) {
+        orFilters.push(`target_user_id.eq.${options.targetUserId}`);
+      }
+      groupIds.forEach((gid) => orFilters.push(`target_group_id.eq.${gid}`));
+      if (!orFilters.length) {
         return { notifications: [], pagination: { limit, offset, total: 0 } };
       }
-      const perTargetLimit = Math.max(limit, 50);
-      const rawNotifications = (
-        await Promise.all(
-          targets.map(async (target) => {
-            const url = new URL(syncConfig.endpoint);
-            url.searchParams.set("action", "notifications_list");
-            url.searchParams.set("limit", String(perTargetLimit));
-            url.searchParams.set("offset", "0");
-            url.searchParams.set("order", order);
-            if (target.type === "user") {
-              url.searchParams.set("target_user_id", String(target.id));
-            } else {
-              url.searchParams.set("target_group_id", String(target.id));
-            }
-            if (options.status) {
-              url.searchParams.set("status", options.status);
-            }
-            if (options.type) {
-              url.searchParams.set("type", options.type);
-            }
-            if (options.from) {
-              url.searchParams.set("from", options.from);
-            }
-            if (options.to) {
-              url.searchParams.set("to", options.to);
-            }
-            appendSharedToken(url);
-            const payload = await fetchJson(url.toString(), {
-              method: "GET",
-              redirect: "follow",
-              headers: {},
-            });
-            if (!payload || payload.ok !== true) {
-              throw new Error(payload?.error || "Format inattendu");
-            }
-            return Array.isArray(payload?.data?.notifications) ? payload.data.notifications : [];
-          }),
-        )
-      ).flat();
-      const mapped = rawNotifications.map((notif: any) => ({
-        id: safeInt(notif.id, Date.now()),
-        target_id: safeOptionalInt(notif.target_id) ?? undefined,
-        target_user_id: safeOptionalInt(notif.target_user_id) ?? null,
-        sender_id: safeOptionalInt(notif.created_by) ?? null,
-        sender_email: notif.sender_email ? String(notif.sender_email) : null,
-        target_group_id: safeOptionalInt(notif.target_group_id) ?? null,
-        target_group_name: notif.target_group_name ? String(notif.target_group_name) : null,
-        sender_name: notif.sender_name ? String(notif.sender_name) : null,
-        sender_role: notif.sender_role ? String(notif.sender_role) : null,
-        counterparty_id: safeOptionalInt(notif.counterparty_id) ?? null,
-        counterparty_name: notif.counterparty_name ? String(notif.counterparty_name) : null,
-        counterparty_role: notif.counterparty_role ? String(notif.counterparty_role) : null,
-        sender: notif.sender_name
-          ? String(notif.sender_name)
-          : notif.sender
-            ? String(notif.sender)
-            : notif.created_by
-              ? "Coach"
-              : "Système",
-        title: String(notif.title || ""),
-        message: String(notif.body || ""),
-        type: String(notif.type || "message"),
-        read: Boolean(notif.read_at),
-        date: notif.created_at || new Date().toISOString(),
-      }));
-      const sorted = mapped.sort((a, b) => {
-        const aDate = new Date(a.date || 0).getTime();
-        const bDate = new Date(b.date || 0).getTime();
-        return order === "asc" ? aDate - bDate : bDate - aDate;
+      let query = supabase
+        .from("notification_targets")
+        .select("*, notifications!inner(*)")
+        .or(orFilters.join(","))
+        .order("notifications(created_at)", { ascending: order === "asc" });
+      if (options.status === "read") {
+        query = query.not("read_at", "is", null);
+      } else if (options.status === "unread") {
+        query = query.is("read_at", null);
+      }
+      if (options.type) {
+        query = query.eq("notifications.type", options.type);
+      }
+      if (options.from) {
+        query = query.gte("notifications.created_at", options.from);
+      }
+      if (options.to) {
+        query = query.lte("notifications.created_at", options.to + "T23:59:59");
+      }
+      const { data: rawTargets, error } = await query;
+      if (error) throw new Error(error.message);
+      const mapped = (rawTargets ?? []).map((t: any) => {
+        const notif = t.notifications || {};
+        return {
+          id: safeInt(t.id, Date.now()),
+          target_id: safeOptionalInt(t.id) ?? undefined,
+          target_user_id: safeOptionalInt(t.target_user_id) ?? null,
+          sender_id: safeOptionalInt(notif.created_by) ?? null,
+          sender_email: null,
+          target_group_id: safeOptionalInt(t.target_group_id) ?? null,
+          target_group_name: null,
+          sender_name: null,
+          sender_role: null,
+          counterparty_id: null,
+          counterparty_name: null,
+          counterparty_role: null,
+          sender: notif.created_by ? "Coach" : "Système",
+          title: String(notif.title || ""),
+          message: String(notif.body || ""),
+          type: String(notif.type || "message"),
+          read: Boolean(t.read_at),
+          date: notif.created_at || new Date().toISOString(),
+        };
       });
-      const total = sorted.length;
-      const paged = sorted.slice(offset, offset + limit);
+      const total = mapped.length;
+      const paged = mapped.slice(offset, offset + limit);
       return { notifications: paged, pagination: { limit, offset, total } };
     }
 
@@ -2739,12 +2433,9 @@ export const api = {
     if (!resolvedId) {
       throw new Error("Missing target id");
     }
-    if (syncConfig.hasCloudflareSync) {
-      await fetchJson(`${syncConfig.endpoint}?action=notifications_mark_read`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ target_id: resolvedId }),
-      }).then(unwrapOk);
+    if (canUseSupabase()) {
+      const { error } = await supabase.from("notification_targets").update({ read_at: new Date().toISOString() }).eq("id", resolvedId);
+      if (error) throw new Error(error.message);
       return;
     }
 
@@ -2755,25 +2446,14 @@ export const api = {
 
   // --- TIMESHEETS ---
   async listTimesheetShifts(options?: { coachId?: number | null; from?: string; to?: string }): Promise<TimesheetShift[]> {
-    if (syncConfig.hasCloudflareSync) {
-      const url = new URL(syncConfig.endpoint);
-      url.searchParams.set("action", "timesheet_list");
-      if (options?.coachId) {
-        url.searchParams.set("coach_id", String(options.coachId));
-      }
-      if (options?.from) {
-        url.searchParams.set("from", options.from);
-      }
-      if (options?.to) {
-        url.searchParams.set("to", options.to);
-      }
-      appendSharedToken(url);
-      const payload = await fetchJson(url.toString(), {
-        method: "GET",
-        redirect: "follow",
-        headers: {},
-      }).then(unwrapOk);
-      return Array.isArray(payload?.shifts) ? payload.shifts : [];
+    if (canUseSupabase()) {
+      let query = supabase.from("timesheet_shifts").select("*").order("shift_date", { ascending: false });
+      if (options?.coachId) query = query.eq("coach_id", options.coachId);
+      if (options?.from) query = query.gte("shift_date", options.from);
+      if (options?.to) query = query.lte("shift_date", options.to);
+      const { data, error } = await query;
+      if (error) throw new Error(error.message);
+      return data ?? [];
     }
 
     await delay(200);
@@ -2794,16 +2474,10 @@ export const api = {
   },
 
   async listTimesheetLocations(): Promise<TimesheetLocation[]> {
-    if (syncConfig.hasCloudflareSync) {
-      const url = new URL(syncConfig.endpoint);
-      url.searchParams.set("action", "timesheet_locations");
-      appendSharedToken(url);
-      const payload = await fetchJson(url.toString(), {
-        method: "GET",
-        redirect: "follow",
-        headers: {},
-      }).then(unwrapOk);
-      return Array.isArray(payload?.locations) ? payload.locations : [];
+    if (canUseSupabase()) {
+      const { data, error } = await supabase.from("timesheet_locations").select("*").order("name");
+      if (error) throw new Error(error.message);
+      return data ?? [];
     }
 
     await delay(120);
@@ -2823,13 +2497,9 @@ export const api = {
   },
 
   async createTimesheetLocation(payload: { name: string }) {
-    if (syncConfig.hasCloudflareSync) {
-      await fetchJson(`${syncConfig.endpoint}?action=timesheet_location_create`, {
-        method: "POST",
-        redirect: "follow",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }).then(unwrapOk);
+    if (canUseSupabase()) {
+      const { error } = await supabase.from("timesheet_locations").insert({ name: payload.name.trim() });
+      if (error) throw new Error(error.message);
       return { status: "created" };
     }
 
@@ -2859,13 +2529,9 @@ export const api = {
   },
 
   async deleteTimesheetLocation(payload: { id: number }) {
-    if (syncConfig.hasCloudflareSync) {
-      await fetchJson(`${syncConfig.endpoint}?action=timesheet_location_delete`, {
-        method: "POST",
-        redirect: "follow",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: payload.id }),
-      }).then(unwrapOk);
+    if (canUseSupabase()) {
+      const { error } = await supabase.from("timesheet_locations").delete().eq("id", payload.id);
+      if (error) throw new Error(error.message);
       return { status: "deleted" };
     }
 
@@ -2877,28 +2543,26 @@ export const api = {
   },
 
   async listTimesheetCoaches(): Promise<{ id: number; display_name: string }[]> {
-    if (syncConfig.hasCloudflareSync) {
-      const url = new URL(syncConfig.endpoint);
-      url.searchParams.set("action", "timesheet_coaches");
-      appendSharedToken(url);
-      const payload = await fetchJson(url.toString(), {
-        method: "GET",
-        redirect: "follow",
-        headers: {},
-      }).then(unwrapOk);
-      return Array.isArray(payload?.coaches) ? payload.coaches : [];
+    if (canUseSupabase()) {
+      const { data, error } = await supabase.from("users").select("id, display_name").eq("role", "coach").eq("is_active", true);
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((u: any) => ({ id: u.id, display_name: u.display_name }));
     }
     return [];
   },
 
   async createTimesheetShift(payload: Omit<TimesheetShift, "id" | "created_at" | "updated_at" | "coach_name">) {
-    if (syncConfig.hasCloudflareSync) {
-      await fetchJson(`${syncConfig.endpoint}?action=timesheet_create`, {
-        method: "POST",
-        redirect: "follow",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }).then(unwrapOk);
+    if (canUseSupabase()) {
+      const { error } = await supabase.from("timesheet_shifts").insert({
+        coach_id: payload.coach_id,
+        shift_date: payload.shift_date,
+        start_time: payload.start_time,
+        end_time: payload.end_time,
+        location_id: payload.location_id ?? null,
+        location_name: payload.location_name ?? null,
+        notes: payload.notes ?? null,
+      });
+      if (error) throw new Error(error.message);
       return { status: "created" };
     }
 
@@ -2910,13 +2574,10 @@ export const api = {
   },
 
   async updateTimesheetShift(payload: Partial<TimesheetShift> & { id: number }) {
-    if (syncConfig.hasCloudflareSync) {
-      await fetchJson(`${syncConfig.endpoint}?action=timesheet_update`, {
-        method: "POST",
-        redirect: "follow",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }).then(unwrapOk);
+    if (canUseSupabase()) {
+      const { id, ...rest } = payload;
+      const { error } = await supabase.from("timesheet_shifts").update(rest).eq("id", id);
+      if (error) throw new Error(error.message);
       return { status: "updated" };
     }
 
@@ -2931,13 +2592,9 @@ export const api = {
   },
 
   async deleteTimesheetShift(payload: { id: number }) {
-    if (syncConfig.hasCloudflareSync) {
-      await fetchJson(`${syncConfig.endpoint}?action=timesheet_delete`, {
-        method: "POST",
-        redirect: "follow",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: payload.id }),
-      }).then(unwrapOk);
+    if (canUseSupabase()) {
+      const { error } = await supabase.from("timesheet_shifts").delete().eq("id", payload.id);
+      if (error) throw new Error(error.message);
       return { status: "deleted" };
     }
 
@@ -2992,35 +2649,27 @@ export const api = {
   
   // --- PROFILE ---
   async getProfile(options: { userId?: number | null; displayName?: string | null }): Promise<UserProfile | null> {
-      if (!syncConfig.endpoint) {
-        return null;
-      }
-      const url = new URL(syncConfig.endpoint);
-      url.searchParams.set("action", "users_get");
+      if (!canUseSupabase()) return null;
+      let query = supabase.from("user_profiles").select("*");
       if (options.userId) {
-        url.searchParams.set("user_id", String(options.userId));
+        query = query.eq("user_id", options.userId);
       } else if (options.displayName) {
-        url.searchParams.set("display_name", options.displayName);
+        query = query.eq("display_name", options.displayName);
       }
-      appendSharedToken(url);
-      const payload = await fetchJson(url.toString(), {
-        method: "GET",
-        redirect: "follow",
-        headers: {},
-      }).then(unwrapOk);
-      const user = payload.user ?? payload;
-      if (!user) return null;
+      const { data, error } = await query.maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!data) return null;
       return {
-        id: user.id ?? null,
-        display_name: user.display_name ?? user.displayName ?? null,
-        email: user.profile_email ?? user.email ?? null,
-        birthdate: user.profile_birthdate ?? user.birthdate ?? null,
-        group_id: safeOptionalInt(user.group_id) ?? null,
-        group_label: user.group_label ?? null,
-        objectives: user.objectives ?? null,
-        bio: user.bio ?? null,
-        avatar_url: user.avatar_url ?? null,
-        ffn_iuf: user.ffn_iuf ?? null,
+        id: data.user_id ?? null,
+        display_name: data.display_name ?? null,
+        email: data.email ?? null,
+        birthdate: data.birthdate ?? null,
+        group_id: safeOptionalInt(data.group_id) ?? null,
+        group_label: data.group_label ?? null,
+        objectives: data.objectives ?? null,
+        bio: data.bio ?? null,
+        avatar_url: data.avatar_url ?? null,
+        ffn_iuf: data.ffn_iuf ?? null,
       };
   },
 
@@ -3036,26 +2685,19 @@ export const api = {
       ffn_iuf?: string | null;
     };
   }) {
-      if (!syncConfig.endpoint) {
-        return { status: "skipped" };
-      }
-      const url = new URL(syncConfig.endpoint);
-      url.searchParams.set("action", "users_update");
-      appendSharedToken(url);
-      await fetchJson(url.toString(), {
-        method: "POST",
-        redirect: "follow",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: payload.userId ?? undefined,
-          profile: payload.profile,
-        }),
-      }).then(unwrapOk);
+      if (!canUseSupabase()) return { status: "skipped" };
+      const userId = payload.userId;
+      if (!userId) return { status: "skipped" };
+      const { error } = await supabase.from("user_profiles").upsert({
+        user_id: userId,
+        ...payload.profile,
+      }, { onConflict: "user_id" });
+      if (error) throw new Error(error.message);
       return { status: "updated" };
   },
 
   async getAthletes(): Promise<AthleteSummary[]> {
-      if (!syncConfig.endpoint) {
+      if (!canUseSupabase()) {
         const athletes = new Map<string, AthleteSummary>();
         const addAthlete = (name?: string | null, id?: number | null) => {
           const displayName = String(name ?? "").trim();
@@ -3076,239 +2718,129 @@ export const api = {
           a.display_name.localeCompare(b.display_name, "fr"),
         );
       }
-      const mapUsersToAthletes = (users: any[]) =>
-        users
-          .map((user: any) => {
-            const displayName = String(user.display_name ?? user.displayName ?? "").trim();
-            if (!displayName) return null;
-            return {
-              id: safeOptionalInt(user.id),
-              display_name: displayName,
-              group_label: user.group_label ?? user.groupLabel ?? null,
-            } as AthleteSummary;
-          })
-          .filter(Boolean) as AthleteSummary[];
-      const url = new URL(syncConfig.endpoint);
-      url.searchParams.set("action", "groups_get");
-      appendSharedToken(url);
-      const payload = await fetchJson(url.toString(), {
-        method: "GET",
-        redirect: "follow",
-        headers: {},
-      }).then(unwrapOk);
-      const groups = Array.isArray(payload?.groups) ? payload.groups : [];
-      if (!groups.length) {
-        const listUrl = new URL(syncConfig.endpoint);
-        listUrl.searchParams.set("action", "users_list");
-        listUrl.searchParams.set("role", "athlete");
-        appendSharedToken(listUrl);
-        const usersPayload = await fetchJson(listUrl.toString(), {
-          method: "GET",
-          redirect: "follow",
-          headers: {},
-        }).then(unwrapOk);
-        const users = Array.isArray(usersPayload?.users) ? usersPayload.users : [];
-        return mapUsersToAthletes(users).sort((a, b) =>
-          a.display_name.localeCompare(b.display_name, "fr"),
-        );
+      // Fetch athletes from groups + members
+      const { data: groups, error: groupsError } = await supabase.from("groups").select("id, name");
+      if (groupsError) throw new Error(groupsError.message);
+      if (!groups?.length) {
+        // No groups → list all athletes directly
+        const { data: users, error: usersError } = await supabase.from("users").select("id, display_name").eq("role", "athlete").eq("is_active", true);
+        if (usersError) throw new Error(usersError.message);
+        return (users ?? [])
+          .map((u: any) => ({ id: u.id, display_name: u.display_name }))
+          .filter((a: AthleteSummary) => a.display_name)
+          .sort((a, b) => a.display_name.localeCompare(b.display_name, "fr"));
       }
-      const athleteMap = new Map<string, AthleteSummary>();
-      await Promise.all(
-        groups.map(async (group: any) => {
-          const groupUrl = new URL(syncConfig.endpoint);
-          groupUrl.searchParams.set("action", "groups_get");
-          groupUrl.searchParams.set("group_id", String(group.id));
-          appendSharedToken(groupUrl);
-          const groupPayload = await fetchJson(groupUrl.toString(), {
-            method: "GET",
-            redirect: "follow",
-            headers: {},
-          }).then(unwrapOk);
-          const members = Array.isArray(groupPayload?.members) ? groupPayload.members : [];
-          members.forEach((member: any) => {
-            if (member.role && member.role !== "athlete") return;
-            const displayName = String(member.display_name ?? member.displayName ?? "").trim();
-            if (!displayName) return;
-            const memberId = safeOptionalInt(member.user_id ?? member.userId ?? member.id);
-            const key = memberId !== null ? `id:${memberId}` : `name:${displayName.toLowerCase()}`;
-            if (athleteMap.has(key)) return;
-            athleteMap.set(key, {
-              id: memberId,
-              display_name: displayName,
-              group_label: group.name ?? null,
-            });
-          });
-        }),
-      );
-      return Array.from(athleteMap.values()).sort((a, b) =>
-        a.display_name.localeCompare(b.display_name, "fr"),
-      );
+      const { data: members, error: membersError } = await supabase
+        .from("group_members")
+        .select("user_id, group_id, users!inner(display_name, role)")
+        .eq("users.role", "athlete");
+      if (membersError) throw new Error(membersError.message);
+      const groupMap = new Map(groups.map((g: any) => [g.id, g.name]));
+      const athleteMap = new Map<number, AthleteSummary>();
+      (members ?? []).forEach((m: any) => {
+        const userId = m.user_id;
+        if (athleteMap.has(userId)) return;
+        athleteMap.set(userId, {
+          id: userId,
+          display_name: (m.users as any)?.display_name ?? "",
+          group_label: groupMap.get(m.group_id) ?? null,
+        });
+      });
+      return Array.from(athleteMap.values())
+        .filter((a) => a.display_name)
+        .sort((a, b) => a.display_name.localeCompare(b.display_name, "fr"));
   },
 
   async getGroups(): Promise<GroupSummary[]> {
-      if (!syncConfig.endpoint) {
-        return [];
-      }
-      const url = new URL(syncConfig.endpoint);
-      url.pathname = "/api/groups";
-      url.search = "";
-      const payload = await fetchJson(url.toString(), {
-        method: "GET",
-        redirect: "follow",
-        headers: {},
-      }).then(unwrapOk);
-      const groups = Array.isArray(payload?.groups) ? payload.groups : [];
-      return groups
+      if (!canUseSupabase()) return [];
+      const { data, error } = await supabase.from("groups").select("id, name, description");
+      if (error) throw new Error(error.message);
+      return (data ?? [])
         .map((group: any) => ({
           id: safeInt(group.id, 0),
-          name: String(group.name ?? group.label ?? group.title ?? `Groupe ${group.id ?? ""}`).trim(),
-          member_count: safeOptionalInt(group.member_count ?? group.members_count ?? group.membersCount),
+          name: String(group.name ?? `Groupe ${group.id ?? ""}`).trim(),
+          member_count: null,
         }))
         .filter((group: GroupSummary) => group.id > 0 && group.name);
   },
 
   async getUpcomingBirthdays(options?: { days?: number }): Promise<UpcomingBirthday[]> {
-      if (!syncConfig.endpoint) {
-        return [];
-      }
-      const url = new URL(syncConfig.endpoint);
-      url.searchParams.set("action", "birthdays_upcoming");
-      if (options?.days) {
-        url.searchParams.set("days", String(options.days));
-      }
-      appendSharedToken(url);
-      const payload = await fetchJson(url.toString(), {
-        method: "GET",
-        redirect: "follow",
-        headers: {},
-      }).then(unwrapOk);
-      return Array.isArray(payload?.birthdays) ? payload.birthdays : [];
+      if (!canUseSupabase()) return [];
+      const days = options?.days ?? 30;
+      const { data, error } = await supabase.rpc("get_upcoming_birthdays", { p_days: days });
+      if (error) throw new Error(error.message);
+      return Array.isArray(data) ? data : [];
   },
 
   async listUsers(options?: {
     role?: "athlete" | "coach" | "comite" | "admin";
     includeInactive?: boolean;
   }): Promise<UserSummary[]> {
-      if (!syncConfig.endpoint) {
-        return [];
+      if (!canUseSupabase()) return [];
+      let query = supabase.from("users").select("id, display_name, role, email, is_active");
+      if (options?.role) {
+        query = query.eq("role", options.role);
       }
-      const roles = options?.role ? [options.role] : (["athlete", "coach", "comite", "admin"] as const);
-      const responses = await Promise.all(
-        roles.map(async (selectedRole) => {
-          const url = new URL(syncConfig.endpoint);
-          url.searchParams.set("action", "users_list");
-          url.searchParams.set("role", selectedRole);
-          if (options?.includeInactive) {
-            url.searchParams.set("include_inactive", "1");
-          }
-          appendSharedToken(url);
-          const payload = await fetchJson(url.toString(), {
-            method: "GET",
-            redirect: "follow",
-            headers: {},
-          }).then(unwrapOk);
-          return Array.isArray(payload?.users) ? payload.users : [];
-        }),
-      );
-      const combined = responses.flat();
-      const userMap = new Map<number, UserSummary>();
-      combined.forEach((user: any) => {
-        const id = safeOptionalInt(user.id);
-        if (id === null) return;
-        const displayName = String(user.display_name ?? user.displayName ?? "").trim();
-        if (!displayName) return;
-        userMap.set(id, {
-          id,
-          display_name: displayName,
-          role: String(user.role ?? ""),
-          email: user.email ?? null,
-          is_active: user.is_active ?? null,
-          group_label: user.group_label ?? user.groupLabel ?? null,
-        });
-      });
-      return Array.from(userMap.values()).sort((a, b) =>
-        a.display_name.localeCompare(b.display_name, "fr"),
-      );
+      if (!options?.includeInactive) {
+        query = query.eq("is_active", true);
+      }
+      const { data, error } = await query.order("display_name");
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((user: any) => ({
+        id: user.id,
+        display_name: user.display_name ?? "",
+        role: user.role ?? "",
+        email: user.email ?? null,
+        is_active: user.is_active ?? null,
+        group_label: null,
+      }));
   },
 
   async createCoach(payload: { display_name: string; email?: string | null; password?: string | null }) {
-      if (!syncConfig.endpoint) {
-        return { status: "skipped", user: null, initialPassword: null };
-      }
-      const url = new URL(syncConfig.endpoint);
-      url.searchParams.set("action", "users_create");
-      appendSharedToken(url);
-      const response = await fetchJson(url.toString(), {
-        method: "POST",
-        redirect: "follow",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          display_name: payload.display_name,
-          role: "coach",
-          email: payload.email ?? undefined,
-          password: payload.password ?? undefined,
-        }),
-      }).then(unwrapOk);
+      if (!canUseSupabase()) return { status: "skipped", user: null, initialPassword: null };
+      const { data, error } = await supabase.functions.invoke("admin-user", {
+        body: { action: "create_coach", display_name: payload.display_name, email: payload.email, password: payload.password },
+      });
+      if (error) throw new Error(error.message);
       return {
         status: "created",
-        user: response?.user ?? null,
-        initialPassword: response?.initial_password ?? null,
+        user: data?.user ?? null,
+        initialPassword: data?.initial_password ?? null,
       };
   },
 
   async updateUserRole(payload: { userId: number; role: "athlete" | "coach" | "comite" | "admin" }) {
-      if (!syncConfig.endpoint) {
-        return { status: "skipped" };
-      }
-      const url = new URL(syncConfig.endpoint);
-      url.searchParams.set("action", "users_update");
-      appendSharedToken(url);
-      await fetchJson(url.toString(), {
-        method: "POST",
-        redirect: "follow",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: payload.userId,
-          role: payload.role,
-        }),
-      }).then(unwrapOk);
+      if (!canUseSupabase()) return { status: "skipped" };
+      const { error } = await supabase.functions.invoke("admin-user", {
+        body: { action: "update_role", user_id: payload.userId, role: payload.role },
+      });
+      if (error) throw new Error(error.message);
       return { status: "updated" };
   },
 
   async disableUser(payload: { userId: number }) {
-      if (!syncConfig.endpoint) {
-        return { status: "skipped" };
-      }
-      const url = new URL(syncConfig.endpoint);
-      url.searchParams.set("action", "users_delete");
-      appendSharedToken(url);
-      await fetchJson(url.toString(), {
-        method: "POST",
-        redirect: "follow",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: payload.userId,
-        }),
-      }).then(unwrapOk);
+      if (!canUseSupabase()) return { status: "skipped" };
+      const { error } = await supabase.functions.invoke("admin-user", {
+        body: { action: "disable_user", user_id: payload.userId },
+      });
+      if (error) throw new Error(error.message);
       return { status: "disabled" };
   },
 
   async authPasswordUpdate(payload: { userId?: number | null; password: string }) {
-      if (!syncConfig.endpoint) {
-        return { status: "skipped" };
+      if (!canUseSupabase()) return { status: "skipped" };
+      // If updating own password, use auth directly
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!payload.userId || payload.userId === currentUser?.user_metadata?.app_user_id) {
+        const { error } = await supabase.auth.updateUser({ password: payload.password });
+        if (error) throw new Error(error.message);
+        return { status: "updated" };
       }
-      const url = new URL(syncConfig.endpoint);
-      url.searchParams.set("action", "auth_password_update");
-      appendSharedToken(url);
-      await fetchJson(url.toString(), {
-        method: "POST",
-        redirect: "follow",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: payload.userId ?? undefined,
-          password: payload.password,
-        }),
-      }).then(unwrapOk);
+      // Admin updating another user's password
+      const { error } = await supabase.functions.invoke("admin-user", {
+        body: { action: "update_password", user_id: payload.userId, password: payload.password },
+      });
+      if (error) throw new Error(error.message);
       return { status: "updated" };
   },
 
