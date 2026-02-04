@@ -369,7 +369,9 @@ export default function Records() {
   const filteredSwimRecords = useMemo(() => {
     const list = (swimRecords as any)?.records ?? [];
 
-    return list
+    console.log("[Records] Filtering:", { poolLen, swimMode, totalRecords: list.length });
+
+    const filtered = list
       .filter((r: any) => {
         const pl = getPoolLen(r);
         if (!pl) return false;
@@ -417,6 +419,9 @@ export default function Records() {
         // deterministic fallback (should rarely matter)
         return norm(nameA).localeCompare(norm(nameB), "fr");
       });
+
+    console.log("[Records] Filtered count:", filtered.length);
+    return filtered;
   }, [swimRecords, poolLen, swimMode]);
 
   const openAddSwim = () => {
