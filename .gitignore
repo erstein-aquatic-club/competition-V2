@@ -31,3 +31,4 @@ supabase/config.toml
 *.njsproj
 *.sln
 *.sw?
+supabase/.temp/

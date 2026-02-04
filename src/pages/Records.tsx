@@ -257,7 +257,7 @@ export default function Records() {
   } = swimRecordsQuery;
 
   const reloadSwimRecords = () => {
-    // Refetch DB (Cloudflare/D1). Never triggers FFN sync.
+    // Refetch DB. Never triggers FFN sync.
     refetchSwimRecords();
   };
 

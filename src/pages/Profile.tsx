@@ -394,7 +394,7 @@ export default function Profile() {
         <Card>
           <CardHeader>
             <CardTitle>Records</CardTitle>
-            <CardDescription>Consultez vos records (source de vérité : base Cloudflare).</CardDescription>
+            <CardDescription>Consultez vos records de natation et musculation.</CardDescription>
           </CardHeader>
           <CardContent>
             <Link href="/records">
