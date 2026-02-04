@@ -213,22 +213,22 @@ async function fetchFfnBestPerformances(iuf: string): Promise<MppRecord[]> {
 
 // --- Main handler ---
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
 Deno.serve(async (req) => {
   // CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response("ok", {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-      },
-    });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   if (req.method !== "POST") {
     return new Response(
       JSON.stringify({ error: "Method not allowed. Use POST." }),
-      { status: 405, headers: { "Content-Type": "application/json" } },
+      { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 
@@ -239,7 +239,7 @@ Deno.serve(async (req) => {
     if (!athlete_id || !iuf) {
       return new Response(
         JSON.stringify({ error: "Missing required fields: athlete_id and iuf" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -247,7 +247,7 @@ Deno.serve(async (req) => {
     if (!/^\d{5,10}$/.test(cleanIuf)) {
       return new Response(
         JSON.stringify({ error: "IUF invalide (attendu: 5 à 10 chiffres)" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -261,14 +261,14 @@ Deno.serve(async (req) => {
           error: "Impossible de contacter l'API FFN",
           details: err instanceof Error ? err.message : String(err),
         }),
-        { status: 502, headers: { "Content-Type": "application/json" } },
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
     if (records.length === 0) {
       return new Response(
         JSON.stringify({ status: "ok", inserted: 0, updated: 0, skipped: 0, message: "No records found on FFN for this IUF" }),
-        { headers: { "Content-Type": "application/json" } },
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -339,7 +339,7 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ status: "ok", inserted, updated, skipped }),
-      { headers: { "Content-Type": "application/json" } },
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
     console.error("ffn-sync error:", err);
@@ -348,7 +348,7 @@ Deno.serve(async (req) => {
         error: "Internal server error",
         details: err instanceof Error ? err.message : String(err),
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });
