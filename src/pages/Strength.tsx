@@ -1184,14 +1184,15 @@ export default function Strength() {
                                            </SheetHeader>
 
                                            <div className="space-y-4">
-                                               {/* GIF illustration */}
+                                               {/* GIF illustration - compact et chargement optimisé */}
                                                {exercise?.illustration_gif && (
-                                                   <div className="rounded-2xl overflow-hidden bg-muted/30 border">
+                                                   <div className="rounded-xl overflow-hidden bg-muted/20 border aspect-video flex items-center justify-center">
                                                        <img
                                                            src={exercise.illustration_gif}
                                                            alt={exercise.nom_exercice ?? "Exercice"}
-                                                           className="w-full h-auto max-h-64 object-contain"
+                                                           className="w-full h-full max-h-36 object-contain"
                                                            loading="lazy"
+                                                           decoding="async"
                                                        />
                                                    </div>
                                                )}

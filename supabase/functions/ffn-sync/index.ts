@@ -121,27 +121,32 @@ interface MppRecord {
   ffn_points: number | null;
 }
 
-function parseMppFromHtml(html: string, poolLength: number): MppRecord[] {
+function parseMppFromHtml(html: string, defaultPoolLength: number): MppRecord[] {
   const doc = new DOMParser().parseFromString(html, "text/html");
   if (!doc) return [];
 
   const results: MppRecord[] = [];
-  let currentPool: number | null = null;
 
-  // Walk through all elements to detect pool sections and data rows
-  const allElements = doc.querySelectorAll("*");
-  for (const node of allElements) {
-    const el = node as Element;
+  // Track current pool as we walk through sections
+  let currentPool: number = defaultPoolLength;
+
+  // First pass: find all pool section markers and their positions
+  // FFN pages have sections like "Bassin : 25 m" or "Bassin : 50 m"
+  const allElements = Array.from(doc.querySelectorAll("*"));
+  const poolMarkers: Array<{ index: number; pool: number }> = [];
+
+  for (let i = 0; i < allElements.length; i++) {
+    const el = allElements[i] as Element;
     const text = clean(el.textContent ?? "");
 
-    // Detect pool section headers
+    // Detect pool section headers (but not in table cells)
     const poolMatch = text.match(/Bassin\s*:\s*(25|50)\s*m/i);
     if (poolMatch && el.tagName !== "TR" && el.tagName !== "TD" && el.tagName !== "TH") {
-      currentPool = Number(poolMatch[1]);
+      poolMarkers.push({ index: i, pool: Number(poolMatch[1]) });
     }
   }
 
-  // Parse table rows
+  // Parse table rows with pool context
   const rows = doc.querySelectorAll("tr");
   for (const rowNode of rows) {
     const row = rowNode as Element;
@@ -163,29 +168,38 @@ function parseMppFromHtml(html: string, poolLength: number): MppRecord[] {
     // Skip header rows
     if (/épreuve|epreuve|nage/i.test(eventName) && /temps/i.test(timeRaw)) continue;
 
+    // Try to detect pool from the row content (some FFN pages include "25m" or "50m" in the event)
+    let detectedPool: number | null = null;
+    const rowText = cellTexts.join(" ");
+    const rowPoolMatch = rowText.match(/\b(25|50)\s*m\b/i);
+    if (rowPoolMatch) {
+      detectedPool = Number(rowPoolMatch[1]);
+    }
+
     const dateRaw = extractDateFromTexts(cellTexts);
     const points = extractPointsFromTexts(cellTexts);
 
     results.push({
       event_name: eventName,
-      pool_length: poolLength,
+      // Use detected pool from row, or fall back to default (from URL parameter)
+      pool_length: detectedPool ?? defaultPoolLength,
       time_seconds: timeSeconds,
       record_date: parseFfnDateToIso(dateRaw ?? "") || null,
       ffn_points: points,
     });
   }
 
-  // Deduplicate by event_name + pool_length
-  const seen = new Set<string>();
-  const deduped: MppRecord[] = [];
+  // Deduplicate by event_name + pool_length (keep best time)
+  const bestByKey = new Map<string, MppRecord>();
   for (const r of results) {
     const key = `${r.event_name}__${r.pool_length}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    deduped.push(r);
+    const existing = bestByKey.get(key);
+    if (!existing || r.time_seconds < existing.time_seconds) {
+      bestByKey.set(key, r);
+    }
   }
 
-  return deduped;
+  return Array.from(bestByKey.values());
 }
 
 async function fetchFfnMpp(iuf: string, poolLength: number): Promise<MppRecord[]> {
@@ -208,7 +222,20 @@ async function fetchFfnBestPerformances(iuf: string): Promise<MppRecord[]> {
     fetchFfnMpp(iuf, 25).catch(() => []),
     fetchFfnMpp(iuf, 50).catch(() => []),
   ]);
-  return [...mpp25, ...mpp50];
+
+  // Merge and deduplicate - keep best time for each event+pool combo
+  const allRecords = [...mpp25, ...mpp50];
+  const bestByKey = new Map<string, MppRecord>();
+
+  for (const r of allRecords) {
+    const key = `${r.event_name}__${r.pool_length}`;
+    const existing = bestByKey.get(key);
+    if (!existing || r.time_seconds < existing.time_seconds) {
+      bestByKey.set(key, r);
+    }
+  }
+
+  return Array.from(bestByKey.values());
 }
 
 // --- Main handler ---
