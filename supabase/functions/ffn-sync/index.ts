@@ -121,73 +121,113 @@ interface MppRecord {
   ffn_points: number | null;
 }
 
-function parseMppFromHtml(html: string, defaultPoolLength: number): MppRecord[] {
+/**
+ * Parse FFN HTML page to extract swim records.
+ * FFN pages have sections like "Bassin : 25 m" followed by a table of records,
+ * then "Bassin : 50 m" with another table.
+ * We walk through ALL elements in DOM order to track which pool section we're in.
+ */
+function parseMppFromHtml(html: string): MppRecord[] {
   const doc = new DOMParser().parseFromString(html, "text/html");
   if (!doc) return [];
 
   const results: MppRecord[] = [];
 
-  // Track current pool as we walk through sections
-  let currentPool: number = defaultPoolLength;
+  // Track current pool as we walk through sections (default to null = unknown)
+  let currentPool: number | null = null;
 
-  // First pass: find all pool section markers and their positions
-  // FFN pages have sections like "Bassin : 25 m" or "Bassin : 50 m"
-  const allElements = Array.from(doc.querySelectorAll("*"));
-  const poolMarkers: Array<{ index: number; pool: number }> = [];
+  // Get all elements in DOM order using TreeWalker-like approach
+  const body = doc.body ?? doc.documentElement;
+  if (!body) return [];
 
-  for (let i = 0; i < allElements.length; i++) {
-    const el = allElements[i] as Element;
-    const text = clean(el.textContent ?? "");
+  // Recursive function to walk DOM in order
+  function walkNode(node: Node) {
+    // Check if this node contains a pool section marker
+    if (node.nodeType === 1) { // Element node
+      const el = node as Element;
+      const tagName = el.tagName?.toUpperCase() ?? "";
 
-    // Detect pool section headers (but not in table cells)
-    const poolMatch = text.match(/Bassin\s*:\s*(25|50)\s*m/i);
-    if (poolMatch && el.tagName !== "TR" && el.tagName !== "TD" && el.tagName !== "TH") {
-      poolMarkers.push({ index: i, pool: Number(poolMatch[1]) });
+      // Look for pool markers in section headers (non-table elements)
+      // Use full textContent since "Bassin : 25 m" might be in nested spans/b tags
+      if (tagName !== "TR" && tagName !== "TD" && tagName !== "TH" && tagName !== "TABLE" && tagName !== "TBODY") {
+        const fullText = clean(el.textContent ?? "");
+        // Only match if this element directly contains the pool marker (not inherited from descendants)
+        // Check if this element's first text matches the pattern
+        const poolMatch = fullText.match(/Bassin\s*:\s*(25|50)\s*m/i);
+        if (poolMatch) {
+          // Verify it's a direct match, not from a table cell child
+          const hasTableChild = el.querySelector("table, tr, td, th");
+          if (!hasTableChild) {
+            const newPool = Number(poolMatch[1]);
+            if (newPool !== currentPool) {
+              console.log(`[ffn-sync] Pool section detected: ${newPool}m`);
+            }
+            currentPool = newPool;
+          }
+        }
+      }
+
+      // Parse table rows
+      if (tagName === "TR") {
+        const cells = el.querySelectorAll("td, th");
+        if (cells.length >= 2) {
+          const cellTexts: string[] = [];
+          for (const cell of cells) {
+            cellTexts.push(clean(cell.textContent ?? ""));
+          }
+
+          const eventName = cellTexts[0];
+          const timeRaw = cellTexts[1];
+
+          if (eventName && timeRaw) {
+            const timeSeconds = parseFfnTimeToSeconds(timeRaw);
+
+            // Skip header rows and invalid times
+            if (timeSeconds != null && !/épreuve|epreuve|nage/i.test(eventName)) {
+              const dateRaw = extractDateFromTexts(cellTexts);
+              const points = extractPointsFromTexts(cellTexts);
+
+              // Only add if we know the pool
+              if (currentPool !== null) {
+                results.push({
+                  event_name: eventName,
+                  pool_length: currentPool,
+                  time_seconds: timeSeconds,
+                  record_date: parseFfnDateToIso(dateRaw ?? "") || null,
+                  ffn_points: points,
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Walk children
+    for (const child of Array.from(node.childNodes)) {
+      walkNode(child);
     }
   }
 
-  // Parse table rows with pool context
-  const rows = doc.querySelectorAll("tr");
-  for (const rowNode of rows) {
-    const row = rowNode as Element;
-    const cells = row.querySelectorAll("td, th");
-    if (cells.length < 2) continue;
-
-    const cellTexts: string[] = [];
-    for (const cell of cells) {
-      cellTexts.push(clean(cell.textContent ?? ""));
+  // Helper to get direct text content (not from children)
+  function getDirectTextContent(el: Element): string {
+    let text = "";
+    for (const child of Array.from(el.childNodes)) {
+      if (child.nodeType === 3) { // Text node
+        text += child.textContent ?? "";
+      }
     }
-
-    const eventName = cellTexts[0];
-    const timeRaw = cellTexts[1];
-    if (!eventName || !timeRaw) continue;
-
-    const timeSeconds = parseFfnTimeToSeconds(timeRaw);
-    if (timeSeconds == null) continue;
-
-    // Skip header rows
-    if (/épreuve|epreuve|nage/i.test(eventName) && /temps/i.test(timeRaw)) continue;
-
-    // Try to detect pool from the row content (some FFN pages include "25m" or "50m" in the event)
-    let detectedPool: number | null = null;
-    const rowText = cellTexts.join(" ");
-    const rowPoolMatch = rowText.match(/\b(25|50)\s*m\b/i);
-    if (rowPoolMatch) {
-      detectedPool = Number(rowPoolMatch[1]);
-    }
-
-    const dateRaw = extractDateFromTexts(cellTexts);
-    const points = extractPointsFromTexts(cellTexts);
-
-    results.push({
-      event_name: eventName,
-      // Use detected pool from row, or fall back to default (from URL parameter)
-      pool_length: detectedPool ?? defaultPoolLength,
-      time_seconds: timeSeconds,
-      record_date: parseFfnDateToIso(dateRaw ?? "") || null,
-      ffn_points: points,
-    });
+    return clean(text);
   }
+
+  walkNode(body);
+
+  console.log(`[ffn-sync] Parsed ${results.length} raw records from HTML`);
+  const poolCounts = results.reduce((acc, r) => {
+    acc[r.pool_length] = (acc[r.pool_length] || 0) + 1;
+    return acc;
+  }, {} as Record<number, number>);
+  console.log(`[ffn-sync] Pool distribution:`, poolCounts);
 
   // Deduplicate by event_name + pool_length (keep best time)
   const bestByKey = new Map<string, MppRecord>();
@@ -202,40 +242,24 @@ function parseMppFromHtml(html: string, defaultPoolLength: number): MppRecord[] 
   return Array.from(bestByKey.values());
 }
 
-async function fetchFfnMpp(iuf: string, poolLength: number): Promise<MppRecord[]> {
+async function fetchFfnMpp(iuf: string): Promise<MppRecord[]> {
   const id = clean(iuf);
   if (!/^\d{5,10}$/.test(id)) throw new Error("IUF invalide (attendu: 5 à 10 chiffres)");
 
+  // Fetch without idbas filter - let the parser detect pool from HTML sections
   const url =
     `${FFN_BASE}/nat_recherche.php` +
     `?idact=nat` +
-    `&idbas=${encodeURIComponent(String(poolLength))}` +
     `&idrch_id=${encodeURIComponent(id)}` +
     `&idiuf=${encodeURIComponent(id)}`;
 
   const html = await fetchFfnHtml(url);
-  return parseMppFromHtml(html, poolLength);
+  return parseMppFromHtml(html);
 }
 
 async function fetchFfnBestPerformances(iuf: string): Promise<MppRecord[]> {
-  const [mpp25, mpp50] = await Promise.all([
-    fetchFfnMpp(iuf, 25).catch(() => []),
-    fetchFfnMpp(iuf, 50).catch(() => []),
-  ]);
-
-  // Merge and deduplicate - keep best time for each event+pool combo
-  const allRecords = [...mpp25, ...mpp50];
-  const bestByKey = new Map<string, MppRecord>();
-
-  for (const r of allRecords) {
-    const key = `${r.event_name}__${r.pool_length}`;
-    const existing = bestByKey.get(key);
-    if (!existing || r.time_seconds < existing.time_seconds) {
-      bestByKey.set(key, r);
-    }
-  }
-
-  return Array.from(bestByKey.values());
+  // Single fetch - parser will detect both 25m and 50m sections from HTML
+  return fetchFfnMpp(iuf);
 }
 
 // --- Main handler ---
