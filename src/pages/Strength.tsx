@@ -1033,7 +1033,7 @@ export default function Strength() {
                )}
 
                {screenMode === "reader" && activeSession && (
-                   <div className="space-y-5 animate-in fade-in pb-28">
+                   <div className="space-y-5 animate-in fade-in pb-40">
                        {/* Header compact avec retour */}
                        <div className="flex items-center gap-3">
                            <button
