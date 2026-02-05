@@ -1109,9 +1109,9 @@ export default function Strength() {
                        </div>
 
                        {/* Section header */}
-                       <div className="flex items-center gap-2 pt-1">
+                        <div className="flex items-center justify-between gap-2 pt-1">
                            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                               Programme détaillé
+                                {activeFilteredItems.length} exercice{activeFilteredItems.length > 1 ? "s" : ""}
                            </span>
                            <div className="flex-1 h-px bg-border" />
                        </div>
