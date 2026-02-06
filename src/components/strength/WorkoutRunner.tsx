@@ -533,6 +533,8 @@ export function WorkoutRunner({
                 src={currentExerciseDef.illustration_gif}
                 alt=""
                 className="h-full w-full object-cover"
+                loading="lazy"
+                decoding="async"
               />
             ) : (
               <Dumbbell className="h-5 w-5 text-muted-foreground" />

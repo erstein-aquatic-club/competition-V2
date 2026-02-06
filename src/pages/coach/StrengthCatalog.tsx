@@ -1074,6 +1074,8 @@ export default function StrengthCatalog() {
                         src={exercise.illustration_gif}
                         alt={`Illustration ${exercise.nom_exercice}`}
                         className="h-14 w-14 rounded-md object-cover"
+                        loading="lazy"
+                        decoding="async"
                       />
                     ) : null}
                     <div>
