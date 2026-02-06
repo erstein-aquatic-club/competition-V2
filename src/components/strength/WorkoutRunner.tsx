@@ -452,7 +452,7 @@ export function WorkoutRunner({
               <div className="bg-muted p-4 rounded-lg">
                 <div className="text-xs uppercase font-bold text-muted-foreground">Volume</div>
                 <div className="text-2xl font-mono font-bold">
-                  {logs.reduce((acc, l) => acc + l.weight * l.reps, 0)} kg
+                  {logs.reduce((acc, l) => acc + (Number(l.weight) || 0) * (Number(l.reps) || 0), 0)} kg
                 </div>
               </div>
               <div className="bg-muted p-4 rounded-lg">
@@ -483,10 +483,12 @@ export function WorkoutRunner({
             </div>
             <div className="space-y-2">
               <Label className="uppercase font-bold text-xs text-muted-foreground">Notes</Label>
-              <Input
+              <textarea
                 placeholder="Sensations, douleurs..."
                 value={comments}
                 onChange={(event) => setComments(event.target.value)}
+                rows={3}
+                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
               />
             </div>
           </CardContent>
@@ -675,7 +677,7 @@ export function WorkoutRunner({
       ) : null}
 
       {isResting && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-background/95">
+        <div className="fixed inset-0 z-50 flex flex-col bg-background/95 pb-[env(safe-area-inset-bottom)]">
           <div className="flex items-start justify-between border-b px-6 py-4">
             <div>
               <div className="text-xs font-semibold text-muted-foreground">Timer</div>

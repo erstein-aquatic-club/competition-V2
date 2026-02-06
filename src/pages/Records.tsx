@@ -169,45 +169,12 @@ export default function Records() {
 
 
   /**
-   * FIX: sur navigation retour / restauration de scroll, on peut arriver "au milieu" de la page,
-   * ce qui donne l'impression que le header sticky recouvre les toggles.
-   * On force un retour en haut sans dépendre d'un router.
+   * Scroll to top on initial mount only (avoid stale scroll position on navigation).
+   * Does NOT re-scroll on tab switch / focus / visibility change to avoid hijacking
+   * the user's scroll position during normal usage.
    */
   useEffect(() => {
-    let prev: History["scrollRestoration"] | undefined;
-    try {
-      prev = window.history.scrollRestoration;
-      window.history.scrollRestoration = "manual";
-    } catch {}
-
-    const goTop = () => {
-      const s = () => window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-      s();
-      requestAnimationFrame(s);
-      // certaines restaurations natives repassent après le paint
-      setTimeout(s, 50);
-    };
-
-    goTop();
-
-    const onPageShow = () => goTop();
-    const onFocus = () => goTop();
-    const onVis = () => {
-      if (document.visibilityState === "visible") goTop();
-    };
-
-    window.addEventListener("pageshow", onPageShow);
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onVis);
-
-    return () => {
-      window.removeEventListener("pageshow", onPageShow);
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVis);
-      try {
-        if (prev) window.history.scrollRestoration = prev;
-      } catch {}
-    };
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, []);
 
   // Robust pool reader: supports snake_case + camelCase payloads
@@ -369,8 +336,6 @@ export default function Records() {
   const filteredSwimRecords = useMemo(() => {
     const list = (swimRecords as any)?.records ?? [];
 
-    console.log("[Records] Filtering:", { poolLen, swimMode, totalRecords: list.length });
-
     const filtered = list
       .filter((r: any) => {
         const pl = getPoolLen(r);
@@ -420,7 +385,6 @@ export default function Records() {
         return norm(nameA).localeCompare(norm(nameB), "fr");
       });
 
-    console.log("[Records] Filtered count:", filtered.length);
     return filtered;
   }, [swimRecords, poolLen, swimMode]);
 
@@ -785,6 +749,7 @@ export default function Records() {
                           <Input
                             value={swimForm.event_name}
                             onChange={(e) => setSwimForm({ ...swimForm, event_name: e.target.value })}
+                            placeholder="Ex: 100 NL, 200 Dos"
                             className="rounded-xl"
                           />
                         </div>

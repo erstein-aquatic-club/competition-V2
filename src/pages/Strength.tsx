@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight, Dumbbell, Calendar, Search, SlidersHorizontal, Info, X, Play } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { WorkoutRunner, resolveNextStep } from "@/components/strength/WorkoutRunner";
 import { BottomActionBar } from "@/components/shared/BottomActionBar";
@@ -752,13 +753,10 @@ export default function Strength() {
             <TabsContent value="start" className="space-y-5 pt-4">
                 {screenMode === "list" && (
                     <div className="space-y-5 animate-in fade-in">
-                        {/* Hero header - minimalist */}
-                        <div className="text-center py-2">
-                            <h2 className="text-2xl font-bold tracking-tight">Musculation</h2>
-                            <p className="text-sm text-muted-foreground mt-1">
-                                {filteredDisplaySessions.length} séance{filteredDisplaySessions.length > 1 ? "s" : ""} disponible{filteredDisplaySessions.length > 1 ? "s" : ""}
-                            </p>
-                        </div>
+                        {/* Session count */}
+                        <p className="text-center text-sm text-muted-foreground py-1">
+                            {filteredDisplaySessions.length} séance{filteredDisplaySessions.length > 1 ? "s" : ""} disponible{filteredDisplaySessions.length > 1 ? "s" : ""}
+                        </p>
 
                         {/* Cycle selector - pill buttons */}
                         <div className="flex justify-center gap-2">
@@ -787,6 +785,7 @@ export default function Strength() {
                                 className="h-12 rounded-2xl bg-muted/30 pl-11 pr-4 border-0 shadow-sm focus-visible:ring-2"
                                 value={searchQuery}
                                 onChange={(event) => setSearchQuery(event.target.value)}
+                                aria-label="Rechercher une séance"
                             />
                         </div>
 
@@ -808,7 +807,7 @@ export default function Strength() {
                                         {inProgressAssignment?.title ?? "Séance en cours"}
                                     </h3>
                                     <p className="text-sm text-muted-foreground mb-4">
-                                        Démarrée le {format(new Date(inProgressRun.started_at || new Date()), "dd MMMM")}
+                                        Démarrée le {format(new Date(inProgressRun.started_at || new Date()), "dd MMMM", { locale: fr })}
                                     </p>
                                     
                                     {/* Progress bar */}
@@ -924,7 +923,7 @@ export default function Strength() {
                                                     )}
                                                     {session.type === "assignment" && session.assignedDate && (
                                                         <span className="text-xs text-muted-foreground">
-                                                            {format(new Date(session.assignedDate), "dd MMM")}
+                                                            {format(new Date(session.assignedDate), "dd MMM", { locale: fr })}
                                                         </span>
                                                     )}
                                                 </div>
@@ -1071,7 +1070,7 @@ export default function Strength() {
                                    )}
                                    {activeAssignment?.assigned_date && (
                                        <span className="text-xs text-muted-foreground">
-                                           Prévue le {format(new Date(activeAssignment.assigned_date), "dd MMM")}
+                                           Prévue le {format(new Date(activeAssignment.assigned_date), "dd MMM", { locale: fr })}
                                        </span>
                                    )}
                                </div>
@@ -1296,7 +1295,7 @@ export default function Strength() {
                    <Card key={run.id} className="group hover:border-primary/50 transition-colors">
                        <CardHeader className="pb-2">
                            <div className="flex justify-between">
-                                <CardTitle className="text-base font-bold uppercase">{format(new Date(run.started_at || run.date || run.created_at || new Date()), "dd MMM yyyy")}</CardTitle>
+                                <CardTitle className="text-base font-bold uppercase">{format(new Date(run.started_at || run.date || run.created_at || new Date()), "dd MMM yyyy", { locale: fr })}</CardTitle>
                                 <div className="text-sm font-mono font-bold text-muted-foreground group-hover:text-primary">{run.duration ?? 0} min</div>
                            </div>
                            <div className="flex gap-2 text-xs font-bold text-muted-foreground">
