@@ -1,5 +1,5 @@
 export const FEATURES = {
   strength: true,
   hallOfFame: true,
-  coachStrength: false,
+  coachStrength: true,
 } as const;
