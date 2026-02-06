@@ -1,6 +1,6 @@
 # État des fonctionnalités
 
-*Dernière mise à jour : 2026-02-05*
+*Dernière mise à jour : 2026-02-06*
 
 ## Légende
 
@@ -83,8 +83,8 @@ export const FEATURES = {
 | Fonctionnalité | Statut | Fichiers | Notes |
 |----------------|--------|----------|-------|
 | Records personnels | ✅ | `Records.tsx` | |
-| Sync FFN | ✅ | `ffn-sync` Edge Function | |
-| Toggle 25m/50m | ✅ | `Records.tsx` | Fixé (useMemo) |
+| Sync FFN | ✅ | `ffn-sync` Edge Function | Regex parsing par section bassin |
+| Toggle 25m/50m | ✅ | `Records.tsx` | Fixé (useMemo + FFN sync regex) |
 | Hall of Fame | ✅ | `HallOfFame.tsx` | |
 | Records club | ✅ | `RecordsClub.tsx` | |
 
