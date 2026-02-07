@@ -149,17 +149,20 @@ const CoachMessagesScreen = ({ onBack, athletes, groups, athletesLoading }: Coac
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Titre</Label>
-              <Input value={messageTitle} onChange={(event) => setMessageTitle(event.target.value)} />
+              <Label htmlFor="msg-title">Titre</Label>
+              <Input id="msg-title" value={messageTitle} onChange={(event) => setMessageTitle(event.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Message</Label>
+              <Label htmlFor="msg-body">Message</Label>
               <Textarea
+                id="msg-body"
                 placeholder="Message..."
                 value={messageBody}
                 onChange={(event) => setMessageBody(event.target.value)}
                 rows={5}
+                maxLength={500}
               />
+              <div className="text-xs text-muted-foreground text-right">{messageBody.length}/500</div>
             </div>
           </CardContent>
         </Card>

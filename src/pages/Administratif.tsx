@@ -358,14 +358,14 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
   };
 
   return (
-    <SafeArea top bottom className="min-h-screen bg-slate-50">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 pb-24 pt-4 text-slate-900">
+    <SafeArea top bottom className="min-h-screen bg-background">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 pb-24 pt-4 text-foreground">
         <div className="flex items-center justify-between gap-3">
           <div className="text-xs font-black tracking-[0.2px]">ADMINISTRATIF</div>
-          <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1 text-xs font-extrabold">
+          <div className="flex items-center gap-1 rounded-full border border-border bg-card p-1 text-xs font-extrabold">
             <button
               type="button"
-              className={`rounded-full px-3 py-2 ${activeTab === "POINTAGE" ? "bg-slate-900 text-white" : "text-slate-900"}`}
+              className={`rounded-full px-3 py-2 ${activeTab === "POINTAGE" ? "bg-primary text-primary-foreground" : "text-foreground"}`}
               aria-current={activeTab === "POINTAGE" ? "page" : undefined}
               onClick={() => setActiveTab("POINTAGE")}
             >
@@ -373,7 +373,7 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
             </button>
             <button
               type="button"
-              className={`rounded-full px-3 py-2 ${activeTab === "DASHBOARD" ? "bg-slate-900 text-white" : "text-slate-900"}`}
+              className={`rounded-full px-3 py-2 ${activeTab === "DASHBOARD" ? "bg-primary text-primary-foreground" : "text-foreground"}`}
               aria-current={activeTab === "DASHBOARD" ? "page" : undefined}
               onClick={() => setActiveTab("DASHBOARD")}
             >
@@ -383,31 +383,31 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
         </div>
 
         {capabilityMessage ? (
-          <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
+          <div className="rounded-2xl border border-dashed border-border bg-card px-4 py-3 text-sm text-muted-foreground">
             {capabilityMessage}
           </div>
         ) : null}
         {shiftsErrorMessage ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             {shiftsErrorMessage}
           </div>
         ) : null}
         {locationsErrorMessage ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             {locationsErrorMessage}
           </div>
         ) : null}
 
         {activeTab === "POINTAGE" ? (
           <React.Fragment>
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-[0_1px_6px_rgba(0,0,0,0.04)]">
-              <div className="text-xs text-slate-500">Heures aujourd'hui</div>
-              <div className="mt-1 text-2xl font-black text-slate-900">{formatMinutes(todayMinutes)}</div>
+            <div className="rounded-2xl border border-border bg-card px-4 py-3 shadow-[0_1px_6px_rgba(0,0,0,0.04)]">
+              <div className="text-xs text-muted-foreground">Heures aujourd'hui</div>
+              <div className="mt-1 text-2xl font-black text-foreground">{formatMinutes(todayMinutes)}</div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-[0_1px_6px_rgba(0,0,0,0.04)]">
+            <div className="rounded-2xl border border-border bg-card px-4 py-3 shadow-[0_1px_6px_rgba(0,0,0,0.04)]">
               <div className="flex items-center justify-between gap-2">
-                <div className="text-sm font-black text-slate-900">Lieux</div>
+                <div className="text-sm font-black text-foreground">Lieux</div>
                 <Button
                   type="button"
                   variant="outline"
@@ -418,18 +418,18 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
                 </Button>
               </div>
               {isLocationPanelOpen ? (
-                <div className="mt-3 space-y-3 text-sm text-slate-700">
+                <div className="mt-3 space-y-3 text-sm text-muted-foreground">
                   <div className="flex flex-wrap gap-2">
                     {locations.length ? (
                       locations.map((item) => (
                         <div
                           key={item.id}
-                          className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700"
+                          className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-semibold text-muted-foreground"
                         >
                           <span>{item.name}</span>
                           <button
                             type="button"
-                            className="text-slate-400 transition hover:text-slate-900"
+                            className="text-muted-foreground transition hover:text-foreground"
                             onClick={() => deleteLocation.mutate({ id: item.id })}
                             aria-label={`Supprimer ${item.name}`}
                             disabled={isManagingLocations}
@@ -439,7 +439,7 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
                         </div>
                       ))
                     ) : (
-                      <span className="text-xs text-slate-500">Aucun lieu enregistré.</span>
+                      <span className="text-xs text-muted-foreground">Aucun lieu enregistré.</span>
                     )}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -470,7 +470,7 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
 
             <button
               type="button"
-              className="fixed bottom-4 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-red-600 text-2xl font-black text-white shadow-[0_8px_20px_rgba(220,38,38,0.25)]"
+              className="fixed bottom-4 right-4 z-fab flex h-14 w-14 items-center justify-center rounded-full bg-destructive text-2xl font-black text-white shadow-[0_8px_20px_rgba(220,38,38,0.25)]"
               onClick={openNewShift}
               aria-label="Ajouter un shift"
             >
@@ -479,8 +479,8 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
           </React.Fragment>
         ) : (
           <React.Fragment>
-            <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-4 shadow-[0_1px_6px_rgba(0,0,0,0.04)]">
-              <div className="text-base font-black text-slate-900">Dashboard KPI</div>
+            <div className="rounded-2xl border border-dashed border-border bg-card px-4 py-4 shadow-[0_1px_6px_rgba(0,0,0,0.04)]">
+              <div className="text-base font-black text-foreground">Dashboard KPI</div>
               <div className="mt-3 flex flex-wrap gap-2">
                 <div className="min-w-[180px] flex-1 space-y-2">
                   <Label htmlFor="dashboard-from">Du</Label>
@@ -501,14 +501,14 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
                   />
                 </div>
               </div>
-              <div className="mt-3 text-xs text-slate-500">
+              <div className="mt-3 text-xs text-muted-foreground">
                 Période sélectionnée : {formatLongDate.format(new Date(dashboardFrom))} →{" "}
                 {formatLongDate.format(new Date(dashboardTo))}
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-[0_1px_6px_rgba(0,0,0,0.04)]">
-              <div className="mb-3 text-sm font-black text-slate-900">Heures par jour</div>
+            <div className="rounded-2xl border border-border bg-card px-4 py-4 shadow-[0_1px_6px_rgba(0,0,0,0.04)]">
+              <div className="mb-3 text-sm font-black text-foreground">Heures par jour</div>
               {dashboardHistogram.length ? (
                 <div className="h-56 w-full">
                   <ResponsiveContainer width="100%" height="100%">
@@ -517,17 +517,17 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
                       <XAxis dataKey="label" tickLine={false} axisLine={false} />
                       <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `${value}h`} />
                       <Tooltip formatter={(value: number) => `${value} h`} labelFormatter={(label) => `Jour ${label}`} />
-                      <Bar dataKey="hours" fill="#0f172a" radius={[6, 6, 0, 0]} />
+                      <Bar dataKey="hours" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <div className="text-sm text-slate-500">Aucune donnée sur la période.</div>
+                <div className="text-sm text-muted-foreground">Aucune donnée sur la période.</div>
               )}
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-[0_1px_6px_rgba(0,0,0,0.04)]">
-              <div className="mb-3 text-sm font-black text-slate-900">Résumé période</div>
+            <div className="rounded-2xl border border-border bg-card px-4 py-4 shadow-[0_1px_6px_rgba(0,0,0,0.04)]">
+              <div className="mb-3 text-sm font-black text-foreground">Résumé période</div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {[
                   { label: "Total", value: formatMinutes(dashboardTotals.total), hint: "Travail + trajet" },
@@ -537,19 +537,19 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
                 ].map((card) => (
                   <div
                     key={card.label}
-                    className="rounded-2xl border border-dashed border-slate-200 bg-white p-3 shadow-[0_1px_6px_rgba(0,0,0,0.04)]"
+                    className="rounded-2xl border border-dashed border-border bg-card p-3 shadow-[0_1px_6px_rgba(0,0,0,0.04)]"
                   >
-                    <div className="text-xs text-slate-500">{card.label}</div>
-                    <div className="text-lg font-black text-slate-900">{card.value}</div>
-                    <div className="text-xs text-slate-500">{card.hint}</div>
+                    <div className="text-xs text-muted-foreground">{card.label}</div>
+                    <div className="text-lg font-black text-foreground">{card.value}</div>
+                    <div className="text-xs text-muted-foreground">{card.hint}</div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-[0_1px_6px_rgba(0,0,0,0.04)]">
-              <div className="mb-2 text-sm font-black text-slate-900">Graphiques (à venir)</div>
-              <div className="text-sm text-slate-500">
+            <div className="rounded-2xl border border-border bg-card px-4 py-4 shadow-[0_1px_6px_rgba(0,0,0,0.04)]">
+              <div className="mb-2 text-sm font-black text-foreground">Graphiques (à venir)</div>
+              <div className="text-sm text-muted-foreground">
                 • Bar chart : heures par jour (période)
                 <br />• Donut : % trajet vs travail
                 <br />• Top lieux : heures cumulées

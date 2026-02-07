@@ -26,14 +26,14 @@ export function IntensityDots({ value, className, size = "md" }: IntensityDotsPr
   const dotSize = size === "sm" ? "h-2 w-2" : "h-2.5 w-2.5";
 
   return (
-    <div className={cn("flex items-center gap-1", className)} aria-label={`Intensité ${formatIntensityLabel(normalized)}`}>
+    <div className={cn("flex items-center gap-1", className)} role="img" aria-label={`Intensité ${formatIntensityLabel(normalized)}`}>
       {intensityScale.map((level, index) => (
         <span
           key={level}
           className={cn(
             dotSize,
             "rounded-full",
-            index < filled ? intensityTone[level] ?? "bg-primary" : "bg-slate-200",
+            index < filled ? intensityTone[level] ?? "bg-primary" : "bg-muted",
           )}
         />
       ))}

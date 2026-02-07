@@ -39,6 +39,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useBeforeUnload } from "@/hooks/use-before-unload";
 import { useAuth } from "@/lib/auth";
 import { formatSwimSessionDefaultTitle } from "@/lib/date";
 import { calculateSwimTotalDistance } from "@/lib/swimSessionUtils";
@@ -251,6 +252,7 @@ export default function SwimCatalog() {
   const queryClient = useQueryClient();
   const { userId, role } = useAuth();
   const [isCreating, setIsCreating] = useState(false);
+  useBeforeUnload(isCreating);
   const [selectedSession, setSelectedSession] = useState<SwimSessionTemplate | null>(null);
   const [pendingDeleteSession, setPendingDeleteSession] = useState<SwimSessionTemplate | null>(null);
   const [pendingArchiveSession, setPendingArchiveSession] = useState<SwimSessionTemplate | null>(null);
@@ -474,8 +476,8 @@ export default function SwimCatalog() {
 
   if (isCreating) {
     return (
-      <div className="animate-in slide-in-from-bottom-4">
-        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+      <div className="animate-in slide-in-from-bottom-4 motion-reduce:animate-none">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -483,7 +485,7 @@ export default function SwimCatalog() {
                 setIsCreating(false);
                 setNewSession(createEmptySession());
               }}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-slate-100"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"
               aria-label="Retour"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -502,7 +504,7 @@ export default function SwimCatalog() {
                   items: buildItemsFromBlocks(newSession.blocks),
                 })
               }
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-slate-100"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"
               aria-label="Aperçu nageur"
               title="Aperçu nageur"
             >
@@ -528,7 +530,7 @@ export default function SwimCatalog() {
                   created_by: userId,
                 });
               }}
-              className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
+              className="inline-flex items-center gap-2 rounded-full bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
             >
               <Save className="h-4 w-4" /> Sauver
             </button>
@@ -536,12 +538,12 @@ export default function SwimCatalog() {
         </div>
 
         <div className="space-y-4 p-4">
-          <Card className="rounded-2xl border-slate-200">
+          <Card className="rounded-2xl border-border">
             <div className="space-y-3 p-4">
               <div className="text-sm font-semibold">Infos séance</div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
-                  <div className="text-xs font-semibold text-slate-500">Nom</div>
+                  <div className="text-xs font-semibold text-muted-foreground">Nom</div>
                   <div className="mt-1">
                     <Input
                       value={newSession.name}
@@ -552,7 +554,7 @@ export default function SwimCatalog() {
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-slate-500">Durée estimée (min)</div>
+                  <div className="text-xs font-semibold text-muted-foreground">Durée estimée (min)</div>
                   <div className="mt-1">
                     <Input
                       type="number"
@@ -570,8 +572,8 @@ export default function SwimCatalog() {
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-slate-500">Distance totale</div>
-                  <div className="mt-1 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold">
+                  <div className="text-xs font-semibold text-muted-foreground">Distance totale</div>
+                  <div className="mt-1 rounded-2xl border border-border bg-muted px-3 py-2 text-sm font-semibold">
                     {totalDistance}m
                   </div>
                 </div>
@@ -581,13 +583,13 @@ export default function SwimCatalog() {
 
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold">Vue coach</div>
-            <div className="inline-flex rounded-full border border-slate-200 bg-white p-1 text-xs font-semibold">
+            <div className="inline-flex rounded-full border border-border bg-card p-1 text-xs font-semibold">
               <button
                 type="button"
                 onClick={() => setCoachView("compact")}
                 className={cn(
                   "rounded-full px-3 py-1",
-                  coachView === "compact" ? "bg-slate-900 text-white" : "text-slate-600"
+                  coachView === "compact" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
                 )}
               >
                 Condensé
@@ -597,7 +599,7 @@ export default function SwimCatalog() {
                 onClick={() => setCoachView("detailed")}
                 className={cn(
                   "rounded-full px-3 py-1",
-                  coachView === "detailed" ? "bg-slate-900 text-white" : "text-slate-600"
+                  coachView === "detailed" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
                 )}
               >
                 Détail
@@ -606,12 +608,12 @@ export default function SwimCatalog() {
           </div>
 
           {coachView === "compact" ? (
-            <Card className="rounded-2xl border-slate-200">
+            <Card className="rounded-2xl border-border">
               <div className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-sm font-semibold">Plan (ultra compact)</div>
-                    <div className="mt-1 text-xs text-slate-500">
+                    <div className="mt-1 text-xs text-muted-foreground">
                       Manipule les blocs vite. Passe en “Détail” pour éditer.
                     </div>
                   </div>
@@ -627,17 +629,17 @@ export default function SwimCatalog() {
 
                 <div className="mt-3 space-y-2">
                   {newSession.blocks.map((block, blockIndex) => (
-                    <div key={blockIndex} className="rounded-2xl border border-slate-200 bg-white px-3 py-2">
+                    <div key={blockIndex} className="rounded-2xl border border-border bg-card px-3 py-2">
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-900 px-2 py-0.5 text-[11px] font-semibold text-white">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold text-primary-foreground">
                               🔁 {block.repetitions ?? 1}x
                             </span>
                             <div className="truncate text-xs font-semibold">
                               {block.title ? block.title : `Bloc ${blockIndex + 1}`}
                             </div>
-                            <div className="text-[11px] text-slate-500">· {block.exercises.length} ex</div>
+                            <div className="text-[11px] text-muted-foreground">· {block.exercises.length} ex</div>
                           </div>
 
                           <div className="mt-1 flex flex-wrap gap-1">
@@ -648,7 +650,7 @@ export default function SwimCatalog() {
                               return (
                                 <span
                                   key={`${blockIndex}-${exerciseIndex}`}
-                                  className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700"
+                                  className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground"
                                   title={exercise.modalities ? trimPreview(exercise.modalities) : ""}
                                 >
                                   {exercise.repetitions && exercise.distance ? `${exercise.repetitions}x` : ""}
@@ -656,14 +658,14 @@ export default function SwimCatalog() {
                                   <span
                                     className={cn(
                                       "ml-1 inline-flex items-center rounded-full px-2 py-0.5 ring-1",
-                                      swimTypeTone[exercise.strokeType] ?? "bg-slate-100 text-slate-700 ring-slate-200",
+                                      swimTypeTone[exercise.strokeType] ?? "bg-muted text-muted-foreground ring-border",
                                     )}
                                   >
                                     {strokeTypeLabel}
                                   </span>
                                   <span
                                     className={cn(
-                                      "ml-1 inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 ring-1",
+                                      "ml-1 inline-flex items-center gap-1 rounded-full bg-card px-2 py-0.5 ring-1",
                                       intensityRingTone[normalizedIntensity],
                                       intensityTextTone[normalizedIntensity],
                                     )}
@@ -680,7 +682,7 @@ export default function SwimCatalog() {
                               );
                             })}
                             {block.exercises.length > 4 ? (
-                              <span className="text-[11px] text-slate-400">
+                              <span className="text-[11px] text-muted-foreground">
                                 +{block.exercises.length - 4}
                               </span>
                             ) : null}
@@ -691,7 +693,7 @@ export default function SwimCatalog() {
                           <button
                             type="button"
                             onClick={() => moveBlock(blockIndex, "up")}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-slate-100 disabled:opacity-40"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
                             aria-label="Monter"
                             title="Monter"
                             disabled={blockIndex === 0}
@@ -701,7 +703,7 @@ export default function SwimCatalog() {
                           <button
                             type="button"
                             onClick={() => moveBlock(blockIndex, "down")}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-slate-100 disabled:opacity-40"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
                             aria-label="Descendre"
                             title="Descendre"
                             disabled={blockIndex === newSession.blocks.length - 1}
@@ -711,7 +713,7 @@ export default function SwimCatalog() {
                           <button
                             type="button"
                             onClick={() => removeBlock(blockIndex)}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-red-700 hover:bg-red-50"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-destructive hover:bg-destructive/10"
                             aria-label="Supprimer bloc"
                             title="Supprimer bloc"
                           >
@@ -723,7 +725,7 @@ export default function SwimCatalog() {
                   ))}
 
                   {!newSession.blocks.length ? (
-                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-6 text-center text-sm text-slate-500">
+                    <div className="rounded-2xl border border-dashed border-border bg-muted px-3 py-6 text-center text-sm text-muted-foreground">
                       Aucun bloc. Ajoute un bloc pour commencer.
                     </div>
                   ) : null}
@@ -746,15 +748,15 @@ export default function SwimCatalog() {
 
               <div className="space-y-4">
                 {newSession.blocks.map((block, blockIndex) => (
-                  <Card key={blockIndex} className="rounded-2xl border-slate-200">
+                  <Card key={blockIndex} className="rounded-2xl border-border">
                     <div className="p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-3">
-                          <span className="mt-1 inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+                          <span className="mt-1 inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
                             <GripVertical className="h-4 w-4" />
                           </span>
                           <div className="space-y-2">
-                            <div className="text-xs font-semibold text-slate-500">Titre bloc</div>
+                            <div className="text-xs font-semibold text-muted-foreground">Titre bloc</div>
                             <Input
                               value={block.title}
                               onChange={(e) => updateBlock(blockIndex, "title", e.target.value)}
@@ -768,7 +770,7 @@ export default function SwimCatalog() {
                           <button
                             type="button"
                             onClick={() => moveBlock(blockIndex, "up")}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-slate-100 disabled:opacity-40"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
                             aria-label="Monter"
                             title="Monter"
                             disabled={blockIndex === 0}
@@ -778,7 +780,7 @@ export default function SwimCatalog() {
                           <button
                             type="button"
                             onClick={() => moveBlock(blockIndex, "down")}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-slate-100 disabled:opacity-40"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
                             aria-label="Descendre"
                             title="Descendre"
                             disabled={blockIndex === newSession.blocks.length - 1}
@@ -788,7 +790,7 @@ export default function SwimCatalog() {
                           <button
                             type="button"
                             onClick={() => removeBlock(blockIndex)}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-red-700 hover:bg-red-50"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-destructive hover:bg-destructive/10"
                             aria-label="Supprimer bloc"
                             title="Supprimer bloc"
                           >
@@ -799,7 +801,7 @@ export default function SwimCatalog() {
 
                       <div className="mt-3 grid grid-cols-2 gap-3">
                         <div>
-                          <div className="text-xs font-semibold text-slate-500">Répétitions du bloc</div>
+                          <div className="text-xs font-semibold text-muted-foreground">Répétitions du bloc</div>
                           <div className="mt-1">
                             <Input
                               type="number"
@@ -834,11 +836,11 @@ export default function SwimCatalog() {
                           const normalizedIntensity = normalizeIntensityValue(exercise.intensity);
                           const modalitesText = exercise.modalities ?? "";
                           return (
-                            <div key={exerciseIndex} className="rounded-2xl border border-slate-200 bg-white p-3">
+                            <div key={exerciseIndex} className="rounded-2xl border border-border bg-card p-3">
                               <div className="flex items-start justify-between gap-3">
                                 <div className="grid flex-1 grid-cols-2 gap-3">
                                   <div>
-                                    <div className="text-[11px] font-semibold text-slate-500">Répétitions</div>
+                                    <div className="text-[11px] font-semibold text-muted-foreground">Répétitions</div>
                                     <div className="mt-1">
                                       <Input
                                         type="number"
@@ -858,7 +860,7 @@ export default function SwimCatalog() {
                                   </div>
 
                                   <div>
-                                    <div className="text-[11px] font-semibold text-slate-500">Distance (m)</div>
+                                    <div className="text-[11px] font-semibold text-muted-foreground">Distance (m)</div>
                                     <div className="mt-1">
                                       <Input
                                         type="number"
@@ -878,7 +880,7 @@ export default function SwimCatalog() {
                                   </div>
 
                                   <div>
-                                    <div className="text-[11px] font-semibold text-slate-500">Nage</div>
+                                    <div className="text-[11px] font-semibold text-muted-foreground">Nage</div>
                                     <div className="mt-1">
                                       <Select
                                         value={exercise.stroke}
@@ -901,7 +903,7 @@ export default function SwimCatalog() {
                                   </div>
 
                                   <div>
-                                    <div className="text-[11px] font-semibold text-slate-500">Type</div>
+                                    <div className="text-[11px] font-semibold text-muted-foreground">Type</div>
                                     <div className="mt-1">
                                       <Select
                                         value={exercise.strokeType}
@@ -925,12 +927,12 @@ export default function SwimCatalog() {
 
                                   <div className="col-span-2">
                                     <div className="flex items-center justify-between">
-                                      <div className="text-[11px] font-semibold text-slate-500">
+                                      <div className="text-[11px] font-semibold text-muted-foreground">
                                         Intensité (clic sur points)
                                       </div>
                                       <span
                                         className={cn(
-                                          "inline-flex items-center gap-2 rounded-full bg-white px-2.5 py-1 text-xs font-semibold ring-1",
+                                          "inline-flex items-center gap-2 rounded-full bg-card px-2.5 py-1 text-xs font-semibold ring-1",
                                           intensityRingTone[normalizedIntensity],
                                           intensityTextTone[normalizedIntensity],
                                         )}
@@ -955,7 +957,7 @@ export default function SwimCatalog() {
                                   </div>
 
                                   <div className="col-span-2">
-                                    <div className="text-[11px] font-semibold text-slate-500">Équipements</div>
+                                    <div className="text-[11px] font-semibold text-muted-foreground">Équipements</div>
                                     <div className="mt-2 flex flex-wrap gap-2">
                                       {equipmentOptions.map((equipment) => {
                                         const active = exercise.equipment.includes(equipment.value);
@@ -973,14 +975,14 @@ export default function SwimCatalog() {
                                             className={cn(
                                               "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold",
                                               active
-                                                ? "border-slate-900 bg-slate-900 text-white"
-                                                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+                                                ? "border-primary bg-primary text-primary-foreground"
+                                                : "border-border bg-card text-muted-foreground hover:bg-muted",
                                             )}
                                           >
                                             <span
                                               className={cn(
                                                 "inline-flex h-7 w-7 items-center justify-center rounded-full",
-                                                active ? "bg-white/10" : "bg-slate-100",
+                                                active ? "bg-white/10" : "bg-muted",
                                               )}
                                             >
                                               {iconUrl ? (
@@ -995,7 +997,7 @@ export default function SwimCatalog() {
                                   </div>
 
                                   <div className="col-span-2">
-                                    <div className="text-[11px] font-semibold text-slate-500">Modalités</div>
+                                    <div className="text-[11px] font-semibold text-muted-foreground">Modalités</div>
                                     <div className="mt-1">
                                       <Textarea
                                         value={modalitesText}
@@ -1013,7 +1015,7 @@ export default function SwimCatalog() {
                                 <button
                                   type="button"
                                   onClick={() => removeExercise(blockIndex, exerciseIndex)}
-                                  className="inline-flex h-9 w-9 items-center justify-center rounded-full text-red-700 hover:bg-red-50"
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-full text-destructive hover:bg-destructive/10"
                                   aria-label="Supprimer exercice"
                                   title="Supprimer exercice"
                                 >
@@ -1075,10 +1077,10 @@ export default function SwimCatalog() {
 
   return (
     <div>
-      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div>
           <div className="text-base font-semibold">Coach</div>
-          <div className="text-xs text-slate-500">Création</div>
+          <div className="text-xs text-muted-foreground">Création</div>
         </div>
         <button
           type="button"
@@ -1087,17 +1089,17 @@ export default function SwimCatalog() {
             setCoachView("compact");
             setIsCreating(true);
           }}
-          className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
+          className="inline-flex items-center gap-2 rounded-full bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
         >
           <Plus className="h-4 w-4" /> Nouvelle
         </button>
       </div>
 
       <div className="p-4">
-        <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2">
-          <Search className="h-4 w-4 text-slate-400" />
+        <div className="flex items-center gap-2 rounded-2xl border border-border bg-card px-3 py-2">
+          <Search className="h-4 w-4 text-muted-foreground" />
           <input
-            className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
+            className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
             placeholder="Rechercher une séance"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -1110,12 +1112,12 @@ export default function SwimCatalog() {
             const canDelete = canDeleteSwimCatalog(session.id, assignments ?? null);
             const deleteDisabled = !canDelete || deleteSession.isPending;
             return (
-              <Card key={session.id} className="rounded-2xl border-slate-200">
+              <Card key={session.id} className="rounded-2xl border-border">
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-base font-semibold tracking-tight">{session.name}</div>
-                      <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
+                      <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                         <span className="inline-flex items-center gap-1">
                           <Route className="h-3.5 w-3.5" />
                           {totalDistance}m
@@ -1134,7 +1136,7 @@ export default function SwimCatalog() {
                       <button
                         type="button"
                         onClick={() => setSelectedSession(session)}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-slate-100"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"
                         aria-label="Aperçu nageur"
                         title="Aperçu nageur"
                       >
@@ -1153,7 +1155,7 @@ export default function SwimCatalog() {
                           setCoachView("compact");
                           setIsCreating(true);
                         }}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-slate-100"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"
                         aria-label="Modifier"
                         title="Modifier"
                       >
@@ -1162,7 +1164,7 @@ export default function SwimCatalog() {
                       <button
                         type="button"
                         onClick={() => setPendingArchiveSession(session)}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-slate-100"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"
                         aria-label="Archiver"
                         title="Archiver"
                       >
@@ -1175,8 +1177,8 @@ export default function SwimCatalog() {
                           setPendingDeleteSession(session);
                         }}
                         className={cn(
-                          "inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-slate-100",
-                          deleteDisabled && "cursor-not-allowed text-slate-300",
+                          "inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted",
+                          deleteDisabled && "cursor-not-allowed text-muted-foreground",
                         )}
                         aria-label="Supprimer"
                         title={

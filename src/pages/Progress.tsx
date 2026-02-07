@@ -395,7 +395,7 @@ export default function Progress() {
           <TabsTrigger value="strength">Musculation</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="swim" className="space-y-6 animate-in fade-in">
+        <TabsContent value="swim" className="space-y-6 animate-in fade-in motion-reduce:animate-none">
              <div className="flex flex-wrap items-center justify-end gap-2">
                <span className="text-xs uppercase text-muted-foreground">Période</span>
                <Select value={String(swimPeriodDays)} onValueChange={(value) => setSwimPeriodDays(Number(value))}>
@@ -497,7 +497,7 @@ export default function Progress() {
              </div>
         </TabsContent>
 
-        <TabsContent value="strength" className="space-y-6 animate-in fade-in">
+        <TabsContent value="strength" className="space-y-6 animate-in fade-in motion-reduce:animate-none">
              <div className="flex flex-wrap items-center justify-end gap-2">
                <span className="text-xs uppercase text-muted-foreground">Période</span>
                <Select

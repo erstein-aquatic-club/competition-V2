@@ -100,20 +100,23 @@ export function TimesheetShiftForm({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/35 px-3 pb-3"
+      role="dialog"
+      aria-modal="true"
+      aria-label={isEditing ? "Modifier shift" : "Nouveau shift"}
+      className="fixed inset-0 z-modal flex items-end justify-center bg-black/35 px-3 pb-3"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-[0_12px_40px_rgba(0,0,0,0.2)]"
+        className="w-full max-w-3xl overflow-hidden rounded-2xl bg-card shadow-[0_12px_40px_rgba(0,0,0,0.2)]"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-slate-200" />
+        <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-muted" />
         <div className="grid grid-cols-[1fr_auto] items-center gap-2 px-4 pb-2 pt-3 text-sm font-black">
           <div>{isEditing ? "Modifier shift" : "Nouveau shift"}</div>
           <Button type="button" variant="outline" size="sm" onClick={onClose}>
             Fermer
           </Button>
-          <div className="col-span-2 text-center text-sm font-black text-slate-900">
+          <div className="col-span-2 text-center text-sm font-black text-card-foreground">
             {startTime || "—"} → {endTime || "En cours"}
             {durationLabel ? ` • Durée ${durationLabel}` : null}
           </div>
@@ -135,7 +138,8 @@ export function TimesheetShiftForm({
               />
               <button
                 type="button"
-                className="mx-auto block h-8 min-w-[110px] rounded-full border border-slate-200 bg-white px-3 text-xs font-bold text-slate-900"
+                aria-label="Heure d'arrivée maintenant"
+                className="mx-auto block h-8 min-w-[110px] rounded-full border border-border bg-card px-3 text-xs font-bold text-card-foreground"
                 onClick={() => {
                   const nowValue = buildRoundedTime();
                   onStartTimeChange(nowValue);
@@ -155,7 +159,8 @@ export function TimesheetShiftForm({
               />
               <button
                 type="button"
-                className="mx-auto block h-8 min-w-[110px] rounded-full border border-slate-200 bg-white px-3 text-xs font-bold text-slate-900"
+                aria-label="Heure de sortie maintenant"
+                className="mx-auto block h-8 min-w-[110px] rounded-full border border-border bg-card px-3 text-xs font-bold text-card-foreground"
                 onClick={() => {
                   const nowValue = buildRoundedTime();
                   onEndTimeChange(nowValue);
@@ -165,7 +170,8 @@ export function TimesheetShiftForm({
               </button>
               <button
                 type="button"
-                className="mx-auto block h-8 min-w-[110px] rounded-full border border-slate-200 bg-white px-3 text-xs font-bold text-slate-900"
+                aria-label="Marquer comme en cours"
+                className="mx-auto block h-8 min-w-[110px] rounded-full border border-border bg-card px-3 text-xs font-bold text-card-foreground"
                 onClick={() => onEndTimeChange("")}
               >
                 En cours
@@ -194,7 +200,7 @@ export function TimesheetShiftForm({
             <Label htmlFor="shift-travel">Temps de trajet</Label>
           </div>
 
-          <div className="flex gap-3 border-t border-slate-100 pt-3">
+          <div className="flex gap-3 border-t border-border pt-3">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
               Annuler
             </Button>

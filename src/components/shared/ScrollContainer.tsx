@@ -8,7 +8,7 @@ interface ScrollContainerProps {
 
 export function ScrollContainer({ children, className }: ScrollContainerProps) {
   return (
-    <div className={cn("overflow-y-auto overscroll-contain", className)}>
+    <div role="region" aria-label="Contenu défilable" tabIndex={0} className={cn("overflow-y-auto overscroll-contain", className)}>
       {children}
     </div>
   );

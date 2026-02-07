@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2, Save, Filter, Edit2, GripVertical, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useBeforeUnload } from "@/hooks/use-before-unload";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -273,6 +274,7 @@ export default function StrengthCatalog() {
   const queryClient = useQueryClient();
   const [isCreating, setIsCreating] = useState(false);
   const [editingSessionId, setEditingSessionId] = useState<number | null>(null);
+  useBeforeUnload(isCreating || editingSessionId !== null);
   const [exerciseFilter, setExerciseFilter] = useState<"all" | "strength" | "warmup">("all");
   const [exerciseDialogOpen, setExerciseDialogOpen] = useState(false);
   const [exerciseEditOpen, setExerciseEditOpen] = useState(false);
@@ -796,7 +798,7 @@ export default function StrengthCatalog() {
 
   if (isCreating) {
       return (
-          <div className="space-y-6 animate-in slide-in-from-bottom-4">
+          <div className="space-y-6 animate-in slide-in-from-bottom-4 motion-reduce:animate-none">
               {exerciseCreateDialog}
               {exerciseEditDialog}
               {detailsDialog}

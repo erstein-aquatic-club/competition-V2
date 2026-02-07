@@ -226,7 +226,7 @@ const CoachAssignScreen = ({
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="border-l-4 border-l-green-500">
+        <Card className="border-l-4 border-l-primary">
           <CardHeader>
             <CardTitle>Séance</CardTitle>
             <CardDescription>Choisissez le type et la séance à envoyer.</CardDescription>

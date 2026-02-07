@@ -202,7 +202,18 @@ export default function RecordsAdmin() {
           <CardDescription>Mettre à jour l'IUF, le sexe ou l'activation pour l'import FFN.</CardDescription>
         </CardHeader>
         <CardContent>
-          {isLoading && <p className="text-sm text-muted-foreground">Chargement...</p>}
+          {isLoading && (
+            <div className="space-y-3">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <div className="h-4 w-32 rounded bg-muted animate-pulse" />
+                  <div className="h-4 w-20 rounded bg-muted animate-pulse" />
+                  <div className="h-4 w-16 rounded bg-muted animate-pulse" />
+                  <div className="h-4 w-24 rounded bg-muted animate-pulse" />
+                </div>
+              ))}
+            </div>
+          )}
           {error && <p className="text-sm text-destructive">{error}</p>}
           {!isLoading && !error && swimmers.length === 0 && (
             <p className="text-sm text-muted-foreground">Aucun nageur disponible.</p>

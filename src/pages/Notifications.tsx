@@ -267,7 +267,19 @@ export default function Notifications() {
     targets.forEach((targetId) => markRead.mutate(targetId));
   };
 
-  if (isLoading) return <div className="p-8 text-center animate-pulse">Chargement...</div>;
+  if (isLoading) return (
+    <div className="space-y-4 p-4">
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} className="flex items-start gap-3 rounded-xl bg-muted animate-pulse p-4">
+          <div className="h-10 w-10 rounded-full bg-muted-foreground/10" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-3/4 rounded bg-muted-foreground/10" />
+            <div className="h-3 w-1/2 rounded bg-muted-foreground/10" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   const capabilityMessage = capabilitiesError
     ? summarizeApiError(capabilitiesError, "Impossible de vérifier la messagerie.").message
@@ -314,14 +326,14 @@ export default function Notifications() {
                       <div className={`p-2 rounded-full ${thread.hasUnread ? "bg-primary/20" : "bg-muted"}`}>
                         <MessageSquare className="h-4 w-4 text-primary" />
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <div className="font-bold">{thread.senderLabel}</div>
-                          <div className="text-xs text-muted-foreground">
+                          <div className="font-bold truncate">{thread.senderLabel}</div>
+                          <div className="text-xs text-muted-foreground shrink-0 ml-2">
                             {format(new Date(thread.lastMessage.date), "dd MMM", { locale: fr })}
                           </div>
                         </div>
-                        <p className="text-sm text-muted-foreground line-clamp-1">{thread.lastMessage.message}</p>
+                        <p className="text-sm text-muted-foreground line-clamp-1 break-words">{thread.lastMessage.message}</p>
                       </div>
                       {thread.hasUnread ? <Badge variant="secondary">Non lu</Badge> : null}
                     </CardContent>
@@ -352,14 +364,14 @@ export default function Notifications() {
                       <div className={`p-2 rounded-full ${thread.hasUnread ? "bg-primary/20" : "bg-muted"}`}>
                         <MessageSquare className="h-4 w-4 text-primary" />
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <div className="font-bold">{thread.senderLabel}</div>
-                          <div className="text-xs text-muted-foreground">
+                          <div className="font-bold truncate">{thread.senderLabel}</div>
+                          <div className="text-xs text-muted-foreground shrink-0 ml-2">
                             {format(new Date(thread.lastMessage.date), "dd MMM", { locale: fr })}
                           </div>
                         </div>
-                        <p className="text-sm text-muted-foreground line-clamp-1">{thread.lastMessage.message}</p>
+                        <p className="text-sm text-muted-foreground line-clamp-1 break-words">{thread.lastMessage.message}</p>
                       </div>
                       {thread.hasUnread ? <Badge variant="secondary">Non lu</Badge> : null}
                     </CardContent>

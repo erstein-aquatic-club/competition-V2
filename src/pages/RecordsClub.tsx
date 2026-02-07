@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, type ClubRecord } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -91,7 +92,7 @@ export default function RecordsClub() {
 
   const ageValue = ageFilter === "ALL" ? null : Number(ageFilter);
 
-  const { data: records = [], isLoading, error } = useQuery({
+  const { data: records = [], isLoading, error, refetch } = useQuery({
     queryKey: ["club-records", pool, sex, ageFilter],
     queryFn: () =>
       api.getClubRecords({
@@ -185,10 +186,19 @@ export default function RecordsClub() {
       </Card>
 
       <div className="space-y-3">
-        {isLoading && <div className="text-sm text-muted-foreground">Chargement des records...</div>}
+        {isLoading && (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-24 w-full rounded-xl bg-muted animate-pulse" />
+            ))}
+          </div>
+        )}
         {error && (
-          <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-            Impossible de charger les records. Réessayez plus tard.
+          <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+            <p>Impossible de charger les records.</p>
+            <Button variant="outline" size="sm" className="mt-2" onClick={() => refetch()}>
+              Réessayer
+            </Button>
           </div>
         )}
         {!isLoading && !error && filteredRecords.length === 0 && (

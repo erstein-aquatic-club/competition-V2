@@ -111,7 +111,7 @@ function WheelPicker({
 
   return (
     <div style={{ width, minWidth: 0, flex: `0 0 ${width}px` }}>
-      <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="relative overflow-hidden rounded-xl border border-border bg-card">
         <div
           className="pointer-events-none absolute left-0 right-0 top-0 z-[2]"
           style={{ height: padding, background: "linear-gradient(#fff, rgba(255,255,255,0))" }}
@@ -150,7 +150,7 @@ function WheelPicker({
               <div
                 key={entry}
                 className={`flex items-center justify-center text-[15px] font-bold ${
-                  isSelected ? "text-slate-900" : "text-slate-400"
+                  isSelected ? "text-foreground" : "text-muted-foreground"
                 }`}
                 style={{
                   height: itemHeight,
@@ -215,7 +215,7 @@ export function TimesheetTimeWheel({
 
   return (
     <div className="space-y-2">
-      <div className="text-xs font-black text-slate-900">{label}</div>
+      <div className="text-xs font-black text-foreground">{label}</div>
       <div className="flex flex-wrap items-end justify-center gap-2">
         <WheelPicker
           value={hourValue}
@@ -242,7 +242,7 @@ export function TimesheetTimeWheel({
         <button
           type="button"
           onClick={() => onChange("")}
-          className="mx-auto block h-8 min-w-[110px] rounded-full border border-slate-200 bg-white px-3 text-xs font-bold text-slate-900"
+          className="mx-auto block h-8 min-w-[110px] rounded-full border border-border bg-card px-3 text-xs font-bold text-foreground"
         >
           En cours
         </button>

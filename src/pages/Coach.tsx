@@ -191,17 +191,17 @@ const CoachHome = ({
     </div>
 
     <div className="grid gap-4 lg:grid-cols-2">
-      <Card className="sm:hidden bg-slate-950 text-white">
+      <Card className="sm:hidden bg-primary text-primary-foreground">
         <CardHeader className="space-y-1">
           <CardTitle className="text-base">Indicateurs clés</CardTitle>
-          <CardDescription className="text-slate-200">Synthèse rapide pour aujourd'hui.</CardDescription>
+          <CardDescription className="text-primary-foreground/70">Synthèse rapide pour aujourd'hui.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-3">
+          <div className="flex items-center justify-between rounded-lg border border-primary-foreground/10 bg-primary-foreground/5 p-3">
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-200">Fatigue 5/5</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-primary-foreground/70">Fatigue 5/5</p>
               <p className="text-2xl font-semibold">{kpiLoading ? "…" : fatigueAlerts.length}</p>
-              <p className="text-xs text-slate-200">
+              <p className="text-xs text-primary-foreground/70">
                 {kpiLoading
                   ? "Chargement..."
                   : fatigueAlerts.length
@@ -209,15 +209,15 @@ const CoachHome = ({
                     : "Aucune alerte"}
               </p>
             </div>
-            <HeartPulse className="h-5 w-5 text-slate-200" />
+            <HeartPulse className="h-5 w-5 text-primary-foreground/70" />
           </div>
-          <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-3">
+          <div className="flex items-center justify-between rounded-lg border border-primary-foreground/10 bg-primary-foreground/5 p-3">
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-200">Nageur le plus chargé</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-primary-foreground/70">Nageur le plus chargé</p>
               <p className="text-lg font-semibold">
                 {kpiLoading ? "…" : mostLoadedAthlete?.athleteName ?? "-"}
               </p>
-              <p className="text-xs text-slate-200">
+              <p className="text-xs text-primary-foreground/70">
                 {kpiLoading
                   ? "Calcul en cours"
                   : mostLoadedAthlete
@@ -225,7 +225,7 @@ const CoachHome = ({
                     : "Pas de données récentes"}
               </p>
             </div>
-            <Users className="h-5 w-5 text-slate-200" />
+            <Users className="h-5 w-5 text-primary-foreground/70" />
           </div>
         </CardContent>
       </Card>
@@ -462,7 +462,7 @@ export default function Coach() {
 
   if (!coachAccess) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh] animate-in fade-in">
+      <div className="flex items-center justify-center min-h-[60vh] animate-in fade-in motion-reduce:animate-none">
         <Card className="w-full max-w-sm shadow-xl border-t-4 border-t-primary">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 uppercase italic">

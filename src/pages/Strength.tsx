@@ -638,7 +638,7 @@ export default function Strength() {
     >
        {screenMode === "focus" && activeSession ? (
            exercises ? (
-               <div className="animate-in fade-in">
+               <div className="animate-in fade-in motion-reduce:animate-none">
                    <WorkoutRunner 
                  session={activeSession} 
                  exercises={exercises} 
@@ -717,7 +717,15 @@ export default function Strength() {
                    />
                </div>
            ) : (
-               <div className="py-10 text-center text-muted-foreground">Chargement du focus...</div>
+               <div className="space-y-4 py-10">
+                 <div className="mx-auto h-8 w-48 rounded-lg bg-muted animate-pulse" />
+                 <div className="mx-auto h-4 w-32 rounded-lg bg-muted animate-pulse" />
+                 <div className="space-y-3 pt-4">
+                   {[1, 2, 3].map((i) => (
+                     <div key={i} className="h-20 w-full rounded-xl bg-muted animate-pulse" />
+                   ))}
+                 </div>
+               </div>
            )
        ) : (
        <>
@@ -727,6 +735,7 @@ export default function Strength() {
                 <Button
                   variant="ghost"
                   size="sm"
+                  aria-label="Informations sur le calcul du 1RM"
                   onClick={() => toast({ title: "Info", description: "Le 1RM est calculé automatiquement." })}
                   className="text-muted-foreground"
                 >
@@ -752,7 +761,7 @@ export default function Strength() {
            
             <TabsContent value="start" className="space-y-5 pt-4">
                 {screenMode === "list" && (
-                    <div className="space-y-5 animate-in fade-in">
+                    <div className="space-y-5 animate-in fade-in motion-reduce:animate-none">
                         {/* Session count */}
                         <p className="text-center text-sm text-muted-foreground py-1">
                             {filteredDisplaySessions.length} séance{filteredDisplaySessions.length > 1 ? "s" : ""} disponible{filteredDisplaySessions.length > 1 ? "s" : ""}
@@ -1032,7 +1041,7 @@ export default function Strength() {
                )}
 
                {screenMode === "reader" && activeSession && (
-                   <div className="space-y-5 animate-in fade-in pb-40">
+                   <div className="space-y-5 animate-in fade-in motion-reduce:animate-none pb-40">
                        {/* Header compact avec retour */}
                        <div className="flex items-center gap-3">
                            <button

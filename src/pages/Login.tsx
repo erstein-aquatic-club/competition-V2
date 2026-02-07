@@ -108,9 +108,9 @@ export default function Login() {
       {/* Background Elements */}
       <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-primary/10 rounded-full blur-3xl pointer-events-none" />
 
-      <Card className="w-full max-w-sm relative z-10 shadow-2xl border-t-8 border-t-primary animate-in fade-in zoom-in duration-500">
+      <Card className="w-full max-w-sm relative z-10 shadow-2xl border-t-8 border-t-primary animate-in fade-in zoom-in duration-500 motion-reduce:animate-none">
         <CardHeader className="text-center pb-2">
-          <div className="mx-auto mb-6 h-24 w-24 rounded-full bg-black flex items-center justify-center border-4 border-primary shadow-lg">
+          <div className="mx-auto mb-6 h-24 w-24 rounded-full bg-foreground flex items-center justify-center border-4 border-primary shadow-lg">
              <img src={eacLogo} alt="EAC Logo" className="h-full w-full object-cover rounded-full opacity-90" />
           </div>
           <CardTitle className="text-3xl font-display italic uppercase tracking-tighter">SUIVI<span className="text-primary">NATATION</span></CardTitle>
@@ -120,6 +120,8 @@ export default function Login() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Input
+                id="login-email"
+                aria-label="Email"
                 placeholder="Email"
                 type="email"
                 value={email}
@@ -136,6 +138,8 @@ export default function Login() {
                 Saisissez votre email et votre mot de passe.
               </p>
               <Input
+                id="login-password"
+                aria-label="Mot de passe"
                 placeholder="Mot de passe"
                 type="password"
                 value={password}
@@ -144,7 +148,7 @@ export default function Login() {
                 className="text-center text-lg h-12 border-2 focus-visible:ring-primary"
               />
               {error ? (
-                <p className="text-sm text-destructive text-center">{error}</p>
+                <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive text-center">{error}</div>
               ) : null}
             </div>
             <Button

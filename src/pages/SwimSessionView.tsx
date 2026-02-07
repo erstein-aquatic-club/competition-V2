@@ -112,7 +112,7 @@ export default function SwimSessionView() {
         ) : null}
       </div>
 
-      <Card className="border border-slate-200 shadow-sm">
+      <Card className="border border-border shadow-sm">
         <CardContent className="space-y-4 p-5">
           <div className="space-y-1">
             <div className="text-lg font-semibold tracking-tight">
@@ -148,13 +148,13 @@ export default function SwimSessionView() {
                 Retirer de mon feed
               </Button>
             ) : null}
-            <div className="flex items-center rounded-full border border-slate-200 bg-slate-50 p-1 text-xs font-semibold">
+            <div className="flex items-center rounded-full border border-border bg-muted p-1 text-xs font-semibold">
               <button
                 type="button"
                 aria-pressed={compactMode}
                 onClick={() => setCompactMode(true)}
                 className={`rounded-full px-3 py-1 transition ${
-                  compactMode ? "bg-slate-900 text-white shadow-sm" : "text-muted-foreground"
+                  compactMode ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground"
                 }`}
               >
                 Condensé
@@ -164,7 +164,7 @@ export default function SwimSessionView() {
                 aria-pressed={!compactMode}
                 onClick={() => setCompactMode(false)}
                 className={`rounded-full px-3 py-1 transition ${
-                  !compactMode ? "bg-slate-900 text-white shadow-sm" : "text-muted-foreground"
+                  !compactMode ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground"
                 }`}
               >
                 Détail

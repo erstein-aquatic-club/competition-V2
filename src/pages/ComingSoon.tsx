@@ -12,7 +12,7 @@ export default function ComingSoon({
   description = "Cette fonctionnalité arrive bientôt. Merci pour votre patience.",
 }: ComingSoonProps) {
   return (
-    <div className="flex items-center justify-center min-h-[60vh] animate-in fade-in">
+    <div className="flex items-center justify-center min-h-[60vh] animate-in fade-in motion-reduce:animate-none">
       <Card className="w-full max-w-sm border-dashed text-center">
         <CardHeader>
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
