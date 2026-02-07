@@ -102,7 +102,17 @@ const CoachAssignScreen = ({
   }, [selectedGroups]);
 
   const assignSession = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: {
+      assignment_type?: "swim" | "strength";
+      session_type?: "swim" | "strength";
+      session_id: number;
+      target_athlete?: string;
+      target_user_id?: number | null;
+      target_group_id?: number | null;
+      assigned_date?: string;
+      scheduled_date?: string;
+      scheduled_slot?: "morning" | "evening";
+    }) => {
       return api.assignments_create(data);
     },
     onSuccess: () => {

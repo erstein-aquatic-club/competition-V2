@@ -25,6 +25,7 @@ import { useAuth } from "@/lib/auth";
 import { scoreToColor } from "@/lib/score";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import type { LocalStrengthRun, SetLogEntry } from "@/lib/types";
 
 const kpiBadgeClass = "rounded-full px-3 py-1 text-sm font-mono font-bold";
 
@@ -335,10 +336,10 @@ export default function Progress() {
   const isLowScorePositive = (metricKey: string) =>
     metricKey === "rpe" || metricKey === "effort" || metricKey === "fatigue";
 
-  const getRunRpeValue = (run: any) => {
+  const getRunRpeValue = (run: LocalStrengthRun) => {
     const logs = Array.isArray(run?.logs) ? run.logs : [];
     const rpeValues: number[] = logs
-      .map((log: any) => (log?.rpe !== null && log?.rpe !== undefined ? Number(log.rpe) : null))
+      .map((log: SetLogEntry) => (log?.rpe !== null && log?.rpe !== undefined ? Number(log.rpe) : null))
       .filter((value: number | null): value is number => value !== null && Number.isFinite(value));
     if (rpeValues.length > 0) {
       return rpeValues.reduce((acc, value) => acc + value, 0) / rpeValues.length;

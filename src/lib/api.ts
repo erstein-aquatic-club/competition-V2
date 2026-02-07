@@ -4,6 +4,34 @@ import { format } from "date-fns";
 import { supabaseConfig } from "./config";
 import { supabase } from "./supabase";
 import { useAuth } from "./auth";
+import type {
+  RawDbSession,
+  RawDbExercise,
+  RawStrengthItem,
+  StrengthSessionInput,
+  SetLogEntry,
+  LocalStrengthRun,
+  SaveStrengthRunInput,
+  UpdateStrengthRunInput,
+  SwimSessionInput,
+  SwimSessionItemInput,
+  LocalAssignment,
+  LocalNotification,
+  OneRmEntry,
+  LocalSwimRecord,
+  ImportClubRecordsResult,
+  HallOfFameData,
+  HallOfFameStrength,
+  RawHallOfFameRow,
+  RawSwimCatalog,
+  RawSwimCatalogItem,
+  RawSupabaseStrengthSession,
+  RawNotificationTarget,
+  RawUserRow,
+  RawGroupRow,
+  RawGroupMemberRow,
+  RawClubRecordSwimmerRow,
+} from "./types";
 
 // --- Types ---
 
@@ -106,7 +134,7 @@ export interface SwimSessionItem {
     duration?: number | null;
     intensity?: string | null;
     notes?: string | null;
-    raw_payload?: Record<string, any> | null;
+    raw_payload?: Record<string, unknown> | null;
 }
 
 export interface Assignment {
@@ -311,11 +339,11 @@ const fetchUserGroupIds = async (userId?: number | null): Promise<number[]> => {
     .select("group_id")
     .eq("user_id", userId);
   if (error || !data) return [];
-  return data.map((m: any) => m.group_id).filter((id: number) => id > 0);
+  return data.map((m: { group_id: number }) => m.group_id).filter((id: number) => id > 0);
 };
 
 /** Map DB row (dim_exercices) → frontend Exercise interface */
-const mapDbExerciseToApi = (row: any): Exercise => ({
+const mapDbExerciseToApi = (row: RawDbExercise): Exercise => ({
   id: safeInt(row.id),
   numero_exercice: safeOptionalInt(row.numero_exercice),
   nom_exercice: row.nom_exercice ?? "",
@@ -342,7 +370,7 @@ const mapDbExerciseToApi = (row: any): Exercise => ({
 });
 
 /** Map frontend Exercise → DB row (dim_exercices) for insert/update */
-const mapApiExerciseToDb = (exercise: any) => ({
+const mapApiExerciseToDb = (exercise: Partial<Exercise> & Pick<Exercise, "nom_exercice" | "exercise_type">) => ({
   numero_exercice: exercise.numero_exercice ?? null,
   nom_exercice: exercise.nom_exercice ?? exercise.name ?? "",
   description: exercise.description ?? null,
@@ -448,7 +476,7 @@ const normalizeCycleType = (value: unknown) => {
 };
 
 const normalizeStrengthItem = (
-  item: any,
+  item: RawStrengthItem,
   index: number,
   sessionCycle: string,
 ): StrengthSessionItem => ({
@@ -492,7 +520,7 @@ const assertExerciseType = (value: unknown): Exercise["exercise_type"] => {
   throw new Error("exercise_type must be 'strength' or 'warmup'");
 };
 
-const normalizeExercise = (exercise: any): Exercise => ({
+const normalizeExercise = (exercise: RawDbExercise): Exercise => ({
   id: safeInt(exercise.id),
   numero_exercice: safeOptionalInt(exercise.numero_exercice ?? exercise.numero),
   nom_exercice: exercise.nom_exercice ?? exercise.name ?? "",
@@ -532,7 +560,7 @@ interface NotificationListResult {
 }
 
 interface StrengthHistoryResult {
-  runs: any[];
+  runs: LocalStrengthRun[];
   pagination: Pagination;
   exercise_summary: StrengthExerciseSummary[];
 }
@@ -580,7 +608,7 @@ const mapToDbSession = (session: SyncSessionInput) => {
   return payload;
 };
 
-const mapFromDbSession = (raw: any): Session | null => {
+const mapFromDbSession = (raw: RawDbSession): Session | null => {
   if (!raw) return null;
   const athleteName = String(raw.athlete_name || "").trim();
   const date = String(raw.session_date || raw.date || "").trim();
@@ -750,21 +778,21 @@ export const api = {
       if (!rpcError && rpcData) {
         const hallOfFame = Array.isArray(rpcData) ? rpcData : [];
         const swimDistance = [...hallOfFame]
-          .map((item: any) => ({
+          .map((item: RawHallOfFameRow) => ({
             athlete_name: item.athlete_name,
             total_distance: Number(item.total_distance ?? 0),
           }))
           .sort((a, b) => b.total_distance - a.total_distance)
           .slice(0, 5);
         const swimPerformance = [...hallOfFame]
-          .map((item: any) => ({
+          .map((item: RawHallOfFameRow) => ({
             athlete_name: item.athlete_name,
             avg_effort: Number(item.avg_performance ?? item.avg_engagement ?? 0),
           }))
           .sort((a, b) => b.avg_effort - a.avg_effort)
           .slice(0, 5);
         const swimEngagement = [...hallOfFame]
-          .map((item: any) => ({
+          .map((item: RawHallOfFameRow) => ({
             athlete_name: item.athlete_name,
             avg_engagement: Number(item.avg_engagement ?? 0),
           }))
@@ -774,7 +802,7 @@ export const api = {
           distance: swimDistance,
           performance: swimPerformance,
           engagement: swimEngagement,
-          strength: [] as any[],
+          strength: [] as HallOfFameStrength[],
         };
       }
     }
@@ -808,14 +836,14 @@ export const api = {
 
     // Strength Stats
     const sMap = new Map();
-    runs.forEach((r: any) => {
+    runs.forEach((r: LocalStrengthRun) => {
       if (!sMap.has(r.athlete_name)) {
         sMap.set(r.athlete_name, { volume: 0, reps: 0, sets: 0, maxWeight: 0 });
       }
       const entry = sMap.get(r.athlete_name);
       // Calculate rough volume if logs present, else just count
       if (r.logs) {
-        r.logs.forEach((l: any) => {
+        (r.logs ?? []).forEach((l: SetLogEntry) => {
           const reps = Number(l.reps ?? 0);
           const weight = Number(l.weight ?? 0);
           entry.volume += reps * weight;
@@ -865,7 +893,7 @@ export const api = {
     if (!canUseSupabase()) return [];
     const { data, error } = await supabase.from("club_record_swimmers").select("*");
     if (error) throw new Error(error.message);
-    return (data ?? []).map((s: any) => ({ ...s, is_active: s.is_active ? 1 : 0 }));
+    return (data ?? []).map((s: RawClubRecordSwimmerRow) => ({ ...s, is_active: s.is_active ? 1 : 0 }));
   },
 
   async createClubRecordSwimmer(payload: {
@@ -918,7 +946,7 @@ export const api = {
     return data ? { ...data, is_active: data.is_active ? 1 : 0 } : null;
   },
 
-  async importClubRecords(): Promise<any> {
+  async importClubRecords(): Promise<ImportClubRecordsResult | null> {
     if (!canUseSupabase()) return null;
     const { data, error } = await supabase.functions.invoke("import-club-records");
     if (error) throw new Error(error.message);
@@ -934,7 +962,7 @@ export const api = {
       }
       const exercises = this._get(STORAGE_KEYS.EXERCISES) || [];
       const list = Array.isArray(exercises) ? exercises : [];
-      return list.map((exercise: any) => normalizeExercise(exercise));
+      return list.map((exercise: RawDbExercise) => normalizeExercise(exercise));
   },
 
   async createExercise(exercise: Omit<Exercise, "id">) {
@@ -1011,7 +1039,7 @@ export const api = {
           .select("*, strength_session_items(*, dim_exercices(nom_exercice, exercise_type))")
           .order("created_at", { ascending: false });
         if (error) throw new Error(error.message);
-        return (sessions ?? []).map((session: any) => {
+        return (sessions ?? []).map((session: RawSupabaseStrengthSession) => {
           const rawItems = Array.isArray(session.strength_session_items) ? session.strength_session_items : [];
           const cycle = normalizeCycleType(rawItems[0]?.cycle_type);
           return {
@@ -1020,8 +1048,8 @@ export const api = {
             description: session.description ?? "",
             cycle,
             items: rawItems
-              .sort((a: any, b: any) => (a.ordre ?? 0) - (b.ordre ?? 0))
-              .map((item: any, index: number) => ({
+              .sort((a: RawStrengthItem, b: RawStrengthItem) => (a.ordre ?? 0) - (b.ordre ?? 0))
+              .map((item: RawStrengthItem, index: number) => ({
                 ...normalizeStrengthItem(item, index, cycle),
                 exercise_name: item.dim_exercices?.nom_exercice ?? undefined,
                 category: item.dim_exercices?.exercise_type ?? undefined,
@@ -1032,11 +1060,11 @@ export const api = {
       return this._get(STORAGE_KEYS.STRENGTH_SESSIONS) || [];
   },
 
-  async createStrengthSession(session: any) {
+  async createStrengthSession(session: StrengthSessionInput) {
        const cycle = normalizeCycleType(session?.cycle ?? session?.cycle_type);
        const rawItems: unknown[] = Array.isArray(session?.items) ? session.items : [];
        const normalizedItems: StrengthSessionItem[] = rawItems.map((item, index) =>
-         normalizeStrengthItem(item, index, cycle),
+         normalizeStrengthItem(item as RawStrengthItem, index, cycle),
        );
        validateStrengthItems(normalizedItems);
        const itemsPayload = normalizedItems
@@ -1082,7 +1110,7 @@ export const api = {
        const s = this._get(STORAGE_KEYS.STRENGTH_SESSIONS) || [];
        const id = Date.now();
        const enrichedItems = normalizedItems.map((item: StrengthSessionItem) => {
-         const ex = (this._get(STORAGE_KEYS.EXERCISES) || []).find((e: any) => e.id === item.exercise_id);
+         const ex = (this._get(STORAGE_KEYS.EXERCISES) || []).find((e: RawDbExercise) => e.id === item.exercise_id);
          return { ...item, exercise_name: ex?.nom_exercice, category: ex?.exercise_type };
        });
        this._save(STORAGE_KEYS.STRENGTH_SESSIONS, [
@@ -1098,14 +1126,14 @@ export const api = {
        return { status: "created", id };
   },
 
-  async updateStrengthSession(session: any) {
+  async updateStrengthSession(session: StrengthSessionInput) {
        if (!session?.id) {
          throw new Error("Session id manquant");
        }
        const cycle = normalizeCycleType(session?.cycle ?? session?.cycle_type);
        const rawItems: unknown[] = Array.isArray(session?.items) ? session.items : [];
        const normalizedItems: StrengthSessionItem[] = rawItems.map((item, index) =>
-         normalizeStrengthItem(item, index, cycle),
+         normalizeStrengthItem(item as RawStrengthItem, index, cycle),
        );
        validateStrengthItems(normalizedItems);
        const itemsPayload = normalizedItems
@@ -1155,7 +1183,7 @@ export const api = {
          throw new Error("Séance introuvable");
        }
        const enrichedItems = normalizedItems.map((item: StrengthSessionItem) => {
-         const ex = (this._get(STORAGE_KEYS.EXERCISES) || []).find((e: any) => e.id === item.exercise_id);
+         const ex = (this._get(STORAGE_KEYS.EXERCISES) || []).find((e: RawDbExercise) => e.id === item.exercise_id);
          return { ...item, exercise_name: ex?.nom_exercice, category: ex?.exercise_type };
        });
        const updatedSession = {
@@ -1228,7 +1256,7 @@ export const api = {
       this._save(STORAGE_KEYS.STRENGTH_RUNS, [...runs, newRun]);
       if (data.assignment_id) {
         const assignments = this._get(STORAGE_KEYS.ASSIGNMENTS) || [];
-        const updated = assignments.map((assignment: any) =>
+        const updated = assignments.map((assignment: LocalAssignment) =>
           assignment.id === data.assignment_id ? { ...assignment, status: "in_progress" } : assignment,
         );
         this._save(STORAGE_KEYS.ASSIGNMENTS, updated);
@@ -1259,7 +1287,7 @@ export const api = {
         if (athleteId === null && !athleteName) return null;
         const existing = await this.get1RM({ athleteName, athleteId });
         const existingByExercise = new Map<number, number>(
-          (existing || []).map((record: any) => [record.exercise_id, Number(record.weight ?? 0)]),
+          (existing || []).map((record: OneRmEntry) => [record.exercise_id, Number(record.weight ?? 0)]),
         );
         const current = existingByExercise.get(payload.exercise_id) ?? 0;
         if (estimate <= current) return null;
@@ -1275,14 +1303,14 @@ export const api = {
         return estimate;
       };
 
-      const resolveAthleteContext = (runs?: any[]) => {
+      const resolveAthleteContext = (runs?: LocalStrengthRun[]) => {
         const athleteId = payload.athlete_id ?? payload.athleteId ?? null;
         const athleteName = payload.athlete_name ?? payload.athleteName ?? null;
         if (athleteId !== null || athleteName) {
           return { athleteId, athleteName };
         }
         if (!runs) return { athleteId: null, athleteName: null };
-        const run = runs.find((entry: any) => entry.id === payload.run_id);
+        const run = runs.find((entry: LocalStrengthRun) => entry.id === payload.run_id);
         return {
           athleteId: run?.athlete_id ?? null,
           athleteName: run?.athlete_name ?? null,
@@ -1309,7 +1337,7 @@ export const api = {
       }
 
       const runs = this._get(STORAGE_KEYS.STRENGTH_RUNS) || [];
-      const runIndex = runs.findIndex((entry: any) => entry.id === payload.run_id);
+      const runIndex = runs.findIndex((entry: LocalStrengthRun) => entry.id === payload.run_id);
       const baseRun = runIndex >= 0 ? runs[runIndex] : { id: payload.run_id, logs: [] };
       const updatedLogs = [...(baseRun.logs || []), { ...payload, completed_at: new Date().toISOString() }];
       const updatedRun = { ...baseRun, logs: updatedLogs };
@@ -1323,12 +1351,7 @@ export const api = {
       return { status: "ok", one_rm_updated: Boolean(updated), one_rm: updated ?? undefined };
   },
 
-  async updateStrengthRun(update: {
-    run_id: number;
-    progress_pct?: number;
-    status?: "in_progress" | "completed" | "abandoned";
-    [key: string]: any;
-  }) {
+  async updateStrengthRun(update: UpdateStrengthRunInput) {
       if (canUseSupabase()) {
         const updatePayload: Record<string, unknown> = {};
         if (update.progress_pct !== undefined) updatePayload.progress_pct = update.progress_pct;
@@ -1344,7 +1367,7 @@ export const api = {
       }
 
       const runs = this._get(STORAGE_KEYS.STRENGTH_RUNS) || [];
-      const runIndex = runs.findIndex((entry: any) => entry.id === update.run_id);
+      const runIndex = runs.findIndex((entry: LocalStrengthRun) => entry.id === update.run_id);
       const now = new Date().toISOString();
       const baseRun = runIndex >= 0 ? runs[runIndex] : { id: update.run_id, started_at: now };
       const updatedRun = {
@@ -1360,7 +1383,7 @@ export const api = {
         const assignmentId = update.assignment_id ?? baseRun.assignment_id;
         if (assignmentId) {
           const assignments = this._get(STORAGE_KEYS.ASSIGNMENTS) || [];
-          const updatedAssignments = assignments.map((assignment: any) =>
+          const updatedAssignments = assignments.map((assignment: LocalAssignment) =>
             assignment.id === assignmentId ? { ...assignment, status: "completed" } : assignment,
           );
           this._save(STORAGE_KEYS.ASSIGNMENTS, updatedAssignments);
@@ -1382,12 +1405,12 @@ export const api = {
       }
 
       const runs = this._get(STORAGE_KEYS.STRENGTH_RUNS) || [];
-      const target = runs.find((entry: any) => entry.id === runId);
-      const updatedRuns = runs.filter((entry: any) => entry.id !== runId);
+      const target = runs.find((entry: LocalStrengthRun) => entry.id === runId);
+      const updatedRuns = runs.filter((entry: LocalStrengthRun) => entry.id !== runId);
       this._save(STORAGE_KEYS.STRENGTH_RUNS, updatedRuns);
       if (target?.assignment_id) {
         const assignments = this._get(STORAGE_KEYS.ASSIGNMENTS) || [];
-        const nextAssignments = assignments.map((assignment: any) =>
+        const nextAssignments = assignments.map((assignment: LocalAssignment) =>
           assignment.id === target.assignment_id ? { ...assignment, status: "assigned" } : assignment,
         );
         this._save(STORAGE_KEYS.ASSIGNMENTS, nextAssignments);
@@ -1395,7 +1418,7 @@ export const api = {
       return { status: "deleted", source: "local" as const };
   },
 
-  async saveStrengthRun(run: any) {
+  async saveStrengthRun(run: SaveStrengthRunInput) {
       if (canUseSupabase()) {
         let runId = run.run_id;
         // Step 1: Create run if needed
@@ -1414,7 +1437,7 @@ export const api = {
         // Step 2: Insert all set logs
         if (runId && Array.isArray(run.logs) && run.logs.length > 0) {
           const { error: logsError } = await supabase.from("strength_set_logs").insert(
-            run.logs.map((log: any, index: number) => ({
+            run.logs.map((log: SetLogEntry, index: number) => ({
               run_id: runId,
               exercise_id: log.exercise_id,
               set_index: log.set_index ?? log.set_number ?? index,
@@ -1431,7 +1454,7 @@ export const api = {
         // Step 3: Calculate 1RM estimates and upsert records
         const estimatedRecords = new Map<number, number>();
         const logs = Array.isArray(run.logs) ? run.logs : [];
-        logs.forEach((log: any) => {
+        logs.forEach((log: SetLogEntry) => {
           const estimate = estimateOneRm(Number(log.weight), Number(log.reps));
           if (!estimate) return;
           const exerciseId = Number(log.exercise_id);
@@ -1447,7 +1470,7 @@ export const api = {
           if (athleteId !== null && athleteId !== undefined && athleteId !== "") {
             const existing = await this.get1RM({ athleteName, athleteId });
             const existingByExercise = new Map<number, number>(
-              (existing || []).map((record: any) => [record.exercise_id, Number(record.weight ?? 0)]),
+              (existing || []).map((record: OneRmEntry) => [record.exercise_id, Number(record.weight ?? 0)]),
             );
             await Promise.all(
               Array.from(estimatedRecords.entries())
@@ -1482,7 +1505,7 @@ export const api = {
 
       const runs = this._get(STORAGE_KEYS.STRENGTH_RUNS) || [];
       const runId = run.run_id ?? Date.now();
-      const existing = runs.find((entry: any) => entry.id === runId) || {};
+      const existing = runs.find((entry: LocalStrengthRun) => entry.id === runId) || {};
       const completedRun = {
         ...existing,
         ...run,
@@ -1493,18 +1516,18 @@ export const api = {
       };
       this._save(
         STORAGE_KEYS.STRENGTH_RUNS,
-        [...runs.filter((entry: any) => entry.id !== runId), completedRun],
+        [...runs.filter((entry: LocalStrengthRun) => entry.id !== runId), completedRun],
       );
       if (run.assignment_id) {
         const assignments = this._get(STORAGE_KEYS.ASSIGNMENTS) || [];
-        const updated = assignments.map((assignment: any) =>
+        const updated = assignments.map((assignment: LocalAssignment) =>
           assignment.id === run.assignment_id ? { ...assignment, status: "completed" } : assignment,
         );
         this._save(STORAGE_KEYS.ASSIGNMENTS, updated);
       }
       const estimatedRecords = new Map<number, number>();
       const logs = Array.isArray(run.logs) ? run.logs : [];
-      logs.forEach((log: any) => {
+      logs.forEach((log: SetLogEntry) => {
         const estimate = estimateOneRm(Number(log.weight), Number(log.reps));
         if (!estimate) return;
         const exerciseId = Number(log.exercise_id);
@@ -1519,7 +1542,7 @@ export const api = {
         const athleteName = run.athlete_name ?? null;
         const existing = await this.get1RM({ athleteName, athleteId });
         const existingByExercise = new Map<number, number>(
-          (existing || []).map((record: any) => [record.exercise_id, Number(record.weight ?? 0)]),
+          (existing || []).map((record: OneRmEntry) => [record.exercise_id, Number(record.weight ?? 0)]),
         );
         await Promise.all(
           Array.from(estimatedRecords.entries())
@@ -1573,7 +1596,7 @@ export const api = {
       ]);
 
       const assignments = this._get(STORAGE_KEYS.ASSIGNMENTS) || [];
-      const updatedAssignments = assignments.map((assignment: any) =>
+      const updatedAssignments = assignments.map((assignment: LocalAssignment) =>
         assignment.id === data.assignmentId
           ? { ...assignment, status: "in_progress", updated_at: new Date().toISOString() }
           : assignment,
@@ -1625,7 +1648,7 @@ export const api = {
     }
 
     const runs = this._get(STORAGE_KEYS.STRENGTH_RUNS) || [];
-    const filtered = runs.filter((r: any) => {
+    const filtered = runs.filter((r: LocalStrengthRun) => {
       if (hasAthleteId && String(r.athlete_id) !== String(athleteId)) {
         return false;
       }
@@ -1654,21 +1677,21 @@ export const api = {
       }
       return true;
     });
-    const sorted = filtered.sort((a: any, b: any) => {
+    const sorted = filtered.sort((a: LocalStrengthRun, b: LocalStrengthRun) => {
       const aDate = new Date(a.date || a.started_at || a.created_at || 0).getTime();
       const bDate = new Date(b.date || b.started_at || b.created_at || 0).getTime();
       return order === "asc" ? aDate - bDate : bDate - aDate;
     });
     const exercises = this._get(STORAGE_KEYS.EXERCISES) || [];
     const exerciseMap = new Map(
-      (Array.isArray(exercises) ? exercises : []).map((exercise: any) => [
+      (Array.isArray(exercises) ? exercises : []).map((exercise: RawDbExercise) => [
         safeInt(exercise.id),
         exercise.nom_exercice || exercise.name || `Exercice ${exercise.id}`,
       ]),
     );
     const exerciseSummaryMap = new Map<number, StrengthExerciseSummary>();
-    sorted.forEach((run: any) => {
-      (run.logs || []).forEach((log: any) => {
+    sorted.forEach((run: LocalStrengthRun) => {
+      (run.logs || []).forEach((log: SetLogEntry) => {
         const exerciseId = safeInt(log.exercise_id);
         if (!exerciseId) return;
         const current = exerciseSummaryMap.get(exerciseId) || {
@@ -1739,7 +1762,7 @@ export const api = {
     }
 
     const runs = this._get(STORAGE_KEYS.STRENGTH_RUNS) || [];
-    const filtered = runs.filter((r: any) => {
+    const filtered = runs.filter((r: LocalStrengthRun) => {
       if (hasAthleteId) {
         return r.athlete_id ? String(r.athlete_id) === String(athleteId) : false;
       }
@@ -1762,9 +1785,9 @@ export const api = {
       }
       return date.toISOString().split("T")[0];
     };
-    filtered.forEach((run: any) => {
+    filtered.forEach((run: LocalStrengthRun) => {
       const logs = Array.isArray(run.logs) ? run.logs : [];
-      logs.forEach((log: any) => {
+      logs.forEach((log: SetLogEntry) => {
         const dateValue = log.completed_at || run.started_at || run.date || run.created_at;
         if (!dateValue) return;
         const date = new Date(dateValue);
@@ -1801,7 +1824,7 @@ export const api = {
         }
         const { data, error } = await query;
         if (error) throw new Error(error.message);
-        return (data ?? []).map((record: any) => ({
+        return (data ?? []).map((record: { id?: number; athlete_id?: number; exercise_id: number; one_rm?: number; recorded_at?: string | null }) => ({
           id: safeOptionalInt(record.id),
           athlete_id: safeOptionalInt(record.athlete_id),
           exercise_id: safeInt(record.exercise_id),
@@ -1810,7 +1833,7 @@ export const api = {
         }));
       }
       const records = this._get(STORAGE_KEYS.ONE_RM) || [];
-      return records.filter((r: any) => r.athlete_name === athleteName);
+      return records.filter((r: OneRmEntry) => r.athlete_name === athleteName);
   },
   
   async update1RM(record: {
@@ -1839,7 +1862,7 @@ export const api = {
       }
       const records = this._get(STORAGE_KEYS.ONE_RM) || [];
       const athleteName = record.athlete_name ?? record.athleteName;
-      const filtered = records.filter((r: any) => !(r.athlete_name === athleteName && r.exercise_id === record.exercise_id));
+      const filtered = records.filter((r: OneRmEntry) => !(r.athlete_name === athleteName && r.exercise_id === record.exercise_id));
       this._save(STORAGE_KEYS.ONE_RM, [
         ...filtered,
         { ...record, athlete_name: athleteName, id: Date.now(), date: new Date().toISOString() },
@@ -1864,7 +1887,7 @@ export const api = {
 
 
       const records = this._get(STORAGE_KEYS.SWIM_RECORDS) || [];
-      const filtered = records.filter((r: any) => {
+      const filtered = records.filter((r: LocalSwimRecord) => {
         if (options.athleteId) return r.athlete_id === options.athleteId;
         if (options.athleteName) return r.athlete_name === options.athleteName;
         return false;
@@ -1907,7 +1930,7 @@ export const api = {
 
       const records = this._get(STORAGE_KEYS.SWIM_RECORDS) || [];
       if (payload.id) {
-        const updated = records.map((record: any) =>
+        const updated = records.map((record: LocalSwimRecord) =>
           record.id === payload.id
             ? { ...record, ...payload, athlete_id: payload.athlete_id ?? record.athlete_id }
             : record,
@@ -1933,7 +1956,7 @@ export const api = {
           .select("*, swim_session_items(*)")
           .order("created_at", { ascending: false });
         if (error) throw new Error(error.message);
-        return (catalogs ?? []).map((catalog: any) => ({
+        return (catalogs ?? []).map((catalog: RawSwimCatalog) => ({
           id: safeInt(catalog.id, Date.now()),
           name: String(catalog.name || ""),
           description: catalog.description ?? null,
@@ -1942,8 +1965,8 @@ export const api = {
           updated_at: catalog.updated_at ?? null,
           items: Array.isArray(catalog.swim_session_items)
             ? catalog.swim_session_items
-                .sort((a: any, b: any) => (a.ordre ?? 0) - (b.ordre ?? 0))
-                .map((item: any, index: number) => ({
+                .sort((a: RawSwimCatalogItem, b: RawSwimCatalogItem) => (a.ordre ?? 0) - (b.ordre ?? 0))
+                .map((item: RawSwimCatalogItem, index: number) => ({
                   id: safeOptionalInt(item.id) ?? undefined,
                   catalog_id: safeOptionalInt(item.catalog_id) ?? undefined,
                   ordre: safeOptionalInt(item.ordre) ?? index,
@@ -1959,7 +1982,7 @@ export const api = {
       }
 
       const raw = this._get(STORAGE_KEYS.SWIM_SESSIONS) || [];
-      return raw.map((catalog: any) => ({
+      return raw.map((catalog: RawSwimCatalog) => ({
         id: safeInt(catalog.id, Date.now()),
         name: String(catalog.name || catalog.title || ""),
         description: catalog.description ?? null,
@@ -1967,7 +1990,7 @@ export const api = {
         created_at: catalog.created_at ?? null,
         updated_at: catalog.updated_at ?? null,
         items: Array.isArray(catalog.items)
-          ? catalog.items.map((item: any, index: number) => ({
+          ? catalog.items.map((item: RawSwimCatalogItem, index: number) => ({
               id: safeOptionalInt(item.id) ?? undefined,
               catalog_id: safeOptionalInt(item.catalog_id) ?? undefined,
               ordre: safeOptionalInt(item.ordre) ?? index,
@@ -1989,10 +2012,10 @@ export const api = {
       }));
   },
 
-  async createSwimSession(session: any) {
+  async createSwimSession(session: SwimSessionInput) {
       if (canUseSupabase()) {
         const items = Array.isArray(session.items)
-          ? session.items.map((item: any, index: number) => ({
+          ? session.items.map((item: SwimSessionItemInput, index: number) => ({
               ordre: item.ordre ?? index,
               label: item.label ?? null,
               distance: item.distance ?? null,
@@ -2012,7 +2035,7 @@ export const api = {
           await supabase.from("swim_session_items").delete().eq("catalog_id", session.id);
           if (items.length > 0) {
             const { error: itemsError } = await supabase.from("swim_session_items").insert(
-              items.map((item: any) => ({ ...item, catalog_id: session.id })),
+              items.map((item: SwimSessionItemInput) => ({ ...item, catalog_id: session.id })),
             );
             if (itemsError) throw new Error(itemsError.message);
           }
@@ -2026,7 +2049,7 @@ export const api = {
         if (error) throw new Error(error.message);
         if (items.length > 0) {
           const { error: itemsError } = await supabase.from("swim_session_items").insert(
-            items.map((item: any) => ({ ...item, catalog_id: created.id })),
+            items.map((item: SwimSessionItemInput) => ({ ...item, catalog_id: created.id })),
           );
           if (itemsError) throw new Error(itemsError.message);
         }
@@ -2035,9 +2058,9 @@ export const api = {
 
       const s = this._get(STORAGE_KEYS.SWIM_SESSIONS) || [];
       if (session.id) {
-        const exists = s.some((entry: any) => entry.id === session.id);
+        const exists = s.some((entry: RawSwimCatalog) => entry.id === session.id);
         const updated = exists
-          ? s.map((entry: any) => (entry.id === session.id ? { ...entry, ...session } : entry))
+          ? s.map((entry: RawSwimCatalog) => (entry.id === session.id ? { ...entry, ...session } : entry))
           : [...s, { ...session, id: session.id }];
         this._save(STORAGE_KEYS.SWIM_SESSIONS, updated);
         return { status: exists ? "updated" : "created" };
@@ -2101,7 +2124,7 @@ export const api = {
         const swimById = new Map(swimCatalogs.map((catalog) => [catalog.id, catalog]));
         const strengthById = new Map(strengthCatalogs.map((session) => [session.id, session]));
         const mapped = rawAssignments
-          .map((assignment: any) => {
+          .map((assignment: LocalAssignment) => {
             const sessionType = assignment.assignment_type === "strength" ? "strength" : "swim";
             const sessionId =
               safeOptionalInt(
@@ -2136,7 +2159,7 @@ export const api = {
 
       await delay(200);
       const all = this._get(STORAGE_KEYS.ASSIGNMENTS) || [];
-      return all.filter((a: any) => {
+      return all.filter((a: LocalAssignment) => {
         const matchesUserId =
           athleteId !== null &&
           athleteId !== undefined &&
@@ -2202,11 +2225,11 @@ export const api = {
       }
 
       // Fetch source session to copy details (simplification for mock)
-      let source: any;
+      let source: { name?: string; title?: string; description?: string; items?: unknown[] } | undefined;
       if (assignmentType === 'swim') {
-          source = (this._get(STORAGE_KEYS.SWIM_SESSIONS) || []).find((s: any) => s.id === data.session_id);
+          source = (this._get(STORAGE_KEYS.SWIM_SESSIONS) || []).find((s: RawSwimCatalog) => s.id === data.session_id);
       } else {
-          source = (this._get(STORAGE_KEYS.STRENGTH_SESSIONS) || []).find((s: any) => s.id === data.session_id);
+          source = (this._get(STORAGE_KEYS.STRENGTH_SESSIONS) || []).find((s: StrengthSessionInput) => s.id === data.session_id);
       }
 
       if (!source) return { status: "error" };
@@ -2255,7 +2278,7 @@ export const api = {
       }
 
       const assignments = this._get(STORAGE_KEYS.ASSIGNMENTS) || [];
-      const updated = assignments.filter((assignment: any) => assignment.id !== assignmentId);
+      const updated = assignments.filter((assignment: LocalAssignment) => assignment.id !== assignmentId);
       this._save(STORAGE_KEYS.ASSIGNMENTS, updated);
       return { status: "deleted" };
   },
@@ -2263,7 +2286,7 @@ export const api = {
   async getNotifications(athleteName: string): Promise<Notification[]> {
       await delay(200);
       const notifs = this._get(STORAGE_KEYS.NOTIFICATIONS) || [];
-      return notifs.filter((n: any) => n.target_athlete === athleteName || n.target_athlete === "All").reverse();
+      return notifs.filter((n: LocalNotification) => n.target_athlete === athleteName || n.target_athlete === "All").reverse();
   },
   
   async notifications_send(payload: {
@@ -2315,7 +2338,7 @@ export const api = {
 
   async markNotificationRead(id: number) {
       const notifs = this._get(STORAGE_KEYS.NOTIFICATIONS) || [];
-      const updated = notifs.map((n: any) => n.id === id ? { ...n, read: true } : n);
+      const updated = notifs.map((n: LocalNotification) => n.id === id ? { ...n, read: true } : n);
       this._save(STORAGE_KEYS.NOTIFICATIONS, updated);
   },
 
@@ -2367,7 +2390,7 @@ export const api = {
       }
       const { data: rawTargets, error } = await query;
       if (error) throw new Error(error.message);
-      const mapped = (rawTargets ?? []).map((t: any) => {
+      const mapped = (rawTargets ?? []).map((t: RawNotificationTarget) => {
         const notif = t.notifications || {};
         return {
           id: safeInt(t.id, Date.now()),
@@ -2397,7 +2420,7 @@ export const api = {
 
     await delay(200);
     const notifs = this._get(STORAGE_KEYS.NOTIFICATIONS) || [];
-    const filtered = notifs.filter((notif: any) => {
+    const filtered = notifs.filter((notif: LocalNotification) => {
       if (options.targetUserId && notif.target_user_id !== options.targetUserId) {
         return false;
       }
@@ -2412,14 +2435,14 @@ export const api = {
       if (options.status === "unread" && notif.read) return false;
       return true;
     });
-    const sorted = filtered.sort((a: any, b: any) => {
+    const sorted = filtered.sort((a: LocalNotification, b: LocalNotification) => {
       const aDate = new Date(a.date || a.created_at || 0).getTime();
       const bDate = new Date(b.date || b.created_at || 0).getTime();
       return order === "asc" ? aDate - bDate : bDate - aDate;
     });
     const total = sorted.length;
     const page = sorted.slice(offset, offset + limit);
-    const notifications = page.map((notif: any) => ({
+    const notifications = page.map((notif: LocalNotification) => ({
       id: safeInt(notif.id, Date.now()),
       target_user_id: safeOptionalInt(notif.target_user_id) ?? null,
       sender_id: safeOptionalInt(notif.sender_id) ?? null,
@@ -2447,7 +2470,7 @@ export const api = {
     }
 
     const notifs = this._get(STORAGE_KEYS.NOTIFICATIONS) || [];
-    const updated = notifs.map((notif: any) => notif.id === resolvedId ? { ...notif, read: true } : notif);
+    const updated = notifs.map((notif: LocalNotification) => notif.id === resolvedId ? { ...notif, read: true } : notif);
     this._save(STORAGE_KEYS.NOTIFICATIONS, updated);
   },
 
@@ -2553,7 +2576,7 @@ export const api = {
     if (canUseSupabase()) {
       const { data, error } = await supabase.from("users").select("id, display_name").eq("role", "coach").eq("is_active", true);
       if (error) throw new Error(error.message);
-      return (data ?? []).map((u: any) => ({ id: u.id, display_name: u.display_name }));
+      return (data ?? []).map((u: RawUserRow) => ({ id: u.id, display_name: u.display_name }));
     }
     return [];
   },
@@ -2714,11 +2737,11 @@ export const api = {
           }
         };
         const sessions = this._get(STORAGE_KEYS.SESSIONS) ?? [];
-        sessions.forEach((session: any) => addAthlete(session.athlete_name, session.athlete_id));
+        sessions.forEach((session: { athlete_name?: string; athlete_id?: number }) => addAthlete(session.athlete_name, session.athlete_id));
         const strengthRuns = this._get(STORAGE_KEYS.STRENGTH_RUNS) ?? [];
-        strengthRuns.forEach((run: any) => addAthlete(run.athlete_name, run.athlete_id));
+        strengthRuns.forEach((run: LocalStrengthRun) => addAthlete(run.athlete_name, run.athlete_id != null ? Number(run.athlete_id) : null));
         const assignments = this._get(STORAGE_KEYS.ASSIGNMENTS) ?? [];
-        assignments.forEach((assignment: any) => addAthlete(assignment.target_athlete, assignment.target_user_id));
+        assignments.forEach((assignment: LocalAssignment) => addAthlete(assignment.target_athlete, assignment.target_user_id));
         return Array.from(athletes.values()).sort((a, b) =>
           a.display_name.localeCompare(b.display_name, "fr"),
         );
@@ -2731,7 +2754,7 @@ export const api = {
         const { data: users, error: usersError } = await supabase.from("users").select("id, display_name").eq("role", "athlete").eq("is_active", true);
         if (usersError) throw new Error(usersError.message);
         return (users ?? [])
-          .map((u: any) => ({ id: u.id, display_name: u.display_name }))
+          .map((u: RawUserRow) => ({ id: u.id, display_name: u.display_name }))
           .filter((a: AthleteSummary) => a.display_name)
           .sort((a, b) => a.display_name.localeCompare(b.display_name, "fr"));
       }
@@ -2740,14 +2763,15 @@ export const api = {
         .select("user_id, group_id, users!inner(display_name, role)")
         .eq("users.role", "athlete");
       if (membersError) throw new Error(membersError.message);
-      const groupMap = new Map(groups.map((g: any) => [g.id, g.name]));
+      const groupMap = new Map(groups.map((g: RawGroupRow) => [g.id, g.name]));
       const athleteMap = new Map<number, AthleteSummary>();
-      (members ?? []).forEach((m: any) => {
+      (members ?? []).forEach((m) => {
         const userId = m.user_id;
         if (athleteMap.has(userId)) return;
+        const userInfo = Array.isArray(m.users) ? m.users[0] : m.users;
         athleteMap.set(userId, {
           id: userId,
-          display_name: (m.users as any)?.display_name ?? "",
+          display_name: userInfo?.display_name ?? "",
           group_label: groupMap.get(m.group_id) ?? null,
         });
       });
@@ -2761,7 +2785,7 @@ export const api = {
       const { data, error } = await supabase.from("groups").select("id, name, description");
       if (error) throw new Error(error.message);
       return (data ?? [])
-        .map((group: any) => ({
+        .map((group: RawGroupRow) => ({
           id: safeInt(group.id, 0),
           name: String(group.name ?? `Groupe ${group.id ?? ""}`).trim(),
           member_count: null,
@@ -2791,12 +2815,12 @@ export const api = {
       }
       const { data, error } = await query.order("display_name");
       if (error) throw new Error(error.message);
-      return (data ?? []).map((user: any) => ({
+      return (data ?? []).map((user: RawUserRow) => ({
         id: user.id,
         display_name: user.display_name ?? "",
         role: user.role ?? "",
         email: user.email ?? null,
-        is_active: user.is_active ?? null,
+        is_active: user.is_active ?? undefined,
         group_label: null,
       }));
   },
@@ -2855,7 +2879,7 @@ export const api = {
     return raw ? JSON.parse(raw) : null;
   },
 
-  _save(key: string, data: any) {
+  _save(key: string, data: unknown) {
     localStorage.setItem(key, JSON.stringify(data));
   },
 

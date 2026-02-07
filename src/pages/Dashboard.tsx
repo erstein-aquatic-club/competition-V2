@@ -2,6 +2,8 @@ import React, { useMemo, useRef, useState, useCallback, memo, useTransition, use
 import { AnimatePresence, motion } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import type { Session, Assignment } from "@/lib/api";
+import type { DashboardAssignment } from "@/lib/types";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -121,7 +123,7 @@ function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
-function fmtKm(km: any) {
+function fmtKm(km: number | string | null | undefined) {
   const n = Number(km);
   if (!Number.isFinite(n)) return "—";
   const rounded = Math.round(n * 100) / 100;
@@ -129,19 +131,19 @@ function fmtKm(km: any) {
   return str.endsWith(".0") ? str.slice(0, -2) : str;
 }
 
-function metersToKm(m: any) {
+function metersToKm(m: number | string | null | undefined) {
   const n = Number(m);
   if (!Number.isFinite(n)) return 0;
   return Math.round((n / 1000) * 100) / 100;
 }
 
-function kmToMeters(km: any) {
+function kmToMeters(km: number | string | null | undefined) {
   const n = Number(km);
   if (!Number.isFinite(n)) return 0;
   return Math.round(n * 1000);
 }
 
-function safeLinesFromText(text: any): string[] {
+function safeLinesFromText(text: string | null | undefined): string[] {
   if (!text) return [];
   const raw = String(text)
     .replaceAll("\r\n", "\n")
@@ -155,7 +157,7 @@ function safeLinesFromText(text: any): string[] {
   });
 }
 
-function extractDistanceKmFromText(text: any): number | null {
+function extractDistanceKmFromText(text: string | null | undefined): number | null {
   if (!text) return null;
   const t = String(text);
   const m = t.match(/(\\d+(?:[\\.,]\\d+)?)\\s*(km|m)\\b/i);
@@ -166,7 +168,7 @@ function extractDistanceKmFromText(text: any): number | null {
   return val;
 }
 
-function pickAssignmentSlotKey(a: any, fallbackIdx: number): SlotKey {
+function pickAssignmentSlotKey(a: Record<string, unknown>, fallbackIdx: number): SlotKey {
   const direct =
     a?.slot ??
     a?.session_slot ??
@@ -187,7 +189,7 @@ function pickAssignmentSlotKey(a: any, fallbackIdx: number): SlotKey {
   return fallbackIdx === 0 ? "AM" : "PM";
 }
 
-function assignmentIso(a: any): string | null {
+function assignmentIso(a: Record<string, unknown>): string | null {
   const raw = a?.assigned_date ?? a?.date ?? a?.day ?? a?.scheduled_for ?? a?.scheduledAt ?? null;
   if (!raw) return null;
   const s = String(raw);
@@ -196,7 +198,7 @@ function assignmentIso(a: any): string | null {
   return /\\d{4}-\\d{2}-\\d{2}/.test(iso) ? iso : null;
 }
 
-function assignmentPlannedKm(a: any): number | null {
+function assignmentPlannedKm(a: Record<string, unknown>): number | null {
   const meters =
     a?.distance_meters ??
     a?.distanceMeters ??
@@ -451,7 +453,7 @@ function IconButton({
   tone = "neutral",
   disabled,
 }: {
-  onClick: (e?: any) => void;
+  onClick: (e: React.MouseEvent) => void;
   label: string;
   children: React.ReactNode;
   tone?: "neutral" | "dark" | "sky";
@@ -617,7 +619,7 @@ export default function Dashboard() {
   });
 
   const mutation = useMutation({
-    mutationFn: (data: any) => api.syncSession({ ...data, athlete_name: user!, athlete_id: userId ?? undefined }),
+    mutationFn: (data: Omit<Session, "id" | "created_at">) => api.syncSession({ ...data, athlete_name: user!, athlete_id: userId ?? undefined }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
       queryClient.invalidateQueries({ queryKey: ["assignments"] });
@@ -629,7 +631,7 @@ export default function Dashboard() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: any) => api.updateSession(data),
+    mutationFn: (data: Session) => api.updateSession(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
       toast({ title: "Séance mise à jour", description: "Votre saisie a été mise à jour." });
@@ -700,20 +702,20 @@ export default function Dashboard() {
   // --- Backend data shaping ---
   const swimAssignments = useMemo(() => {
     const list = Array.isArray(assignments) ? assignments : [];
-    return list.filter((a: any) => a?.session_type === "swim");
+    return list.filter((a) => a?.session_type === "swim");
   }, [assignments]);
 
   const assignmentsByIso = useMemo(() => {
-    const map = new Map<string, any[]>();
+    const map = new Map<string, Assignment[]>();
     for (const a of swimAssignments) {
-      const iso = assignmentIso(a);
+      const iso = assignmentIso(a as unknown as Record<string, unknown>);
       if (!iso) continue;
       if (!map.has(iso)) map.set(iso, []);
       map.get(iso)!.push(a);
     }
     // stable ordering for deterministic AM/PM mapping
     for (const [iso, list] of map.entries()) {
-      list.sort((x: any, y: any) => Number(x?.id ?? 0) - Number(y?.id ?? 0));
+      list.sort((x: Assignment, y: Assignment) => Number(x?.id ?? 0) - Number(y?.id ?? 0));
       map.set(iso, list);
     }
     return map;
@@ -721,7 +723,7 @@ export default function Dashboard() {
 
   const logsBySessionId = useMemo(() => {
     const list = Array.isArray(sessions) ? sessions : [];
-    const map: Record<string, any> = {};
+    const map: Record<string, Session> = {};
     for (const s of list) {
       const iso = String(s?.date ?? "").slice(0, 10);
       const slot: SlotKey = s?.slot === "Soir" ? "PM" : "AM";
@@ -765,13 +767,14 @@ export default function Dashboard() {
       const dayAssignments = assignmentsByIso.get(iso) ?? [];
       const usedSlots = new Set<SlotKey>();
 
-      dayAssignments.forEach((a: any, idx: number) => {
-        const slotKey = pickAssignmentSlotKey(a, idx);
+      dayAssignments.forEach((a, idx: number) => {
+        const aRecord = a as unknown as Record<string, unknown>;
+        const slotKey = pickAssignmentSlotKey(aRecord, idx);
         if (usedSlots.has(slotKey)) return;
 
         const slotIndex = slotKey === "AM" ? 0 : 1;
-        const plannedKm = assignmentPlannedKm(a);
-        const details = Array.isArray(a?.details) ? a.details.map(String) : safeLinesFromText(a?.description);
+        const plannedKm = assignmentPlannedKm(aRecord);
+        const details = Array.isArray(aRecord?.details) ? (aRecord.details as string[]).map(String) : safeLinesFromText(a?.description);
 
         list[slotIndex] = {
           id: `${iso}__${slotKey}`,
@@ -879,7 +882,7 @@ export default function Dashboard() {
   }, [activeSessionId, logsBySessionId]);
 
   const feedbackDraft = useMemo<DraftState>(() => {
-    const base = activeLog || {};
+    const base: Partial<Session> = activeLog || {};
     return {
       difficulty: base?.effort ?? null,
       fatigue_end: base?.fatigue ?? base?.feeling ?? null,
@@ -1045,7 +1048,7 @@ export default function Dashboard() {
     });
 
     if (existing?.id) {
-      updateMutation.mutate({ ...payload, id: existing.id });
+      updateMutation.mutate({ ...payload, id: existing.id, created_at: existing.created_at ?? new Date().toISOString() });
     } else {
       mutation.mutate(payload);
     }
@@ -1676,6 +1679,6 @@ function runSelfTests() {
   console.assert(metersToKm(1200) === 1.2, "metersToKm should convert");
 }
 
-if (typeof import.meta !== "undefined" && (import.meta as any).env && (import.meta as any).env.DEV) {
+if (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.DEV) {
   runSelfTests();
 }

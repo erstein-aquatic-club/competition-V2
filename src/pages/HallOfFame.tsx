@@ -13,6 +13,7 @@ import {
   toRelativeScore,
 } from "@/pages/hallOfFame/valueUtils";
 import { Link } from "wouter";
+import type { HallOfFameData, HallOfFameSwimDistance, HallOfFameSwimPerformance, HallOfFameSwimEngagement, HallOfFameStrength } from "@/lib/types";
 
 export default function HallOfFame() {
   const { data } = useQuery({
@@ -20,19 +21,19 @@ export default function HallOfFame() {
     queryFn: () => api.getHallOfFame()
   });
 
-  const rawSwimDistance = (data as { distance?: any[] } | undefined)?.distance ?? [];
-  const rawSwimPerformance = (data as { performance?: any[] } | undefined)?.performance ?? [];
-  const rawSwimEngagement = (data as { engagement?: any[] } | undefined)?.engagement ?? [];
-  const strengthStats = (data as { strength?: any[] } | undefined)?.strength ?? [];
-  const swimDistance = rawSwimDistance.map((item: any) => ({
+  const rawSwimDistance = (data as HallOfFameData | undefined)?.distance ?? [];
+  const rawSwimPerformance = (data as HallOfFameData | undefined)?.performance ?? [];
+  const rawSwimEngagement = (data as HallOfFameData | undefined)?.engagement ?? [];
+  const strengthStats = (data as HallOfFameData | undefined)?.strength ?? [];
+  const swimDistance = rawSwimDistance.map((item: HallOfFameSwimDistance) => ({
     ...item,
     total_distance: Number(item.total_distance ?? 0),
   }));
-  const swimPerformance = rawSwimPerformance.map((item: any) => ({
+  const swimPerformance = rawSwimPerformance.map((item: HallOfFameSwimPerformance) => ({
     ...item,
     avg_effort: normalizeHallOfFameScore(item.avg_effort),
   }));
-  const swimEngagement = rawSwimEngagement.map((item: any) => ({
+  const swimEngagement = rawSwimEngagement.map((item: HallOfFameSwimEngagement) => ({
     ...item,
     avg_engagement: normalizeHallOfFameScore(item.avg_engagement),
   }));
@@ -42,9 +43,9 @@ export default function HallOfFame() {
   const strengthReps = [...strengthStats]
     .sort((a, b) => Number(b.total_reps ?? 0) - Number(a.total_reps ?? 0))
     .slice(0, 5);
-  const distanceRange = getValueRange(swimDistance.map((item: any) => Number(item.total_distance ?? 0)));
-  const tonnageRange = getValueRange(strengthTonnage.map((item: any) => Number(item.total_volume ?? 0)));
-  const repsRange = getValueRange(strengthReps.map((item: any) => Number(item.total_reps ?? 0)));
+  const distanceRange = getValueRange(swimDistance.map((item) => Number(item.total_distance ?? 0)));
+  const tonnageRange = getValueRange(strengthTonnage.map((item) => Number(item.total_volume ?? 0)));
+  const repsRange = getValueRange(strengthReps.map((item) => Number(item.total_reps ?? 0)));
 
   const RankIcon = ({ rank }: { rank: number }) => {
     if (rank === 0) return <Crown className="h-6 w-6 text-yellow-500 fill-yellow-500" />;
@@ -79,7 +80,7 @@ export default function HallOfFame() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    {swimDistance.map((item: any, index: number) => {
+                    {swimDistance.map((item, index) => {
                       const distanceKm = item.total_distance ? item.total_distance / 1000 : 0;
                       return (
                     <div key={item.athlete_name} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/30">
@@ -108,7 +109,7 @@ export default function HallOfFame() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    {swimPerformance.map((item: any, index: number) => (
+                    {swimPerformance.map((item, index) => (
                     <div key={item.athlete_name} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/30">
                         <div className="flex items-center gap-4 min-w-0">
                         <RankIcon rank={index} />
@@ -134,7 +135,7 @@ export default function HallOfFame() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    {swimEngagement.map((item: any, index: number) => (
+                    {swimEngagement.map((item, index) => (
                     <div key={`${item.athlete_name}-engagement`} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/30">
                         <div className="flex items-center gap-4 min-w-0">
                         <RankIcon rank={index} />
@@ -164,7 +165,7 @@ export default function HallOfFame() {
                       </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                      {strengthTonnage.map((item: any, index: number) => (
+                      {strengthTonnage.map((item, index) => (
                            <div key={item.athlete_name} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/30">
                               <div className="flex items-center gap-4 min-w-0">
                               <RankIcon rank={index} />
@@ -190,7 +191,7 @@ export default function HallOfFame() {
                       </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                      {strengthReps.map((item: any, index: number) => (
+                      {strengthReps.map((item, index) => (
                            <div key={`${item.athlete_name}-reps`} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/30">
                               <div className="flex items-center gap-4 min-w-0">
                               <RankIcon rank={index} />

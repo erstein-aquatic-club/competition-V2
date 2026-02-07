@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import type { UserProfile as ProfileData, GroupSummary } from "@/lib/api";
 import { Link } from "wouter";
 import { Edit2, LogOut, RefreshCw, Save } from "lucide-react";
 
@@ -70,7 +71,7 @@ export default function Profile() {
   });
 
   const avatarSrc = useMemo(() => {
-    const src = (profile as any)?.avatar_url;
+    const src = profile?.avatar_url;
     if (src) return src;
     if (user) return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user)}`;
     return "";
@@ -88,7 +89,7 @@ export default function Profile() {
           bio: data.bio,
           avatar_url: data.avatar_url,
           ffn_iuf: (data.ffn_iuf || "").trim() || null,
-        } as any,
+        },
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
@@ -98,7 +99,7 @@ export default function Profile() {
     onError: (error: unknown) => {
       toast({
         title: "Mise à jour impossible",
-        description: String((error as any)?.message || error),
+        description: String((error as Error)?.message || error),
         variant: "destructive",
       });
     },
@@ -114,7 +115,7 @@ export default function Profile() {
     onError: (error: unknown) => {
       toast({
         title: "Mise à jour impossible",
-        description: String((error as any)?.message || error),
+        description: String((error as Error)?.message || error),
         variant: "destructive",
       });
     },
@@ -122,7 +123,7 @@ export default function Profile() {
 
   const syncFfn = useMutation({
     mutationFn: async () => {
-      const iuf = String((profile as any)?.ffn_iuf ?? "").trim();
+      const iuf = String(profile?.ffn_iuf ?? "").trim();
       if (!iuf) throw new Error("IUF FFN manquant. Ajoutez-le dans votre profil.");
       return api.syncFfnSwimRecords({
         athleteId: userId ?? undefined,
@@ -130,7 +131,7 @@ export default function Profile() {
         iuf,
       });
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: { inserted: number; updated: number; skipped: number }) => {
       queryClient.invalidateQueries({ queryKey: ["swim-records"] });
       toast({
         title: "Records FFN importés",
@@ -140,7 +141,7 @@ export default function Profile() {
     onError: (error: unknown) => {
       toast({
         title: "Import FFN impossible",
-        description: String((error as any)?.message || error),
+        description: String((error as Error)?.message || error),
         variant: "destructive",
       });
     },
@@ -148,12 +149,12 @@ export default function Profile() {
 
   const startEdit = () => {
     setEditForm({
-      group_id: (profile as any)?.group_id ? String((profile as any).group_id) : "",
-      objectives: (profile as any)?.objectives || "",
-      bio: (profile as any)?.bio || "",
-      avatar_url: (profile as any)?.avatar_url || "",
-      birthdate: (profile as any)?.birthdate ? String((profile as any).birthdate).split("T")[0] : "",
-      ffn_iuf: (profile as any)?.ffn_iuf ? String((profile as any).ffn_iuf) : "",
+      group_id: profile?.group_id ? String(profile.group_id) : "",
+      objectives: profile?.objectives || "",
+      bio: profile?.bio || "",
+      avatar_url: profile?.avatar_url || "",
+      birthdate: profile?.birthdate ? String(profile.birthdate).split("T")[0] : "",
+      ffn_iuf: profile?.ffn_iuf ? String(profile.ffn_iuf) : "",
     });
     setIsEditing(true);
   };
@@ -181,8 +182,8 @@ export default function Profile() {
   };
 
   const groupLabel =
-    groups.find((g: any) => g.id === (profile as any)?.group_id)?.name ||
-    (profile as any)?.group_label ||
+    groups.find((g) => g.id === profile?.group_id)?.name ||
+    profile?.group_label ||
     "Non défini";
 
   return (
@@ -229,7 +230,7 @@ export default function Profile() {
                     <SelectValue placeholder={groupsLoading ? "Chargement..." : "Choisir un groupe"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {groups.map((group: any) => (
+                    {groups.map((group) => (
                       <SelectItem key={group.id} value={String(group.id)}>
                         {group.name}
                       </SelectItem>
@@ -300,24 +301,24 @@ export default function Profile() {
 
               <div>
                 <Label className="text-xs text-muted-foreground uppercase">Date de naissance</Label>
-                <div className="font-medium">{formatBirthdate((profile as any)?.birthdate ?? null)}</div>
+                <div className="font-medium">{formatBirthdate(profile?.birthdate ?? null)}</div>
               </div>
 
               {showRecords ? (
                 <div>
                   <Label className="text-xs text-muted-foreground uppercase">IUF FFN</Label>
-                  <div className="font-medium">{String((profile as any)?.ffn_iuf ?? "") || "Non renseigné"}</div>
+                  <div className="font-medium">{String(profile?.ffn_iuf ?? "") || "Non renseigné"}</div>
                 </div>
               ) : null}
 
               <div className={showRecords ? "" : "col-span-2"}>
                 <Label className="text-xs text-muted-foreground uppercase">Objectifs</Label>
-                <div className="font-medium">{(profile as any)?.objectives || "Aucun objectif défini."}</div>
+                <div className="font-medium">{profile?.objectives || "Aucun objectif défini."}</div>
               </div>
 
               <div className="col-span-2">
                 <Label className="text-xs text-muted-foreground uppercase">Bio</Label>
-                <div className="font-medium">{(profile as any)?.bio || "Non renseignée."}</div>
+                <div className="font-medium">{profile?.bio || "Non renseignée."}</div>
               </div>
             </div>
           )}
@@ -339,17 +340,17 @@ export default function Profile() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="text-sm text-muted-foreground">
-              IUF enregistré : <span className="font-medium text-foreground">{String((profile as any)?.ffn_iuf ?? "") || "—"}</span>
+              IUF enregistré : <span className="font-medium text-foreground">{String(profile?.ffn_iuf ?? "") || "—"}</span>
             </div>
             <Button
               className="w-full gap-2"
               onClick={() => syncFfn.mutate()}
-              disabled={syncFfn.isPending || !String((profile as any)?.ffn_iuf ?? "").trim()}
+              disabled={syncFfn.isPending || !String(profile?.ffn_iuf ?? "").trim()}
             >
               <RefreshCw className={["h-4 w-4", syncFfn.isPending ? "animate-spin" : ""].join(" ")} />
               {syncFfn.isPending ? "Import en cours..." : "Récupérer records depuis FFN"}
             </Button>
-            {!String((profile as any)?.ffn_iuf ?? "").trim() ? (
+            {!String(profile?.ffn_iuf ?? "").trim() ? (
               <div className="text-xs text-muted-foreground">
                 Ajoutez votre IUF FFN dans le profil (bouton crayon) pour activer l’import.
               </div>

@@ -170,11 +170,12 @@ export default function Notifications() {
     onMutate: async (targetId) => {
       await queryClient.cancelQueries({ queryKey: ["notifications"] });
       const previous = queryClient.getQueryData(["notifications", userId, user, "threads"]);
-      queryClient.setQueryData(["notifications", userId, user, "threads"], (current: any) => {
-        if (!current?.notifications) return current;
+      queryClient.setQueryData(["notifications", userId, user, "threads"], (current: unknown) => {
+        const data = current as { notifications?: Notification[] } | undefined;
+        if (!data?.notifications) return current;
         return {
-          ...current,
-          notifications: current.notifications.map((notif: Notification) =>
+          ...data,
+          notifications: data.notifications.map((notif: Notification) =>
             (notif.target_id ?? notif.id) === targetId ? { ...notif, read: true } : notif,
           ),
         };
@@ -220,11 +221,12 @@ export default function Notifications() {
         targetUserId: payload.targetUserId,
         targetGroupId: payload.targetGroupId ?? null,
       });
-      queryClient.setQueryData(["notifications", userId, user, "threads"], (current: any) => {
-        if (!current?.notifications) return current;
+      queryClient.setQueryData(["notifications", userId, user, "threads"], (current: unknown) => {
+        const data = current as { notifications?: Notification[] } | undefined;
+        if (!data?.notifications) return current;
         return {
-          ...current,
-          notifications: [optimistic, ...current.notifications],
+          ...data,
+          notifications: [optimistic, ...data.notifications],
         };
       });
       return { previous };
