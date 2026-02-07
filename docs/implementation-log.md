@@ -26,6 +26,8 @@ Ce document trace l'avancement des tâches et migrations.
 | Création FEATURES_STATUS.md | `27fd696` | Matrice fonctionnalités |
 | **Fix FFN sync pool_length** | `de0063c` | **Regex parsing, split par "Bassin : 25/50 m"** |
 | Optimisation GIF | `087e9a6` | max-h-36, decoding="async" |
+| **Code splitting** | `1c3cedf` | **Lazy loading routes, vendor chunks (-80% bundle)** |
+| **Refactor API types** | `8f556a6` | **Types extraits vers api/types.ts** |
 
 ---
 
@@ -47,11 +49,11 @@ Ce document trace l'avancement des tâches et migrations.
 
 ### P2 — Moyenne priorité
 
-| Tâche | Effort | Description |
-|-------|--------|-------------|
-| Tests E2E critiques | 4h | Login, création séance, exécution séance |
-| Refactor api.ts | 8h | Découper en modules (auth, swim, strength, records) |
-| Optimisation performances | 3h | Lazy loading, code splitting, cache |
+| Tâche | Effort | Status | Description |
+|-------|--------|--------|-------------|
+| Tests E2E critiques | 4h | 📋 | Login, création séance, exécution séance |
+| Refactor api.ts | 8h | 🔧 | Step 1: Types extraits. Next: split methods |
+| Optimisation performances | 3h | ✅ | Lazy loading, code splitting, cache |
 
 ### P3 — Basse priorité
 
