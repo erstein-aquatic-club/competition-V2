@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useAuth } from "@/lib/auth";
-import { api } from "@/lib/api";
+import { api, type Exercise } from "@/lib/api";
+import type { SwimRecordWithPool } from "@/lib/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -178,7 +179,7 @@ export default function Records() {
   }, []);
 
   // Robust pool reader: supports snake_case + camelCase payloads
-  const getPoolLen = (r: any): 25 | 50 | null => {
+  const getPoolLen = (r: SwimRecordWithPool): 25 | 50 | null => {
     const raw = r?.pool_length ?? r?.poolLength ?? r?.poolLen ?? r?.pool;
     if (raw === null || raw === undefined) return null;
 
@@ -238,7 +239,7 @@ export default function Records() {
 
   // --- SOURCE OF TRUTH: mutations / invalidateQueries unchanged ---
   const update1RM = useMutation({
-    mutationFn: (data: any) => api.update1RM({ ...data, athlete_id: userId, athlete_name: user }),
+    mutationFn: (data: { exercise_id: number; one_rm?: number; weight?: number }) => api.update1RM({ ...data, athlete_id: userId, athlete_name: user }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["1rm"] });
       toast({ title: "1RM mis à jour" });
@@ -246,7 +247,7 @@ export default function Records() {
   });
 
   const upsertSwimRecord = useMutation({
-    mutationFn: (data: any) => api.upsertSwimRecord(data),
+    mutationFn: (data: Parameters<typeof api.upsertSwimRecord>[0]) => api.upsertSwimRecord(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["swim-records"] });
       setSwimForm(emptySwimForm);
@@ -263,14 +264,14 @@ export default function Records() {
         athleteName: user ?? undefined,
         iuf,
       }),
-    onSuccess: (data: any) => {
+    onSuccess: (data: { inserted: number; updated: number; skipped: number }) => {
       queryClient.invalidateQueries({ queryKey: ["swim-records"] });
       toast({
         title: "Synchro FFN terminée",
         description: `${data?.inserted ?? 0} ajouté(s), ${data?.updated ?? 0} mis à jour, ${data?.skipped ?? 0} inchangé(s)`,
       });
     },
-    onError: (e: any) => {
+    onError: (e: Error) => {
       toast({
         title: "Synchro FFN impossible",
         description: String(e?.message || e),
@@ -284,7 +285,7 @@ export default function Records() {
     setSwimEditorOpenFor(null);
   };
 
-  const startSwimEdit = (record: any) => {
+  const startSwimEdit = (record: SwimRecordWithPool) => {
     const pl = getPoolLen(record);
     setSwimForm({
       id: record.id,
@@ -334,10 +335,10 @@ export default function Records() {
 
   // ✅ Single source for the list: strict local filter (no FFN refresh)
   const filteredSwimRecords = useMemo(() => {
-    const list = (swimRecords as any)?.records ?? [];
+    const list = (swimRecords as { records?: SwimRecordWithPool[] } | undefined)?.records ?? [];
 
     const filtered = list
-      .filter((r: any) => {
+      .filter((r: SwimRecordWithPool) => {
         const pl = getPoolLen(r);
         if (!pl) return false;
         if (pl !== poolLen) return false;
@@ -346,7 +347,7 @@ export default function Records() {
         if (swimMode === "comp") return type === "comp";
         return type === "training";
       })
-      .sort((a: any, b: any) => {
+      .sort((a: SwimRecordWithPool, b: SwimRecordWithPool) => {
         const nameA = String(a.event_name ?? "");
         const nameB = String(b.event_name ?? "");
 
@@ -602,7 +603,7 @@ export default function Records() {
                       </div>
 
                       <div className="divide-y divide-border">
-                        {filteredSwimRecords.map((record: any) => {
+                        {filteredSwimRecords.map((record) => {
                           const isEditing = swimEditorOpenFor === record.id;
                           const time = formatTimeSeconds(record.time_seconds);
                           const date = formatDateShort(record.record_date);
@@ -616,7 +617,7 @@ export default function Records() {
                             null;
 
                           const ptsNum =
-                            rawPts === null || rawPts === undefined || rawPts === "" ? NaN : Number(rawPts);
+                            rawPts === null || rawPts === undefined ? NaN : Number(rawPts);
 
                           const points = Number.isFinite(ptsNum) ? ptsNum : parseFfnPointsFromNotes(record?.notes);
 
@@ -844,7 +845,7 @@ export default function Records() {
                     </div>
                   ) : (
                     <div className="divide-y divide-border">
-                      {(exercises as any[])
+                      {(exercises as Exercise[])
                         ?.filter((e) => e.exercise_type !== "warmup")
                         .map((ex) => {
                           const record = oneRMs?.find((r) => r.exercise_id === ex.id);

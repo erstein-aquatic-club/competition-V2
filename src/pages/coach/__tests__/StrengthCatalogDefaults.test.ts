@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createStrengthItemFromExercise } from "@/pages/coach/StrengthCatalog";
+import type { Exercise } from "@/lib/api";
 
 test("createStrengthItemFromExercise prefills fields from DIM_exercices", () => {
   const exercise = {
@@ -13,7 +14,7 @@ test("createStrengthItemFromExercise prefills fields from DIM_exercices", () => 
     recup_endurance: 90,
   };
 
-  const item = createStrengthItemFromExercise(exercise as any, "endurance", 2);
+  const item = createStrengthItemFromExercise(exercise as unknown as Exercise, "endurance", 2);
 
   assert.equal(item.exercise_id, 10);
   assert.equal(item.order_index, 2);
@@ -34,7 +35,7 @@ test("createStrengthItemFromExercise keeps manual overrides after creation", () 
     recup_endurance: 120,
   };
 
-  const item = createStrengthItemFromExercise(exercise as any, "endurance", 0);
+  const item = createStrengthItemFromExercise(exercise as unknown as Exercise, "endurance", 0);
   const overridden = { ...item, sets: 6 };
 
   assert.equal(overridden.sets, 6);

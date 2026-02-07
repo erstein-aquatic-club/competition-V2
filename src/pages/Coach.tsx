@@ -16,6 +16,7 @@ import CoachAssignScreen from "./coach/CoachAssignScreen";
 import CoachMessagesScreen from "./coach/CoachMessagesScreen";
 import ComingSoon from "./ComingSoon";
 import { FEATURES } from "@/lib/features";
+import type { LocalStrengthRun } from "@/lib/types";
 
 type CoachSection = "home" | "swim" | "strength" | "swimmers" | "assignments" | "messaging";
 type KpiLookbackPeriod = 7 | 30 | 365;
@@ -330,7 +331,7 @@ const formatDate = (value?: string | null) => {
 };
 
 const getDateOnly = (value: Date) => value.toISOString().split("T")[0];
-const getRunTimestamp = (run: any) =>
+const getRunTimestamp = (run: LocalStrengthRun) =>
   new Date(run.completed_at || run.started_at || run.date || run.created_at || 0).getTime();
 
 const buildFatigueRating = (values: number[]) => {
@@ -418,12 +419,12 @@ export default function Coach() {
             0,
           );
           const runs = strength?.runs ?? [];
-          const recentRuns = runs.filter((run: any) => getRunTimestamp(run) >= startDate.getTime());
+          const recentRuns = runs.filter((run: LocalStrengthRun) => getRunTimestamp(run) >= startDate.getTime());
           const runFatigueValues = recentRuns
-            .map((run: any) => run.fatigue ?? run.feeling ?? run.rpe)
+            .map((run: LocalStrengthRun) => run.fatigue ?? run.feeling ?? run.rpe)
             .filter((value: unknown): value is number => Number.isFinite(Number(value)))
             .map((value: unknown) => Number(value));
-          const strengthLoad = recentRuns.reduce((sum: number, run: any) => {
+          const strengthLoad = recentRuns.reduce((sum: number, run: LocalStrengthRun) => {
             const runEffort = Number(run.feeling ?? run.rpe ?? 0);
             const runDuration = Number(run.duration ?? 0);
             if (runDuration > 0 && runEffort > 0) {

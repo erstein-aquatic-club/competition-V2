@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, Exercise, StrengthCycleType, StrengthSessionItem, StrengthSessionTemplate } from "@/lib/api";
+import type { StrengthSessionInput } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -324,7 +325,7 @@ export default function StrengthCatalog() {
   });
 
   const createSession = useMutation({
-      mutationFn: (data: any) => api.createStrengthSession(data),
+      mutationFn: (data: StrengthSessionInput) => api.createStrengthSession(data),
       onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: ["strength_catalog"] });
           setIsCreating(false);
@@ -364,7 +365,7 @@ export default function StrengthCatalog() {
   });
 
   const updateSession = useMutation({
-      mutationFn: (data: any) => api.updateStrengthSession(data),
+      mutationFn: (data: StrengthSessionInput) => api.updateStrengthSession(data),
       onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: ["strength_catalog"] });
           setIsCreating(false);
@@ -384,15 +385,15 @@ export default function StrengthCatalog() {
       setNewSession({ title: "", description: "", cycle: "endurance", items: [] });
   };
 
-  const startEditSession = (session: any) => {
+  const startEditSession = (session: StrengthSessionTemplate) => {
       setEditingSessionId(session.id);
       setNewSession({
           title: session.title ?? "",
           description: session.description ?? "",
           cycle: normalizeStrengthCycle(session.cycle),
-          items: session.items?.map((item: any) => ({
+          items: session.items?.map((item) => ({
               exercise_id: item.exercise_id,
-              order_index: item.order_index ?? item.ordre ?? 0,
+              order_index: item.order_index ?? 0,
               sets: item.sets,
               reps: item.reps,
               rest_seconds: item.rest_seconds,
@@ -441,7 +442,7 @@ export default function StrengthCatalog() {
       }));
   };
 
-  const updateItem = (index: number, field: string, value: any) => {
+  const updateItem = (index: number, field: string, value: string | number | null) => {
       const items = [...newSession.items];
       if (field === "exercise_id") {
         const exercise = exercises?.find((entry) => entry.id === value);
@@ -453,7 +454,7 @@ export default function StrengthCatalog() {
             items[index],
           );
         } else {
-          items[index] = { ...items[index], exercise_id: value };
+          items[index] = { ...items[index], exercise_id: Number(value) };
         }
       } else {
         items[index] = { ...items[index], [field]: value };

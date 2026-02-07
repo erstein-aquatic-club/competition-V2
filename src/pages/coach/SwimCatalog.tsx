@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type Assignment, SwimSessionItem, SwimSessionTemplate } from "@/lib/api";
+import type { SwimSessionInput, SwimPayloadFields } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -149,7 +150,7 @@ const buildItemsFromBlocks = (blocks: SwimBlock[]): SwimSessionItem[] => {
 const buildBlocksFromItems = (items: SwimSessionItem[] = []): SwimBlock[] => {
   const blocksMap = new Map<string, SwimBlock & { order: number; exerciseOrder: Map<number, SwimExercise> }>();
   items.forEach((item) => {
-    const payload = (item.raw_payload as Record<string, any>) ?? {};
+    const payload = (item.raw_payload as SwimPayloadFields) ?? {};
     const blockTitle = payload.block_title || payload.section || "Bloc";
     const blockOrder = Number(payload.block_order ?? 0);
     const blockKey = `${blockOrder}-${blockTitle}`;
@@ -178,7 +179,7 @@ const buildBlocksFromItems = (items: SwimSessionItem[] = []): SwimBlock[] => {
       distance: item.distance ?? null,
       rest: payload.exercise_rest ?? null,
       stroke: payload.exercise_stroke ?? payload.stroke ?? "crawl",
-      strokeType: payload.exercise_stroke_type ?? payload.stroke_type ?? "nc",
+      strokeType: payload.exercise_stroke_type ?? (payload.stroke_type as string) ?? "nc",
       intensity: normalizedIntensity,
       modalities: payload.exercise_modalities ?? item.notes ?? "",
       equipment: Array.isArray(payload.exercise_equipment)
@@ -222,7 +223,7 @@ const normalizeEquipmentValue = (value: string) => {
 const countBlocks = (items: SwimSessionItem[] = []) => {
   const keys = new Set(
     items.map((item) => {
-      const raw = item.raw_payload as Record<string, any> | null;
+      const raw = item.raw_payload as Record<string, unknown> | null;
       return raw?.block_title || raw?.section || "Bloc";
     }),
   );
@@ -310,7 +311,7 @@ export default function SwimCatalog() {
   const visibleSessions = filteredSessions.filter((session) => !archivedSessionIds.has(session.id));
 
   const createSession = useMutation({
-    mutationFn: (data: any) => api.createSwimSession(data),
+    mutationFn: (data: SwimSessionInput) => api.createSwimSession(data),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["swim_catalog"] });
       setIsCreating(false);
