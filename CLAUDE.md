@@ -67,6 +67,20 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 
 Détail complet dans `docs/ROADMAP.md`.
 
+## Workflow de documentation obligatoire
+
+Chaque session de développement doit suivre ce protocole (détail complet dans `docs/ROADMAP.md` § "Règles de documentation") :
+
+1. **Avant** : Lire `CLAUDE.md` → `docs/ROADMAP.md` (chantier ciblé) → `docs/FEATURES_STATUS.md`
+2. **Pendant** : Ajouter une entrée dans `docs/implementation-log.md` pour chaque patch (contexte, changements, fichiers modifiés, tests, décisions, limites)
+3. **Après** : Mettre à jour les 4 fichiers de suivi :
+   - `docs/ROADMAP.md` — statut du chantier (A faire → En cours → Fait)
+   - `docs/FEATURES_STATUS.md` — statut des features impactées (❌ → ⚠️ → ✅)
+   - `docs/implementation-log.md` — entrée déjà ajoutée au §2
+   - `CLAUDE.md` — si fichiers clés ajoutés/supprimés ou chantier terminé
+
+> **Règle d'or : aucun patch sans entrée dans `implementation-log.md`.**
+
 ## Points d'attention
 
 - `api.ts` est monolithique (~2900 lignes) — lire la section pertinente uniquement

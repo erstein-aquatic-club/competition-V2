@@ -316,3 +316,96 @@ Voir [`docs/patch-report.md`](./patch-report.md) pour le détail complet des ite
 | `club_record_swimmers` | ✅ | Liste nageurs pour import club |
 | `swimmer_performances` | 🗓️ | **A créer** — historique complet performances nageur |
 | `import_logs` | 🗓️ | **A créer** (optionnel) — traçabilité des imports |
+
+---
+
+## Règles de documentation et suivi d'avancement
+
+Chaque session de développement **doit** suivre ce protocole pour maintenir la traçabilité et permettre la reprise facile par une future conversation.
+
+### 1. Avant de coder — Lire le contexte
+
+1. `CLAUDE.md` (racine) — vue d'ensemble rapide
+2. Ce fichier (`docs/ROADMAP.md`) — comprendre le chantier ciblé, ses dépendances, les fichiers impactés
+3. `docs/FEATURES_STATUS.md` — vérifier le statut actuel de la feature concernée
+
+### 2. Pendant le développement — Documenter chaque patch
+
+Pour **chaque lot de modifications** (commit ou groupe de commits liés), ajouter une entrée dans `docs/implementation-log.md` en respectant ce format :
+
+```markdown
+## YYYY-MM-DD — Titre court du patch
+
+**Branche** : `nom-de-la-branche`
+**Chantier ROADMAP** : §N — Nom du chantier
+
+### Contexte
+Quel problème ce patch résout, pourquoi il est nécessaire.
+
+### Changements réalisés
+- Description des modifications concrètes (fichiers, logique, UI)
+- Nouvelles tables/migrations si applicable
+- Nouvelles Edge Functions si applicable
+
+### Fichiers modifiés
+| Fichier | Nature du changement |
+|---------|---------------------|
+| `src/pages/Foo.tsx` | Ajout composant X |
+| `supabase/migrations/000XX.sql` | Nouvelle table Y |
+
+### Tests
+- [x] `npm run build` — compilation OK
+- [x] `npm test` — tests passent
+- [x] `npx tsc --noEmit` — 0 erreur TypeScript
+- [ ] Test manuel (décrire le scénario)
+
+### Décisions prises
+- Choix A plutôt que B parce que...
+- Question en suspens pour plus tard : ...
+
+### Limites / dette introduite
+- Ce qui n'est pas parfait mais acceptable pour ce patch
+- Ce qui devra être amélioré plus tard
+```
+
+### 3. Après le développement — Mettre à jour le suivi global
+
+A chaque fin de session, mettre à jour **ces 4 fichiers** :
+
+| Fichier | Quoi mettre à jour |
+|---------|-------------------|
+| `docs/ROADMAP.md` | Colonne **Statut** dans la vue d'ensemble (A faire → En cours → Fait). Ajouter une section "Avancement" dans le chantier concerné si partiellement complété. |
+| `docs/FEATURES_STATUS.md` | Changer le statut des features impactées (❌ → ⚠️ → ✅). Mettre à jour les notes. |
+| `docs/implementation-log.md` | L'entrée du patch a déjà été ajoutée pendant le dev (voir §2). |
+| `CLAUDE.md` | Mettre à jour si un fichier clé a été ajouté/supprimé, si une Edge Function a été créée, ou si un chantier est terminé. |
+
+### 4. Suivi d'avancement par chantier
+
+Chaque chantier dans ce ROADMAP doit maintenir une section **Avancement** une fois le travail démarré :
+
+```markdown
+### Avancement
+
+| Étape | Statut | Date | Notes |
+|-------|--------|------|-------|
+| Migration SQL | ✅ Fait | 2026-XX-XX | Migration 000XX |
+| Edge Function | ✅ Fait | 2026-XX-XX | Déployée |
+| API client (api.ts) | ⚠️ Partiel | 2026-XX-XX | Méthodes CRUD OK, filtres à faire |
+| UI frontend | ❌ A faire | — | |
+| Tests | ❌ A faire | — | |
+```
+
+### 5. Conventions de statut
+
+| Icône | Signification | Usage |
+|-------|---------------|-------|
+| ❌ | Non commencé | Aucun code écrit |
+| ⚠️ | En cours / Partiel | Du code existe mais incomplet |
+| ✅ | Terminé | Fonctionnel, testé, mergé |
+| 🗓️ | Planifié | Décrit dans la roadmap mais pas encore démarré |
+| 🔧 | Dépend de config | Fonctionnel mais dépend d'un paramètre externe |
+
+### 6. Règle d'or
+
+> **Aucun patch ne doit être mergé sans une entrée correspondante dans `implementation-log.md`.**
+> Un futur développeur (humain ou IA) doit pouvoir retracer chaque changement depuis le log jusqu'au commit.

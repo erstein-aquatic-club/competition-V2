@@ -1,6 +1,32 @@
 # Journal d'implémentation
 
-Ce document trace l'avancement des tâches et migrations.
+Ce document trace l'avancement de **chaque patch** du projet. Il est la source de vérité pour savoir ce qui a été fait, quand, et pourquoi.
+
+**Règle** : chaque lot de modifications (commit ou groupe de commits liés) doit avoir une entrée ici. Voir `docs/ROADMAP.md` § "Règles de documentation" pour le format détaillé.
+
+### Format d'une entrée
+
+```
+## YYYY-MM-DD — Titre du patch
+**Branche** : `nom`
+**Chantier ROADMAP** : §N — Nom (si applicable)
+### Contexte — Pourquoi ce patch
+### Changements réalisés — Ce qui a été modifié
+### Fichiers modifiés — Tableau fichier / nature
+### Tests — Checklist build/test/tsc + tests manuels
+### Décisions prises — Choix techniques et arbitrages
+### Limites / dette — Ce qui reste imparfait
+```
+
+### Avancement global
+
+| Chantier ROADMAP | Statut | Dernière activité |
+|------------------|--------|-------------------|
+| §1 Refonte inscription | ❌ A faire | — |
+| §2 Import performances FFN | ❌ A faire | — |
+| §3 Gestion coach imports | ❌ A faire | — |
+| §4 Records club | ❌ A faire | — |
+| §5 Dette UI/UX | ⚠️ En cours | 2026-02-07 (audit 78%) |
 
 ---
 
