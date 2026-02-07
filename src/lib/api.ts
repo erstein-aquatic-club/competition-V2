@@ -81,12 +81,6 @@ import {
 // Re-export error utilities for backward compatibility
 export { parseApiError, summarizeApiError } from "./api/client";
 
-
-// src/lib/api.ts
-
-
-
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const defaultTimesheetLocations = ["Piscine", "Compétition"];
 
 // --- API Service ---
