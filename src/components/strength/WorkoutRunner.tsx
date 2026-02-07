@@ -11,6 +11,7 @@ import {
   Check,
   CheckCircle2,
   ChevronRight,
+  Delete,
   Dumbbell,
   Pause,
   RotateCcw,
@@ -968,8 +969,9 @@ export function WorkoutRunner({
                 variant="outline"
                 className="h-14 text-xl font-semibold rounded-xl active:scale-95 transition-transform"
                 onClick={() => setDraftValue((prev) => prev.slice(0, -1))}
+                aria-label="Effacer le dernier caractère"
               >
-                ⌫
+                <Delete className="h-5 w-5" />
               </Button>
             </div>
 

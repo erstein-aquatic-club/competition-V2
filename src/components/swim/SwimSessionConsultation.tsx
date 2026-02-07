@@ -9,7 +9,7 @@ import {
   intensityTone,
 } from "@/components/swim/IntensityDots";
 import { SwimBadgeRow } from "@/components/swim/SwimBadgeRow";
-import { Ruler, Timer, Waves } from "lucide-react";
+import { Repeat, Ruler, Timer, Waves } from "lucide-react";
 import type { SwimSessionItem } from "@/lib/api";
 import { splitModalitiesLines } from "@/lib/swimSessionUtils";
 
@@ -251,7 +251,7 @@ export function SwimSessionConsultation({
                 <div className="flex flex-wrap items-center gap-2">
                   {block.repetitions ? (
                     <Badge variant="secondary" className="text-xs">
-                      🔁 {block.repetitions}x
+                      <Repeat className="mr-1 h-3 w-3" /> {block.repetitions}x
                     </Badge>
                   ) : null}
                   <Badge variant="outline" className="text-xs">

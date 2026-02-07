@@ -539,7 +539,7 @@ export default function Records() {
                   <button
                     type="button"
                     onClick={togglePoolPill}
-                    className="inline-flex items-center gap-2 whitespace-nowrap rounded-2xl bg-muted/25 border border-border/60 px-3 py-2 text-sm font-semibold active:scale-[0.99] transition"
+                    className="inline-flex items-center gap-2 whitespace-nowrap rounded-2xl bg-muted/25 border border-border/60 px-3 py-2 text-sm font-semibold active:scale-[0.99] transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     aria-label="Changer le bassin"
                     title="Appuie pour basculer 25m / 50m"
                   >

@@ -1,4 +1,5 @@
 import React from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { formatMinutes, type TimesheetTotals } from "@/pages/timesheetHelpers";
 
 interface TimesheetTotalsProps {
@@ -28,10 +29,10 @@ export function TimesheetTotals({
       <div className="mt-2 flex flex-wrap gap-2">
         <button
           type="button"
-          className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-900"
+          className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-900 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           onClick={onToggleExpanded}
         >
-          {expanded ? "Totaux ▴" : "Totaux ▾"}
+          Totaux {expanded ? <ChevronUp className="ml-1 inline h-3.5 w-3.5" /> : <ChevronDown className="ml-1 inline h-3.5 w-3.5" />}
         </button>
       </div>
 
