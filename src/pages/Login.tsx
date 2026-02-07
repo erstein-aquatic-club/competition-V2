@@ -91,10 +91,10 @@ export default function Login() {
       if (!hydrated) {
         throw new Error("Impossible de récupérer le profil utilisateur.");
       }
-      const role = data.session.user?.app_metadata?.app_user_role
-        ?? data.session.user?.user_metadata?.role
-        ?? null;
-      setLocation(getLandingRouteForRole(role), { replace: true });
+      // Read role from the auth store (loadUser fetches it from public.users)
+      // instead of the JWT claim which can be stale.
+      const resolvedRole = useAuth.getState().role;
+      setLocation(getLandingRouteForRole(resolvedRole), { replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Connexion impossible.";
       setError(message);
