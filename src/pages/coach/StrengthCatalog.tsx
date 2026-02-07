@@ -1,6 +1,5 @@
 
 import { useEffect, useMemo, useState } from "react";
-import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, Exercise, StrengthCycleType, StrengthSessionItem, StrengthSessionTemplate } from "@/lib/api";
 import type { StrengthSessionInput } from "@/lib/types";
@@ -13,7 +12,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2, Save, Filter, Edit2, GripVertical, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useBeforeUnload } from "@/hooks/use-before-unload";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -276,7 +274,6 @@ export default function StrengthCatalog() {
   const queryClient = useQueryClient();
   const [isCreating, setIsCreating] = useState(false);
   const [editingSessionId, setEditingSessionId] = useState<number | null>(null);
-  useBeforeUnload(isCreating || editingSessionId !== null);
   const [exerciseFilter, setExerciseFilter] = useState<"all" | "strength" | "warmup">("all");
   const [exerciseDialogOpen, setExerciseDialogOpen] = useState(false);
   const [exerciseEditOpen, setExerciseEditOpen] = useState(false);
@@ -286,7 +283,6 @@ export default function StrengthCatalog() {
   const [pendingDeleteSession, setPendingDeleteSession] = useState<StrengthSessionTemplate | null>(null);
   const [pendingDeleteExercise, setPendingDeleteExercise] = useState<Exercise | null>(null);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
-  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
   const [newWarmupMode, setNewWarmupMode] = useState<"reps" | "duration">("reps");
   const [editWarmupMode, setEditWarmupMode] = useState<"reps" | "duration">("reps");
   
@@ -312,8 +308,8 @@ export default function StrengthCatalog() {
     }
   }, [editingExercise]);
 
-  const { data: exercises, isLoading: exercisesLoading } = useQuery({ queryKey: ["exercises"], queryFn: () => api.getExercises() });
-  const { data: sessions, isLoading: sessionsLoading } = useQuery({ queryKey: ["strength_catalog"], queryFn: () => api.getStrengthSessions() });
+  const { data: exercises } = useQuery({ queryKey: ["exercises"], queryFn: () => api.getExercises() });
+  const { data: sessions } = useQuery({ queryKey: ["strength_catalog"], queryFn: () => api.getStrengthSessions() });
   const exerciseById = useMemo(
     () => new Map((exercises ?? []).map((exercise) => [exercise.id, exercise])),
     [exercises],
@@ -801,7 +797,7 @@ export default function StrengthCatalog() {
 
   if (isCreating) {
       return (
-          <div className="space-y-6 animate-in slide-in-from-bottom-4 motion-reduce:animate-none">
+          <div className="space-y-6 animate-in slide-in-from-bottom-4">
               {exerciseCreateDialog}
               {exerciseEditDialog}
               {detailsDialog}
@@ -886,14 +882,12 @@ export default function StrengthCatalog() {
                   {newSession.items.map((item, index) => (
                       <Card
                         key={`${item.exercise_id}-${index}`}
-                        className={cn("relative transition-colors", dropTargetIndex === index && draggingIndex !== null && draggingIndex !== index ? "ring-2 ring-primary bg-primary/5" : "")}
-                        onDragOver={(event) => { event.preventDefault(); setDropTargetIndex(index); }}
-                        onDragLeave={() => setDropTargetIndex((prev) => prev === index ? null : prev)}
+                        className="relative"
+                        onDragOver={(event) => event.preventDefault()}
                         onDrop={() => {
                           if (draggingIndex === null) return;
                           reorderItems(draggingIndex, index);
                           setDraggingIndex(null);
-                          setDropTargetIndex(null);
                         }}
                       >
                           <Button
@@ -912,7 +906,7 @@ export default function StrengthCatalog() {
                                    className="cursor-grab rounded-md border p-1 text-muted-foreground hover:text-foreground"
                                    draggable
                                    onDragStart={() => setDraggingIndex(index)}
-                                   onDragEnd={() => { setDraggingIndex(null); setDropTargetIndex(null); }}
+                                   onDragEnd={() => setDraggingIndex(null)}
                                    aria-label="Réordonner"
                                  >
                                    <GripVertical className="h-4 w-4" />
@@ -1022,21 +1016,6 @@ export default function StrengthCatalog() {
            </Button>
        </div>
        
-       {sessionsLoading ? (
-         <div className="grid gap-4 md:grid-cols-2">
-           {[1, 2, 3, 4].map((i) => (
-             <Card key={i}>
-               <CardHeader>
-                 <div className="h-5 w-3/4 rounded-lg bg-muted animate-pulse motion-reduce:animate-none" />
-                 <div className="mt-2 h-4 w-1/2 rounded-lg bg-muted animate-pulse motion-reduce:animate-none" />
-               </CardHeader>
-               <CardContent>
-                 <div className="h-9 w-32 rounded-lg bg-muted animate-pulse motion-reduce:animate-none" />
-               </CardContent>
-             </Card>
-           ))}
-         </div>
-       ) : (
        <div className="grid gap-4 md:grid-cols-2">
            {sessions?.map(session => (
                <Card key={session.id}>
@@ -1078,7 +1057,6 @@ export default function StrengthCatalog() {
                </Card>
            ))}
        </div>
-       )}
 
        <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -1087,18 +1065,6 @@ export default function StrengthCatalog() {
               <Plus className="mr-2 h-4 w-4" /> Ajouter un exercice
             </Button>
           </div>
-          {exercisesLoading ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <Card key={i}>
-                  <CardHeader>
-                    <div className="h-5 w-2/3 rounded-lg bg-muted animate-pulse motion-reduce:animate-none" />
-                    <div className="mt-2 h-4 w-1/3 rounded-lg bg-muted animate-pulse motion-reduce:animate-none" />
-                  </CardHeader>
-                </Card>
-              ))}
-            </div>
-          ) : (
           <div className="grid gap-3 md:grid-cols-2">
             {exercises?.map((exercise) => (
               <Card key={exercise.id}>
@@ -1110,6 +1076,7 @@ export default function StrengthCatalog() {
                         alt={`Illustration ${exercise.nom_exercice}`}
                         className="h-14 w-14 rounded-md object-cover"
                         loading="lazy"
+                        decoding="async"
                       />
                     ) : null}
                     <div>
@@ -1141,7 +1108,6 @@ export default function StrengthCatalog() {
               </Card>
             ))}
           </div>
-          )}
        </div>
    </div>
   );

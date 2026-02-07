@@ -11,7 +11,6 @@ import {
   Check,
   CheckCircle2,
   ChevronRight,
-  Delete,
   Dumbbell,
   Pause,
   RotateCcw,
@@ -406,8 +405,8 @@ export function WorkoutRunner({
 
   if (currentStep === 0) {
     return (
-      <div className="space-y-6 text-center py-8 animate-in zoom-in duration-300 motion-reduce:animate-none">
-        <div className="h-24 w-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto animate-pulse motion-reduce:animate-none">
+      <div className="space-y-6 text-center py-8 animate-in zoom-in duration-300">
+        <div className="h-24 w-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto animate-pulse">
           <Dumbbell className="h-10 w-10 text-primary ml-1" />
         </div>
         <div>
@@ -438,7 +437,7 @@ export function WorkoutRunner({
 
   if (currentStep > workoutPlan.length) {
     return (
-      <div className="space-y-6 animate-in fade-in motion-reduce:animate-none">
+      <div className="space-y-6 animate-in fade-in">
         <Card className="border-t-8 border-t-primary shadow-xl">
           <CardHeader className="text-center pb-2">
             <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-4">
@@ -536,6 +535,7 @@ export function WorkoutRunner({
                 alt=""
                 className="h-full w-full object-cover"
                 loading="lazy"
+                decoding="async"
               />
             ) : (
               <Dumbbell className="h-5 w-5 text-muted-foreground" />
@@ -646,7 +646,7 @@ export function WorkoutRunner({
 
       {!inputSheetOpen && !isResting ? (
         <BottomActionBar 
-          className="bottom-0 z-modal"
+          className="bottom-0 z-[60]" 
           containerClassName="gap-3 py-4"
         >
           <Button
@@ -680,7 +680,7 @@ export function WorkoutRunner({
       ) : null}
 
       {isResting && (
-        <div className="fixed inset-0 z-modal flex flex-col bg-background/95 pb-[env(safe-area-inset-bottom)]">
+        <div className="fixed inset-0 z-50 flex flex-col bg-background/95 pb-[env(safe-area-inset-bottom)]">
           <div className="flex items-start justify-between border-b px-6 py-4">
             <div>
               <div className="text-xs font-semibold text-muted-foreground">Timer</div>
@@ -772,7 +772,7 @@ export function WorkoutRunner({
 
       {isGifOpen && currentExerciseDef?.illustration_gif && (
         <div
-          className="fixed inset-0 z-modal bg-black/50"
+          className="fixed inset-0 z-50 bg-black/50"
           onClick={() => setIsGifOpen(false)}
         >
           <div
@@ -792,7 +792,6 @@ export function WorkoutRunner({
                 src={currentExerciseDef.illustration_gif}
                 alt=""
                 className="max-h-[80vh] w-auto max-w-[92vw] rounded-2xl"
-                loading="lazy"
               />
             </div>
           </div>
@@ -972,9 +971,8 @@ export function WorkoutRunner({
                 variant="outline"
                 className="h-14 text-xl font-semibold rounded-xl active:scale-95 transition-transform"
                 onClick={() => setDraftValue((prev) => prev.slice(0, -1))}
-                aria-label="Effacer le dernier caractère"
               >
-                <Delete className="h-5 w-5" />
+                ⌫
               </Button>
             </div>
 

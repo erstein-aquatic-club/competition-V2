@@ -1,526 +1,91 @@
 
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { supabaseConfig } from "./config";
 import { supabase } from "./supabase";
 import { useAuth } from "./auth";
+
+// --- Types (re-exported from api/types.ts for backward compatibility) ---
+export type {
+  Session,
+  Exercise,
+  StrengthCycleType,
+  StrengthSessionTemplate,
+  StrengthSessionItem,
+  SwimSessionTemplate,
+  SwimSessionItem,
+  Assignment,
+  Notification,
+  UserProfile,
+  AthleteSummary,
+  GroupSummary,
+  UpcomingBirthday,
+  UserSummary,
+  SwimRecord,
+  ClubRecord,
+  ClubRecordSwimmer,
+  TimesheetShift,
+  TimesheetLocation,
+  FeatureCapability,
+  ApiCapabilities,
+  ApiErrorInfo,
+  SyncSessionInput,
+  StrengthRunPayload,
+  StrengthSetPayload,
+} from "./api/types";
+
 import type {
-  RawDbSession,
-  RawDbExercise,
-  RawStrengthItem,
-  StrengthSessionInput,
-  SetLogEntry,
-  LocalStrengthRun,
-  SaveStrengthRunInput,
-  UpdateStrengthRunInput,
-  SwimSessionInput,
-  SwimSessionItemInput,
-  LocalAssignment,
-  LocalNotification,
-  OneRmEntry,
-  LocalSwimRecord,
-  ImportClubRecordsResult,
-  HallOfFameData,
-  HallOfFameStrength,
-  RawHallOfFameRow,
-  RawSwimCatalog,
-  RawSwimCatalogItem,
-  RawSupabaseStrengthSession,
-  RawNotificationTarget,
-  RawUserRow,
-  RawGroupRow,
-  RawGroupMemberRow,
-  RawClubRecordSwimmerRow,
-} from "./types";
+  Session,
+  Exercise,
+  StrengthCycleType,
+  StrengthSessionTemplate,
+  StrengthSessionItem,
+  SwimSessionTemplate,
+  SwimSessionItem,
+  Assignment,
+  Notification,
+  UserProfile,
+  AthleteSummary,
+  GroupSummary,
+  UpcomingBirthday,
+  UserSummary,
+  SwimRecord,
+  ClubRecord,
+  ClubRecordSwimmer,
+  TimesheetShift,
+  TimesheetLocation,
+  ApiCapabilities,
+  ApiErrorInfo,
+} from "./api/types";
 
-// --- Types ---
+// --- Utilities (imported from api/client.ts) ---
+import {
+  canUseSupabase,
+  STORAGE_KEYS,
+  safeInt,
+  safeOptionalInt,
+  safeOptionalNumber,
+  normalizeScaleToFive,
+  expandScaleToTen,
+  estimateOneRm,
+  normalizeCycleType,
+  normalizeExerciseType,
+  normalizeStrengthItem,
+  validateStrengthItems,
+  mapDbExerciseToApi,
+  mapApiExerciseToDb,
+  delay,
+  parseRawPayload,
+  fetchUserGroupIds,
+} from "./api/client";
 
-const isNetworkAvailable = () => {
-  if (typeof navigator === "undefined") {
-    return true;
-  }
-  return navigator.onLine;
-};
+// Re-export error utilities for backward compatibility
+export { parseApiError, summarizeApiError } from "./api/client";
 
-const canUseSupabase = () => supabaseConfig.hasSupabase && isNetworkAvailable();
-
-export interface Session {
-  id: number;
-  athlete_id?: number;
-  athlete_name: string;
-  date: string;
-  slot: string;
-  effort: number;
-  feeling: number;
-  rpe?: number | null;
-  performance?: number | null;
-  engagement?: number | null;
-  fatigue?: number | null;
-  distance: number;
-  duration: number;
-  comments: string;
-  created_at: string;
-}
-
-export interface Exercise {
-  id: number;
-  name?: string;
-  numero_exercice?: number | null;
-  nom_exercice: string;
-  description?: string | null;
-  illustration_gif?: string | null;
-  exercise_type: "strength" | "warmup";
-  warmup_reps?: number | null;
-  warmup_duration?: number | null;
-  Nb_series_endurance?: number | null;
-  Nb_reps_endurance?: number | null;
-  pct_1rm_endurance?: number | null;
-  recup_endurance?: number | null;
-  recup_exercices_endurance?: number | null;
-  Nb_series_hypertrophie?: number | null;
-  Nb_reps_hypertrophie?: number | null;
-  pct_1rm_hypertrophie?: number | null;
-  recup_hypertrophie?: number | null;
-  recup_exercices_hypertrophie?: number | null;
-  Nb_series_force?: number | null;
-  Nb_reps_force?: number | null;
-  pct_1rm_force?: number | null;
-  recup_force?: number | null;
-  recup_exercices_force?: number | null;
-}
-
-export type StrengthCycleType = "endurance" | "hypertrophie" | "force";
-
-export interface StrengthSessionTemplate {
-  id: number;
-  title: string;
-  name?: string;
-  description: string;
-  cycle: StrengthCycleType;
-  cycle_type?: StrengthCycleType | null;
-  items?: StrengthSessionItem[];
-}
-
-export interface StrengthSessionItem {
-  exercise_id: number;
-  order_index: number;
-  sets: number;
-  reps: number;
-  rest_seconds: number;
-  percent_1rm: number;
-  cycle_type?: StrengthCycleType | null;
-  notes?: string;
-  // Join fields
-  exercise_name?: string;
-  category?: string;
-}
-
-export interface SwimSessionTemplate {
-    id: number;
-    name: string;
-    description?: string | null;
-    created_by?: number | null;
-    created_at?: string | null;
-    updated_at?: string | null;
-    items?: SwimSessionItem[];
-}
-
-export interface SwimSessionItem {
-    id?: number;
-    catalog_id?: number;
-    ordre?: number;
-    label?: string | null;
-    distance?: number | null;
-    duration?: number | null;
-    intensity?: string | null;
-    notes?: string | null;
-    raw_payload?: Record<string, unknown> | null;
-}
-
-export interface Assignment {
-    id: number;
-    session_id: number;
-    session_type: "swim" | "strength";
-    title: string;
-    description: string;
-    assigned_date: string;
-    status: string;
-    // Strength fields
-    items?: StrengthSessionItem[] | SwimSessionItem[];
-    cycle?: string;
-}
-
-export interface Notification {
-  id: number;
-  target_id?: number;
-  target_user_id?: number | null;
-  target_group_id?: number | null;
-  target_group_name?: string | null;
-  sender_id?: number | null;
-  sender_email?: string | null;
-  sender_name?: string | null;
-  sender_role?: string | null;
-  counterparty_id?: number | null;
-  counterparty_name?: string | null;
-  counterparty_role?: string | null;
-  sender: string;
-  title: string;
-  message: string;
-  type: string;
-  read: boolean;
-  date: string;
-  related_id?: number;
-}
-
-export interface UserProfile {
-  id?: number | null;
-  display_name?: string;
-  email?: string | null;
-  birthdate?: string | null;
-  group_id?: number | null;
-  group_label?: string | null;
-  objectives?: string | null;
-  bio?: string | null;
-  avatar_url?: string | null;
-  ffn_iuf?: string | null;
-}
-
-export interface AthleteSummary {
-  id: number | null;
-  display_name: string;
-  group_label?: string | null;
-}
-
-export interface GroupSummary {
-  id: number;
-  name: string;
-  member_count?: number | null;
-}
-
-export interface UpcomingBirthday {
-  id: number;
-  display_name: string;
-  birthdate: string;
-  next_birthday: string;
-  days_until: number;
-}
-
-export interface UserSummary {
-  id: number;
-  display_name: string;
-  role: string;
-  email?: string | null;
-  is_active?: number | boolean;
-  group_label?: string | null;
-}
-
-export interface SwimRecord {
-  id: number;
-  athlete_id: number;
-  athlete_name?: string | null;
-  event_name: string;
-  pool_length?: number | null;
-  time_seconds?: number | null;
-  record_date?: string | null;
-  notes?: string | null;
-  record_type?: string | null;
-  /** Points FFN (normalisés en base dans swim_records.ffn_points) */
-  ffn_points?: number | null;
-  /** Compat legacy: certains payloads peuvent encore exposer "points" */
-  points?: number | null;
-}
-
-export interface ClubRecord {
-  id: number;
-  performance_id: number;
-  athlete_name: string;
-  sex: string;
-  pool_m: number;
-  event_code: string;
-  event_label?: string | null;
-  age: number;
-  time_ms: number;
-  record_date?: string | null;
-}
-
-export interface ClubRecordSwimmer {
-  id: number | null;
-  source_type: "user" | "manual";
-  user_id?: number | null;
-  display_name: string;
-  iuf?: string | null;
-  sex?: "M" | "F" | null;
-  birthdate?: string | null;
-  is_active: number;
-  created_at?: string | null;
-  updated_at?: string | null;
-}
-
-export interface TimesheetShift {
-  id: number;
-  coach_id: number;
-  coach_name?: string | null;
-  shift_date: string;
-  start_time: string;
-  end_time?: string | null;
-  location?: string | null;
-  is_travel: boolean;
-  created_at?: string | null;
-  updated_at?: string | null;
-}
-
-export interface TimesheetLocation {
-  id: number;
-  name: string;
-  created_at?: string | null;
-  updated_at?: string | null;
-}
-
-export type FeatureCapability = {
-  available: boolean;
-  missingTables?: string[];
-};
-
-export type ApiCapabilities = {
-  version?: string | null;
-  timesheet: FeatureCapability;
-  messaging: FeatureCapability;
-  mode: "supabase" | "local";
-};
-
-export type ApiErrorInfo = {
-  message: string;
-  code?: string;
-  status?: number;
-};
-
-// src/lib/api.ts
-
-
-
-// STORAGE MOCK (Since we don't have a real DB in this mode, we use local storage to simulate backend persistence for development)
-// In a real app, this would be replacing fetch calls to the worker.
-const STORAGE_KEYS = {
-  SESSIONS: "suivi_natation_sessions",
-  EXERCISES: "suivi_natation_exercises",
-  STRENGTH_SESSIONS: "suivi_natation_strength_sessions",
-  SWIM_SESSIONS: "suivi_natation_swim_sessions",
-  ASSIGNMENTS: "suivi_natation_assignments",
-  STRENGTH_RUNS: "suivi_natation_strength_runs",
-  NOTIFICATIONS: "suivi_natation_notifications",
-  ONE_RM: "suivi_natation_1rm",
-  SWIM_RECORDS: "suivi_natation_swim_records",
-  TIMESHEET_SHIFTS: "suivi_natation_timesheet_shifts",
-  TIMESHEET_LOCATIONS: "suivi_natation_timesheet_locations",
-};
-
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const defaultTimesheetLocations = ["Piscine", "Compétition"];
 
 // --- API Service ---
 
-const parseRawPayload = (raw: unknown) => {
-  if (!raw) return null;
-  if (typeof raw === "string") {
-    try {
-      return JSON.parse(raw);
-    } catch (error) {
-      return null;
-    }
-  }
-  if (typeof raw === "object") return raw as Record<string, unknown>;
-  return null;
-};
-
-const fetchUserGroupIds = async (userId?: number | null): Promise<number[]> => {
-  if (!userId || !canUseSupabase()) return [];
-  const { data, error } = await supabase
-    .from("group_members")
-    .select("group_id")
-    .eq("user_id", userId);
-  if (error || !data) return [];
-  return data.map((m: { group_id: number }) => m.group_id).filter((id: number) => id > 0);
-};
-
-/** Map DB row (dim_exercices) → frontend Exercise interface */
-const mapDbExerciseToApi = (row: RawDbExercise): Exercise => ({
-  id: safeInt(row.id),
-  numero_exercice: safeOptionalInt(row.numero_exercice),
-  nom_exercice: row.nom_exercice ?? "",
-  description: row.description ?? null,
-  illustration_gif: row.illustration_gif ?? null,
-  exercise_type: normalizeExerciseType(row.exercise_type),
-  warmup_reps: null,
-  warmup_duration: null,
-  Nb_series_endurance: safeOptionalInt(row.nb_series_endurance),
-  Nb_reps_endurance: safeOptionalInt(row.nb_reps_endurance),
-  pct_1rm_endurance: safeOptionalNumber(row.pourcentage_charge_1rm_endurance),
-  recup_endurance: safeOptionalInt(row.recup_series_endurance),
-  recup_exercices_endurance: safeOptionalInt(row.recup_exercices_endurance),
-  Nb_series_hypertrophie: safeOptionalInt(row.nb_series_hypertrophie),
-  Nb_reps_hypertrophie: safeOptionalInt(row.nb_reps_hypertrophie),
-  pct_1rm_hypertrophie: safeOptionalNumber(row.pourcentage_charge_1rm_hypertrophie),
-  recup_hypertrophie: safeOptionalInt(row.recup_series_hypertrophie),
-  recup_exercices_hypertrophie: safeOptionalInt(row.recup_exercices_hypertrophie),
-  Nb_series_force: safeOptionalInt(row.nb_series_force),
-  Nb_reps_force: safeOptionalInt(row.nb_reps_force),
-  pct_1rm_force: safeOptionalNumber(row.pourcentage_charge_1rm_force),
-  recup_force: safeOptionalInt(row.recup_series_force),
-  recup_exercices_force: safeOptionalInt(row.recup_exercices_force),
-});
-
-/** Map frontend Exercise → DB row (dim_exercices) for insert/update */
-const mapApiExerciseToDb = (exercise: Partial<Exercise> & Pick<Exercise, "nom_exercice" | "exercise_type">) => ({
-  numero_exercice: exercise.numero_exercice ?? null,
-  nom_exercice: exercise.nom_exercice ?? exercise.name ?? "",
-  description: exercise.description ?? null,
-  illustration_gif: exercise.illustration_gif ?? null,
-  exercise_type: exercise.exercise_type ?? "strength",
-  nb_series_endurance: exercise.Nb_series_endurance ?? null,
-  nb_reps_endurance: exercise.Nb_reps_endurance ?? null,
-  pourcentage_charge_1rm_endurance: exercise.pct_1rm_endurance ?? null,
-  recup_series_endurance: exercise.recup_endurance ?? null,
-  recup_exercices_endurance: exercise.recup_exercices_endurance ?? null,
-  nb_series_hypertrophie: exercise.Nb_series_hypertrophie ?? null,
-  nb_reps_hypertrophie: exercise.Nb_reps_hypertrophie ?? null,
-  pourcentage_charge_1rm_hypertrophie: exercise.pct_1rm_hypertrophie ?? null,
-  recup_series_hypertrophie: exercise.recup_hypertrophie ?? null,
-  recup_exercices_hypertrophie: exercise.recup_exercices_hypertrophie ?? null,
-  nb_series_force: exercise.Nb_series_force ?? null,
-  nb_reps_force: exercise.Nb_reps_force ?? null,
-  pourcentage_charge_1rm_force: exercise.pct_1rm_force ?? null,
-  recup_series_force: exercise.recup_force ?? null,
-  recup_exercices_force: exercise.recup_exercices_force ?? null,
-});
-
-const safeInt = (value: unknown, fallback = 0) => {
-  const num = Number(value);
-  return Number.isFinite(num) ? Math.round(num) : fallback;
-};
-
-const safeOptionalInt = (value: unknown) => {
-  const num = Number(value);
-  return Number.isFinite(num) ? Math.round(num) : null;
-};
-
-const loggedErrors = new Set<string>();
-
-export const parseApiError = (error: unknown): ApiErrorInfo => {
-  if (error instanceof Error) {
-    const info = error as ApiErrorInfo;
-    return {
-      message: info.message || "Erreur inconnue",
-      code: info.code,
-      status: info.status,
-    };
-  }
-  return { message: String(error || "Erreur inconnue") };
-};
-
-export const summarizeApiError = (error: unknown, fallbackMessage: string): ApiErrorInfo => {
-  const info = parseApiError(error);
-  const status = info.status;
-  const code = info.code;
-  let message = info.message || fallbackMessage;
-  if (code === "unknown_action") {
-    message = "Action inconnue côté serveur.";
-  } else if (code === "table_missing") {
-    message = "Base de données non initialisée (table manquante).";
-  } else if (status === 401) {
-    message = "Authentification expirée ou manquante.";
-  } else if (status === 403) {
-    message = "Accès refusé pour ce rôle.";
-  }
-  const logKey = `${code ?? "none"}:${status ?? "none"}:${message}`;
-  if (!loggedErrors.has(logKey)) {
-    console.error("[api] error:", info);
-    loggedErrors.add(logKey);
-  }
-  return { ...info, message };
-};
-
-const normalizeScaleToFive = (value: number | null | undefined) => {
-  if (value === null || value === undefined) return null;
-  const num = Number(value);
-  if (!Number.isFinite(num)) return null;
-  if (num <= 5) return Math.max(1, Math.round(num));
-  return Math.min(5, Math.max(1, Math.round(num / 2)));
-};
-
-const expandScaleToTen = (value: number | null | undefined) => {
-  if (value === null || value === undefined) return null;
-  const num = Number(value);
-  if (!Number.isFinite(num)) return null;
-  if (num <= 5) return Math.round(num * 2);
-  return Math.round(num);
-};
-
-const safeOptionalNumber = (value: unknown) => {
-  const num = Number(value);
-  return Number.isFinite(num) ? num : null;
-};
-
-const estimateOneRm = (weight?: number | null, reps?: number | null) => {
-  if (!Number.isFinite(weight) || !Number.isFinite(reps)) return null;
-  if ((weight ?? 0) <= 0 || (reps ?? 0) <= 0) return null;
-  if (reps === 1) return Math.round(weight as number);
-  return Math.round((weight as number) * (1 + (reps as number) / 30));
-};
-
-const normalizeCycleType = (value: unknown) => {
-  const normalized = String(value ?? "").trim().toLowerCase();
-  if (normalized === "hypertrophie" || normalized === "force" || normalized === "endurance") {
-    return normalized;
-  }
-  return "endurance";
-};
-
-const normalizeStrengthItem = (
-  item: RawStrengthItem,
-  index: number,
-  sessionCycle: string,
-): StrengthSessionItem => ({
-  exercise_id: safeInt(item.exercise_id),
-  order_index: safeOptionalInt(item.ordre ?? item.order_index) ?? index,
-  sets: safeOptionalInt(item.sets) ?? 0,
-  reps: safeOptionalInt(item.reps) ?? 0,
-  rest_seconds: safeOptionalInt(item.rest_series_s ?? item.rest_seconds) ?? 0,
-  percent_1rm: safeOptionalInt(item.pct_1rm ?? item.percent_1rm) ?? 0,
-  cycle_type: normalizeCycleType(item.cycle_type ?? sessionCycle),
-  notes: item.notes ?? "",
-  exercise_name: item.exercise_name ?? item.nom_exercice ?? undefined,
-  category: item.category ?? item.exercise_type ?? undefined,
-});
-
-const validateStrengthItems = (items: StrengthSessionItem[]) => {
-  for (let index = 0; index < items.length; index += 1) {
-    const item = items[index];
-    if (!Number.isFinite(item.sets) || item.sets < 0) {
-      throw new Error(`Séries invalides pour l'exercice #${index + 1}`);
-    }
-    if (!Number.isFinite(item.reps) || item.reps < 0) {
-      throw new Error(`Reps invalides pour l'exercice #${index + 1}`);
-    }
-    if (!Number.isFinite(item.rest_seconds) || item.rest_seconds < 0) {
-      throw new Error(`Repos invalide pour l'exercice #${index + 1}`);
-    }
-  }
-};
-
-const isExerciseType = (value: unknown): value is Exercise["exercise_type"] =>
-  value === "strength" || value === "warmup";
-
-const normalizeExerciseType = (value: unknown): Exercise["exercise_type"] =>
-  isExerciseType(value) ? value : "strength";
-
-const assertExerciseType = (value: unknown): Exercise["exercise_type"] => {
-  if (isExerciseType(value)) {
-    return value;
-  }
-  throw new Error("exercise_type must be 'strength' or 'warmup'");
-};
-
-const normalizeExercise = (exercise: RawDbExercise): Exercise => ({
+const normalizeExercise = (exercise: any): Exercise => ({
   id: safeInt(exercise.id),
   numero_exercice: safeOptionalInt(exercise.numero_exercice ?? exercise.numero),
   nom_exercice: exercise.nom_exercice ?? exercise.name ?? "",
@@ -560,7 +125,7 @@ interface NotificationListResult {
 }
 
 interface StrengthHistoryResult {
-  runs: LocalStrengthRun[];
+  runs: any[];
   pagination: Pagination;
   exercise_summary: StrengthExerciseSummary[];
 }
@@ -608,7 +173,7 @@ const mapToDbSession = (session: SyncSessionInput) => {
   return payload;
 };
 
-const mapFromDbSession = (raw: RawDbSession): Session | null => {
+const mapFromDbSession = (raw: any): Session | null => {
   if (!raw) return null;
   const athleteName = String(raw.athlete_name || "").trim();
   const date = String(raw.session_date || raw.date || "").trim();
@@ -778,21 +343,21 @@ export const api = {
       if (!rpcError && rpcData) {
         const hallOfFame = Array.isArray(rpcData) ? rpcData : [];
         const swimDistance = [...hallOfFame]
-          .map((item: RawHallOfFameRow) => ({
+          .map((item: any) => ({
             athlete_name: item.athlete_name,
             total_distance: Number(item.total_distance ?? 0),
           }))
           .sort((a, b) => b.total_distance - a.total_distance)
           .slice(0, 5);
         const swimPerformance = [...hallOfFame]
-          .map((item: RawHallOfFameRow) => ({
+          .map((item: any) => ({
             athlete_name: item.athlete_name,
             avg_effort: Number(item.avg_performance ?? item.avg_engagement ?? 0),
           }))
           .sort((a, b) => b.avg_effort - a.avg_effort)
           .slice(0, 5);
         const swimEngagement = [...hallOfFame]
-          .map((item: RawHallOfFameRow) => ({
+          .map((item: any) => ({
             athlete_name: item.athlete_name,
             avg_engagement: Number(item.avg_engagement ?? 0),
           }))
@@ -802,7 +367,7 @@ export const api = {
           distance: swimDistance,
           performance: swimPerformance,
           engagement: swimEngagement,
-          strength: [] as HallOfFameStrength[],
+          strength: [] as any[],
         };
       }
     }
@@ -836,14 +401,14 @@ export const api = {
 
     // Strength Stats
     const sMap = new Map();
-    runs.forEach((r: LocalStrengthRun) => {
+    runs.forEach((r: any) => {
       if (!sMap.has(r.athlete_name)) {
         sMap.set(r.athlete_name, { volume: 0, reps: 0, sets: 0, maxWeight: 0 });
       }
       const entry = sMap.get(r.athlete_name);
       // Calculate rough volume if logs present, else just count
       if (r.logs) {
-        (r.logs ?? []).forEach((l: SetLogEntry) => {
+        r.logs.forEach((l: any) => {
           const reps = Number(l.reps ?? 0);
           const weight = Number(l.weight ?? 0);
           entry.volume += reps * weight;
@@ -893,7 +458,7 @@ export const api = {
     if (!canUseSupabase()) return [];
     const { data, error } = await supabase.from("club_record_swimmers").select("*");
     if (error) throw new Error(error.message);
-    return (data ?? []).map((s: RawClubRecordSwimmerRow) => ({ ...s, is_active: s.is_active ? 1 : 0 }));
+    return (data ?? []).map((s: any) => ({ ...s, is_active: s.is_active ? 1 : 0 }));
   },
 
   async createClubRecordSwimmer(payload: {
@@ -946,7 +511,7 @@ export const api = {
     return data ? { ...data, is_active: data.is_active ? 1 : 0 } : null;
   },
 
-  async importClubRecords(): Promise<ImportClubRecordsResult | null> {
+  async importClubRecords(): Promise<any> {
     if (!canUseSupabase()) return null;
     const { data, error } = await supabase.functions.invoke("import-club-records");
     if (error) throw new Error(error.message);
@@ -962,7 +527,7 @@ export const api = {
       }
       const exercises = this._get(STORAGE_KEYS.EXERCISES) || [];
       const list = Array.isArray(exercises) ? exercises : [];
-      return list.map((exercise: RawDbExercise) => normalizeExercise(exercise));
+      return list.map((exercise: any) => normalizeExercise(exercise));
   },
 
   async createExercise(exercise: Omit<Exercise, "id">) {
@@ -1039,7 +604,7 @@ export const api = {
           .select("*, strength_session_items(*, dim_exercices(nom_exercice, exercise_type))")
           .order("created_at", { ascending: false });
         if (error) throw new Error(error.message);
-        return (sessions ?? []).map((session: RawSupabaseStrengthSession) => {
+        return (sessions ?? []).map((session: any) => {
           const rawItems = Array.isArray(session.strength_session_items) ? session.strength_session_items : [];
           const cycle = normalizeCycleType(rawItems[0]?.cycle_type);
           return {
@@ -1048,8 +613,8 @@ export const api = {
             description: session.description ?? "",
             cycle,
             items: rawItems
-              .sort((a: RawStrengthItem, b: RawStrengthItem) => (a.ordre ?? 0) - (b.ordre ?? 0))
-              .map((item: RawStrengthItem, index: number) => ({
+              .sort((a: any, b: any) => (a.ordre ?? 0) - (b.ordre ?? 0))
+              .map((item: any, index: number) => ({
                 ...normalizeStrengthItem(item, index, cycle),
                 exercise_name: item.dim_exercices?.nom_exercice ?? undefined,
                 category: item.dim_exercices?.exercise_type ?? undefined,
@@ -1060,11 +625,11 @@ export const api = {
       return this._get(STORAGE_KEYS.STRENGTH_SESSIONS) || [];
   },
 
-  async createStrengthSession(session: StrengthSessionInput) {
+  async createStrengthSession(session: any) {
        const cycle = normalizeCycleType(session?.cycle ?? session?.cycle_type);
        const rawItems: unknown[] = Array.isArray(session?.items) ? session.items : [];
        const normalizedItems: StrengthSessionItem[] = rawItems.map((item, index) =>
-         normalizeStrengthItem(item as RawStrengthItem, index, cycle),
+         normalizeStrengthItem(item, index, cycle),
        );
        validateStrengthItems(normalizedItems);
        const itemsPayload = normalizedItems
@@ -1110,7 +675,7 @@ export const api = {
        const s = this._get(STORAGE_KEYS.STRENGTH_SESSIONS) || [];
        const id = Date.now();
        const enrichedItems = normalizedItems.map((item: StrengthSessionItem) => {
-         const ex = (this._get(STORAGE_KEYS.EXERCISES) || []).find((e: RawDbExercise) => e.id === item.exercise_id);
+         const ex = (this._get(STORAGE_KEYS.EXERCISES) || []).find((e: any) => e.id === item.exercise_id);
          return { ...item, exercise_name: ex?.nom_exercice, category: ex?.exercise_type };
        });
        this._save(STORAGE_KEYS.STRENGTH_SESSIONS, [
@@ -1126,14 +691,14 @@ export const api = {
        return { status: "created", id };
   },
 
-  async updateStrengthSession(session: StrengthSessionInput) {
+  async updateStrengthSession(session: any) {
        if (!session?.id) {
          throw new Error("Session id manquant");
        }
        const cycle = normalizeCycleType(session?.cycle ?? session?.cycle_type);
        const rawItems: unknown[] = Array.isArray(session?.items) ? session.items : [];
        const normalizedItems: StrengthSessionItem[] = rawItems.map((item, index) =>
-         normalizeStrengthItem(item as RawStrengthItem, index, cycle),
+         normalizeStrengthItem(item, index, cycle),
        );
        validateStrengthItems(normalizedItems);
        const itemsPayload = normalizedItems
@@ -1183,7 +748,7 @@ export const api = {
          throw new Error("Séance introuvable");
        }
        const enrichedItems = normalizedItems.map((item: StrengthSessionItem) => {
-         const ex = (this._get(STORAGE_KEYS.EXERCISES) || []).find((e: RawDbExercise) => e.id === item.exercise_id);
+         const ex = (this._get(STORAGE_KEYS.EXERCISES) || []).find((e: any) => e.id === item.exercise_id);
          return { ...item, exercise_name: ex?.nom_exercice, category: ex?.exercise_type };
        });
        const updatedSession = {
@@ -1256,7 +821,7 @@ export const api = {
       this._save(STORAGE_KEYS.STRENGTH_RUNS, [...runs, newRun]);
       if (data.assignment_id) {
         const assignments = this._get(STORAGE_KEYS.ASSIGNMENTS) || [];
-        const updated = assignments.map((assignment: LocalAssignment) =>
+        const updated = assignments.map((assignment: any) =>
           assignment.id === data.assignment_id ? { ...assignment, status: "in_progress" } : assignment,
         );
         this._save(STORAGE_KEYS.ASSIGNMENTS, updated);
@@ -1287,7 +852,7 @@ export const api = {
         if (athleteId === null && !athleteName) return null;
         const existing = await this.get1RM({ athleteName, athleteId });
         const existingByExercise = new Map<number, number>(
-          (existing || []).map((record: OneRmEntry) => [record.exercise_id, Number(record.weight ?? 0)]),
+          (existing || []).map((record: any) => [record.exercise_id, Number(record.weight ?? 0)]),
         );
         const current = existingByExercise.get(payload.exercise_id) ?? 0;
         if (estimate <= current) return null;
@@ -1303,14 +868,14 @@ export const api = {
         return estimate;
       };
 
-      const resolveAthleteContext = (runs?: LocalStrengthRun[]) => {
+      const resolveAthleteContext = (runs?: any[]) => {
         const athleteId = payload.athlete_id ?? payload.athleteId ?? null;
         const athleteName = payload.athlete_name ?? payload.athleteName ?? null;
         if (athleteId !== null || athleteName) {
           return { athleteId, athleteName };
         }
         if (!runs) return { athleteId: null, athleteName: null };
-        const run = runs.find((entry: LocalStrengthRun) => entry.id === payload.run_id);
+        const run = runs.find((entry: any) => entry.id === payload.run_id);
         return {
           athleteId: run?.athlete_id ?? null,
           athleteName: run?.athlete_name ?? null,
@@ -1337,7 +902,7 @@ export const api = {
       }
 
       const runs = this._get(STORAGE_KEYS.STRENGTH_RUNS) || [];
-      const runIndex = runs.findIndex((entry: LocalStrengthRun) => entry.id === payload.run_id);
+      const runIndex = runs.findIndex((entry: any) => entry.id === payload.run_id);
       const baseRun = runIndex >= 0 ? runs[runIndex] : { id: payload.run_id, logs: [] };
       const updatedLogs = [...(baseRun.logs || []), { ...payload, completed_at: new Date().toISOString() }];
       const updatedRun = { ...baseRun, logs: updatedLogs };
@@ -1351,7 +916,12 @@ export const api = {
       return { status: "ok", one_rm_updated: Boolean(updated), one_rm: updated ?? undefined };
   },
 
-  async updateStrengthRun(update: UpdateStrengthRunInput) {
+  async updateStrengthRun(update: {
+    run_id: number;
+    progress_pct?: number;
+    status?: "in_progress" | "completed" | "abandoned";
+    [key: string]: any;
+  }) {
       if (canUseSupabase()) {
         const updatePayload: Record<string, unknown> = {};
         if (update.progress_pct !== undefined) updatePayload.progress_pct = update.progress_pct;
@@ -1367,7 +937,7 @@ export const api = {
       }
 
       const runs = this._get(STORAGE_KEYS.STRENGTH_RUNS) || [];
-      const runIndex = runs.findIndex((entry: LocalStrengthRun) => entry.id === update.run_id);
+      const runIndex = runs.findIndex((entry: any) => entry.id === update.run_id);
       const now = new Date().toISOString();
       const baseRun = runIndex >= 0 ? runs[runIndex] : { id: update.run_id, started_at: now };
       const updatedRun = {
@@ -1383,7 +953,7 @@ export const api = {
         const assignmentId = update.assignment_id ?? baseRun.assignment_id;
         if (assignmentId) {
           const assignments = this._get(STORAGE_KEYS.ASSIGNMENTS) || [];
-          const updatedAssignments = assignments.map((assignment: LocalAssignment) =>
+          const updatedAssignments = assignments.map((assignment: any) =>
             assignment.id === assignmentId ? { ...assignment, status: "completed" } : assignment,
           );
           this._save(STORAGE_KEYS.ASSIGNMENTS, updatedAssignments);
@@ -1405,12 +975,12 @@ export const api = {
       }
 
       const runs = this._get(STORAGE_KEYS.STRENGTH_RUNS) || [];
-      const target = runs.find((entry: LocalStrengthRun) => entry.id === runId);
-      const updatedRuns = runs.filter((entry: LocalStrengthRun) => entry.id !== runId);
+      const target = runs.find((entry: any) => entry.id === runId);
+      const updatedRuns = runs.filter((entry: any) => entry.id !== runId);
       this._save(STORAGE_KEYS.STRENGTH_RUNS, updatedRuns);
       if (target?.assignment_id) {
         const assignments = this._get(STORAGE_KEYS.ASSIGNMENTS) || [];
-        const nextAssignments = assignments.map((assignment: LocalAssignment) =>
+        const nextAssignments = assignments.map((assignment: any) =>
           assignment.id === target.assignment_id ? { ...assignment, status: "assigned" } : assignment,
         );
         this._save(STORAGE_KEYS.ASSIGNMENTS, nextAssignments);
@@ -1418,7 +988,7 @@ export const api = {
       return { status: "deleted", source: "local" as const };
   },
 
-  async saveStrengthRun(run: SaveStrengthRunInput) {
+  async saveStrengthRun(run: any) {
       if (canUseSupabase()) {
         let runId = run.run_id;
         // Step 1: Create run if needed
@@ -1437,7 +1007,7 @@ export const api = {
         // Step 2: Insert all set logs
         if (runId && Array.isArray(run.logs) && run.logs.length > 0) {
           const { error: logsError } = await supabase.from("strength_set_logs").insert(
-            run.logs.map((log: SetLogEntry, index: number) => ({
+            run.logs.map((log: any, index: number) => ({
               run_id: runId,
               exercise_id: log.exercise_id,
               set_index: log.set_index ?? log.set_number ?? index,
@@ -1454,7 +1024,7 @@ export const api = {
         // Step 3: Calculate 1RM estimates and upsert records
         const estimatedRecords = new Map<number, number>();
         const logs = Array.isArray(run.logs) ? run.logs : [];
-        logs.forEach((log: SetLogEntry) => {
+        logs.forEach((log: any) => {
           const estimate = estimateOneRm(Number(log.weight), Number(log.reps));
           if (!estimate) return;
           const exerciseId = Number(log.exercise_id);
@@ -1470,7 +1040,7 @@ export const api = {
           if (athleteId !== null && athleteId !== undefined && athleteId !== "") {
             const existing = await this.get1RM({ athleteName, athleteId });
             const existingByExercise = new Map<number, number>(
-              (existing || []).map((record: OneRmEntry) => [record.exercise_id, Number(record.weight ?? 0)]),
+              (existing || []).map((record: any) => [record.exercise_id, Number(record.weight ?? 0)]),
             );
             await Promise.all(
               Array.from(estimatedRecords.entries())
@@ -1505,7 +1075,7 @@ export const api = {
 
       const runs = this._get(STORAGE_KEYS.STRENGTH_RUNS) || [];
       const runId = run.run_id ?? Date.now();
-      const existing = runs.find((entry: LocalStrengthRun) => entry.id === runId) || {};
+      const existing = runs.find((entry: any) => entry.id === runId) || {};
       const completedRun = {
         ...existing,
         ...run,
@@ -1516,18 +1086,18 @@ export const api = {
       };
       this._save(
         STORAGE_KEYS.STRENGTH_RUNS,
-        [...runs.filter((entry: LocalStrengthRun) => entry.id !== runId), completedRun],
+        [...runs.filter((entry: any) => entry.id !== runId), completedRun],
       );
       if (run.assignment_id) {
         const assignments = this._get(STORAGE_KEYS.ASSIGNMENTS) || [];
-        const updated = assignments.map((assignment: LocalAssignment) =>
+        const updated = assignments.map((assignment: any) =>
           assignment.id === run.assignment_id ? { ...assignment, status: "completed" } : assignment,
         );
         this._save(STORAGE_KEYS.ASSIGNMENTS, updated);
       }
       const estimatedRecords = new Map<number, number>();
       const logs = Array.isArray(run.logs) ? run.logs : [];
-      logs.forEach((log: SetLogEntry) => {
+      logs.forEach((log: any) => {
         const estimate = estimateOneRm(Number(log.weight), Number(log.reps));
         if (!estimate) return;
         const exerciseId = Number(log.exercise_id);
@@ -1542,7 +1112,7 @@ export const api = {
         const athleteName = run.athlete_name ?? null;
         const existing = await this.get1RM({ athleteName, athleteId });
         const existingByExercise = new Map<number, number>(
-          (existing || []).map((record: OneRmEntry) => [record.exercise_id, Number(record.weight ?? 0)]),
+          (existing || []).map((record: any) => [record.exercise_id, Number(record.weight ?? 0)]),
         );
         await Promise.all(
           Array.from(estimatedRecords.entries())
@@ -1596,7 +1166,7 @@ export const api = {
       ]);
 
       const assignments = this._get(STORAGE_KEYS.ASSIGNMENTS) || [];
-      const updatedAssignments = assignments.map((assignment: LocalAssignment) =>
+      const updatedAssignments = assignments.map((assignment: any) =>
         assignment.id === data.assignmentId
           ? { ...assignment, status: "in_progress", updated_at: new Date().toISOString() }
           : assignment,
@@ -1648,7 +1218,7 @@ export const api = {
     }
 
     const runs = this._get(STORAGE_KEYS.STRENGTH_RUNS) || [];
-    const filtered = runs.filter((r: LocalStrengthRun) => {
+    const filtered = runs.filter((r: any) => {
       if (hasAthleteId && String(r.athlete_id) !== String(athleteId)) {
         return false;
       }
@@ -1677,21 +1247,21 @@ export const api = {
       }
       return true;
     });
-    const sorted = filtered.sort((a: LocalStrengthRun, b: LocalStrengthRun) => {
+    const sorted = filtered.sort((a: any, b: any) => {
       const aDate = new Date(a.date || a.started_at || a.created_at || 0).getTime();
       const bDate = new Date(b.date || b.started_at || b.created_at || 0).getTime();
       return order === "asc" ? aDate - bDate : bDate - aDate;
     });
     const exercises = this._get(STORAGE_KEYS.EXERCISES) || [];
     const exerciseMap = new Map(
-      (Array.isArray(exercises) ? exercises : []).map((exercise: RawDbExercise) => [
+      (Array.isArray(exercises) ? exercises : []).map((exercise: any) => [
         safeInt(exercise.id),
         exercise.nom_exercice || exercise.name || `Exercice ${exercise.id}`,
       ]),
     );
     const exerciseSummaryMap = new Map<number, StrengthExerciseSummary>();
-    sorted.forEach((run: LocalStrengthRun) => {
-      (run.logs || []).forEach((log: SetLogEntry) => {
+    sorted.forEach((run: any) => {
+      (run.logs || []).forEach((log: any) => {
         const exerciseId = safeInt(log.exercise_id);
         if (!exerciseId) return;
         const current = exerciseSummaryMap.get(exerciseId) || {
@@ -1762,7 +1332,7 @@ export const api = {
     }
 
     const runs = this._get(STORAGE_KEYS.STRENGTH_RUNS) || [];
-    const filtered = runs.filter((r: LocalStrengthRun) => {
+    const filtered = runs.filter((r: any) => {
       if (hasAthleteId) {
         return r.athlete_id ? String(r.athlete_id) === String(athleteId) : false;
       }
@@ -1785,9 +1355,9 @@ export const api = {
       }
       return date.toISOString().split("T")[0];
     };
-    filtered.forEach((run: LocalStrengthRun) => {
+    filtered.forEach((run: any) => {
       const logs = Array.isArray(run.logs) ? run.logs : [];
-      logs.forEach((log: SetLogEntry) => {
+      logs.forEach((log: any) => {
         const dateValue = log.completed_at || run.started_at || run.date || run.created_at;
         if (!dateValue) return;
         const date = new Date(dateValue);
@@ -1824,7 +1394,7 @@ export const api = {
         }
         const { data, error } = await query;
         if (error) throw new Error(error.message);
-        return (data ?? []).map((record: { id?: number; athlete_id?: number; exercise_id: number; one_rm?: number; recorded_at?: string | null }) => ({
+        return (data ?? []).map((record: any) => ({
           id: safeOptionalInt(record.id),
           athlete_id: safeOptionalInt(record.athlete_id),
           exercise_id: safeInt(record.exercise_id),
@@ -1833,7 +1403,7 @@ export const api = {
         }));
       }
       const records = this._get(STORAGE_KEYS.ONE_RM) || [];
-      return records.filter((r: OneRmEntry) => r.athlete_name === athleteName);
+      return records.filter((r: any) => r.athlete_name === athleteName);
   },
   
   async update1RM(record: {
@@ -1862,7 +1432,7 @@ export const api = {
       }
       const records = this._get(STORAGE_KEYS.ONE_RM) || [];
       const athleteName = record.athlete_name ?? record.athleteName;
-      const filtered = records.filter((r: OneRmEntry) => !(r.athlete_name === athleteName && r.exercise_id === record.exercise_id));
+      const filtered = records.filter((r: any) => !(r.athlete_name === athleteName && r.exercise_id === record.exercise_id));
       this._save(STORAGE_KEYS.ONE_RM, [
         ...filtered,
         { ...record, athlete_name: athleteName, id: Date.now(), date: new Date().toISOString() },
@@ -1887,7 +1457,7 @@ export const api = {
 
 
       const records = this._get(STORAGE_KEYS.SWIM_RECORDS) || [];
-      const filtered = records.filter((r: LocalSwimRecord) => {
+      const filtered = records.filter((r: any) => {
         if (options.athleteId) return r.athlete_id === options.athleteId;
         if (options.athleteName) return r.athlete_name === options.athleteName;
         return false;
@@ -1930,7 +1500,7 @@ export const api = {
 
       const records = this._get(STORAGE_KEYS.SWIM_RECORDS) || [];
       if (payload.id) {
-        const updated = records.map((record: LocalSwimRecord) =>
+        const updated = records.map((record: any) =>
           record.id === payload.id
             ? { ...record, ...payload, athlete_id: payload.athlete_id ?? record.athlete_id }
             : record,
@@ -1956,7 +1526,7 @@ export const api = {
           .select("*, swim_session_items(*)")
           .order("created_at", { ascending: false });
         if (error) throw new Error(error.message);
-        return (catalogs ?? []).map((catalog: RawSwimCatalog) => ({
+        return (catalogs ?? []).map((catalog: any) => ({
           id: safeInt(catalog.id, Date.now()),
           name: String(catalog.name || ""),
           description: catalog.description ?? null,
@@ -1965,8 +1535,8 @@ export const api = {
           updated_at: catalog.updated_at ?? null,
           items: Array.isArray(catalog.swim_session_items)
             ? catalog.swim_session_items
-                .sort((a: RawSwimCatalogItem, b: RawSwimCatalogItem) => (a.ordre ?? 0) - (b.ordre ?? 0))
-                .map((item: RawSwimCatalogItem, index: number) => ({
+                .sort((a: any, b: any) => (a.ordre ?? 0) - (b.ordre ?? 0))
+                .map((item: any, index: number) => ({
                   id: safeOptionalInt(item.id) ?? undefined,
                   catalog_id: safeOptionalInt(item.catalog_id) ?? undefined,
                   ordre: safeOptionalInt(item.ordre) ?? index,
@@ -1982,7 +1552,7 @@ export const api = {
       }
 
       const raw = this._get(STORAGE_KEYS.SWIM_SESSIONS) || [];
-      return raw.map((catalog: RawSwimCatalog) => ({
+      return raw.map((catalog: any) => ({
         id: safeInt(catalog.id, Date.now()),
         name: String(catalog.name || catalog.title || ""),
         description: catalog.description ?? null,
@@ -1990,7 +1560,7 @@ export const api = {
         created_at: catalog.created_at ?? null,
         updated_at: catalog.updated_at ?? null,
         items: Array.isArray(catalog.items)
-          ? catalog.items.map((item: RawSwimCatalogItem, index: number) => ({
+          ? catalog.items.map((item: any, index: number) => ({
               id: safeOptionalInt(item.id) ?? undefined,
               catalog_id: safeOptionalInt(item.catalog_id) ?? undefined,
               ordre: safeOptionalInt(item.ordre) ?? index,
@@ -2012,10 +1582,10 @@ export const api = {
       }));
   },
 
-  async createSwimSession(session: SwimSessionInput) {
+  async createSwimSession(session: any) {
       if (canUseSupabase()) {
         const items = Array.isArray(session.items)
-          ? session.items.map((item: SwimSessionItemInput, index: number) => ({
+          ? session.items.map((item: any, index: number) => ({
               ordre: item.ordre ?? index,
               label: item.label ?? null,
               distance: item.distance ?? null,
@@ -2035,7 +1605,7 @@ export const api = {
           await supabase.from("swim_session_items").delete().eq("catalog_id", session.id);
           if (items.length > 0) {
             const { error: itemsError } = await supabase.from("swim_session_items").insert(
-              items.map((item: SwimSessionItemInput) => ({ ...item, catalog_id: session.id })),
+              items.map((item: any) => ({ ...item, catalog_id: session.id })),
             );
             if (itemsError) throw new Error(itemsError.message);
           }
@@ -2049,7 +1619,7 @@ export const api = {
         if (error) throw new Error(error.message);
         if (items.length > 0) {
           const { error: itemsError } = await supabase.from("swim_session_items").insert(
-            items.map((item: SwimSessionItemInput) => ({ ...item, catalog_id: created.id })),
+            items.map((item: any) => ({ ...item, catalog_id: created.id })),
           );
           if (itemsError) throw new Error(itemsError.message);
         }
@@ -2058,9 +1628,9 @@ export const api = {
 
       const s = this._get(STORAGE_KEYS.SWIM_SESSIONS) || [];
       if (session.id) {
-        const exists = s.some((entry: RawSwimCatalog) => entry.id === session.id);
+        const exists = s.some((entry: any) => entry.id === session.id);
         const updated = exists
-          ? s.map((entry: RawSwimCatalog) => (entry.id === session.id ? { ...entry, ...session } : entry))
+          ? s.map((entry: any) => (entry.id === session.id ? { ...entry, ...session } : entry))
           : [...s, { ...session, id: session.id }];
         this._save(STORAGE_KEYS.SWIM_SESSIONS, updated);
         return { status: exists ? "updated" : "created" };
@@ -2124,7 +1694,7 @@ export const api = {
         const swimById = new Map(swimCatalogs.map((catalog) => [catalog.id, catalog]));
         const strengthById = new Map(strengthCatalogs.map((session) => [session.id, session]));
         const mapped = rawAssignments
-          .map((assignment: LocalAssignment) => {
+          .map((assignment: any) => {
             const sessionType = assignment.assignment_type === "strength" ? "strength" : "swim";
             const sessionId =
               safeOptionalInt(
@@ -2159,7 +1729,7 @@ export const api = {
 
       await delay(200);
       const all = this._get(STORAGE_KEYS.ASSIGNMENTS) || [];
-      return all.filter((a: LocalAssignment) => {
+      return all.filter((a: any) => {
         const matchesUserId =
           athleteId !== null &&
           athleteId !== undefined &&
@@ -2225,11 +1795,11 @@ export const api = {
       }
 
       // Fetch source session to copy details (simplification for mock)
-      let source: { name?: string; title?: string; description?: string; items?: unknown[] } | undefined;
+      let source: any;
       if (assignmentType === 'swim') {
-          source = (this._get(STORAGE_KEYS.SWIM_SESSIONS) || []).find((s: RawSwimCatalog) => s.id === data.session_id);
+          source = (this._get(STORAGE_KEYS.SWIM_SESSIONS) || []).find((s: any) => s.id === data.session_id);
       } else {
-          source = (this._get(STORAGE_KEYS.STRENGTH_SESSIONS) || []).find((s: StrengthSessionInput) => s.id === data.session_id);
+          source = (this._get(STORAGE_KEYS.STRENGTH_SESSIONS) || []).find((s: any) => s.id === data.session_id);
       }
 
       if (!source) return { status: "error" };
@@ -2278,7 +1848,7 @@ export const api = {
       }
 
       const assignments = this._get(STORAGE_KEYS.ASSIGNMENTS) || [];
-      const updated = assignments.filter((assignment: LocalAssignment) => assignment.id !== assignmentId);
+      const updated = assignments.filter((assignment: any) => assignment.id !== assignmentId);
       this._save(STORAGE_KEYS.ASSIGNMENTS, updated);
       return { status: "deleted" };
   },
@@ -2286,7 +1856,7 @@ export const api = {
   async getNotifications(athleteName: string): Promise<Notification[]> {
       await delay(200);
       const notifs = this._get(STORAGE_KEYS.NOTIFICATIONS) || [];
-      return notifs.filter((n: LocalNotification) => n.target_athlete === athleteName || n.target_athlete === "All").reverse();
+      return notifs.filter((n: any) => n.target_athlete === athleteName || n.target_athlete === "All").reverse();
   },
   
   async notifications_send(payload: {
@@ -2338,7 +1908,7 @@ export const api = {
 
   async markNotificationRead(id: number) {
       const notifs = this._get(STORAGE_KEYS.NOTIFICATIONS) || [];
-      const updated = notifs.map((n: LocalNotification) => n.id === id ? { ...n, read: true } : n);
+      const updated = notifs.map((n: any) => n.id === id ? { ...n, read: true } : n);
       this._save(STORAGE_KEYS.NOTIFICATIONS, updated);
   },
 
@@ -2390,7 +1960,7 @@ export const api = {
       }
       const { data: rawTargets, error } = await query;
       if (error) throw new Error(error.message);
-      const mapped = (rawTargets ?? []).map((t: RawNotificationTarget) => {
+      const mapped = (rawTargets ?? []).map((t: any) => {
         const notif = t.notifications || {};
         return {
           id: safeInt(t.id, Date.now()),
@@ -2420,7 +1990,7 @@ export const api = {
 
     await delay(200);
     const notifs = this._get(STORAGE_KEYS.NOTIFICATIONS) || [];
-    const filtered = notifs.filter((notif: LocalNotification) => {
+    const filtered = notifs.filter((notif: any) => {
       if (options.targetUserId && notif.target_user_id !== options.targetUserId) {
         return false;
       }
@@ -2435,14 +2005,14 @@ export const api = {
       if (options.status === "unread" && notif.read) return false;
       return true;
     });
-    const sorted = filtered.sort((a: LocalNotification, b: LocalNotification) => {
+    const sorted = filtered.sort((a: any, b: any) => {
       const aDate = new Date(a.date || a.created_at || 0).getTime();
       const bDate = new Date(b.date || b.created_at || 0).getTime();
       return order === "asc" ? aDate - bDate : bDate - aDate;
     });
     const total = sorted.length;
     const page = sorted.slice(offset, offset + limit);
-    const notifications = page.map((notif: LocalNotification) => ({
+    const notifications = page.map((notif: any) => ({
       id: safeInt(notif.id, Date.now()),
       target_user_id: safeOptionalInt(notif.target_user_id) ?? null,
       sender_id: safeOptionalInt(notif.sender_id) ?? null,
@@ -2470,7 +2040,7 @@ export const api = {
     }
 
     const notifs = this._get(STORAGE_KEYS.NOTIFICATIONS) || [];
-    const updated = notifs.map((notif: LocalNotification) => notif.id === resolvedId ? { ...notif, read: true } : notif);
+    const updated = notifs.map((notif: any) => notif.id === resolvedId ? { ...notif, read: true } : notif);
     this._save(STORAGE_KEYS.NOTIFICATIONS, updated);
   },
 
@@ -2576,7 +2146,7 @@ export const api = {
     if (canUseSupabase()) {
       const { data, error } = await supabase.from("users").select("id, display_name").eq("role", "coach").eq("is_active", true);
       if (error) throw new Error(error.message);
-      return (data ?? []).map((u: RawUserRow) => ({ id: u.id, display_name: u.display_name }));
+      return (data ?? []).map((u: any) => ({ id: u.id, display_name: u.display_name }));
     }
     return [];
   },
@@ -2737,11 +2307,11 @@ export const api = {
           }
         };
         const sessions = this._get(STORAGE_KEYS.SESSIONS) ?? [];
-        sessions.forEach((session: { athlete_name?: string; athlete_id?: number }) => addAthlete(session.athlete_name, session.athlete_id));
+        sessions.forEach((session: any) => addAthlete(session.athlete_name, session.athlete_id));
         const strengthRuns = this._get(STORAGE_KEYS.STRENGTH_RUNS) ?? [];
-        strengthRuns.forEach((run: LocalStrengthRun) => addAthlete(run.athlete_name, run.athlete_id != null ? Number(run.athlete_id) : null));
+        strengthRuns.forEach((run: any) => addAthlete(run.athlete_name, run.athlete_id));
         const assignments = this._get(STORAGE_KEYS.ASSIGNMENTS) ?? [];
-        assignments.forEach((assignment: LocalAssignment) => addAthlete(assignment.target_athlete, assignment.target_user_id));
+        assignments.forEach((assignment: any) => addAthlete(assignment.target_athlete, assignment.target_user_id));
         return Array.from(athletes.values()).sort((a, b) =>
           a.display_name.localeCompare(b.display_name, "fr"),
         );
@@ -2754,7 +2324,7 @@ export const api = {
         const { data: users, error: usersError } = await supabase.from("users").select("id, display_name").eq("role", "athlete").eq("is_active", true);
         if (usersError) throw new Error(usersError.message);
         return (users ?? [])
-          .map((u: RawUserRow) => ({ id: u.id, display_name: u.display_name }))
+          .map((u: any) => ({ id: u.id, display_name: u.display_name }))
           .filter((a: AthleteSummary) => a.display_name)
           .sort((a, b) => a.display_name.localeCompare(b.display_name, "fr"));
       }
@@ -2763,15 +2333,14 @@ export const api = {
         .select("user_id, group_id, users!inner(display_name, role)")
         .eq("users.role", "athlete");
       if (membersError) throw new Error(membersError.message);
-      const groupMap = new Map(groups.map((g: RawGroupRow) => [g.id, g.name]));
+      const groupMap = new Map(groups.map((g: any) => [g.id, g.name]));
       const athleteMap = new Map<number, AthleteSummary>();
-      (members ?? []).forEach((m) => {
+      (members ?? []).forEach((m: any) => {
         const userId = m.user_id;
         if (athleteMap.has(userId)) return;
-        const userInfo = Array.isArray(m.users) ? m.users[0] : m.users;
         athleteMap.set(userId, {
           id: userId,
-          display_name: userInfo?.display_name ?? "",
+          display_name: (m.users as any)?.display_name ?? "",
           group_label: groupMap.get(m.group_id) ?? null,
         });
       });
@@ -2785,7 +2354,7 @@ export const api = {
       const { data, error } = await supabase.from("groups").select("id, name, description");
       if (error) throw new Error(error.message);
       return (data ?? [])
-        .map((group: RawGroupRow) => ({
+        .map((group: any) => ({
           id: safeInt(group.id, 0),
           name: String(group.name ?? `Groupe ${group.id ?? ""}`).trim(),
           member_count: null,
@@ -2815,12 +2384,12 @@ export const api = {
       }
       const { data, error } = await query.order("display_name");
       if (error) throw new Error(error.message);
-      return (data ?? []).map((user: RawUserRow) => ({
+      return (data ?? []).map((user: any) => ({
         id: user.id,
         display_name: user.display_name ?? "",
         role: user.role ?? "",
         email: user.email ?? null,
-        is_active: user.is_active ?? undefined,
+        is_active: user.is_active ?? null,
         group_label: null,
       }));
   },
@@ -2879,7 +2448,7 @@ export const api = {
     return raw ? JSON.parse(raw) : null;
   },
 
-  _save(key: string, data: unknown) {
+  _save(key: string, data: any) {
     localStorage.setItem(key, JSON.stringify(data));
   },
 

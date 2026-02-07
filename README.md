@@ -56,7 +56,7 @@ Application web de suivi des séances de natation et de musculation pour l'Erste
 | Natation nageur | ✅ OK | |
 | Natation coach | ✅ OK | |
 | Musculation nageur | ✅ OK | |
-| Musculation coach | ⚠️ Partiel | `coachStrength: false` dans features.ts |
+| Musculation coach | ✅ OK | |
 | Messagerie | ✅ OK | |
 | Pointage heures | ✅ OK | |
 | Records FFN | ✅ OK | Sync via Edge Function |
@@ -159,14 +159,19 @@ supabase secrets set SERVICE_ROLE_KEY=<service-role-key>
 
 ## Roadmap
 
+### Complété récemment
+- [x] Activer le builder musculation coach (`coachStrength`)
+- [x] Tests E2E critiques (Login, Dashboard, Strength, Records)
+- [x] Audit UI/UX (touch targets, safe areas, responsive)
+- [x] Performance: lazy loading, code splitting (-80% bundle)
+
 ### En cours
-- [ ] Activer le builder musculation coach (`coachStrength`)
 - [ ] Augmenter la couverture de tests (cible: 15%)
+- [ ] Refactoring `api.ts` en modules (2859→2459 lignes, -14%)
 
 ### Planifié
-- [ ] Refactoring `api.ts` en modules
 - [ ] Migration tokens vers cookies httpOnly
-- [ ] Tests E2E avec Playwright
+- [ ] Documentation API Supabase
 
 ## Contribuer
 
@@ -177,4 +182,4 @@ supabase secrets set SERVICE_ROLE_KEY=<service-role-key>
 
 ---
 
-*Dernière mise à jour : 2026-02-05*
+*Dernière mise à jour : 2026-02-07*

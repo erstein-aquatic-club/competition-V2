@@ -21,7 +21,7 @@ Fichier : `src/lib/features.ts`
 export const FEATURES = {
   strength: true,        // ✅ Musculation nageur
   hallOfFame: true,      // ✅ Hall of Fame
-  coachStrength: false,  // ❌ Builder musculation coach
+  coachStrength: true,   // ✅ Builder musculation coach
 } as const;
 ```
 
@@ -74,9 +74,9 @@ export const FEATURES = {
 
 | Fonctionnalité | Statut | Fichiers | Notes |
 |----------------|--------|----------|-------|
-| Builder séance | ❌ | `StrengthCatalog.tsx` | `coachStrength: false` |
-| Catalogue exercices | ❌ | `StrengthCatalog.tsx` | Idem |
-| Assignation | ✅ | via API | Fonctionne si séances existent |
+| Builder séance | ✅ | `StrengthCatalog.tsx` | `coachStrength: true` |
+| Catalogue exercices | ✅ | `StrengthCatalog.tsx` | |
+| Assignation | ✅ | via API | |
 
 ### Records & Hall of Fame
 
@@ -156,8 +156,12 @@ Pour ajouter les GIFs manquants, mettre à jour la colonne `illustration_gif` da
 
 ---
 
-## Prochaines activations
+## État des Feature Flags
 
-| Feature Flag | Priorité | Effort estimé |
-|--------------|----------|---------------|
-| `coachStrength` | HAUTE | 2h (déjà implémenté, juste à activer) |
+Tous les feature flags sont actuellement activés :
+
+| Feature Flag | Statut |
+|--------------|--------|
+| `strength` | ✅ Activé |
+| `hallOfFame` | ✅ Activé |
+| `coachStrength` | ✅ Activé |

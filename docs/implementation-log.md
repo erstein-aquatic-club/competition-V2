@@ -26,6 +26,11 @@ Ce document trace l'avancement des tâches et migrations.
 | Création FEATURES_STATUS.md | `27fd696` | Matrice fonctionnalités |
 | **Fix FFN sync pool_length** | `de0063c` | **Regex parsing, split par "Bassin : 25/50 m"** |
 | Optimisation GIF | `087e9a6` | max-h-36, decoding="async" |
+| **Code splitting** | `1c3cedf` | **Lazy loading routes, vendor chunks (-80% bundle)** |
+| **Refactor API types** | `8f556a6` | **Types extraits vers api/types.ts** |
+| **Refactor API client** | `3f6c7f2` | **Utilitaires extraits vers api/client.ts** |
+| **Tests E2E** | `f953073` | **Login, dashboard, records, strength (merged)** |
+| **Audit UI/UX** | `f953073` | **Touch targets, safe areas, responsive (merged)** |
 
 ---
 
@@ -37,29 +42,29 @@ Ce document trace l'avancement des tâches et migrations.
 - [x] Fix bouton "Lancer la séance"
 - [x] Fix FFN sync pool_length (doublons bassin)
 
-### P1 — Haute priorité
+### P1 — Haute priorité (EN COURS)
 
-| Tâche | Effort | Description |
-|-------|--------|-------------|
-| **Audit UI/UX** | 4-6h | Responsive, mobile-first, ergonomie, parcours utilisateur |
-| Activer `coachStrength` | 2h | Décommenter flag + tests |
-| GIF exercices manquants | 1h | Ajouter URLs dans `dim_exercices` (13 exercices) |
+| Tâche | Effort | Status | Description |
+|-------|--------|--------|-------------|
+| ~~Audit UI/UX~~ | 4-6h | ✅ | Merged via parallel instance |
+| Activer `coachStrength` | 2h | 📋 | Décommenter flag + tests |
+| GIF exercices manquants | 1h | ✅ | 10/13 URLs ajoutées (migration 00007) |
 
 ### P2 — Moyenne priorité
 
-| Tâche | Effort | Description |
-|-------|--------|-------------|
-| Tests E2E critiques | 4h | Login, création séance, exécution séance |
-| Refactor api.ts | 8h | Découper en modules (auth, swim, strength, records) |
-| Optimisation performances | 3h | Lazy loading, code splitting, cache |
+| Tâche | Effort | Status | Description |
+|-------|--------|--------|-------------|
+| ~~Tests E2E critiques~~ | 4h | ✅ | Merged via parallel instance |
+| ~~Optimisation performances~~ | 3h | ✅ | Lazy loading, code splitting, cache |
+| Refactor api.ts | 8h | 🔧 | Step 2: api.ts 2859→2459 lines (-14%). Next: extract swim/strength |
 
 ### P3 — Basse priorité
 
-| Tâche | Effort | Description |
-|-------|--------|-------------|
-| Typage strict | 4h | Remplacer `any` par types |
-| Documentation API | 2h | Endpoints Supabase |
-| PWA améliorée | 4h | Offline mode, sync |
+| Tâche | Effort | Status | Description |
+|-------|--------|--------|-------------|
+| Typage strict | 4h | 🔧 | Instance 3 en cours (85 `any` restants dans api.ts) |
+| Documentation API | 2h | 📋 | Endpoints Supabase |
+| PWA améliorée | 4h | 📋 | Offline mode, sync |
 
 ---
 
@@ -171,11 +176,14 @@ npm run build
 ## Commits récents
 
 ```
+f2dbda1 Remove duplicate delay function from api.ts
+f953073 Merge main: E2E tests, UI/UX audit, migrations
+3f6c7f2 Refactor: extract client utilities to api/client.ts
+8f556a6 Refactor: extract API types to dedicated module
+1c3cedf Optimize performance: code splitting and lazy loading
+087e9a6 Optimize GIF display and loading
+de0063c Fix FFN sync pool_length parsing
 b73611e Redesign strength exercise list for mobile-first UX
 840e36c Fix useMemo not returning filtered records
 1aa0e99 Update Cloudflare references to Supabase
-1bd610e Set record_type='comp' for FFN swim records
-029771b Fix CORS headers on ffn-sync edge function
-9865306 Add supabase/.temp/ to gitignore
-a37433e Switch to branch-based GitHub Pages deployment
 ```
