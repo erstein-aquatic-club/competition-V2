@@ -2565,7 +2565,7 @@ export const api = {
         shift_date: payload.shift_date,
         start_time: payload.start_time,
         end_time: payload.end_time ?? null,
-        location_name: payload.location ?? null,
+        location: payload.location ?? null,
       });
       if (error) throw new Error(error.message);
       return { status: "created" };
