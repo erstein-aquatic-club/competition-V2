@@ -15,7 +15,7 @@ export function BottomSheet({ open, title, children, onClose, className }: Botto
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50">
+    <div className="fixed inset-0 z-modal">
       <button
         type="button"
         className="absolute inset-0 bg-black/50"

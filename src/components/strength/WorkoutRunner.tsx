@@ -643,7 +643,7 @@ export function WorkoutRunner({
 
       {!inputSheetOpen && !isResting ? (
         <BottomActionBar 
-          className="bottom-0 z-[60]" 
+          className="bottom-0 z-modal"
           containerClassName="gap-3 py-4"
         >
           <Button
@@ -677,7 +677,7 @@ export function WorkoutRunner({
       ) : null}
 
       {isResting && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-background/95 pb-[env(safe-area-inset-bottom)]">
+        <div className="fixed inset-0 z-modal flex flex-col bg-background/95 pb-[env(safe-area-inset-bottom)]">
           <div className="flex items-start justify-between border-b px-6 py-4">
             <div>
               <div className="text-xs font-semibold text-muted-foreground">Timer</div>
@@ -769,7 +769,7 @@ export function WorkoutRunner({
 
       {isGifOpen && currentExerciseDef?.illustration_gif && (
         <div
-          className="fixed inset-0 z-50 bg-black/50"
+          className="fixed inset-0 z-modal bg-black/50"
           onClick={() => setIsGifOpen(false)}
         >
           <div

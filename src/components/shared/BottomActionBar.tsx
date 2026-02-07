@@ -14,7 +14,7 @@ export function BottomActionBar({ children, className, containerClassName }: Bot
       aria-label="Actions"
       className={cn(
         // Position au-dessus de la nav mobile (64px = bottom-16) avec z-index supérieur
-        "fixed bottom-16 left-0 right-0 z-[60] md:bottom-0 md:z-40",
+        "fixed bottom-16 left-0 right-0 z-bar md:bottom-0 md:z-bar",
         className
       )}
     >

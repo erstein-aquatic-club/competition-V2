@@ -343,7 +343,7 @@ function Drawer({
       {open && (
         <>
           <motion.div
-            className="fixed inset-0 z-40 bg-black/30"
+            className="fixed inset-0 z-overlay bg-black/30"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -351,9 +351,9 @@ function Drawer({
           />
           <motion.div
             className={cn(
-              "fixed z-50 bg-background shadow-2xl",
+              "fixed z-modal bg-background shadow-2xl",
               // Mobile: bottom sheet
-              "left-0 right-0 bottom-0 top-auto h-[88vh] rounded-t-3xl",
+              "left-0 right-0 bottom-0 top-auto h-[88vh] rounded-t-3xl supports-[height:100dvh]:h-[88dvh]",
               // Desktop: drawer à droite
               "sm:right-0 sm:top-0 sm:left-auto sm:bottom-auto sm:h-full sm:w-full sm:max-w-xl sm:rounded-none"
             )}
@@ -407,7 +407,7 @@ function Modal({
       {open && (
         <>
           <motion.div
-            className="fixed inset-0 z-40 bg-black/30"
+            className="fixed inset-0 z-overlay bg-black/30"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -415,7 +415,7 @@ function Modal({
           />
           <motion.div
             // Mobile: add a bigger bottom offset so the modal isn't hidden by the dock.
-            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 pb-24 sm:p-4 sm:pb-4"
+            className="fixed inset-0 z-modal flex items-end sm:items-center justify-center p-3 pb-24 sm:p-4 sm:pb-4"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
@@ -1106,7 +1106,7 @@ export default function Dashboard() {
         Mobile: keep a persistent header to anchor the club's visual identity.
         Desktop keeps the original in-flow header.
       */}
-      <div className="sm:hidden fixed top-0 left-0 right-0 z-30 border-b border-border bg-card/90 backdrop-blur">
+      <div className="sm:hidden fixed top-0 left-0 right-0 z-overlay border-b border-border bg-card/90 backdrop-blur">
         <div className="mx-auto max-w-6xl px-3 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="h-10 w-10 rounded-2xl bg-card border border-border flex items-center justify-center">

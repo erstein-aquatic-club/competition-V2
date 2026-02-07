@@ -326,14 +326,14 @@ export default function Notifications() {
                       <div className={`p-2 rounded-full ${thread.hasUnread ? "bg-primary/20" : "bg-muted"}`}>
                         <MessageSquare className="h-4 w-4 text-primary" />
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <div className="font-bold">{thread.senderLabel}</div>
-                          <div className="text-xs text-muted-foreground">
+                          <div className="font-bold truncate">{thread.senderLabel}</div>
+                          <div className="text-xs text-muted-foreground shrink-0 ml-2">
                             {format(new Date(thread.lastMessage.date), "dd MMM", { locale: fr })}
                           </div>
                         </div>
-                        <p className="text-sm text-muted-foreground line-clamp-1">{thread.lastMessage.message}</p>
+                        <p className="text-sm text-muted-foreground line-clamp-1 break-words">{thread.lastMessage.message}</p>
                       </div>
                       {thread.hasUnread ? <Badge variant="secondary">Non lu</Badge> : null}
                     </CardContent>
@@ -364,14 +364,14 @@ export default function Notifications() {
                       <div className={`p-2 rounded-full ${thread.hasUnread ? "bg-primary/20" : "bg-muted"}`}>
                         <MessageSquare className="h-4 w-4 text-primary" />
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <div className="font-bold">{thread.senderLabel}</div>
-                          <div className="text-xs text-muted-foreground">
+                          <div className="font-bold truncate">{thread.senderLabel}</div>
+                          <div className="text-xs text-muted-foreground shrink-0 ml-2">
                             {format(new Date(thread.lastMessage.date), "dd MMM", { locale: fr })}
                           </div>
                         </div>
-                        <p className="text-sm text-muted-foreground line-clamp-1">{thread.lastMessage.message}</p>
+                        <p className="text-sm text-muted-foreground line-clamp-1 break-words">{thread.lastMessage.message}</p>
                       </div>
                       {thread.hasUnread ? <Badge variant="secondary">Non lu</Badge> : null}
                     </CardContent>

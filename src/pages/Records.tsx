@@ -431,7 +431,7 @@ export default function Records() {
     return (
       <div className="min-h-[100dvh]">
         <div className="mx-auto max-w-lg">
-          <div className="sticky top-0 z-20 backdrop-blur bg-background/80 border-b border-border">
+          <div className="sticky top-0 z-20 scroll-mt-16 backdrop-blur bg-background/80 border-b border-border">
             <div className="px-4 pt-4 pb-3">
               <div className="text-xl font-semibold tracking-tight">Records</div>
               <div className="mt-0.5 text-sm text-muted-foreground">Natation &amp; 1RM musculation</div>
@@ -453,7 +453,7 @@ export default function Records() {
   return (
     <div className="min-h-[100dvh]">
       <div className="mx-auto max-w-lg">
-        <div className="sticky top-0 z-20 backdrop-blur bg-background/80 border-b border-border">
+        <div className="sticky top-0 z-20 scroll-mt-16 backdrop-blur bg-background/80 border-b border-border">
           <div className="px-4 pt-4 pb-3">
             <div className="text-xl font-semibold tracking-tight">Records</div>
             <div className="mt-0.5 text-sm text-muted-foreground">Natation &amp; 1RM musculation</div>

@@ -42,7 +42,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background pb-20 supports-[padding:env(safe-area-inset-bottom)]:pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0 md:pt-16">
       {/* Desktop Top Nav */}
-      <header className="hidden md:flex fixed top-0 w-full h-16 border-b bg-card/95 backdrop-blur z-50 items-center px-8 justify-between shadow-sm">
+      <header className="hidden md:flex fixed top-0 w-full h-16 border-b bg-card/95 backdrop-blur z-nav items-center px-8 justify-between shadow-sm">
         <div className="flex items-center gap-2">
             <img
               src={eacLogo}
@@ -69,7 +69,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* Main Content */}
-      <main className="container max-w-md mx-auto p-4 md:max-w-3xl lg:max-w-4xl">
+      <main className="container max-w-lg mx-auto p-4 md:max-w-3xl lg:max-w-4xl">
         {children}
       </main>
 
@@ -77,7 +77,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <nav
         aria-label="Navigation principale"
         className={cn(
-          "md:hidden fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-lg border-t border-border/50 z-50 shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.1)]",
+          "md:hidden fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-lg border-t border-border/50 z-mobilenav shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.1)]",
           "supports-[padding:env(safe-area-inset-bottom)]:pb-[env(safe-area-inset-bottom)]",
           isFocusMode && "hidden",
         )}

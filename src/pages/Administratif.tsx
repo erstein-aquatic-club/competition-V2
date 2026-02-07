@@ -470,7 +470,7 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
 
             <button
               type="button"
-              className="fixed bottom-4 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-destructive text-2xl font-black text-white shadow-[0_8px_20px_rgba(220,38,38,0.25)]"
+              className="fixed bottom-4 right-4 z-fab flex h-14 w-14 items-center justify-center rounded-full bg-destructive text-2xl font-black text-white shadow-[0_8px_20px_rgba(220,38,38,0.25)]"
               onClick={openNewShift}
               aria-label="Ajouter un shift"
             >

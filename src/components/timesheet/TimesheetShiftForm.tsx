@@ -103,7 +103,7 @@ export function TimesheetShiftForm({
       role="dialog"
       aria-modal="true"
       aria-label={isEditing ? "Modifier shift" : "Nouveau shift"}
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/35 px-3 pb-3"
+      className="fixed inset-0 z-modal flex items-end justify-center bg-black/35 px-3 pb-3"
       onClick={onClose}
     >
       <div
