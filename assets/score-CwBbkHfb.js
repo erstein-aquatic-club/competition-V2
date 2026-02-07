@@ -1,0 +1,1 @@
+const s={low:"hsl(0 84% 60%)",mid:"hsl(48 96% 53%)",high:"hsl(142 70% 45%)",empty:"hsl(var(--muted-foreground))"};function t(r,{invert:h=!1,tone:o=s}={}){if(r==null||Number.isNaN(r))return o.empty??s.empty;const i=h?o.high:o.low,l=h?o.low:o.high;return r>=4?l:r>=3?o.mid:i}export{t as s};
