@@ -7,7 +7,7 @@ const toNumber = (value: unknown) => {
 
 export const calculateSwimTotalDistance = (items: SwimSessionItem[] = []) =>
   items.reduce((total, item) => {
-    const payload = (item.raw_payload as Record<string, any>) ?? {};
+    const payload = (item.raw_payload as Record<string, unknown>) ?? {};
     const blockRepetitions = toNumber(payload.block_repetitions);
     const exerciseRepetitions = toNumber(payload.exercise_repetitions);
     const distance = toNumber(item.distance);

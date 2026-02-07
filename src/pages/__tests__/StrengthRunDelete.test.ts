@@ -3,10 +3,10 @@ import { test } from "node:test";
 import { buildInProgressRunCache, createInProgressRun, resetStrengthRunState } from "@/pages/Strength";
 
 test("resetStrengthRunState clears in-progress session state", () => {
-  let activeSession: any = { id: 1 };
-  let activeAssignment: any = { id: 10 };
+  let activeSession: { id: number } | null = { id: 1 };
+  let activeAssignment: { id: number } | null = { id: 10 };
   let activeRunId: number | null = 42;
-  let activeRunLogs: any[] | null = [{ id: 1 }];
+  let activeRunLogs: { id: number }[] | null = [{ id: 1 }];
   let activeRunnerStep = 3;
   let screenMode: "list" | "reader" | "focus" | "settings" = "focus";
 

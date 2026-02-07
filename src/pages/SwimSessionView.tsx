@@ -68,7 +68,7 @@ export default function SwimSessionView() {
     if (!assignment?.items) return 0;
     const blocks = new Set<string>();
     assignment.items.forEach((item) => {
-      const payload = (item.raw_payload as Record<string, any>) ?? {};
+      const payload = (item.raw_payload as Record<string, unknown>) ?? {};
       const title = payload.block_title || payload.section || "Bloc";
       const order = payload.block_order ?? 0;
       blocks.add(`${order}-${title}`);

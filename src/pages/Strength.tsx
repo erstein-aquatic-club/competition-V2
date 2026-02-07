@@ -18,6 +18,7 @@ import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { WorkoutRunner, resolveNextStep } from "@/components/strength/WorkoutRunner";
 import { BottomActionBar } from "@/components/shared/BottomActionBar";
+import type { SetLogEntry, LocalStrengthRun, UpdateStrengthRunInput, OneRmEntry } from "@/lib/types";
 
 const normalizeStrengthCycle = (value?: string | null): StrengthCycleType => {
   if (value === "endurance" || value === "hypertrophie" || value === "force") {
@@ -146,7 +147,7 @@ export const resetStrengthRunState = (setters: {
   setActiveSession: (value: StrengthSessionTemplate | null) => void;
   setActiveAssignment: (value: Assignment | null) => void;
   setActiveRunId: (value: number | null) => void;
-  setActiveRunLogs: (value: any[] | null) => void;
+  setActiveRunLogs: (value: SetLogEntry[] | null) => void;
   setActiveRunnerStep: (value: number) => void;
   setScreenMode: (value: "list" | "reader" | "focus" | "settings") => void;
 }) => {
@@ -189,7 +190,7 @@ export default function Strength() {
   const [activeSession, setActiveSession] = useState<StrengthSessionTemplate | null>(null);
   const [activeAssignment, setActiveAssignment] = useState<Assignment | null>(null);
   const [activeRunId, setActiveRunId] = useState<number | null>(null);
-  const [activeRunLogs, setActiveRunLogs] = useState<any[] | null>(null);
+  const [activeRunLogs, setActiveRunLogs] = useState<SetLogEntry[] | null>(null);
   const [activeRunnerStep, setActiveRunnerStep] = useState(0);
   const [screenMode, setScreenMode] = useState<"list" | "reader" | "focus" | "settings">("list");
   const [preferences, setPreferences] = useState({
@@ -354,7 +355,7 @@ export default function Strength() {
     inProgressRun?.status === "completed" || (inProgressRun?.progress_pct ?? 0) >= 100;
 
   const startRun = useMutation({
-      mutationFn: (data: any) => api.startStrengthRun(data),
+      mutationFn: (data: Parameters<typeof api.startStrengthRun>[0]) => api.startStrengthRun(data),
       onSuccess: (data) => {
           if (data?.run_id) {
               setActiveRunId(data.run_id);
@@ -381,7 +382,7 @@ export default function Strength() {
   });
 
   const logStrengthSet = useMutation({
-      mutationFn: (data: any) => api.logStrengthSet(data),
+      mutationFn: (data: Parameters<typeof api.logStrengthSet>[0]) => api.logStrengthSet(data),
       onSuccess: (data) => {
           if (data?.one_rm_updated) {
               queryClient.invalidateQueries({ queryKey: ["1rm", user, userId] });
@@ -401,7 +402,7 @@ export default function Strength() {
   });
 
   const updateRun = useMutation({
-      mutationFn: (data: any) => api.updateStrengthRun(data),
+      mutationFn: (data: UpdateStrengthRunInput) => api.updateStrengthRun(data),
       onSuccess: (_data, variables) => {
           queryClient.invalidateQueries({ queryKey: ["strength_history"] });
           if (variables?.status !== "completed") {
@@ -426,7 +427,7 @@ export default function Strength() {
   });
 
   const startStrengthRun = useMutation({
-      mutationFn: (data: any) => api.startStrengthRun(data),
+      mutationFn: (data: Parameters<typeof api.startStrengthRun>[0]) => api.startStrengthRun(data),
       onError: () => {
           toast({
               title: "Erreur",
@@ -662,7 +663,7 @@ export default function Strength() {
                      const payload = {
                          assignment_id: activeAssignment?.id ?? null,
                          athlete_id: userId ?? null,
-                         athleteName: user ?? null,
+                         athleteName: user ?? undefined,
                          progress_pct: 0,
                          session_id: sessionId,
                          cycle_type: activeSession?.cycle,
@@ -680,7 +681,7 @@ export default function Strength() {
                      if (!activeRunId) return;
                      setActiveRunLogs((prev) => [...(prev ?? []), ...blockLogs]);
                      await Promise.all(
-                         blockLogs.map((log: any, index: number) =>
+                         blockLogs.map((log: SetLogEntry, index: number) =>
                              logStrengthSet.mutateAsync({
                                  run_id: activeRunId,
                                  exercise_id: log.exercise_id,
@@ -704,10 +705,10 @@ export default function Strength() {
                  onFinish={(result) => {
                      if (!activeRunId) return;
                      updateRun.mutate({
-                         assignment_id: activeAssignment?.id ?? null,
+                         assignment_id: activeAssignment?.id ?? undefined,
                          run_id: activeRunId,
-                         session_id: activeAssignment?.session_id ?? activeSession?.id ?? null,
-                         athlete_id: userId ?? null,
+                         session_id: activeAssignment?.session_id ?? activeSession?.id ?? undefined,
+                         athlete_id: userId ?? undefined,
                          date: new Date().toISOString(),
                          progress_pct: 100,
                          status: "completed",
@@ -842,9 +843,9 @@ export default function Strength() {
                                                 const sessionItems = inProgressAssignment.items ?? [];
                                                 const cycle = normalizeStrengthCycle(
                                                     inProgressAssignment.cycle ??
-                                                    sessionItems.find((item: any) => item.cycle_type)?.cycle_type,
+                                                    sessionItems.find((item) => item.cycle_type)?.cycle_type,
                                                 );
-                                                const filteredItems = sessionItems.filter((item: any) => item.cycle_type === cycle);
+                                                const filteredItems = sessionItems.filter((item) => item.cycle_type === cycle);
                                                 const items = orderStrengthItems(filteredItems.length ? filteredItems : sessionItems);
                                                 setActiveAssignment(inProgressAssignment);
                                                 setActiveSession({
@@ -1131,7 +1132,7 @@ export default function Strength() {
                                const percentValue = Number(item.percent_1rm);
                                const hasPercent = Number.isFinite(percentValue) && percentValue > 0;
                                const rm = hasPercent
-                                   ? oneRMs?.find((entry: any) => entry.exercise_id === item.exercise_id)?.weight ?? 0
+                                   ? oneRMs?.find((entry: OneRmEntry) => entry.exercise_id === item.exercise_id)?.weight ?? 0
                                    : 0;
                                const targetWeight = hasPercent ? Math.round(rm * (percentValue / 100)) : 0;
                                const chargeLabel = hasPercent
@@ -1300,7 +1301,7 @@ export default function Strength() {
                        />
                    </div>
                </div>
-               {historyRuns.map((run: any) => (
+               {historyRuns.map((run: LocalStrengthRun) => (
                    <Card key={run.id} className="group hover:border-primary/50 transition-colors">
                        <CardHeader className="pb-2">
                            <div className="flex justify-between">

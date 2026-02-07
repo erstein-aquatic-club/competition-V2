@@ -74,7 +74,7 @@ export default function RecordsAdmin() {
   });
 
   const updateSwimmer = useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: Record<string, any> }) =>
+    mutationFn: ({ id, payload }: { id: number; payload: Record<string, unknown> }) =>
       api.updateClubRecordSwimmer(id, payload),
     onSuccess: () => {
       void load();
@@ -86,7 +86,7 @@ export default function RecordsAdmin() {
   });
 
   const updateUserSwimmer = useMutation({
-    mutationFn: ({ userId, payload }: { userId: number; payload: Record<string, any> }) =>
+    mutationFn: ({ userId, payload }: { userId: number; payload: Record<string, unknown> }) =>
       api.updateClubRecordSwimmerForUser(userId, payload),
     onSuccess: () => {
       void load();
@@ -97,7 +97,7 @@ export default function RecordsAdmin() {
     },
   });
 
-  const updateSwimmerEntry = (swimmer: ClubRecordSwimmer, payload: Record<string, any>) => {
+  const updateSwimmerEntry = (swimmer: ClubRecordSwimmer, payload: Record<string, unknown>) => {
     if (swimmer.source_type === "user" && swimmer.user_id) {
       updateUserSwimmer.mutate({ userId: swimmer.user_id, payload });
       return;
@@ -113,7 +113,7 @@ export default function RecordsAdmin() {
       toast({
         title: "Import terminé",
         description: summary
-          ? `Performances importées: ${summary.imported ?? 0}. Erreurs: ${summary.errors?.length ?? 0}.`
+          ? `Performances importées: ${summary.imported ?? 0}. Erreurs: ${summary.errors ?? 0}.`
           : "",
       });
       void load();

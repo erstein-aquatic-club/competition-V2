@@ -11,6 +11,7 @@ import {
 import { SwimBadgeRow } from "@/components/swim/SwimBadgeRow";
 import { Repeat, Ruler, Timer, Waves } from "lucide-react";
 import type { SwimSessionItem } from "@/lib/api";
+import type { SwimPayloadFields } from "@/lib/types";
 import { splitModalitiesLines } from "@/lib/swimSessionUtils";
 
 interface SwimSessionConsultationProps {
@@ -121,17 +122,17 @@ const groupItemsByBlock = (items: SwimSessionItem[] = []): BlockGroup[] => {
     const payload = item.raw_payload ?? {};
     const payloadObject = typeof payload === "object" ? payload : {};
     const blockTitle =
-      (payloadObject as Record<string, any>).block_title ||
-      (payloadObject as Record<string, any>).section ||
+      (payloadObject as SwimPayloadFields).block_title ||
+      (payloadObject as SwimPayloadFields).section ||
       "Bloc";
-    const blockOrder = Number((payloadObject as Record<string, any>).block_order ?? 0);
+    const blockOrder = Number((payloadObject as SwimPayloadFields).block_order ?? 0);
     const key = `${blockOrder}-${blockTitle}`;
     const blockEquipmentRaw =
-      (payloadObject as Record<string, any>).block_equipment ??
-      (payloadObject as Record<string, any>).equipment;
+      (payloadObject as SwimPayloadFields).block_equipment ??
+      (payloadObject as SwimPayloadFields).equipment;
     const blockModalities =
-      (payloadObject as Record<string, any>).block_modalities ??
-      (payloadObject as Record<string, any>).modalities ??
+      (payloadObject as SwimPayloadFields).block_modalities ??
+      (payloadObject as SwimPayloadFields).modalities ??
       null;
     const blockEquipment = Array.isArray(blockEquipmentRaw)
       ? blockEquipmentRaw
@@ -142,25 +143,25 @@ const groupItemsByBlock = (items: SwimSessionItem[] = []): BlockGroup[] => {
       blocks.set(key, {
         key,
         title: blockTitle,
-        description: (payloadObject as Record<string, any>).block_description ?? null,
+        description: (payloadObject as SwimPayloadFields).block_description ?? null,
         modalities: blockModalities,
         equipment: blockEquipment.length ? blockEquipment : null,
         order: Number.isFinite(blockOrder) ? blockOrder : 0,
-        repetitions: (payloadObject as Record<string, any>).block_repetitions ?? null,
+        repetitions: (payloadObject as SwimPayloadFields).block_repetitions ?? null,
         items: [],
       });
     }
     const block = blocks.get(key)!;
-    const exerciseRepetitions = (payloadObject as Record<string, any>).exercise_repetitions ?? null;
+    const exerciseRepetitions = (payloadObject as SwimPayloadFields).exercise_repetitions ?? null;
     const exerciseDistance = item.distance ?? null;
     const exerciseLabel =
       item.label ||
       (exerciseRepetitions && exerciseDistance ? `${exerciseRepetitions}x${exerciseDistance}m` : null) ||
       (exerciseDistance ? `${exerciseDistance}m` : null);
-    const exerciseModalities = (payloadObject as Record<string, any>).exercise_modalities ?? item.notes ?? null;
+    const exerciseModalities = (payloadObject as SwimPayloadFields).exercise_modalities ?? item.notes ?? null;
     const exerciseEquipmentRaw =
-      (payloadObject as Record<string, any>).exercise_equipment ??
-      (payloadObject as Record<string, any>).equipment;
+      (payloadObject as SwimPayloadFields).exercise_equipment ??
+      (payloadObject as SwimPayloadFields).equipment;
     const exerciseEquipment = Array.isArray(exerciseEquipmentRaw)
       ? exerciseEquipmentRaw
       : exerciseEquipmentRaw
@@ -170,7 +171,7 @@ const groupItemsByBlock = (items: SwimSessionItem[] = []): BlockGroup[] => {
       ...item,
       label:
         exerciseLabel ||
-        (payloadObject as Record<string, any>).exercise_label ||
+        (payloadObject as SwimPayloadFields).exercise_label ||
         `Exercice ${index + 1}`,
       notes: exerciseModalities,
       raw_payload: {
@@ -281,7 +282,7 @@ export function SwimSessionConsultation({
             </CardHeader>
             <CardContent className="space-y-4 bg-card px-5 py-4">
               {block.items.map((item, itemIndex) => {
-                const payload = (item.raw_payload as Record<string, any>) ?? {};
+                const payload = (item.raw_payload as SwimPayloadFields) ?? {};
                 const normalizedIntensity = normalizeIntensity(payload.exercise_intensity ?? item.intensity ?? null);
                 const strokeLabel = getStrokeLabel(payload.exercise_stroke);
                 const strokeTypeLabel = payload.exercise_stroke_type
@@ -394,7 +395,7 @@ export function SwimSessionConsultation({
                         {strokeTypeLabel ? (
                           <span
                             className={`inline-flex items-center rounded-full px-2.5 py-1 ring-1 ${
-                              strokeTypeTone[payload.exercise_stroke_type] ??
+                              strokeTypeTone[payload.exercise_stroke_type ?? ""] ??
                               "bg-muted text-foreground ring-border"
                             }`}
                           >
