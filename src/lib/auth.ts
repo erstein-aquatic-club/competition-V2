@@ -187,7 +187,25 @@ export const useAuth = create<AuthState>((set) => ({
     const supabaseUser = session.user;
     const displayName = extractDisplayName(supabaseUser);
     const userId = extractAppUserId(supabaseUser);
-    const role = extractAppUserRole(supabaseUser);
+    let role = extractAppUserRole(supabaseUser);
+
+    // Fetch the authoritative role from public.users to handle stale JWT claims.
+    // The JWT claim (app_user_role) can be outdated if the role was changed
+    // without a subsequent token refresh.
+    if (userId) {
+      try {
+        const { data: dbUser } = await supabase
+          .from("users")
+          .select("role")
+          .eq("id", userId)
+          .maybeSingle();
+        if (dbUser?.role) {
+          role = dbUser.role;
+        }
+      } catch {
+        // Fall back to JWT claim if DB query fails
+      }
+    }
 
     set({
       user: displayName,
