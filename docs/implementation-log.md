@@ -242,6 +242,58 @@ npm run build
 
 ---
 
+## 2026-02-07 — Refactor: extract strength transformers to api/transformers.ts
+
+**Branche** : `claude/cloudflare-supabase-migration-WmS71`
+**Chantier ROADMAP** : §5 — Dette technique (refactoring api.ts)
+
+### Contexte
+
+Poursuite du refactoring de `api.ts` (2353 → <2200 lignes). Extraction des patterns dupliqués dans les fonctions strength (createStrengthSession, updateStrengthSession, startStrengthRun, logStrengthSet, updateStrengthRun, saveStrengthRun) vers un module `transformers.ts` dédié.
+
+### Changements réalisés
+
+- Créé `src/lib/api/transformers.ts` (187 lignes) avec 8 fonctions de transformation :
+  - `prepareStrengthItemsPayload` — normalise et valide les items d'une session
+  - `mapItemsForDbInsert` — convertit les items en format DB avec session_id
+  - `createLocalStrengthRun` — crée un objet run pour localStorage
+  - `createSetLogDbPayload` — crée le payload DB d'un set log
+  - `mapLogsForDbInsert` — transforme les logs en bulk pour insertion DB
+  - `buildRunUpdatePayload` — construit le payload de mise à jour d'un run
+  - `collectEstimated1RMs` — calcule les meilleurs 1RM estimés depuis des logs
+  - `enrichItemsWithExerciseNames` — enrichit les items avec noms d'exercices
+- Mis à jour `api/index.ts` pour exporter toutes les fonctions de transformers
+- Refactoré 6 fonctions de `api.ts` pour utiliser les transformers
+- Supprimé `strengthRunStart` (code mort, jamais appelé)
+- Supprimé imports inutilisés (`validateStrengthItems`, `normalizeExerciseType`, `safeOptionalNumber`)
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/lib/api/transformers.ts` | Créé (187 lignes) |
+| `src/lib/api/index.ts` | Ajout exports transformers |
+| `src/lib/api.ts` | Refactored (2353 → 2198 lignes, -155 lignes, -6.6%) |
+
+### Tests
+
+- [x] `npm run build` — OK
+- [x] `npx tsc --noEmit` — erreurs pré-existantes uniquement (pas de régression)
+
+### Décisions prises
+
+- Extraction des patterns purement fonctionnels (pas de dépendance à `this`) vers transformers
+- Conservation des patterns nécessitant `this._get`/`this._save` dans api.ts mais utilisation de `enrichItemsWithExerciseNames` avec le résultat de `this._get()` passé en paramètre
+- Suppression de `strengthRunStart` (dead code, remplacé par `startStrengthRun` utilisé dans Strength.tsx)
+
+### Limites / dette
+
+- `api.ts` reste à 2198 lignes — d'autres extractions possibles (swim catalog, records, notifications)
+- Le pattern `maybeUpdateOneRm` dans `logStrengthSet` dépend de `this` et n'a pas été extrait
+- Les erreurs TypeScript pré-existantes dans Coach.tsx, Progress.tsx, Strength.tsx ne sont pas traitées
+
+---
+
 ## Commits récents
 
 ```

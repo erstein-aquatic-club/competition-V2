@@ -64,5 +64,19 @@ export {
   storage,
 } from './localStorage';
 
+// Re-export transformers
+export {
+  prepareStrengthItemsPayload,
+  mapItemsForDbInsert,
+  createLocalStrengthRun,
+  createSetLogDbPayload,
+  buildRunUpdatePayload,
+  collectEstimated1RMs,
+  enrichItemsWithExerciseNames,
+  mapLogsForDbInsert,
+  type PreparedStrengthItems,
+  type DbStrengthItemPayload,
+} from './transformers';
+
 // Re-export main api object from legacy file
 export { api, useApiCapabilities } from '../api';

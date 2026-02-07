@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { supabase } from "./supabase";
@@ -63,14 +62,11 @@ import {
   STORAGE_KEYS,
   safeInt,
   safeOptionalInt,
-  safeOptionalNumber,
   normalizeScaleToFive,
   expandScaleToTen,
   estimateOneRm,
   normalizeCycleType,
-  normalizeExerciseType,
   normalizeStrengthItem,
-  validateStrengthItems,
   mapDbExerciseToApi,
   mapApiExerciseToDb,
   delay,
@@ -91,6 +87,18 @@ import {
   type StrengthHistoryAggregateResult,
   type SyncSessionInputWithId,
 } from "./api/helpers";
+
+// --- Transformers (imported from api/transformers.ts) ---
+import {
+  prepareStrengthItemsPayload,
+  mapItemsForDbInsert,
+  createLocalStrengthRun,
+  createSetLogDbPayload,
+  buildRunUpdatePayload,
+  collectEstimated1RMs,
+  enrichItemsWithExerciseNames,
+  mapLogsForDbInsert,
+} from "./api/transformers";
 
 // Re-export error utilities for backward compatibility
 export { parseApiError, summarizeApiError } from "./api/client";
@@ -520,24 +528,7 @@ export const api = {
   },
 
   async createStrengthSession(session: any) {
-       const cycle = normalizeCycleType(session?.cycle ?? session?.cycle_type);
-       const rawItems: unknown[] = Array.isArray(session?.items) ? session.items : [];
-       const normalizedItems: StrengthSessionItem[] = rawItems.map((item, index) =>
-         normalizeStrengthItem(item, index, cycle),
-       );
-       validateStrengthItems(normalizedItems);
-       const itemsPayload = normalizedItems
-         .sort((a, b) => a.order_index - b.order_index)
-         .map((item) => ({
-           ordre: item.order_index,
-           exercise_id: item.exercise_id,
-           cycle_type: item.cycle_type,
-           sets: item.sets,
-           reps: item.reps,
-           pct_1rm: item.percent_1rm,
-           rest_series_s: item.rest_seconds,
-           notes: item.notes,
-         }));
+       const { cycle, normalizedItems, itemsPayload } = prepareStrengthItemsPayload(session);
 
        if (canUseSupabase()) {
          const { data: created, error } = await supabase.from("strength_sessions").insert({
@@ -548,18 +539,7 @@ export const api = {
          const sessionId = created.id;
          if (itemsPayload.length > 0) {
            const { error: itemsError } = await supabase.from("strength_session_items").insert(
-             itemsPayload.map((item) => ({
-               session_id: sessionId,
-               ordre: item.ordre,
-               exercise_id: item.exercise_id,
-               block: "main",
-               cycle_type: item.cycle_type ?? cycle,
-               sets: item.sets,
-               reps: item.reps,
-               pct_1rm: item.pct_1rm,
-               rest_series_s: item.rest_series_s,
-               notes: item.notes,
-             })),
+             mapItemsForDbInsert(itemsPayload, sessionId, cycle),
            );
            if (itemsError) throw new Error(itemsError.message);
          }
@@ -568,10 +548,7 @@ export const api = {
 
        const s = this._get(STORAGE_KEYS.STRENGTH_SESSIONS) || [];
        const id = Date.now();
-       const enrichedItems = normalizedItems.map((item: StrengthSessionItem) => {
-         const ex = (this._get(STORAGE_KEYS.EXERCISES) || []).find((e: any) => e.id === item.exercise_id);
-         return { ...item, exercise_name: ex?.nom_exercice, category: ex?.exercise_type };
-       });
+       const enrichedItems = enrichItemsWithExerciseNames(normalizedItems, this._get(STORAGE_KEYS.EXERCISES) || []);
        this._save(STORAGE_KEYS.STRENGTH_SESSIONS, [
          ...s,
          {
@@ -589,24 +566,7 @@ export const api = {
        if (!session?.id) {
          throw new Error("Session id manquant");
        }
-       const cycle = normalizeCycleType(session?.cycle ?? session?.cycle_type);
-       const rawItems: unknown[] = Array.isArray(session?.items) ? session.items : [];
-       const normalizedItems: StrengthSessionItem[] = rawItems.map((item, index) =>
-         normalizeStrengthItem(item, index, cycle),
-       );
-       validateStrengthItems(normalizedItems);
-       const itemsPayload = normalizedItems
-         .sort((a, b) => a.order_index - b.order_index)
-         .map((item) => ({
-           ordre: item.order_index,
-           exercise_id: item.exercise_id,
-           cycle_type: item.cycle_type,
-           sets: item.sets,
-           reps: item.reps,
-           pct_1rm: item.percent_1rm,
-           rest_series_s: item.rest_seconds,
-           notes: item.notes,
-         }));
+       const { cycle, normalizedItems, itemsPayload } = prepareStrengthItemsPayload(session);
 
        if (canUseSupabase()) {
          const { error } = await supabase.from("strength_sessions").update({
@@ -618,18 +578,7 @@ export const api = {
          await supabase.from("strength_session_items").delete().eq("session_id", session.id);
          if (itemsPayload.length > 0) {
            const { error: itemsError } = await supabase.from("strength_session_items").insert(
-             itemsPayload.map((item) => ({
-               session_id: session.id,
-               ordre: item.ordre,
-               exercise_id: item.exercise_id,
-               block: "main",
-               cycle_type: item.cycle_type ?? cycle,
-               sets: item.sets,
-               reps: item.reps,
-               pct_1rm: item.pct_1rm,
-               rest_series_s: item.rest_series_s,
-               notes: item.notes,
-             })),
+             mapItemsForDbInsert(itemsPayload, session.id, cycle),
            );
            if (itemsError) throw new Error(itemsError.message);
          }
@@ -641,10 +590,7 @@ export const api = {
        if (index === -1) {
          throw new Error("Séance introuvable");
        }
-       const enrichedItems = normalizedItems.map((item: StrengthSessionItem) => {
-         const ex = (this._get(STORAGE_KEYS.EXERCISES) || []).find((e: any) => e.id === item.exercise_id);
-         return { ...item, exercise_name: ex?.nom_exercice, category: ex?.exercise_type };
-       });
+       const enrichedItems = enrichItemsWithExerciseNames(normalizedItems, this._get(STORAGE_KEYS.EXERCISES) || []);
        const updatedSession = {
          ...sessions[index],
          ...session,
@@ -700,18 +646,7 @@ export const api = {
       }
       const runs = this._get(STORAGE_KEYS.STRENGTH_RUNS) || [];
       const run_id = Date.now();
-      const newRun = {
-        id: run_id,
-        assignment_id: data.assignment_id,
-        athlete_id: data.athlete_id ?? null,
-        athlete_name: data.athleteName ?? null,
-        session_id: data.session_id ?? null,
-        cycle_type: data.cycle_type ?? null,
-        status: "in_progress",
-        progress_pct: data.progress_pct ?? 0,
-        started_at: new Date().toISOString(),
-        logs: [],
-      };
+      const newRun = createLocalStrengthRun(data, run_id);
       this._save(STORAGE_KEYS.STRENGTH_RUNS, [...runs, newRun]);
       if (data.assignment_id) {
         const assignments = this._get(STORAGE_KEYS.ASSIGNMENTS) || [];
@@ -777,18 +712,9 @@ export const api = {
       };
 
       if (canUseSupabase()) {
-        const { error } = await supabase.from("strength_set_logs").insert({
-          run_id: payload.run_id,
-          exercise_id: payload.exercise_id,
-          set_index: payload.set_index ?? null,
-          reps: payload.reps ?? null,
-          weight: payload.weight ?? null,
-          pct_1rm_suggested: payload.pct_1rm_suggested ?? null,
-          rest_seconds: payload.rest_seconds ?? null,
-          rpe: payload.rpe ?? null,
-          notes: payload.notes ?? null,
-          completed_at: new Date().toISOString(),
-        });
+        const { error } = await supabase.from("strength_set_logs").insert(
+          createSetLogDbPayload(payload),
+        );
         if (error) throw new Error(error.message);
         const context = resolveAthleteContext();
         const updated = await maybeUpdateOneRm(context);
@@ -817,11 +743,7 @@ export const api = {
     [key: string]: any;
   }) {
       if (canUseSupabase()) {
-        const updatePayload: Record<string, unknown> = {};
-        if (update.progress_pct !== undefined) updatePayload.progress_pct = update.progress_pct;
-        if (update.status) updatePayload.status = update.status;
-        if (update.status === "completed") updatePayload.completed_at = new Date().toISOString();
-        if (update.fatigue !== undefined) updatePayload.raw_payload = { fatigue: update.fatigue, comments: update.comments };
+        const updatePayload = buildRunUpdatePayload(update);
         const { error } = await supabase.from("strength_session_runs").update(updatePayload).eq("id", update.run_id);
         if (error) throw new Error(error.message);
         if (update.status === "completed" && update.assignment_id) {
@@ -901,33 +823,13 @@ export const api = {
         // Step 2: Insert all set logs
         if (runId && Array.isArray(run.logs) && run.logs.length > 0) {
           const { error: logsError } = await supabase.from("strength_set_logs").insert(
-            run.logs.map((log: any, index: number) => ({
-              run_id: runId,
-              exercise_id: log.exercise_id,
-              set_index: log.set_index ?? log.set_number ?? index,
-              reps: log.reps ?? null,
-              weight: log.weight ?? null,
-              rpe: log.rpe ?? null,
-              notes: log.notes ?? null,
-              completed_at: new Date().toISOString(),
-            })),
+            mapLogsForDbInsert(run.logs, runId),
           );
           if (logsError) throw new Error(logsError.message);
         }
 
         // Step 3: Calculate 1RM estimates and upsert records
-        const estimatedRecords = new Map<number, number>();
-        const logs = Array.isArray(run.logs) ? run.logs : [];
-        logs.forEach((log: any) => {
-          const estimate = estimateOneRm(Number(log.weight), Number(log.reps));
-          if (!estimate) return;
-          const exerciseId = Number(log.exercise_id);
-          if (!Number.isFinite(exerciseId)) return;
-          const current = estimatedRecords.get(exerciseId) ?? 0;
-          if (estimate > current) {
-            estimatedRecords.set(exerciseId, estimate);
-          }
-        });
+        const estimatedRecords = collectEstimated1RMs(Array.isArray(run.logs) ? run.logs : []);
         if (estimatedRecords.size > 0) {
           const athleteId = run.athlete_id ?? null;
           const athleteName = run.athlete_name ?? null;
@@ -989,18 +891,7 @@ export const api = {
         );
         this._save(STORAGE_KEYS.ASSIGNMENTS, updated);
       }
-      const estimatedRecords = new Map<number, number>();
-      const logs = Array.isArray(run.logs) ? run.logs : [];
-      logs.forEach((log: any) => {
-        const estimate = estimateOneRm(Number(log.weight), Number(log.reps));
-        if (!estimate) return;
-        const exerciseId = Number(log.exercise_id);
-        if (!Number.isFinite(exerciseId)) return;
-        const current = estimatedRecords.get(exerciseId) ?? 0;
-        if (estimate > current) {
-          estimatedRecords.set(exerciseId, estimate);
-        }
-      });
+      const estimatedRecords = collectEstimated1RMs(Array.isArray(run.logs) ? run.logs : []);
       if (estimatedRecords.size > 0) {
         const athleteId = run.athlete_id ?? null;
         const athleteName = run.athlete_name ?? null;
@@ -1024,51 +915,6 @@ export const api = {
       return { status: "ok", run_id: runId };
   },
 
-  async strengthRunStart(data: {
-      assignmentId: number;
-      athleteId?: number | string | null;
-      athleteName?: string | null;
-      progressPct?: number;
-  }) {
-      if (canUseSupabase()) {
-        const athleteId = data.athleteId ? Number(data.athleteId) : null;
-        const { data: run, error } = await supabase.from("strength_session_runs").insert({
-          assignment_id: data.assignmentId,
-          athlete_id: athleteId,
-          status: "in_progress",
-          progress_pct: data.progressPct ?? 0,
-          started_at: new Date().toISOString(),
-        }).select("id").single();
-        if (error) throw new Error(error.message);
-        await supabase.from("session_assignments").update({ status: "in_progress" }).eq("id", data.assignmentId);
-        return { run_id: run.id };
-      }
-
-      const runId = Date.now();
-      const runs = this._get(STORAGE_KEYS.STRENGTH_RUNS) || [];
-      this._save(STORAGE_KEYS.STRENGTH_RUNS, [
-        ...runs,
-        {
-          id: runId,
-          assignment_id: data.assignmentId,
-          athlete_id: data.athleteId ?? null,
-          athlete_name: data.athleteName ?? null,
-          status: "in_progress",
-          progress_pct: data.progressPct ?? 0,
-          started_at: new Date().toISOString(),
-        },
-      ]);
-
-      const assignments = this._get(STORAGE_KEYS.ASSIGNMENTS) || [];
-      const updatedAssignments = assignments.map((assignment: any) =>
-        assignment.id === data.assignmentId
-          ? { ...assignment, status: "in_progress", updated_at: new Date().toISOString() }
-          : assignment,
-      );
-      this._save(STORAGE_KEYS.ASSIGNMENTS, updatedAssignments);
-      return { run_id: runId };
-  },
-  
   async getStrengthHistory(
     athleteName: string,
     options?: {
@@ -1348,7 +1194,6 @@ export const api = {
           pagination: { limit: records.length, offset: 0, total: records.length },
         };
       }
-
 
       const records = this._get(STORAGE_KEYS.SWIM_RECORDS) || [];
       const filtered = records.filter((r: any) => {

@@ -23,7 +23,13 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 
 | Fichier | Rôle | Taille |
 |---------|------|--------|
-| `src/lib/api.ts` | Client API Supabase (toutes les méthodes) | ~2900 lignes |
+| `src/lib/api.ts` | Client API Supabase (toutes les méthodes) | ~2200 lignes |
+| `src/lib/api/types.ts` | Interfaces TypeScript | 281 lignes |
+| `src/lib/api/client.ts` | Supabase client, utilitaires | 252 lignes |
+| `src/lib/api/transformers.ts` | Fonctions de transformation strength | 187 lignes |
+| `src/lib/api/helpers.ts` | Fonctions de mapping | 151 lignes |
+| `src/lib/api/localStorage.ts` | Stockage local fallback | 85 lignes |
+| `src/lib/api/index.ts` | Re-exports centralisés | ~80 lignes |
 | `src/lib/auth.ts` | Gestion auth, session, rôles | ~240 lignes |
 | `src/lib/supabase.ts` | Client Supabase | ~70 lignes |
 | `src/lib/features.ts` | Feature flags | 5 lignes |
