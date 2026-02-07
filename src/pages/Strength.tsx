@@ -718,11 +718,11 @@ export default function Strength() {
                </div>
            ) : (
                <div className="space-y-4 py-10">
-                 <div className="mx-auto h-8 w-48 rounded-lg bg-muted animate-pulse" />
-                 <div className="mx-auto h-4 w-32 rounded-lg bg-muted animate-pulse" />
+                 <div className="mx-auto h-8 w-48 rounded-lg bg-muted animate-pulse motion-reduce:animate-none" />
+                 <div className="mx-auto h-4 w-32 rounded-lg bg-muted animate-pulse motion-reduce:animate-none" />
                  <div className="space-y-3 pt-4">
                    {[1, 2, 3].map((i) => (
-                     <div key={i} className="h-20 w-full rounded-xl bg-muted animate-pulse" />
+                     <div key={i} className="h-20 w-full rounded-xl bg-muted animate-pulse motion-reduce:animate-none" />
                    ))}
                  </div>
                </div>

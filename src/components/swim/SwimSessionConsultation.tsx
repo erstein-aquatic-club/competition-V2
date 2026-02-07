@@ -190,7 +190,7 @@ const groupItemsByBlock = (items: SwimSessionItem[] = []): BlockGroup[] => {
 };
 
 const intensityBadgeClass = (value: string) =>
-  `inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 bg-white ${
+  `inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 bg-card ${
     intensityTextTone[value] ?? "text-foreground"
   } ${intensityRingTone[value] ?? "ring-border"}`;
 
@@ -236,14 +236,14 @@ export function SwimSessionConsultation({
         </div>
       ) : (
         blocks.map((block, blockIndex) => (
-          <Card key={block.key} className="overflow-hidden border border-slate-200 shadow-sm">
-            <CardHeader className="space-y-3 bg-slate-50/80 px-5 py-4">
+          <Card key={block.key} className="overflow-hidden border border-border shadow-sm">
+            <CardHeader className="space-y-3 bg-muted/80 px-5 py-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                     Bloc {blockIndex + 1}
                   </div>
-                  <div className="text-lg font-semibold tracking-tight text-slate-900">{block.title}</div>
+                  <div className="text-lg font-semibold tracking-tight text-foreground">{block.title}</div>
                   {block.description ? (
                     <p className="mt-1 text-sm text-muted-foreground">{block.description}</p>
                   ) : null}
@@ -262,7 +262,7 @@ export function SwimSessionConsultation({
               <SwimBadgeRow className="text-muted-foreground">
                 {block.modalities ? (
                   <span
-                    className="inline-flex max-w-[280px] items-center rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200"
+                    className="inline-flex max-w-[280px] items-center rounded-full bg-card px-2.5 py-1 ring-1 ring-border"
                     title={block.modalities}
                   >
                     <span className="truncate">Modalités : {block.modalities}</span>
@@ -279,7 +279,7 @@ export function SwimSessionConsultation({
                 ) : null}
               </SwimBadgeRow>
             </CardHeader>
-            <CardContent className="space-y-4 bg-white px-5 py-4">
+            <CardContent className="space-y-4 bg-card px-5 py-4">
               {block.items.map((item, itemIndex) => {
                 const payload = (item.raw_payload as Record<string, any>) ?? {};
                 const normalizedIntensity = normalizeIntensity(payload.exercise_intensity ?? item.intensity ?? null);
@@ -307,28 +307,28 @@ export function SwimSessionConsultation({
                   <>
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="space-y-2">
-                        <div className="text-sm font-semibold tracking-tight text-slate-900">
+                        <div className="text-sm font-semibold tracking-tight text-foreground">
                           {exerciseLabel}
                         </div>
                         {!compactMode ? (
                           <SwimBadgeRow className="text-muted-foreground">
                             {payload.exercise_repetitions ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 ring-1 ring-slate-200">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-card px-2 py-0.5 ring-1 ring-border">
                                 {payload.exercise_repetitions}x
                               </span>
                             ) : null}
                             {item.distance ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 ring-1 ring-slate-200">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-card px-2 py-0.5 ring-1 ring-border">
                                 <Ruler className="h-3 w-3" /> {item.distance}m
                               </span>
                             ) : null}
                             {payload.exercise_rest ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 ring-1 ring-slate-200">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-card px-2 py-0.5 ring-1 ring-border">
                                 <Timer className="h-3 w-3" /> {payload.exercise_rest}s
                               </span>
                             ) : null}
                             {payload.exercise_stroke ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 ring-1 ring-slate-200">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-card px-2 py-0.5 ring-1 ring-border">
                                 <Waves className="h-3 w-3" /> {strokeLabel}
                               </span>
                             ) : null}
@@ -336,27 +336,27 @@ export function SwimSessionConsultation({
                         ) : (
                           <SwimBadgeRow className="text-muted-foreground">
                             {payload.exercise_repetitions ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 ring-1 ring-slate-200">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-card px-2 py-0.5 ring-1 ring-border">
                                 {payload.exercise_repetitions}x
                               </span>
                             ) : null}
                             {item.distance ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 ring-1 ring-slate-200">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-card px-2 py-0.5 ring-1 ring-border">
                                 <Ruler className="h-3 w-3" /> {item.distance}m
                               </span>
                             ) : null}
                             {payload.exercise_rest ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 ring-1 ring-slate-200">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-card px-2 py-0.5 ring-1 ring-border">
                                 <Timer className="h-3 w-3" /> {payload.exercise_rest}s
                               </span>
                             ) : null}
                             {strokeLabel ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 ring-1 ring-slate-200">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-card px-2 py-0.5 ring-1 ring-border">
                                 <Waves className="h-3 w-3" /> {strokeLabel}
                               </span>
                             ) : null}
                             {normalizedIntensity ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 ring-1 ring-slate-200">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-card px-2 py-0.5 ring-1 ring-border">
                                 <span
                                   className={`h-2 w-2 rounded-full ${
                                     intensityTone[normalizedIntensity] ?? "bg-primary"
@@ -404,7 +404,7 @@ export function SwimSessionConsultation({
                       </div>
                     ) : null}
                     {!compactMode && modalitiesLines.length ? (
-                      <div className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
+                      <div className="mt-3 rounded-xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
                         <ul className="list-disc space-y-1 pl-4">
                           {modalitiesLines.map((line, lineIndex) => (
                             <li key={`${block.key}-${itemIndex}-line-${lineIndex}`}>{line}</li>
@@ -436,7 +436,7 @@ export function SwimSessionConsultation({
                     key={`${block.key}-${itemIndex}`}
                     type="button"
                     onClick={() => onExerciseSelect?.(exerciseDetail)}
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left transition hover:border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    className="w-full rounded-2xl border border-border bg-muted p-4 text-left transition hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     aria-label={`Voir les détails de ${exerciseLabel}`}
                   >
                     {content}
@@ -444,7 +444,7 @@ export function SwimSessionConsultation({
                 ) : (
                   <div
                     key={`${block.key}-${itemIndex}`}
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left"
+                    className="w-full rounded-2xl border border-border bg-muted p-4 text-left"
                   >
                     {content}
                   </div>

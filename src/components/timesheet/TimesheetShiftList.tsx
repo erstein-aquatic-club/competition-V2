@@ -34,13 +34,13 @@ const formatShiftDate = (value: string) => {
 
 export function TimesheetShiftList({ groups, onEdit, onDelete }: TimesheetShiftListProps) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-[0_1px_6px_rgba(0,0,0,0.04)]">
+    <div className="rounded-2xl border border-border bg-card shadow-[0_1px_6px_rgba(0,0,0,0.04)]">
       {groups.length === 0 ? (
-        <div className="px-4 py-4 text-sm text-slate-500">Aucun shift pour l’instant.</div>
+        <div className="px-4 py-4 text-sm text-muted-foreground">Aucun shift pour l’instant.</div>
       ) : (
         groups.map((group) => (
           <div key={group.date}>
-            <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black capitalize text-slate-900">
+            <div className="flex items-center justify-between gap-3 border-b border-border bg-muted px-3 py-2 text-xs font-black capitalize text-foreground">
               <span>{formatShiftDate(group.date)}</span>
               <span>{formatMinutes(group.totalMinutes)}</span>
             </div>
@@ -51,23 +51,23 @@ export function TimesheetShiftList({ groups, onEdit, onDelete }: TimesheetShiftL
                 return (
                   <div
                     key={shift.id}
-                    className="flex flex-wrap items-start gap-3 border-b border-slate-100 px-3 py-3"
+                    className="flex flex-wrap items-start gap-3 border-b border-border/50 px-3 py-3"
                   >
                     <span
                       className={
                         shift.is_travel
-                          ? "rounded-full border border-slate-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-slate-900"
-                          : "rounded-full border border-slate-200 bg-blue-50 px-2 py-1 text-[11px] font-semibold text-slate-900"
+                          ? "rounded-full border border-border bg-amber-50 px-2 py-1 text-[11px] font-semibold text-foreground"
+                          : "rounded-full border border-border bg-blue-50 px-2 py-1 text-[11px] font-semibold text-foreground"
                       }
                     >
                       {shift.is_travel ? "Trajet" : "Travail"}
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        <div className="text-sm font-black text-slate-900">
+                        <div className="text-sm font-black text-foreground">
                           {formatShiftTime(shift.start_time)} → {shift.end_time ? formatShiftTime(shift.end_time) : "En cours"}
                           {duration !== null ? (
-                            <span className="ml-1 text-xs font-semibold text-slate-500">
+                            <span className="ml-1 text-xs font-semibold text-muted-foreground">
                               ({formatMinutes(duration)})
                             </span>
                           ) : null}
@@ -75,7 +75,7 @@ export function TimesheetShiftList({ groups, onEdit, onDelete }: TimesheetShiftL
                         <div className="flex flex-wrap justify-end gap-2">
                           <button
                             type="button"
-                            className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-900 cursor-pointer min-h-[44px] min-w-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                            className="rounded-lg border border-border bg-card px-3 py-2.5 text-xs font-bold text-foreground cursor-pointer min-h-[44px] min-w-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                             onClick={() => onEdit(shift)}
                             aria-label={`Modifier le shift ${formatShiftTime(shift.start_time)}`}
                           >
@@ -83,7 +83,7 @@ export function TimesheetShiftList({ groups, onEdit, onDelete }: TimesheetShiftL
                           </button>
                           <button
                             type="button"
-                            className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-900 cursor-pointer min-h-[44px] min-w-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                            className="rounded-lg border border-border bg-card px-3 py-2.5 text-xs font-bold text-foreground cursor-pointer min-h-[44px] min-w-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                             onClick={() => onDelete(shift.id)}
                             aria-label={`Supprimer le shift ${formatShiftTime(shift.start_time)}`}
                           >
@@ -91,10 +91,10 @@ export function TimesheetShiftList({ groups, onEdit, onDelete }: TimesheetShiftL
                           </button>
                         </div>
                       </div>
-                      <div className="mt-1 text-sm text-slate-700">
+                      <div className="mt-1 text-sm text-foreground">
                         {shift.location || "Lieu non précisé"}
                       </div>
-                      {isOngoing ? <div className="mt-1 text-xs text-slate-500">En cours</div> : null}
+                      {isOngoing ? <div className="mt-1 text-xs text-muted-foreground">En cours</div> : null}
                     </div>
                   </div>
                 );

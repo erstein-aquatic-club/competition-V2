@@ -114,11 +114,11 @@ function WheelPicker({
       <div className="relative overflow-hidden rounded-xl border border-border bg-card">
         <div
           className="pointer-events-none absolute left-0 right-0 top-0 z-[2]"
-          style={{ height: padding, background: "linear-gradient(#fff, rgba(255,255,255,0))" }}
+          style={{ height: padding, background: "linear-gradient(hsl(var(--background)), transparent)" }}
         />
         <div
           className="pointer-events-none absolute left-0 right-0 bottom-0 z-[2]"
-          style={{ height: padding, background: "linear-gradient(rgba(255,255,255,0), #fff)" }}
+          style={{ height: padding, background: "linear-gradient(transparent, hsl(var(--background)))" }}
         />
         <div
           className="pointer-events-none absolute left-1.5 right-1.5 z-[1] rounded-lg"

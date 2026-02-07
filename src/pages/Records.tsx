@@ -139,7 +139,7 @@ function InlineEditBar({
   );
 }
 
-const SkeletonRow = () => <div className="h-10 rounded-xl bg-muted animate-pulse" />;
+const SkeletonRow = () => <div className="h-10 rounded-xl bg-muted animate-pulse motion-reduce:animate-none" />;
 
 export default function Records() {
   const { user, userId, role } = useAuth();
@@ -565,7 +565,7 @@ export default function Records() {
                 </div>
               ) : null}
 
-              <Card className="w-full overflow-hidden rounded-2xl">
+              <Card className="w-full min-w-0 overflow-x-auto overflow-hidden rounded-2xl">
                 <CardContent className="p-0">
                   {swimLoading ? (
                     <div className="p-4 grid gap-3">
@@ -830,7 +830,7 @@ export default function Records() {
                 </div>
               </div>
 
-              <Card className="w-full overflow-hidden rounded-2xl">
+              <Card className="w-full min-w-0 overflow-x-auto overflow-hidden rounded-2xl">
                 <CardContent className="p-0">
                   {oneRmLoading || exercisesLoading ? (
                     <div className="p-4 grid gap-3">

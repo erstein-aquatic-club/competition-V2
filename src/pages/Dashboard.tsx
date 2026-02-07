@@ -353,7 +353,7 @@ function Drawer({
             className={cn(
               "fixed z-modal bg-background shadow-2xl",
               // Mobile: bottom sheet
-              "left-0 right-0 bottom-0 top-auto h-[88vh] rounded-t-3xl supports-[height:100dvh]:h-[88dvh]",
+              "left-0 right-0 bottom-0 top-auto max-h-[calc(100dvh-env(safe-area-inset-top))] h-[88dvh] rounded-t-3xl",
               // Desktop: drawer à droite
               "sm:right-0 sm:top-0 sm:left-auto sm:bottom-auto sm:h-full sm:w-full sm:max-w-xl sm:rounded-none"
             )}
@@ -1131,7 +1131,7 @@ export default function Dashboard() {
 
       <div className="mx-auto max-w-6xl px-3 sm:px-4 pt-20 pb-5 sm:py-8">
         {/* Header épuré (desktop) */}
-        <div className="hidden sm:flex items-center justify-between">
+        <div className="invisible sm:visible flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="h-10 w-10 rounded-2xl bg-card border border-border flex items-center justify-center">
               <Waves className="h-5 w-5 text-foreground" />
@@ -1170,13 +1170,13 @@ export default function Dashboard() {
                 <span
                   className={cn(
                     "h-1.5 w-1.5 rounded-full",
-                    selectedDayStatus.total > 0 && selectedDayStatus.completed >= 1 ? "bg-emerald-600" : "bg-zinc-300"
+                    selectedDayStatus.total > 0 && selectedDayStatus.completed >= 1 ? "bg-emerald-600" : "bg-muted-foreground/30"
                   )}
                 />
                 <span
                   className={cn(
                     "h-1.5 w-1.5 rounded-full",
-                    selectedDayStatus.total > 0 && selectedDayStatus.completed >= 2 ? "bg-emerald-600" : "bg-zinc-300"
+                    selectedDayStatus.total > 0 && selectedDayStatus.completed >= 2 ? "bg-emerald-600" : "bg-muted-foreground/30"
                   )}
                 />
               </div>
@@ -1260,7 +1260,7 @@ export default function Dashboard() {
                           onClick={() => toggleDefaultPresence(idx, s.key)}
                           className={cn(
                             "w-24 rounded-2xl border px-3 py-2 text-sm font-semibold transition",
-                            on ? "bg-card text-white border-zinc-900" : "bg-card text-foreground border-border hover:bg-muted"
+                            on ? "bg-foreground text-background border-foreground" : "bg-card text-foreground border-border hover:bg-muted"
                           )}
                           aria-label={`${wd} ${s.label}`}
                         >
@@ -1316,13 +1316,13 @@ export default function Dashboard() {
                   <span
                     className={cn(
                       "h-1.5 w-1.5 rounded-full",
-                      selectedDayStatus.total > 0 && selectedDayStatus.completed >= 1 ? "bg-emerald-600" : "bg-zinc-300"
+                      selectedDayStatus.total > 0 && selectedDayStatus.completed >= 1 ? "bg-emerald-600" : "bg-muted-foreground/30"
                     )}
                   />
                   <span
                     className={cn(
                       "h-1.5 w-1.5 rounded-full",
-                      selectedDayStatus.total > 0 && selectedDayStatus.completed >= 2 ? "bg-emerald-600" : "bg-zinc-300"
+                      selectedDayStatus.total > 0 && selectedDayStatus.completed >= 2 ? "bg-emerald-600" : "bg-muted-foreground/30"
                     )}
                   />
                 </div>
@@ -1505,7 +1505,7 @@ export default function Dashboard() {
                           onClick={leftActionFn}
                           className={cn(
                             "rounded-2xl px-3 py-3 text-sm font-semibold border transition inline-flex items-center justify-center gap-2",
-                            isNotExpected ? "bg-card text-white border-zinc-900 hover:bg-card" : "bg-card text-foreground border-border hover:bg-muted"
+                            isNotExpected ? "bg-foreground text-background border-foreground hover:opacity-90" : "bg-card text-foreground border-border hover:bg-muted"
                           )}
                         >
                           {isNotExpected ? <UserCheck className="h-4 w-4" /> : <UserX className="h-4 w-4" />}
@@ -1611,7 +1611,7 @@ export default function Dashboard() {
                                 "w-full resize-none rounded-3xl border px-4 py-3 text-sm outline-none",
                                 !canRate
                                   ? "bg-muted text-muted-foreground border-border"
-                                  : "bg-card text-foreground border-border focus:ring-2 focus:ring-zinc-900/10"
+                                  : "bg-card text-foreground border-border focus:ring-2 focus:ring-foreground/10"
                               )}
                             />
                           </div>
@@ -1633,7 +1633,7 @@ export default function Dashboard() {
                             className={cn(
                               "rounded-2xl px-4 py-3 text-sm font-semibold transition",
                               isPending || !canRate
-                                ? "bg-zinc-200 text-muted-foreground cursor-not-allowed"
+                                ? "bg-muted text-muted-foreground cursor-not-allowed"
                                 : INDICATORS.every((i) => Number.isInteger(draftState[i.key]))
                                 ? "bg-emerald-700 text-white hover:bg-emerald-600"
                                 : "bg-emerald-200 text-emerald-900/70 cursor-not-allowed"

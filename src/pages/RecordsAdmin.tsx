@@ -78,6 +78,7 @@ export default function RecordsAdmin() {
       api.updateClubRecordSwimmer(id, payload),
     onSuccess: () => {
       void load();
+      toast({ title: "Sauvegardé" });
     },
     onError: () => {
       toast({ title: "Mise à jour impossible", variant: "destructive" });
@@ -89,6 +90,7 @@ export default function RecordsAdmin() {
       api.updateClubRecordSwimmerForUser(userId, payload),
     onSuccess: () => {
       void load();
+      toast({ title: "Sauvegardé" });
     },
     onError: () => {
       toast({ title: "Mise à jour impossible", variant: "destructive" });
@@ -206,10 +208,10 @@ export default function RecordsAdmin() {
             <div className="space-y-3">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="flex items-center gap-4">
-                  <div className="h-4 w-32 rounded bg-muted animate-pulse" />
-                  <div className="h-4 w-20 rounded bg-muted animate-pulse" />
-                  <div className="h-4 w-16 rounded bg-muted animate-pulse" />
-                  <div className="h-4 w-24 rounded bg-muted animate-pulse" />
+                  <div className="h-4 w-32 rounded bg-muted animate-pulse motion-reduce:animate-none" />
+                  <div className="h-4 w-20 rounded bg-muted animate-pulse motion-reduce:animate-none" />
+                  <div className="h-4 w-16 rounded bg-muted animate-pulse motion-reduce:animate-none" />
+                  <div className="h-4 w-24 rounded bg-muted animate-pulse motion-reduce:animate-none" />
                 </div>
               ))}
             </div>

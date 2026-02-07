@@ -69,7 +69,8 @@ export default function HallOfFame() {
         </TabsList>
 
         <TabsContent value="swim" className="space-y-6 pt-4 animate-in slide-in-from-left-4 motion-reduce:animate-none">
-             <div className="grid gap-6 md:grid-cols-2">
+             {/* Podium colors (yellow, orange, rose, emerald, violet) are intentionally hardcoded for visual distinction */}
+             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <Card className="border-t-4 border-t-yellow-500 shadow-md">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-base">
@@ -154,7 +155,7 @@ export default function HallOfFame() {
         </TabsContent>
 
         <TabsContent value="strength" className="space-y-6 pt-4 animate-in slide-in-from-right-4 motion-reduce:animate-none">
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <Card className="border-t-4 border-t-emerald-500 shadow-md">
                   <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-base">

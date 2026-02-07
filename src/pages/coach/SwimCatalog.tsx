@@ -32,6 +32,7 @@ import {
   Pencil,
   Play,
   Plus,
+  Repeat,
   Route,
   Save,
   Search,
@@ -270,8 +271,8 @@ export default function SwimCatalog() {
 
   const [newSession, setNewSession] = useState<SwimSessionDraft>(createEmptySession);
 
-  const { data: sessions } = useQuery({ queryKey: ["swim_catalog"], queryFn: () => api.getSwimCatalog() });
-  const { data: assignments } = useQuery({
+  const { data: sessions, isLoading: sessionsLoading } = useQuery({ queryKey: ["swim_catalog"], queryFn: () => api.getSwimCatalog() });
+  const { data: assignments, isError: assignmentsError } = useQuery({
     queryKey: ["coach-assignments"],
     queryFn: () => api.getAssignmentsForCoach(),
     enabled: role === "coach" || role === "admin",
@@ -634,7 +635,7 @@ export default function SwimCatalog() {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold text-primary-foreground">
-                              🔁 {block.repetitions ?? 1}x
+                              <Repeat className="inline h-3 w-3" /> {block.repetitions ?? 1}x
                             </span>
                             <div className="truncate text-xs font-semibold">
                               {block.title ? block.title : `Bloc ${blockIndex + 1}`}
@@ -673,7 +674,7 @@ export default function SwimCatalog() {
                                     <span
                                       className={cn(
                                         "h-2 w-2 rounded-full",
-                                        intensityTone[normalizedIntensity] ?? "bg-slate-300",
+                                        intensityTone[normalizedIntensity] ?? "bg-muted",
                                       )}
                                     />
                                     {formatIntensityLabel(normalizedIntensity)}
@@ -940,7 +941,7 @@ export default function SwimCatalog() {
                                         <span
                                           className={cn(
                                             "h-2 w-2 rounded-full",
-                                            intensityTone[normalizedIntensity] ?? "bg-slate-300",
+                                            intensityTone[normalizedIntensity] ?? "bg-muted",
                                           )}
                                         />
                                         {formatIntensityLabel(normalizedIntensity)}
@@ -986,7 +987,7 @@ export default function SwimCatalog() {
                                               )}
                                             >
                                               {iconUrl ? (
-                                                <img src={iconUrl} alt="" className="h-4 w-4" aria-hidden="true" />
+                                                <img src={iconUrl} alt="" className="h-4 w-4" aria-hidden="true" loading="lazy" />
                                               ) : null}
                                             </span>
                                             {equipment.label}
@@ -1105,6 +1106,20 @@ export default function SwimCatalog() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+
+        {assignmentsError && (
+          <div className="mt-4 rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+            Impossible de charger les assignations.
+          </div>
+        )}
+
+        {sessionsLoading && (
+          <div className="mt-4 space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-24 w-full rounded-xl bg-muted animate-pulse motion-reduce:animate-none" />
+            ))}
+          </div>
+        )}
 
         <div className="mt-4 space-y-3">
           {visibleSessions.map((session) => {

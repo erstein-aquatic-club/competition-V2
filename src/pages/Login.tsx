@@ -119,6 +119,7 @@ export default function Login() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
+              <Label htmlFor="login-email" className="sr-only">Email</Label>
               <Input
                 id="login-email"
                 aria-label="Email"
@@ -137,6 +138,7 @@ export default function Login() {
               <p className="text-xs text-muted-foreground text-center">
                 Saisissez votre email et votre mot de passe.
               </p>
+              <Label htmlFor="login-password" className="sr-only">Mot de passe</Label>
               <Input
                 id="login-password"
                 aria-label="Mot de passe"

@@ -117,6 +117,20 @@ export function SwimKpiCompactGrid({
   );
 }
 
+function ChartSkeleton() {
+  return (
+    <div className="space-y-4 animate-pulse motion-reduce:animate-none">
+      <div className="h-6 w-48 rounded-lg bg-muted" />
+      <div className="h-[200px] w-full rounded-xl bg-muted" />
+      <div className="flex gap-2">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-4 w-16 rounded bg-muted" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Progress() {
   const { user, userId, role, selectedAthleteId, selectedAthleteName } = useAuth();
   const hasCoachSelection =
@@ -130,7 +144,7 @@ export default function Progress() {
   const [historyTo, setHistoryTo] = useState("");
   const [swimPeriodDays, setSwimPeriodDays] = useState(30);
   const [strengthPeriodDays, setStrengthPeriodDays] = useState(30);
-  const { data: sessions } = useQuery({
+  const { data: sessions, isLoading: isSwimLoading } = useQuery({
     queryKey: ["sessions", athleteKey],
     queryFn: () => api.getSessions(athleteName!, athleteId),
     enabled: !!athleteName,
@@ -157,7 +171,7 @@ export default function Progress() {
   const strengthRuns = strengthHistoryQuery.data?.pages.flatMap((page) => page.runs) ?? [];
   const strengthRangeFrom = startOfDay(subDays(new Date(), strengthPeriodDays)).toISOString();
   const strengthRangeTo = endOfDay(new Date()).toISOString();
-  const { data: strengthHistorySummary } = useQuery({
+  const { data: strengthHistorySummary, isLoading: isStrengthSummaryLoading } = useQuery({
     queryKey: [
       "strength_history_summary",
       athleteKey,
@@ -176,7 +190,7 @@ export default function Progress() {
       }),
     enabled: !!athleteName,
   });
-  const { data: strengthAggregate } = useQuery({
+  const { data: strengthAggregate, isLoading: isStrengthAggregateLoading } = useQuery({
     queryKey: [
       "strength_history_aggregate",
       athleteKey,
@@ -196,6 +210,7 @@ export default function Progress() {
       }),
     enabled: !!athleteName,
   });
+  const isStrengthLoading = isStrengthSummaryLoading || isStrengthAggregateLoading;
   const strengthRunsPeriod = strengthHistorySummary?.runs ?? [];
   const exerciseSummary = strengthHistorySummary?.exercise_summary ?? [];
   const strengthAggregatePeriods = strengthAggregate?.periods ?? [];
@@ -434,7 +449,9 @@ export default function Progress() {
              <Card>
                 <CardHeader><CardTitle>Volume Quotidien</CardTitle></CardHeader>
                 <CardContent className="h-[250px] w-full">
-                    {swimData.length === 0 ? (
+                    {isSwimLoading ? (
+                        <ChartSkeleton />
+                    ) : swimData.length === 0 ? (
                         <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                             Aucune donnée disponible.
                         </div>
@@ -463,7 +480,9 @@ export default function Progress() {
                       <CardTitle>{metric.title}</CardTitle>
                     </CardHeader>
                     <CardContent className="h-[240px] w-full">
-                      {swimData.length === 0 ? (
+                      {isSwimLoading ? (
+                        <ChartSkeleton />
+                      ) : swimData.length === 0 ? (
                         <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                           Aucune donnée disponible.
                         </div>
@@ -552,7 +571,9 @@ export default function Progress() {
              <Card>
                 <CardHeader><CardTitle>Tonnage & Volume ({strengthPeriodDays}j)</CardTitle></CardHeader>
                 <CardContent className="h-[250px] w-full">
-                    {strengthAggregateData.length === 0 ? (
+                    {isStrengthLoading ? (
+                        <ChartSkeleton />
+                    ) : strengthAggregateData.length === 0 ? (
                         <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                             Aucune donnée disponible.
                         </div>
@@ -574,7 +595,9 @@ export default function Progress() {
              <Card>
                 <CardHeader><CardTitle>Ressenti Séances</CardTitle></CardHeader>
                 <CardContent className="h-[250px] w-full">
-                    {strengthData.length === 0 ? (
+                    {isStrengthLoading ? (
+                        <ChartSkeleton />
+                    ) : strengthData.length === 0 ? (
                         <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                             Aucune donnée disponible.
                         </div>
@@ -594,7 +617,9 @@ export default function Progress() {
              <Card>
                 <CardHeader><CardTitle>Volume par exercice</CardTitle></CardHeader>
                 <CardContent className="h-[260px] w-full">
-                    {topExerciseVolume.length === 0 ? (
+                    {isStrengthLoading ? (
+                        <ChartSkeleton />
+                    ) : topExerciseVolume.length === 0 ? (
                         <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                             Aucune donnée d'exercice disponible.
                         </div>

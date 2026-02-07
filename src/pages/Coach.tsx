@@ -246,13 +246,13 @@ const CoachHome = ({
                 onKpiPeriodChange(Number(value) as KpiLookbackPeriod);
               }}
             >
-              <ToggleGroupItem value="7" aria-label="Période 7 jours">
+              <ToggleGroupItem value="7" aria-label="Période 7 jours" aria-pressed={kpiPeriod === 7}>
                 7j
               </ToggleGroupItem>
-              <ToggleGroupItem value="30" aria-label="Période 30 jours">
+              <ToggleGroupItem value="30" aria-label="Période 30 jours" aria-pressed={kpiPeriod === 30}>
                 30j
               </ToggleGroupItem>
-              <ToggleGroupItem value="365" aria-label="Période 365 jours">
+              <ToggleGroupItem value="365" aria-label="Période 365 jours" aria-pressed={kpiPeriod === 365}>
                 365j
               </ToggleGroupItem>
             </ToggleGroup>
@@ -573,9 +573,9 @@ export default function Coach() {
                 <div className="space-y-3 p-2">
                   {[1, 2, 3, 4, 5].map((i) => (
                     <div key={i} className="flex items-center gap-3">
-                      <div className="h-4 w-1/3 rounded-lg bg-muted animate-pulse" />
-                      <div className="h-4 w-1/4 rounded-lg bg-muted animate-pulse" />
-                      <div className="ml-auto h-8 w-16 rounded-lg bg-muted animate-pulse" />
+                      <div className="h-4 w-1/3 rounded-lg bg-muted animate-pulse motion-reduce:animate-none" />
+                      <div className="h-4 w-1/4 rounded-lg bg-muted animate-pulse motion-reduce:animate-none" />
+                      <div className="ml-auto h-8 w-16 rounded-lg bg-muted animate-pulse motion-reduce:animate-none" />
                     </div>
                   ))}
                 </div>

@@ -406,7 +406,7 @@ export function WorkoutRunner({
   if (currentStep === 0) {
     return (
       <div className="space-y-6 text-center py-8 animate-in zoom-in duration-300 motion-reduce:animate-none">
-        <div className="h-24 w-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto animate-pulse">
+        <div className="h-24 w-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto animate-pulse motion-reduce:animate-none">
           <Dumbbell className="h-10 w-10 text-primary ml-1" />
         </div>
         <div>
@@ -534,6 +534,7 @@ export function WorkoutRunner({
                 src={currentExerciseDef.illustration_gif}
                 alt=""
                 className="h-full w-full object-cover"
+                loading="lazy"
               />
             ) : (
               <Dumbbell className="h-5 w-5 text-muted-foreground" />
@@ -790,6 +791,7 @@ export function WorkoutRunner({
                 src={currentExerciseDef.illustration_gif}
                 alt=""
                 className="max-h-[80vh] w-auto max-w-[92vw] rounded-2xl"
+                loading="lazy"
               />
             </div>
           </div>

@@ -270,7 +270,7 @@ export default function Notifications() {
   if (isLoading) return (
     <div className="space-y-4 p-4">
       {[1, 2, 3, 4].map((i) => (
-        <div key={i} className="flex items-start gap-3 rounded-xl bg-muted animate-pulse p-4">
+        <div key={i} className="flex items-start gap-3 rounded-xl bg-muted animate-pulse motion-reduce:animate-none p-4">
           <div className="h-10 w-10 rounded-full bg-muted-foreground/10" />
           <div className="flex-1 space-y-2">
             <div className="h-4 w-3/4 rounded bg-muted-foreground/10" />

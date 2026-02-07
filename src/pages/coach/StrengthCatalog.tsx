@@ -1,5 +1,6 @@
 
 import { useEffect, useMemo, useState } from "react";
+import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, Exercise, StrengthCycleType, StrengthSessionItem, StrengthSessionTemplate } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -284,6 +285,7 @@ export default function StrengthCatalog() {
   const [pendingDeleteSession, setPendingDeleteSession] = useState<StrengthSessionTemplate | null>(null);
   const [pendingDeleteExercise, setPendingDeleteExercise] = useState<Exercise | null>(null);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
   const [newWarmupMode, setNewWarmupMode] = useState<"reps" | "duration">("reps");
   const [editWarmupMode, setEditWarmupMode] = useState<"reps" | "duration">("reps");
   
@@ -883,12 +885,14 @@ export default function StrengthCatalog() {
                   {newSession.items.map((item, index) => (
                       <Card
                         key={`${item.exercise_id}-${index}`}
-                        className="relative"
-                        onDragOver={(event) => event.preventDefault()}
+                        className={cn("relative transition-colors", dropTargetIndex === index && draggingIndex !== null && draggingIndex !== index ? "ring-2 ring-primary bg-primary/5" : "")}
+                        onDragOver={(event) => { event.preventDefault(); setDropTargetIndex(index); }}
+                        onDragLeave={() => setDropTargetIndex((prev) => prev === index ? null : prev)}
                         onDrop={() => {
                           if (draggingIndex === null) return;
                           reorderItems(draggingIndex, index);
                           setDraggingIndex(null);
+                          setDropTargetIndex(null);
                         }}
                       >
                           <Button
@@ -907,7 +911,7 @@ export default function StrengthCatalog() {
                                    className="cursor-grab rounded-md border p-1 text-muted-foreground hover:text-foreground"
                                    draggable
                                    onDragStart={() => setDraggingIndex(index)}
-                                   onDragEnd={() => setDraggingIndex(null)}
+                                   onDragEnd={() => { setDraggingIndex(null); setDropTargetIndex(null); }}
                                    aria-label="Réordonner"
                                  >
                                    <GripVertical className="h-4 w-4" />
@@ -1022,11 +1026,11 @@ export default function StrengthCatalog() {
            {[1, 2, 3, 4].map((i) => (
              <Card key={i}>
                <CardHeader>
-                 <div className="h-5 w-3/4 rounded-lg bg-muted animate-pulse" />
-                 <div className="mt-2 h-4 w-1/2 rounded-lg bg-muted animate-pulse" />
+                 <div className="h-5 w-3/4 rounded-lg bg-muted animate-pulse motion-reduce:animate-none" />
+                 <div className="mt-2 h-4 w-1/2 rounded-lg bg-muted animate-pulse motion-reduce:animate-none" />
                </CardHeader>
                <CardContent>
-                 <div className="h-9 w-32 rounded-lg bg-muted animate-pulse" />
+                 <div className="h-9 w-32 rounded-lg bg-muted animate-pulse motion-reduce:animate-none" />
                </CardContent>
              </Card>
            ))}
@@ -1087,8 +1091,8 @@ export default function StrengthCatalog() {
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <Card key={i}>
                   <CardHeader>
-                    <div className="h-5 w-2/3 rounded-lg bg-muted animate-pulse" />
-                    <div className="mt-2 h-4 w-1/3 rounded-lg bg-muted animate-pulse" />
+                    <div className="h-5 w-2/3 rounded-lg bg-muted animate-pulse motion-reduce:animate-none" />
+                    <div className="mt-2 h-4 w-1/3 rounded-lg bg-muted animate-pulse motion-reduce:animate-none" />
                   </CardHeader>
                 </Card>
               ))}
@@ -1104,6 +1108,7 @@ export default function StrengthCatalog() {
                         src={exercise.illustration_gif}
                         alt={`Illustration ${exercise.nom_exercice}`}
                         className="h-14 w-14 rounded-md object-cover"
+                        loading="lazy"
                       />
                     ) : null}
                     <div>

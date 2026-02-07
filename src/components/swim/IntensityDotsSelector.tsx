@@ -79,7 +79,7 @@ export function IntensityDotsSelector({
             <span
               className={cn(
                 "h-3 w-3 rounded-full",
-                isSelected ? intensityTone[level] ?? "bg-primary" : "bg-slate-200",
+                isSelected ? intensityTone[level] ?? "bg-primary" : "bg-muted",
               )}
             />
             <span>{level === "Max" ? "MAX" : level}</span>
