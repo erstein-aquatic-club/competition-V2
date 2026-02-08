@@ -1,6 +1,0 @@
-import{j as e}from"./vendor-ui-CMUPCwTD.js";import{C as i,a,b as s,c as n,d as c}from"./card-BVRwMXiB.js";import{c as o}from"./index-BDGnhHrZ.js";import"./vendor-react-BzrpNAyj.js";import"./vendor-query-WtxIVPOV.js";import"./vendor-charts-BHfjz9SJ.js";import"./vendor-supabase-CrvtPqJM.js";/**
- * @license lucide-react v0.545.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */const m=[["path",{d:"M12 6v6l4 2",key:"mmk7yg"}],["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}]],l=o("clock",m);function y({title:t="À venir",description:r="Cette fonctionnalité arrive bientôt. Merci pour votre patience."}){return e.jsx("div",{className:"flex items-center justify-center min-h-[60vh] animate-in fade-in motion-reduce:animate-none",children:e.jsxs(i,{className:"w-full max-w-sm border-dashed text-center",children:[e.jsxs(a,{children:[e.jsx("div",{className:"mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary",children:e.jsx(l,{className:"h-6 w-6"})}),e.jsx(s,{className:"mt-4 text-2xl font-display uppercase italic text-primary",children:t}),e.jsx(n,{children:r})]}),e.jsx(c,{className:"text-sm text-muted-foreground",children:"Nous finalisons cette section pour une prochaine mise à jour."})]})})}export{y as default};
