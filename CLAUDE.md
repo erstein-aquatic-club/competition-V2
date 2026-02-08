@@ -88,6 +88,20 @@ Chaque session de développement doit suivre ce protocole (détail complet dans 
 
 > **Règle d'or : aucun patch sans entrée dans `implementation-log.md`.**
 
+## Cache bust (déploiement)
+
+L'application est servie sur GitHub Pages avec les meta tags `apple-mobile-web-app-capable`. Les navigateurs (surtout Safari iOS) cachent agressivement `index.html`.
+
+**Mécanisme en place :**
+- `index.html` contient les meta tags `Cache-Control: no-cache, no-store, must-revalidate`
+- `vite.config.ts` injecte `__BUILD_TIMESTAMP__` automatiquement à chaque build (visible dans la console navigateur)
+- Les assets JS/CSS ont des content hashes automatiques (Vite default)
+
+**Règle obligatoire** : À chaque patch/déploiement, vérifier que :
+1. Le build timestamp est bien injecté (vérifier dans la console : `[EAC] Build: <date>`)
+2. Si un changement ne se reflète pas après déploiement, demander aux utilisateurs de vider le cache ou faire un hard refresh (Ctrl+Shift+R)
+3. Ne jamais ajouter de service worker sans mécanisme de mise à jour automatique (risque de cache permanent)
+
 ## Points d'attention
 
 - `api.ts` est en cours de refactoring (~2200 lignes, en baisse depuis ~2900) — modules extraits dans `src/lib/api/`

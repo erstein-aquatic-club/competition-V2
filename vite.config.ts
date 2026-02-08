@@ -8,6 +8,9 @@ import { visualizer } from "rollup-plugin-visualizer";
 export default defineConfig(({ mode }) => ({
   base: mode === "production" ? "/competition-V2/" : "/",
   envDir: path.resolve(import.meta.dirname),
+  define: {
+    __BUILD_TIMESTAMP__: JSON.stringify(new Date().toISOString()),
+  },
   plugins: [
     react(),
     tailwindcss(),

@@ -30,6 +30,50 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 
 ---
 
+## 2026-02-08 — Cache bust pour déploiement GitHub Pages
+
+**Branche** : `claude/continue-implementation-ajI8U`
+**Chantier ROADMAP** : Hors roadmap — Amélioration infra déploiement
+
+### Contexte
+
+L'application PWA-like (meta `apple-mobile-web-app-capable`) a du mal à se rafraîchir après chaque déploiement sur GitHub Pages. Les navigateurs (surtout Safari iOS) cachent agressivement `index.html`. Aucun mécanisme de versioning ou d'anti-cache n'était en place.
+
+### Changements réalisés
+
+1. **Anti-cache meta tags dans `index.html`** — `Cache-Control: no-cache, no-store, must-revalidate`, `Pragma: no-cache`, `Expires: 0`
+2. **Build timestamp dans `vite.config.ts`** — `define: { __BUILD_TIMESTAMP__: JSON.stringify(new Date().toISOString()) }` injecte un timestamp unique à chaque build
+3. **Log build version dans `src/main.tsx`** — `console.log([EAC] Build: ${__BUILD_TIMESTAMP__})` pour vérifier la version déployée
+4. **Instruction dans `CLAUDE.md`** — Section "Cache bust (déploiement)" ajoutée
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `index.html` | Ajout meta tags anti-cache |
+| `vite.config.ts` | Ajout `define.__BUILD_TIMESTAMP__` |
+| `src/main.tsx` | Ajout log build timestamp |
+| `CLAUDE.md` | Ajout section cache bust |
+
+### Tests
+
+- [x] `npm run build` — OK
+- [x] `npx tsc --noEmit` — erreurs pré-existantes uniquement
+
+### Décisions prises
+
+- Meta tags HTTP-equiv plutôt que headers HTTP (pas de contrôle serveur sur GitHub Pages)
+- Build timestamp injecté par Vite `define` (automatique, pas de fichier à maintenir)
+- Pas de service worker (risque de cache permanent difficile à invalider)
+
+### Limites / dette
+
+- Les meta tags HTTP-equiv sont moins fiables que de vrais headers HTTP côté serveur
+- GitHub Pages ne permet pas de configurer des Cache-Control headers personnalisés
+- Un manifest.json + service worker avec stratégie "network-first" serait la solution idéale mais plus complexe
+
+---
+
 ## 2026-02-08 — Refonte parcours d'inscription (§1)
 
 **Branche** : `claude/continue-implementation-ajI8U`
