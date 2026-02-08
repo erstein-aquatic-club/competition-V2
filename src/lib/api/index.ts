@@ -79,4 +79,4 @@ export {
 } from './transformers';
 
 // Re-export main api object from legacy file
-export { api, useApiCapabilities } from '../api';
+export { api } from '../api';

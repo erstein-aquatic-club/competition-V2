@@ -29,6 +29,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const unreadCount = notificationsResult?.notifications?.filter((notification) => !notification.read).length ?? 0;
 
   useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location]);
+
+  useEffect(() => {
     if (typeof document === "undefined") return;
     const updateFocusMode = () => {
       setIsFocusMode(document.body.dataset.focusMode === "strength");

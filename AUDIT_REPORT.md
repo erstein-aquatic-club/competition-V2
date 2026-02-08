@@ -1,4 +1,4 @@
-# Rapport de conformité — Audit UI/UX competition-V2
+# Rapport de conformité — Audit UI/UX competition
 
 **Date :** 2026-02-07
 **Branche :** `claude/verify-ui-ux-audit-kpf9c`

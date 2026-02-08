@@ -74,6 +74,7 @@ import {
   delay,
   parseRawPayload,
   fetchUserGroupIds,
+  normalizeExerciseType,
 } from "./api/client";
 
 // --- Helpers (imported from api/helpers.ts) ---
@@ -485,7 +486,7 @@ export const api = {
   },
 
   async createExercise(exercise: Omit<Exercise, "id">) {
-      const exercise_type = assertExerciseType(exercise.exercise_type);
+      const exercise_type = normalizeExerciseType(exercise.exercise_type);
 
       if (canUseSupabase()) {
         const dbRow = mapApiExerciseToDb({ ...exercise, exercise_type });
@@ -505,7 +506,7 @@ export const api = {
   },
 
   async updateExercise(exercise: Exercise) {
-      const exercise_type = assertExerciseType(exercise.exercise_type);
+      const exercise_type = normalizeExerciseType(exercise.exercise_type);
 
       if (canUseSupabase()) {
         const dbRow = mapApiExerciseToDb({ ...exercise, exercise_type });

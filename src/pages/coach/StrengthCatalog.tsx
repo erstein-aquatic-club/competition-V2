@@ -11,6 +11,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2, Save, Filter, Edit2, GripVertical, Eye } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -283,6 +284,7 @@ export default function StrengthCatalog() {
   const [pendingDeleteSession, setPendingDeleteSession] = useState<StrengthSessionTemplate | null>(null);
   const [pendingDeleteExercise, setPendingDeleteExercise] = useState<Exercise | null>(null);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [newWarmupMode, setNewWarmupMode] = useState<"reps" | "duration">("reps");
   const [editWarmupMode, setEditWarmupMode] = useState<"reps" | "duration">("reps");
   
@@ -882,12 +884,18 @@ export default function StrengthCatalog() {
                   {newSession.items.map((item, index) => (
                       <Card
                         key={`${item.exercise_id}-${index}`}
-                        className="relative"
+                        className={cn(
+                          "relative transition-all",
+                          dragOverIndex === index && draggingIndex !== null && draggingIndex !== index && "ring-2 ring-primary bg-accent/30",
+                        )}
                         onDragOver={(event) => event.preventDefault()}
+                        onDragEnter={() => setDragOverIndex(index)}
+                        onDragLeave={() => setDragOverIndex((prev) => (prev === index ? null : prev))}
                         onDrop={() => {
                           if (draggingIndex === null) return;
                           reorderItems(draggingIndex, index);
                           setDraggingIndex(null);
+                          setDragOverIndex(null);
                         }}
                       >
                           <Button
@@ -906,7 +914,7 @@ export default function StrengthCatalog() {
                                    className="cursor-grab rounded-md border p-1 text-muted-foreground hover:text-foreground"
                                    draggable
                                    onDragStart={() => setDraggingIndex(index)}
-                                   onDragEnd={() => setDraggingIndex(null)}
+                                   onDragEnd={() => { setDraggingIndex(null); setDragOverIndex(null); }}
                                    aria-label="Réordonner"
                                  >
                                    <GripVertical className="h-4 w-4" />

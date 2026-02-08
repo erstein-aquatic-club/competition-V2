@@ -70,7 +70,7 @@ Détail complet : [`docs/FEATURES_STATUS.md`](docs/FEATURES_STATUS.md)
 ## Structure du projet
 
 ```
-competition-V2/
+competition/
 ├── src/
 │   ├── pages/           # Pages React (19 pages)
 │   ├── components/      # Composants UI et métier

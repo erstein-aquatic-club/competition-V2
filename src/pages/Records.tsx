@@ -503,8 +503,8 @@ export default function Records() {
     cancelOneRmEdit();
   };
 
-  const SwimColsTraining = "grid-cols-[minmax(0,1fr)_4.75rem_4.75rem_2.5rem]";
-  const SwimColsComp = "grid-cols-[minmax(0,1fr)_4.75rem_3.75rem_4.75rem]";
+  const SwimColsTraining = "grid-cols-[minmax(0,1fr)_3.75rem_3.75rem_2.25rem] sm:grid-cols-[minmax(0,1fr)_4.75rem_4.75rem_2.5rem]";
+  const SwimColsComp = "grid-cols-[minmax(0,1fr)_3.75rem_2.75rem_3.75rem] sm:grid-cols-[minmax(0,1fr)_4.75rem_3.75rem_4.75rem]";
   const swimCols = swimMode === "training" ? SwimColsTraining : SwimColsComp;
 
   if (!showRecords) {
@@ -662,7 +662,7 @@ export default function Records() {
                 </div>
               ) : null}
 
-              <Card className="w-full min-w-0 overflow-x-auto overflow-hidden rounded-2xl">
+              <Card className="w-full min-w-0 overflow-x-auto rounded-2xl">
                 <CardContent className="p-0">
                   {swimLoading ? (
                     <div className="p-4 grid gap-3">
@@ -942,6 +942,26 @@ export default function Records() {
                     </div>
                   </div>
 
+                  {/* Profile loading error */}
+                  {profileQuery.isError ? (
+                    <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+                      Impossible de charger votre profil. Vérifiez votre connexion et rechargez la page.
+                    </div>
+                  ) : null}
+
+                  {/* Missing IUF warning */}
+                  {!profileQuery.isError && !userIuf && !profileQuery.isLoading ? (
+                    <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-4 text-sm text-yellow-700 dark:text-yellow-400">
+                      <p className="font-semibold mb-1">IUF FFN non renseigné</p>
+                      <p>
+                        Pour importer vos performances depuis la FFN, renseignez votre numéro IUF dans{" "}
+                        <a href="/#/profile" className="underline underline-offset-2 font-medium hover:text-foreground">
+                          votre profil
+                        </a>.
+                      </p>
+                    </div>
+                  ) : null}
+
                   {/* Import button */}
                   <Button
                     type="button"
@@ -956,11 +976,6 @@ export default function Records() {
                     )}
                     {importPerformances.isPending ? "Import en cours..." : "Importer mes performances FFN"}
                   </Button>
-                  {!userIuf ? (
-                    <div className="text-xs text-muted-foreground">
-                      Ajoutez votre IUF FFN dans votre profil pour importer vos performances.
-                    </div>
-                  ) : null}
 
                   {/* Event filter */}
                   {perfEventCodes.length > 0 ? (
@@ -1031,7 +1046,7 @@ export default function Records() {
                   ) : null}
 
                   {/* Performance list */}
-                  <Card className="w-full min-w-0 overflow-hidden rounded-2xl">
+                  <Card className="w-full min-w-0 overflow-x-auto rounded-2xl">
                     <CardContent className="p-0">
                       {perfLoading ? (
                         <div className="p-4 grid gap-3">
@@ -1041,7 +1056,12 @@ export default function Records() {
                         </div>
                       ) : perfIsError ? (
                         <div className="mx-4 my-4 rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
-                          Impossible de charger les performances.
+                          <p className="font-semibold">Impossible de charger les performances</p>
+                          <p className="mt-1 text-xs">
+                            {performancesQuery.error instanceof Error
+                              ? performancesQuery.error.message
+                              : "Vérifiez votre connexion internet et réessayez."}
+                          </p>
                         </div>
                       ) : filteredPerformances.length === 0 ? (
                         <div className="px-4 py-6 text-sm text-muted-foreground">
@@ -1052,7 +1072,7 @@ export default function Records() {
                       ) : (
                         <div className="w-full">
                           <div className="px-3 sm:px-4 py-2 text-[11px] text-muted-foreground border-b border-border">
-                            <div className="grid items-center gap-2 grid-cols-[minmax(0,1fr)_4.75rem_3.75rem_4.75rem]">
+                            <div className="grid items-center gap-2 grid-cols-[minmax(0,1fr)_3.75rem_2.75rem_3.75rem] sm:grid-cols-[minmax(0,1fr)_4.75rem_3.75rem_4.75rem]">
                               <div className="truncate justify-self-start">Épreuve</div>
                               <div className="whitespace-nowrap justify-self-end">Temps</div>
                               <div className="whitespace-nowrap justify-self-end">Pts</div>
@@ -1062,7 +1082,7 @@ export default function Records() {
                           <div className="divide-y divide-border">
                             {filteredPerformances.map((perf) => (
                               <div key={perf.id} className="px-3 sm:px-4 py-3">
-                                <div className="grid items-center gap-2 grid-cols-[minmax(0,1fr)_4.75rem_3.75rem_4.75rem]">
+                                <div className="grid items-center gap-2 grid-cols-[minmax(0,1fr)_3.75rem_2.75rem_3.75rem] sm:grid-cols-[minmax(0,1fr)_4.75rem_3.75rem_4.75rem]">
                                   <div className="min-w-0 justify-self-start">
                                     <div className="text-sm font-semibold truncate">{perf.event_code}</div>
                                   </div>
@@ -1102,7 +1122,7 @@ export default function Records() {
                 </div>
               </div>
 
-              <Card className="w-full min-w-0 overflow-x-auto overflow-hidden rounded-2xl">
+              <Card className="w-full min-w-0 overflow-x-auto rounded-2xl">
                 <CardContent className="p-0">
                   {oneRmLoading || exercisesLoading ? (
                     <div className="p-4 grid gap-3">

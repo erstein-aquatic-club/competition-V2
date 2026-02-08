@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -8,10 +8,21 @@ import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Check,
   CheckCircle2,
   ChevronRight,
   Dumbbell,
+  Loader2,
   Pause,
   RotateCcw,
   Timer,
@@ -21,6 +32,7 @@ import { BottomActionBar } from "@/components/shared/BottomActionBar";
 import { ScrollContainer } from "@/components/shared/ScrollContainer";
 import { ScaleSelector5 } from "@/components/shared/ScaleSelector5";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 import type { Exercise, StrengthSessionTemplate } from "@/lib/api";
 import type { SetLogEntry, OneRmEntry, WorkoutFinishData, SetInputValues } from "@/lib/types";
 
@@ -108,6 +120,8 @@ export function WorkoutRunner({
   initialSeriesOpen?: boolean;
   onExitFocus?: () => void;
 }) {
+  const { toast } = useToast();
+  const isLoggingRef = useRef(false);
   const [currentStep, setCurrentStep] = useState(initialStep ?? 0);
   const [logs, setLogs] = useState<SetLogEntry[]>([]);
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -126,6 +140,8 @@ export function WorkoutRunner({
   const [activeInput, setActiveInput] = useState<"weight" | "reps">("weight");
   const [draftValue, setDraftValue] = useState("");
   const [isGifOpen, setIsGifOpen] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
+  const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null;
@@ -246,6 +262,12 @@ export function WorkoutRunner({
   };
 
   useEffect(() => {
+    // Guard: skip recalculation when a local logging action is in progress
+    // to avoid the dual-update race condition that causes set skipping
+    if (isLoggingRef.current) {
+      if (initialLogs) setLogs(initialLogs);
+      return;
+    }
     if (!initialLogs) {
       setLogs((prev: SetLogEntry[]) => (prev.length ? [] : prev));
       setCurrentSetInputs((prev: Record<number, SetInputValues>) =>
@@ -311,6 +333,7 @@ export function WorkoutRunner({
   };
 
   const advanceExercise = async () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     const nextStep = currentStep + 1;
     setCurrentSetIndex(1);
     setCurrentSetInputs({});
@@ -320,8 +343,8 @@ export function WorkoutRunner({
     );
     try {
       await onProgress?.(progressPct);
-    } catch {
-      // Fail silently; UI feedback is handled in mutations.
+    } catch (err) {
+      toast({ title: "Erreur de sauvegarde", description: "Réessayez", variant: "destructive" });
     }
   };
 
@@ -342,10 +365,13 @@ export function WorkoutRunner({
       weight: currentSetInputs[currentSetIndex - 1]?.weight || targetWeight,
     };
     setLogs((prev) => [...prev, newLog]);
+    isLoggingRef.current = true;
     try {
       await onLogSets?.([newLog]);
-    } catch {
-      // Fail silently; UI feedback is handled in mutations.
+    } catch (err) {
+      toast({ title: "Erreur de sauvegarde", description: "Réessayez", variant: "destructive" });
+    } finally {
+      isLoggingRef.current = false;
     }
     if (autoRest && currentBlock.rest_seconds > 0) {
       startRestTimer(currentBlock.rest_seconds);
@@ -424,12 +450,25 @@ export function WorkoutRunner({
         <Button
           size="lg"
           className="w-full text-xl h-14 font-bold uppercase tracking-wider shadow-lg hover:scale-[1.02] transition-transform"
+          disabled={isStarting}
           onClick={async () => {
-            await onStart?.();
-            updateStep(1);
+            setIsStarting(true);
+            try {
+              await onStart?.();
+              updateStep(1);
+            } finally {
+              setIsStarting(false);
+            }
           }}
         >
-          COMMENCER SÉANCE
+          {isStarting ? (
+            <>
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              CHARGEMENT...
+            </>
+          ) : (
+            "COMMENCER SÉANCE"
+          )}
         </Button>
       </div>
     );
@@ -559,7 +598,18 @@ export function WorkoutRunner({
             <div className="text-sm font-semibold">{progressPct}%</div>
           </div>
           {onExitFocus ? (
-            <Button variant="ghost" size="icon" aria-label="Quitter le focus" onClick={onExitFocus}>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Quitter le focus"
+              onClick={() => {
+                if (logs.length > 0) {
+                  setExitConfirmOpen(true);
+                } else {
+                  onExitFocus();
+                }
+              }}
+            >
               <X className="h-4 w-4" />
             </Button>
           ) : null}
@@ -792,6 +842,7 @@ export function WorkoutRunner({
                 src={currentExerciseDef.illustration_gif}
                 alt=""
                 className="max-h-[80vh] w-auto max-w-[92vw] rounded-2xl"
+                loading="lazy"
               />
             </div>
           </div>
@@ -996,6 +1047,25 @@ export function WorkoutRunner({
           </div>
         </DrawerContent>
       </Drawer>
+
+      {onExitFocus && (
+        <AlertDialog open={exitConfirmOpen} onOpenChange={setExitConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Quitter la séance ?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Les séries enregistrées seront conservées.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction onClick={() => { setExitConfirmOpen(false); onExitFocus(); }}>
+                Quitter
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }

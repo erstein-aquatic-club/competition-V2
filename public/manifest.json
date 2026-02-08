@@ -1,0 +1,16 @@
+{
+  "name": "EAC Suivi Natation",
+  "short_name": "Suivi Natation",
+  "description": "Application de suivi natation pour l'Erstein Aquatic Club",
+  "start_url": "/competition/",
+  "scope": "/competition/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#C41425",
+  "background_color": "#f9f9f9",
+  "icons": [
+    { "src": "apple-touch-icon-152.png", "sizes": "152x152", "type": "image/png" },
+    { "src": "apple-touch-icon-167.png", "sizes": "167x167", "type": "image/png" },
+    { "src": "apple-touch-icon-180.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}

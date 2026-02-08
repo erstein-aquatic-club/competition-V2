@@ -112,7 +112,7 @@ export default function Login() {
       <Card className="w-full max-w-sm relative z-10 shadow-2xl border-t-8 border-t-primary animate-in fade-in zoom-in duration-500 motion-reduce:animate-none">
         <CardHeader className="text-center pb-2">
           <div className="mx-auto mb-6 h-24 w-24 rounded-full bg-foreground flex items-center justify-center border-4 border-primary shadow-lg">
-             <img src={eacLogo} alt="EAC Logo" className="h-full w-full object-cover rounded-full opacity-90" />
+             <img src={eacLogo} alt="EAC Logo" loading="lazy" className="h-full w-full object-cover rounded-full opacity-90" />
           </div>
           <CardTitle className="text-3xl font-display italic uppercase tracking-tighter">SUIVI<span className="text-primary">NATATION</span></CardTitle>
           <CardDescription className="uppercase tracking-widest text-xs font-bold">Erstein Aquatic Club</CardDescription>
@@ -308,13 +308,13 @@ export default function Login() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Groupe</Label>
+              <Label htmlFor="register-group">Groupe</Label>
               <Select
                 value={registerGroupId}
                 onValueChange={setRegisterGroupId}
                 disabled={groupsLoading || groups.length === 0}
               >
-                <SelectTrigger>
+                <SelectTrigger id="register-group">
                   <SelectValue placeholder={groupsLoading ? "Chargement..." : groupsError ? "Erreur de chargement" : "Sélectionnez un groupe"} />
                 </SelectTrigger>
                 <SelectContent>

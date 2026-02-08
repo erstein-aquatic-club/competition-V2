@@ -3,6 +3,7 @@
  */
 
 import type { Session, Exercise, Notification, SyncSessionInput } from './types';
+import type { LocalStrengthRun } from '../types';
 import {
   safeInt,
   safeOptionalInt,
@@ -39,7 +40,7 @@ export interface StrengthExerciseSummary {
 }
 
 export interface StrengthHistoryResult {
-  runs: unknown[];
+  runs: LocalStrengthRun[];
   pagination: Pagination;
   exercise_summary: StrengthExerciseSummary[];
 }
