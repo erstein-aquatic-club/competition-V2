@@ -489,18 +489,18 @@ function valueTone(mode: "hard" | "good", value: number) {
   if (!Number.isFinite(v) || v < 1 || v > 5) return "neutral";
 
   const hardMap: Record<number, string> = {
-    1: "bg-emerald-600 border-emerald-600 text-white",
-    2: "bg-emerald-500 border-emerald-500 text-white",
-    3: "bg-amber-500 border-amber-500 text-white",
-    4: "bg-orange-500 border-orange-500 text-white",
-    5: "bg-red-600 border-red-600 text-white",
+    1: "bg-intensity-1 border-intensity-1 text-white",
+    2: "bg-intensity-2 border-intensity-2 text-white",
+    3: "bg-intensity-3 border-intensity-3 text-white",
+    4: "bg-intensity-4 border-intensity-4 text-white",
+    5: "bg-intensity-5 border-intensity-5 text-white",
   };
   const goodMap: Record<number, string> = {
-    1: "bg-red-600 border-red-600 text-white",
-    2: "bg-orange-500 border-orange-500 text-white",
-    3: "bg-amber-500 border-amber-500 text-white",
-    4: "bg-emerald-500 border-emerald-500 text-white",
-    5: "bg-emerald-600 border-emerald-600 text-white",
+    1: "bg-intensity-5 border-intensity-5 text-white",
+    2: "bg-intensity-4 border-intensity-4 text-white",
+    3: "bg-intensity-3 border-intensity-3 text-white",
+    4: "bg-intensity-2 border-intensity-2 text-white",
+    5: "bg-intensity-1 border-intensity-1 text-white",
   };
 
   return mode === "hard" ? hardMap[v] : goodMap[v];
@@ -595,17 +595,19 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
 
-  const { data: sessions } = useQuery({
+  const { data: sessions, isLoading: sessionsLoading } = useQuery({
     queryKey: ["sessions", userId ?? user],
     queryFn: () => api.getSessions(user!, userId),
     enabled: !!user,
   });
 
-  const { data: assignments } = useQuery({
+  const { data: assignments, isLoading: assignmentsLoading } = useQuery({
     queryKey: ["assignments", user],
     queryFn: () => api.getAssignments(user!, userId),
     enabled: !!user,
   });
+
+  const isLoading = sessionsLoading || assignmentsLoading;
 
   const deleteMutation = useMutation({
     mutationFn: (sessionId: number) => api.deleteSession(sessionId),
@@ -1103,6 +1105,54 @@ export default function Dashboard() {
     return fmtKm(metersToKm(sumMeters));
   }, [sessionsForSelectedDay, getSessionStatus, selectedDate, logsBySessionId]);
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-muted">
+        <div className="sm:hidden fixed top-0 left-0 right-0 z-overlay border-b border-border bg-card/90 backdrop-blur">
+          <div className="mx-auto max-w-6xl px-3 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="h-10 w-10 rounded-2xl bg-muted animate-pulse" />
+              <div className="flex flex-col gap-1">
+                <div className="h-4 w-12 rounded bg-muted animate-pulse" />
+                <div className="h-3 w-16 rounded bg-muted animate-pulse" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-9 w-9 rounded-2xl bg-muted animate-pulse" />
+              <div className="h-9 w-9 rounded-2xl bg-muted animate-pulse" />
+            </div>
+          </div>
+        </div>
+
+        <div className="mx-auto max-w-6xl px-3 sm:px-4 pt-20 pb-5 sm:py-8">
+          {/* Calendar skeleton */}
+          <div className="mt-4 rounded-3xl border border-border bg-card overflow-hidden">
+            <div className="flex items-center justify-between px-3 sm:px-5 py-3 border-b border-border">
+              <div className="flex items-center gap-1">
+                <div className="h-9 w-9 rounded-2xl bg-muted animate-pulse" />
+                <div className="h-9 w-9 rounded-2xl bg-muted animate-pulse" />
+              </div>
+              <div className="h-6 w-32 rounded bg-muted animate-pulse" />
+              <div className="h-9 w-9 rounded-2xl bg-muted animate-pulse" />
+            </div>
+            <div className="p-3 sm:p-5">
+              <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+                {Array.from({ length: 7 }).map((_, i) => (
+                  <div key={`wh-${i}`} className="px-0.5 pb-1 flex justify-center">
+                    <div className="h-3 w-4 rounded bg-muted animate-pulse" />
+                  </div>
+                ))}
+                {Array.from({ length: 35 }).map((_, i) => (
+                  <div key={`cs-${i}`} className="aspect-square rounded-2xl bg-muted/50 animate-pulse" />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-muted">
       {/*
@@ -1173,13 +1223,13 @@ export default function Dashboard() {
                 <span
                   className={cn(
                     "h-1.5 w-1.5 rounded-full",
-                    selectedDayStatus.total > 0 && selectedDayStatus.completed >= 1 ? "bg-emerald-600" : "bg-muted-foreground/30"
+                    selectedDayStatus.total > 0 && selectedDayStatus.completed >= 1 ? "bg-status-success" : "bg-muted-foreground/30"
                   )}
                 />
                 <span
                   className={cn(
                     "h-1.5 w-1.5 rounded-full",
-                    selectedDayStatus.total > 0 && selectedDayStatus.completed >= 2 ? "bg-emerald-600" : "bg-muted-foreground/30"
+                    selectedDayStatus.total > 0 && selectedDayStatus.completed >= 2 ? "bg-status-success" : "bg-muted-foreground/30"
                   )}
                 />
               </div>
@@ -1319,13 +1369,13 @@ export default function Dashboard() {
                   <span
                     className={cn(
                       "h-1.5 w-1.5 rounded-full",
-                      selectedDayStatus.total > 0 && selectedDayStatus.completed >= 1 ? "bg-emerald-600" : "bg-muted-foreground/30"
+                      selectedDayStatus.total > 0 && selectedDayStatus.completed >= 1 ? "bg-status-success" : "bg-muted-foreground/30"
                     )}
                   />
                   <span
                     className={cn(
                       "h-1.5 w-1.5 rounded-full",
-                      selectedDayStatus.total > 0 && selectedDayStatus.completed >= 2 ? "bg-emerald-600" : "bg-muted-foreground/30"
+                      selectedDayStatus.total > 0 && selectedDayStatus.completed >= 2 ? "bg-status-success" : "bg-muted-foreground/30"
                     )}
                   />
                 </div>
@@ -1350,11 +1400,11 @@ export default function Dashboard() {
               const needsAction = st.expected && !hasLog && !isAbsentOverride;
 
               const bg = hasLog
-                ? "bg-emerald-50 border-emerald-200"
+                ? "bg-status-success-bg border-status-success/30"
                 : isAbsentLike
                 ? "bg-sky-50 border-sky-200"
                 : needsAction
-                ? "bg-orange-50 border-orange-200"
+                ? "bg-status-warning-bg border-status-warning/30"
                 : "bg-card border-border";
 
               const SlotIcon = SLOTS.find((x) => x.key === s.slotKey)?.Icon || Circle;
@@ -1372,11 +1422,11 @@ export default function Dashboard() {
                         className={cn(
                           "h-10 w-10 rounded-2xl border flex items-center justify-center",
                           hasLog
-                            ? "border-emerald-200 bg-emerald-100"
+                            ? "border-status-success/30 bg-status-success-bg"
                             : isAbsentLike
                             ? "border-sky-200 bg-sky-100"
                             : needsAction
-                            ? "border-orange-200 bg-orange-100"
+                            ? "border-status-warning/30 bg-status-warning-bg"
                             : "border-border bg-muted"
                         )}
                       >
@@ -1638,8 +1688,8 @@ export default function Dashboard() {
                               isPending || !canRate
                                 ? "bg-muted text-muted-foreground cursor-not-allowed"
                                 : INDICATORS.every((i) => Number.isInteger(draftState[i.key]))
-                                ? "bg-emerald-700 text-white hover:bg-emerald-600"
-                                : "bg-emerald-200 text-emerald-900/70 cursor-not-allowed"
+                                ? "bg-status-success text-white hover:opacity-90"
+                                : "bg-status-success-bg text-status-success cursor-not-allowed"
                             )}
                           >
                             Valider

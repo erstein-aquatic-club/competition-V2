@@ -35,19 +35,19 @@ interface BlockGroup {
 }
 
 const intensityTextTone: Record<string, string> = {
-  V0: "text-emerald-800",
-  V1: "text-green-800",
-  V2: "text-yellow-800",
-  V3: "text-orange-800",
-  Max: "text-red-800",
+  V0: "text-intensity-1",
+  V1: "text-intensity-2",
+  V2: "text-intensity-3",
+  V3: "text-intensity-4",
+  Max: "text-intensity-5",
 };
 
 const intensityRingTone: Record<string, string> = {
-  V0: "ring-emerald-200",
-  V1: "ring-green-200",
-  V2: "ring-yellow-200",
-  V3: "ring-orange-200",
-  Max: "ring-red-200",
+  V0: "ring-intensity-1/30",
+  V1: "ring-intensity-2/30",
+  V2: "ring-intensity-3/30",
+  V3: "ring-intensity-4/30",
+  Max: "ring-intensity-5/30",
 };
 
 const legacyIntensityMap: Record<string, (typeof intensityScale)[number]> = {

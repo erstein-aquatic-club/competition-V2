@@ -14,7 +14,46 @@ Ce document décrit les fonctionnalités à implémenter. Il sert de référence
 | 2 | Import de toutes les performances FFN d'un nageur | Haute | Haute | Fait |
 | 3 | Gestion coach des imports de performances | Moyenne | Moyenne | Fait |
 | 4 | Records club par catégorie d'âge / sexe / nage | Moyenne | Faible | Fait |
-| 5 | Dette technique UI/UX restante (patch-report) | Basse | Faible | En cours |
+| 5 | Dette technique UI/UX restante (patch-report) | Basse | Faible | Fait |
+| 6 | Fix timers mode focus (PWA iOS background) | Haute | Faible | A faire |
+
+---
+
+## 6. Fix timers mode focus (PWA iOS background)
+
+### Problème actuel
+
+En mode focus (WorkoutRunner), les timers utilisent des `setInterval` relatifs :
+- **Timer elapsed** (`src/components/strength/WorkoutRunner.tsx:149`) : `setInterval(() => setElapsedTime(t => t + 1), 1000)` — incrémente de +1 chaque seconde
+- **Timer repos** (`WorkoutRunner.tsx:168`) : `setInterval(() => setRestTimer(t => t - 1), 1000)` — décrémente de -1 chaque seconde
+
+Sur iPhone en PWA (`apple-mobile-web-app-capable`), quand l'écran se verrouille ou que l'app passe en arrière-plan, iOS **throttle ou suspend** les `setInterval`. Résultat : un repos de 90s peut durer 3-4 minutes en temps réel car le timer ne décompte que quand l'app est au premier plan.
+
+### Objectif
+
+Des timers fiables qui affichent toujours le temps réel écoulé, même après un passage en arrière-plan iOS.
+
+### Implémentation proposée
+
+Remplacer les timers relatifs par des **timestamps absolus** :
+
+1. **Timer elapsed** — Stocker `startTimestamp = Date.now()` au démarrage de la séance. L'affichage calcule `elapsed = Math.floor((Date.now() - startTimestamp) / 1000)`. Gérer pause/reprise avec un accumulateur `pausedElapsed`.
+
+2. **Timer repos** — Stocker `restEndTimestamp = Date.now() + duration * 1000` au démarrage du repos. L'affichage calcule `remaining = Math.max(0, Math.ceil((restEndTimestamp - Date.now()) / 1000))`. Quand `remaining === 0`, déclencher la fin du repos.
+
+3. **Détection retour premier plan** — Écouter `document.addEventListener('visibilitychange')` pour forcer un re-render immédiat au retour au premier plan (le `setInterval` peut avoir un délai de reprise).
+
+4. **Fréquence d'update** — Garder `setInterval` à 1000ms pour l'affichage, mais le calcul est toujours basé sur `Date.now()` → pas de dérive.
+
+### Fichiers à modifier
+
+| Fichier | Modification |
+|---------|-------------|
+| `src/components/strength/WorkoutRunner.tsx` | Remplacer les 2 timers (elapsed + repos) par des timestamps absolus, ajouter listener `visibilitychange` |
+
+### Complexité estimée
+
+Faible — changement localisé dans un seul fichier, ~30-40 lignes à modifier.
 
 ---
 

@@ -3,11 +3,11 @@ import { cn } from "@/lib/utils";
 const intensityScale = ["V0", "V1", "V2", "V3", "Max"] as const;
 
 const intensityTone: Record<string, string> = {
-  V0: "bg-emerald-500",
-  V1: "bg-green-500",
-  V2: "bg-yellow-500",
-  V3: "bg-orange-500",
-  Max: "bg-red-600",
+  V0: "bg-intensity-1",
+  V1: "bg-intensity-2",
+  V2: "bg-intensity-3",
+  V3: "bg-intensity-4",
+  Max: "bg-intensity-5",
 };
 
 const legacyIntensityMap: Record<string, (typeof intensityScale)[number]> = {

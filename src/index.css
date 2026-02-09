@@ -54,6 +54,31 @@
   --z-index-nav: 50;
   --z-index-modal: 60;
   --z-index-toast: 70;
+
+  /* Semantic color tokens */
+  --color-intensity-1: hsl(var(--intensity-1));
+  --color-intensity-2: hsl(var(--intensity-2));
+  --color-intensity-3: hsl(var(--intensity-3));
+  --color-intensity-4: hsl(var(--intensity-4));
+  --color-intensity-5: hsl(var(--intensity-5));
+  --color-intensity-1-bg: hsl(var(--intensity-1-bg));
+  --color-intensity-2-bg: hsl(var(--intensity-2-bg));
+  --color-intensity-3-bg: hsl(var(--intensity-3-bg));
+  --color-intensity-4-bg: hsl(var(--intensity-4-bg));
+  --color-intensity-5-bg: hsl(var(--intensity-5-bg));
+  --color-rank-gold: hsl(var(--rank-gold));
+  --color-rank-silver: hsl(var(--rank-silver));
+  --color-rank-bronze: hsl(var(--rank-bronze));
+  --color-status-success: hsl(var(--status-success));
+  --color-status-success-bg: hsl(var(--status-success-bg));
+  --color-status-warning: hsl(var(--status-warning));
+  --color-status-warning-bg: hsl(var(--status-warning-bg));
+  --color-status-error: hsl(var(--status-error));
+  --color-status-error-bg: hsl(var(--status-error-bg));
+  --color-tag-swim-bg: hsl(var(--tag-swim-bg));
+  --color-tag-swim-text: hsl(var(--tag-swim-text));
+  --color-tag-educ-bg: hsl(var(--tag-educ-bg));
+  --color-tag-educ-text: hsl(var(--tag-educ-text));
 }
 
 :root {
@@ -93,6 +118,39 @@
   --chart-3: 0 0% 60%; /* Grey */
   --chart-4: 0 0% 80%; /* Light Grey */
   --chart-5: 0 0% 0%; /* Black */
+
+  /* Intensity scale (effort/feeling 1-5) */
+  --intensity-1: 152 81% 36%;    /* emerald-600 - best/easiest */
+  --intensity-2: 142 71% 45%;    /* green-500 */
+  --intensity-3: 45 93% 47%;     /* yellow-500 */
+  --intensity-4: 25 95% 53%;     /* orange-500 */
+  --intensity-5: 0 72% 51%;      /* red-600 - worst/hardest */
+
+  /* Intensity backgrounds (lighter versions) */
+  --intensity-1-bg: 152 81% 96%;
+  --intensity-2-bg: 142 77% 93%;
+  --intensity-3-bg: 48 96% 89%;
+  --intensity-4-bg: 33 100% 90%;
+  --intensity-5-bg: 0 93% 94%;
+
+  /* Category tags */
+  --tag-swim-bg: 199 89% 48%;
+  --tag-swim-text: 200 98% 14%;
+  --tag-educ-bg: 263 70% 50%;
+  --tag-educ-text: 263 70% 14%;
+
+  /* Achievement ranks */
+  --rank-gold: 45 93% 47%;
+  --rank-silver: 0 0% 62%;
+  --rank-bronze: 25 95% 53%;
+
+  /* Status colors */
+  --status-success: 142 71% 45%;
+  --status-success-bg: 142 76% 96%;
+  --status-warning: 45 93% 47%;
+  --status-warning-bg: 48 96% 89%;
+  --status-error: 0 72% 51%;
+  --status-error-bg: 0 93% 94%;
 }
 
 .dark {
@@ -123,6 +181,39 @@
   --border: 0 0% 15%;
   --input: 0 0% 15%;
   --ring: 356 85% 55%;
+
+  /* Intensity scale - slightly desaturated for dark mode */
+  --intensity-1: 152 60% 45%;
+  --intensity-2: 142 55% 50%;
+  --intensity-3: 45 80% 55%;
+  --intensity-4: 25 80% 55%;
+  --intensity-5: 0 60% 55%;
+
+  /* Intensity backgrounds (dark mode) */
+  --intensity-1-bg: 152 40% 15%;
+  --intensity-2-bg: 142 35% 15%;
+  --intensity-3-bg: 48 40% 15%;
+  --intensity-4-bg: 33 40% 15%;
+  --intensity-5-bg: 0 40% 15%;
+
+  /* Category tags (dark mode) */
+  --tag-swim-bg: 199 70% 35%;
+  --tag-swim-text: 200 80% 85%;
+  --tag-educ-bg: 263 55% 40%;
+  --tag-educ-text: 263 55% 85%;
+
+  /* Achievement ranks (dark mode) */
+  --rank-gold: 45 80% 55%;
+  --rank-silver: 0 0% 55%;
+  --rank-bronze: 25 80% 55%;
+
+  /* Status colors (dark mode) */
+  --status-success: 142 55% 50%;
+  --status-success-bg: 142 35% 15%;
+  --status-warning: 45 80% 55%;
+  --status-warning-bg: 48 40% 15%;
+  --status-error: 0 60% 55%;
+  --status-error-bg: 0 40% 15%;
 }
 
 @layer base {

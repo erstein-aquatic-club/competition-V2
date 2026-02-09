@@ -6,24 +6,24 @@ type ScaleTone = "hard" | "good" | "fatigue";
 const paletteMap: Record<ScaleTone, string[]> = {
   hard: [
     "bg-muted border-border",
-    "bg-yellow-100 border-yellow-300 text-yellow-900",
-    "bg-orange-200 border-orange-300 text-orange-900",
-    "bg-red-300 border-red-400 text-red-900",
-    "bg-red-600 border-red-700 text-white",
+    "bg-intensity-3-bg border-intensity-3 text-foreground",
+    "bg-intensity-4-bg border-intensity-4 text-foreground",
+    "bg-intensity-5-bg border-intensity-5 text-foreground",
+    "bg-intensity-5 border-intensity-5 text-white",
   ],
   good: [
     "bg-muted border-border",
-    "bg-emerald-100 border-emerald-300 text-emerald-900",
-    "bg-emerald-200 border-emerald-300 text-emerald-900",
-    "bg-emerald-300 border-emerald-400 text-emerald-900",
-    "bg-emerald-600 border-emerald-700 text-white",
+    "bg-intensity-1-bg border-intensity-1 text-foreground",
+    "bg-intensity-1-bg border-intensity-1 text-foreground",
+    "bg-intensity-1-bg border-intensity-1 text-foreground",
+    "bg-intensity-1 border-intensity-1 text-white",
   ],
   fatigue: [
     "bg-sky-100 border-sky-300 text-sky-900",
-    "bg-emerald-100 border-emerald-300 text-emerald-900",
-    "bg-yellow-100 border-yellow-300 text-yellow-900",
-    "bg-orange-200 border-orange-300 text-orange-900",
-    "bg-red-600 border-red-700 text-white",
+    "bg-intensity-1-bg border-intensity-1 text-foreground",
+    "bg-intensity-3-bg border-intensity-3 text-foreground",
+    "bg-intensity-4-bg border-intensity-4 text-foreground",
+    "bg-intensity-5 border-intensity-5 text-white",
   ],
 };
 

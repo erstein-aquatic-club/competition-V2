@@ -48,9 +48,9 @@ export default function HallOfFame() {
   const repsRange = getValueRange(strengthReps.map((item) => Number(item.total_reps ?? 0)));
 
   const RankIcon = ({ rank }: { rank: number }) => {
-    if (rank === 0) return <Crown className="h-6 w-6 text-yellow-500 fill-yellow-500" />;
-    if (rank === 1) return <Medal className="h-5 w-5 text-gray-400 fill-gray-400" />;
-    if (rank === 2) return <Medal className="h-5 w-5 text-amber-700 fill-amber-700" />;
+    if (rank === 0) return <Crown className="h-6 w-6 text-rank-gold fill-rank-gold" />;
+    if (rank === 1) return <Medal className="h-5 w-5 text-rank-silver fill-rank-silver" />;
+    if (rank === 2) return <Medal className="h-5 w-5 text-rank-bronze fill-rank-bronze" />;
     return <span className="font-mono font-bold text-muted-foreground w-6 text-center">{rank + 1}</span>;
   };
 

@@ -240,6 +240,21 @@ export const useAuth = create<AuthState>((set) => ({
 }));
 
 // ---------------------------------------------------------------------------
+// Password reset helper
+// ---------------------------------------------------------------------------
+
+export const handlePasswordReset = async (newPassword: string): Promise<{ error: string | null }> => {
+  try {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) return { error: error.message };
+    return { error: null };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erreur lors de la modification du mot de passe";
+    return { error: message };
+  }
+};
+
+// ---------------------------------------------------------------------------
 // Listen to Supabase auth state changes (token refresh, sign-out from
 // another tab, etc.) and keep the Zustand store in sync.
 // ---------------------------------------------------------------------------

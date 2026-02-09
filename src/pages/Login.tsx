@@ -31,6 +31,11 @@ export default function Login() {
   const [registerError, setRegisterError] = useState<string | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
   const [signupComplete, setSignupComplete] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetSent, setResetSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
   const { loginFromSession, loadUser } = useAuth();
   const [, setLocation] = useLocation();
   const passwordInputRef = useRef<HTMLInputElement>(null);
@@ -104,6 +109,23 @@ export default function Login() {
     }
   };
 
+  const handleResetPassword = async () => {
+    setResetLoading(true);
+    setResetError(null);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: window.location.origin + '/competition/#/reset-password',
+      });
+      if (error) throw error;
+      setResetSent(true);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur lors de l'envoi";
+      setResetError(message);
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background relative overflow-hidden">
       {/* Background Elements */}
@@ -161,7 +183,7 @@ export default function Login() {
             >
               {isSubmitting ? "Connexion..." : "CONNEXION"}
             </Button>
-            <div className="flex justify-center">
+            <div className="flex flex-col items-center gap-2">
               <button
                 type="button"
                 onClick={() => {
@@ -172,6 +194,16 @@ export default function Login() {
                 className="text-xs text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               >
                 Créer un compte
+              </button>
+              <button
+                type="button"
+                className="text-xs text-muted-foreground hover:text-primary underline"
+                onClick={() => {
+                  setShowForgotPassword(true);
+                  setResetEmail(email.trim());
+                }}
+              >
+                Mot de passe oublié ?
               </button>
             </div>
           </form>
@@ -194,8 +226,8 @@ export default function Login() {
         <DialogContent className="sm:max-w-md">
           {signupComplete ? (
             <div className="text-center space-y-4 py-4">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-                <span className="text-3xl text-green-600">&#10003;</span>
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                <span className="text-3xl text-primary">&#10003;</span>
               </div>
               <h2 className="text-xl font-semibold">Compte créé avec succès !</h2>
               <p className="text-sm text-muted-foreground">
@@ -344,6 +376,93 @@ export default function Login() {
             </Button>
           </form>
           </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={showForgotPassword}
+        onOpenChange={(open) => {
+          setShowForgotPassword(open);
+          if (!open) {
+            setResetError(null);
+            setResetSent(false);
+            setResetEmail("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          {resetSent ? (
+            <div className="text-center space-y-4 py-4">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                <span className="text-3xl text-primary">&#9993;</span>
+              </div>
+              <h2 className="text-xl font-semibold">Email envoyé</h2>
+              <p className="text-sm text-muted-foreground">
+                Un email de réinitialisation a été envoyé. Vérifiez votre boîte de réception.
+              </p>
+              <Button
+                className="w-full"
+                variant="outline"
+                onClick={() => {
+                  setShowForgotPassword(false);
+                  setResetSent(false);
+                  setResetEmail("");
+                }}
+              >
+                Retour à la connexion
+              </Button>
+            </div>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>Réinitialiser le mot de passe</DialogTitle>
+                <DialogDescription>
+                  Entrez votre adresse email pour recevoir un lien de réinitialisation.
+                </DialogDescription>
+              </DialogHeader>
+              <form
+                className="space-y-4"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void handleResetPassword();
+                }}
+              >
+                <div className="space-y-2">
+                  <Label htmlFor="reset-email">Email</Label>
+                  <Input
+                    id="reset-email"
+                    type="email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    placeholder="votre@email.com"
+                    required
+                    autoFocus
+                  />
+                </div>
+                {resetError ? (
+                  <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive text-center">
+                    {resetError}
+                  </div>
+                ) : null}
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={!resetEmail.trim() || resetLoading}
+                >
+                  {resetLoading ? "Envoi..." : "Envoyer le lien"}
+                </Button>
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground hover:text-primary underline"
+                    onClick={() => setShowForgotPassword(false)}
+                  >
+                    Retour à la connexion
+                  </button>
+                </div>
+              </form>
+            </>
           )}
         </DialogContent>
       </Dialog>

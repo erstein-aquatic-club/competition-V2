@@ -26,7 +26,131 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §2 Import performances FFN | ✅ Fait | 2026-02-08 |
 | §3 Gestion coach imports | ✅ Fait | 2026-02-08 |
 | §4 Records club | ✅ Fait | 2026-02-08 |
-| §5 Dette UI/UX | ⚠️ En cours | 2026-02-07 (audit 78%) |
+| §5 Dette UI/UX | ✅ Fait | 2026-02-08 |
+
+---
+
+## 2026-02-08 — §5 Phase 1 : Fixes critiques + Quick UX fixes
+
+**Branche** : `claude/continue-implementation-ajI8U`
+**Chantier ROADMAP** : §5 — Dette technique UI/UX
+
+### Contexte
+
+14 tests échouaient (import.meta.env dans supabase.ts), 31 erreurs TypeScript (helpers.ts runs: unknown[]), pas de manifest PWA, scroll non reset entre pages, overflow dans Records, race condition dans WorkoutRunner (set skipping), UX silencieuse sur les erreurs.
+
+### Changements réalisés
+
+1. **Fix tests (14→2 failures)** — `supabase.ts` utilise maintenant `supabaseConfig` de `config.ts` au lieu de `import.meta.env` direct
+2. **Fix TypeScript (31→0 erreurs)** — `helpers.ts:42` `runs: unknown[]` → `LocalStrengthRun[]`, `api.ts` assertExerciseType → normalizeExerciseType, suppression export `useApiCapabilities`
+3. **PWA Manifest** — Création `public/manifest.json`, lien dans `index.html`, meta theme-color
+4. **Scroll reset navigation** — `AppLayout.tsx` : useEffect scrollTo(0,0) sur changement de route
+5. **Records.tsx fixes** — Suppression `overflow-hidden` conflictuel, messages d'erreur explicites quand IUF vide
+6. **Login.tsx fixes** — `htmlFor` manquant, `loading="lazy"` sur logo
+7. **WorkoutRunner bug critique** — `isLoggingRef` guard pour empêcher la race condition set-skip entre `handleValidateSet` et `useEffect` sur `initialLogs`
+8. **WorkoutRunner UX** — AlertDialog confirmation abandon, loading "Commencer séance", toasts erreur (plus de catch vides), scroll reset entre exercices, loading="lazy" GIF
+9. **StrengthCatalog drag-drop** — Feedback visuel (ring-2 + bg-accent) sur la cible de drag
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/lib/supabase.ts` | Import config.ts au lieu de import.meta.env |
+| `src/lib/api/helpers.ts` | runs: LocalStrengthRun[] |
+| `src/lib/api.ts` | normalizeExerciseType |
+| `src/lib/api/index.ts` | Suppression useApiCapabilities |
+| `public/manifest.json` | Créé — PWA manifest |
+| `index.html` | Lien manifest + meta theme-color |
+| `src/components/layout/AppLayout.tsx` | Scroll reset |
+| `src/pages/Records.tsx` | Overflow fix + messages erreur |
+| `src/pages/Login.tsx` | htmlFor + lazy loading |
+| `src/components/strength/WorkoutRunner.tsx` | Bug set-skip + UX overhaul |
+| `src/pages/coach/StrengthCatalog.tsx` | Drag-drop feedback |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — 0 erreur
+- [x] `npm run build` — OK
+- [x] `npm test` — 63 pass, 2 fail (pré-existants: summarizeApiError text + WorkoutRunner "Saisie série")
+
+---
+
+## 2026-02-08 — §5 Phase 2 : Refactoring api.ts + Couleurs + Password reset
+
+**Branche** : `claude/continue-implementation-ajI8U`
+**Chantier ROADMAP** : §5 — Dette technique UI/UX
+
+### Contexte
+
+api.ts monolithique (2277 lignes), ~140 couleurs hardcodées dans 11 fichiers, aucun flow mot de passe oublié, pas de skeletons de chargement.
+
+### Changements réalisés
+
+**A. Refactoring api.ts (2277 → 426 lignes, -81%)**
+
+7 modules extraits dans `src/lib/api/` :
+- `users.ts` — getProfile, getAthletes, approveUser, rejectUser, etc.
+- `timesheet.ts` — CRUD shifts/locations/coaches
+- `notifications.ts` — send, list, mark_read
+- `assignments.ts` — CRUD assignments
+- `swim.ts` — getSwimCatalog, createSwimSession, deleteSwimSession
+- `records.ts` — hallOfFame, club records, swim records, performances
+- `strength.ts` — exercises, sessions, runs, logs, history, 1RM
+
+`api/index.ts` re-exporte tout. L'objet `api` dans `api.ts` délègue aux modules.
+
+**B. Migration couleurs + Skeletons**
+
+- Tokens sémantiques dans `index.css` : `--intensity-1..5`, `--rank-gold/silver/bronze`, `--status-success/warning/error`, `--tag-swim/educ` (light + dark mode)
+- Remplacement dans 10 fichiers : Dashboard, FlatScale, SwimSessionConsultation, IntensityDots, IntensityDotsSelector, HallOfFame, SwimCatalog, Admin, TimesheetShiftList, Login
+- Skeletons de chargement dans Dashboard.tsx et Strength.tsx
+
+**C. Flow mot de passe oublié**
+
+- `Login.tsx` : mode "forgotPassword" avec input email + `supabase.auth.resetPasswordForEmail()`
+- `App.tsx` : composant `ResetPassword` + route `/#/reset-password`, détection token recovery dans URL hash
+- `auth.ts` : helper `handlePasswordReset()`
+- Login.tsx couleurs hardcodées → tokens sémantiques
+
+### Fichiers modifiés/créés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/lib/api/users.ts` | Créé — 9403 bytes |
+| `src/lib/api/timesheet.ts` | Créé — 6822 bytes |
+| `src/lib/api/notifications.ts` | Créé — 7970 bytes |
+| `src/lib/api/assignments.ts` | Créé — 8762 bytes |
+| `src/lib/api/swim.ts` | Créé — 6068 bytes |
+| `src/lib/api/records.ts` | Créé — 13170 bytes |
+| `src/lib/api/strength.ts` | Créé — 32850 bytes |
+| `src/lib/api.ts` | Refactoré 2277→426 lignes |
+| `src/lib/api/index.ts` | Re-exports 7 nouveaux modules |
+| `src/index.css` | +91 lignes tokens sémantiques |
+| `src/pages/Dashboard.tsx` | Couleurs + skeleton |
+| `src/pages/Strength.tsx` | Couleurs + skeleton |
+| `src/pages/Login.tsx` | Password reset + couleurs |
+| `src/App.tsx` | ResetPassword route + recovery detection |
+| `src/lib/auth.ts` | handlePasswordReset helper |
+| `src/components/swim/FlatScale.tsx` | Couleurs |
+| `src/components/swim/IntensityDots.tsx` | Couleurs |
+| `src/components/swim/IntensityDotsSelector.tsx` | Couleurs |
+| `src/components/swim/SwimSessionConsultation.tsx` | Couleurs |
+| `src/pages/HallOfFame.tsx` | Couleurs |
+| `src/pages/coach/SwimCatalog.tsx` | Couleurs |
+| `src/pages/Admin.tsx` | Couleurs |
+| `src/components/timesheet/TimesheetShiftList.tsx` | Couleurs |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — 0 erreur
+- [x] `npm run build` — OK (16s)
+- [x] `npm test` — 63 pass, 2 fail (mêmes pré-existants)
+
+### Décisions prises
+
+- api.ts garde l'objet `api` comme façade, les modules sont des fonctions standalone
+- Tokens CSS sémantiques plutôt que chercher-remplacer de classes (meilleure maintenabilité)
+- Password reset via hash routing compatible (`/#/reset-password`) avec détection du fragment recovery Supabase
 
 ---
 

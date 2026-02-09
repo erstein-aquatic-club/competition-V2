@@ -41,7 +41,7 @@ Tous les feature flags sont activés.
 | Refresh token | ✅ | `auth.ts` | JWT automatique Supabase |
 | Inscription self-service | ✅ | `Login.tsx`, `auth.ts`, `App.tsx`, `Admin.tsx` | Option B : validation coach/admin, écran post-inscription, gate approbation |
 | Approbation inscriptions | ✅ | `Admin.tsx`, `api.ts` | Section "Inscriptions en attente" pour coach/admin |
-| Mot de passe oublié | ❌ | — | Aucun flow de récupération |
+| Mot de passe oublié | ✅ | `Login.tsx`, `App.tsx`, `auth.ts` | Flow complet : email de reset + route `/#/reset-password` + detection token recovery |
 | Création compte (admin) | ✅ | `Admin.tsx` | Via panel admin |
 | Désactivation compte | 🔧 | `api.ts` | Retourne "skipped" si Supabase offline |
 

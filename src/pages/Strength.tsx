@@ -302,17 +302,18 @@ export default function Strength() {
   ]);
 
   // Queries
-  const { data: assignments } = useQuery({ 
-      queryKey: ["assignments", user, "strength"], 
-      queryFn: () => api.getAssignments(user!, userId, { assignmentType: "strength" }), 
-      enabled: !!user 
+  const { data: assignments, isLoading: assignmentsLoading } = useQuery({
+      queryKey: ["assignments", user, "strength"],
+      queryFn: () => api.getAssignments(user!, userId, { assignmentType: "strength" }),
+      enabled: !!user
   });
-  const { data: strengthCatalog } = useQuery({
+  const { data: strengthCatalog, isLoading: catalogLoading } = useQuery({
       queryKey: ["strength_catalog"],
       queryFn: () => api.getStrengthSessions(),
   });
-  
+
   const { data: exercises } = useQuery({ queryKey: ["exercises"], queryFn: () => api.getExercises() });
+  const isListLoading = assignmentsLoading || catalogLoading;
   const { data: oneRMs } = useQuery({
       queryKey: ["1rm", user, userId],
       queryFn: () => api.get1RM({ athleteName: user, athleteId: userId }),
@@ -761,7 +762,34 @@ export default function Strength() {
            </TabsList>
            
             <TabsContent value="start" className="space-y-5 pt-4">
-                {screenMode === "list" && (
+                {screenMode === "list" && isListLoading && (
+                    <div className="space-y-5 pt-4">
+                        {/* Cycle selector skeleton */}
+                        <div className="flex justify-center gap-2">
+                          {[1, 2, 3].map((i) => (
+                            <div key={i} className="h-10 w-28 rounded-full bg-muted animate-pulse" />
+                          ))}
+                        </div>
+                        {/* Search skeleton */}
+                        <div className="h-12 rounded-2xl bg-muted/30 animate-pulse" />
+                        {/* Session cards skeleton */}
+                        <div className="space-y-3">
+                          {[1, 2, 3, 4].map((i) => (
+                            <div key={i} className="rounded-2xl border bg-card p-4 shadow-sm">
+                              <div className="flex items-center gap-4">
+                                <div className="h-12 w-12 shrink-0 rounded-xl bg-muted animate-pulse" />
+                                <div className="flex-1 min-w-0 space-y-2">
+                                  <div className="h-4 w-3/4 rounded bg-muted animate-pulse" />
+                                  <div className="h-3 w-1/2 rounded bg-muted animate-pulse" />
+                                </div>
+                                <div className="h-10 w-10 shrink-0 rounded-full bg-muted animate-pulse" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                    </div>
+                )}
+                {screenMode === "list" && !isListLoading && (
                     <div className="space-y-5 animate-in fade-in motion-reduce:animate-none">
                         {/* Session count */}
                         <p className="text-center text-sm text-muted-foreground py-1">

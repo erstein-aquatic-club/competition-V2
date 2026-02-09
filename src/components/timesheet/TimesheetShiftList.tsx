@@ -56,8 +56,8 @@ export function TimesheetShiftList({ groups, onEdit, onDelete }: TimesheetShiftL
                     <span
                       className={
                         shift.is_travel
-                          ? "rounded-full border border-border bg-amber-50 px-2 py-1 text-[11px] font-semibold text-foreground"
-                          : "rounded-full border border-border bg-blue-50 px-2 py-1 text-[11px] font-semibold text-foreground"
+                          ? "rounded-full border border-border bg-status-warning-bg px-2 py-1 text-[11px] font-semibold text-foreground"
+                          : "rounded-full border border-border bg-tag-swim-bg/10 px-2 py-1 text-[11px] font-semibold text-foreground"
                       }
                     >
                       {shift.is_travel ? "Trajet" : "Travail"}

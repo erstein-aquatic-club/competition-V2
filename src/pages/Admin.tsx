@@ -181,10 +181,10 @@ export default function Admin() {
       </div>
 
       {pendingApprovals.length > 0 ? (
-        <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20">
+        <Card className="border-status-warning/30 bg-status-warning-bg dark:border-status-warning/30 dark:bg-status-warning-bg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-amber-600" />
+              <Clock className="h-5 w-5 text-status-warning" />
               Inscriptions en attente
               <Badge variant="secondary" className="ml-2">{pendingApprovals.length}</Badge>
             </CardTitle>
@@ -209,7 +209,7 @@ export default function Admin() {
                   <div className="flex items-center gap-2">
                     <Button
                       size="sm"
-                      className="bg-green-600 hover:bg-green-700 text-white"
+                      className="bg-status-success hover:opacity-90 text-white"
                       onClick={() => approveUser.mutate(pending.user_id)}
                       disabled={approveUser.isPending || rejectUser.isPending}
                     >
