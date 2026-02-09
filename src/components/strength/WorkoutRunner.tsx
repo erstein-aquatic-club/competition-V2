@@ -36,6 +36,34 @@ import { useToast } from "@/hooks/use-toast";
 import type { Exercise, StrengthSessionTemplate } from "@/lib/api";
 import type { SetLogEntry, OneRmEntry, WorkoutFinishData, SetInputValues } from "@/lib/types";
 
+/** Emit a short beep + vibration when the rest timer ends */
+const notifyRestEnd = () => {
+  try {
+    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    gain.gain.value = 0.3;
+    osc.start();
+    osc.stop(ctx.currentTime + 0.25);
+    // Second beep after a short pause
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.frequency.value = 1100;
+    gain2.gain.value = 0.3;
+    osc2.start(ctx.currentTime + 0.35);
+    osc2.stop(ctx.currentTime + 0.6);
+    osc2.onended = () => ctx.close();
+  } catch { /* AudioContext not available */ }
+  try {
+    navigator.vibrate?.([200, 100, 200]);
+  } catch { /* Vibration API not available */ }
+};
+
 export const resolveSetNumber = (log: SetLogEntry | null | undefined, fallbackIndex: number) => {
   const raw = Number(log?.set_index ?? log?.set_number ?? log?.setIndex ?? fallbackIndex);
   if (!Number.isFinite(raw) || raw <= 0) {
@@ -175,6 +203,7 @@ export function WorkoutRunner({
     if (isResting && !isRestPaused && restTimer > 0) {
       interval = setInterval(() => setRestTimer((t) => t - 1), 1000);
     } else if (restTimer === 0 && isResting) {
+      notifyRestEnd();
       setIsResting(false);
       setIsRestPaused(false);
     }
@@ -183,6 +212,7 @@ export function WorkoutRunner({
       if (document.visibilityState === 'visible' && isResting && !isRestPaused && restEndRef.current > 0) {
         const remaining = Math.max(0, Math.ceil((restEndRef.current - Date.now()) / 1000));
         setRestTimer(remaining);
+        if (remaining <= 0) notifyRestEnd();
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
