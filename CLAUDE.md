@@ -79,7 +79,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 3 | Gestion coach des imports | Moyenne | Fait |
 | 4 | Records club alimentés | Moyenne | Fait |
 | 5 | Dette technique UI/UX | Basse | Fait |
-| 6 | Fix timers mode focus (PWA iOS background) | Haute | A faire |
+| 6 | Fix timers mode focus (PWA iOS background) | Haute | Fait |
 
 Détail complet dans `docs/ROADMAP.md`.
 

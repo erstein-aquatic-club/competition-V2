@@ -15,7 +15,7 @@ Ce document décrit les fonctionnalités à implémenter. Il sert de référence
 | 3 | Gestion coach des imports de performances | Moyenne | Moyenne | Fait |
 | 4 | Records club par catégorie d'âge / sexe / nage | Moyenne | Faible | Fait |
 | 5 | Dette technique UI/UX restante (patch-report) | Basse | Faible | Fait |
-| 6 | Fix timers mode focus (PWA iOS background) | Haute | Faible | A faire |
+| 6 | Fix timers mode focus (PWA iOS background) | Haute | Faible | Fait |
 
 ---
 

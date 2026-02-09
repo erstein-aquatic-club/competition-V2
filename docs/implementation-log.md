@@ -27,6 +27,49 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §3 Gestion coach imports | ✅ Fait | 2026-02-08 |
 | §4 Records club | ✅ Fait | 2026-02-08 |
 | §5 Dette UI/UX | ✅ Fait | 2026-02-08 |
+| §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
+
+---
+
+## 2026-02-09 — Fix timers mode focus pour PWA iOS (§6)
+
+**Branche** : `claude/continue-implementation-ajI8U`
+**Chantier ROADMAP** : §6 — Fix timers mode focus (PWA iOS background)
+
+### Contexte
+
+Les timers dans WorkoutRunner (elapsed + repos) utilisaient des `setInterval` relatifs (+1s / -1s). Sur iPhone en PWA (`apple-mobile-web-app-capable`), iOS throttle/suspend les intervals quand l'écran se verrouille ou l'app passe en arrière-plan. Résultat : un repos de 90s pouvait durer 3-4 minutes en temps réel.
+
+### Changements réalisés
+
+1. **Timer elapsed** — Remplacé `setInterval(() => t + 1, 1000)` par un calcul basé sur `Date.now() - elapsedStartRef`. L'état `elapsedTime` est recalculé à chaque tick, pas incrémenté.
+2. **Timer repos** — Remplacé `setInterval(() => t - 1, 1000)` par un calcul basé sur `restEndRef.current - Date.now()`. Le timestamp de fin est stocké dans un ref, le remaining est recalculé à chaque tick.
+3. **Listener `visibilitychange`** — Ajouté sur les deux timers pour forcer un recalcul immédiat au retour au premier plan (le setInterval peut avoir un délai de reprise).
+4. **Pause/Reprise repos** — Au pause, `restPausedRemainingRef` sauvegarde les ms restantes. Au reprise, `restEndRef` est recalculé à `Date.now() + remaining`.
+5. **Boutons +15s/+30s/-15s/Reset** — Ajustent `restEndRef` (et `restPausedRemainingRef` si en pause) en plus de l'état React.
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/components/strength/WorkoutRunner.tsx` | Remplacement des 2 timers relatifs par des timestamps absolus + visibilitychange |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — 0 erreur
+- [x] `npm run build` — OK (16.8s)
+- [x] `npm test` — 63 pass, 2 fail (pré-existants)
+
+### Décisions prises
+
+- `Date.now()` plutôt que `performance.now()` car plus simple et suffisant pour des timers à la seconde
+- Les refs (`useRef`) stockent les timestamps absolus, l'état React (`useState`) ne contient que les valeurs d'affichage en secondes
+- Le `visibilitychange` listener est dupliqué sur chaque timer (elapsed + repos) car ils sont dans des `useEffect` séparés avec des cycles de vie différents
+
+### Limites / dette
+
+- Sur iOS, les notifications audio/vibration à la fin du repos ne fonctionneront pas en arrière-plan (limitation OS, pas fixable côté web)
+- Le timer elapsed ne gère pas la pause (pas de bouton pause pour le timer global, seulement pour le repos)
 
 ---
 

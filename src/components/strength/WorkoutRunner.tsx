@@ -126,9 +126,14 @@ export function WorkoutRunner({
   const [logs, setLogs] = useState<SetLogEntry[]>([]);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [isActive, setIsActive] = useState(true);
+  const elapsedStartRef = useRef(Date.now());
+  const elapsedPausedRef = useRef(0);
+
   const [restTimer, setRestTimer] = useState(0);
   const [isResting, setIsResting] = useState(false);
   const [isRestPaused, setIsRestPaused] = useState(false);
+  const restEndRef = useRef(0);
+  const restPausedRemainingRef = useRef(0);
   const [autoRest, setAutoRest] = useState(true);
   const [difficulty, setDifficulty] = useState(3);
   const [fatigue, setFatigue] = useState(3);
@@ -144,11 +149,15 @@ export function WorkoutRunner({
   const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
 
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | null = null;
-    if (isActive) {
-      interval = setInterval(() => setElapsedTime((t) => t + 1), 1000);
-    }
-    return () => { if (interval) clearInterval(interval); };
+    if (!isActive) return;
+    const tick = () => {
+      setElapsedTime(Math.floor((Date.now() - elapsedStartRef.current) / 1000) + elapsedPausedRef.current);
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    const handleVisibility = () => { if (document.visibilityState === 'visible') tick(); };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => { clearInterval(interval); document.removeEventListener('visibilitychange', handleVisibility); };
   }, [isActive]);
 
   useEffect(() => {
@@ -163,15 +172,21 @@ export function WorkoutRunner({
   }, [isGifOpen]);
 
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | null = null;
-    if (isResting && !isRestPaused && restTimer > 0) {
-      interval = setInterval(() => setRestTimer((t) => t - 1), 1000);
-    } else if (restTimer === 0 && isResting) {
-      setIsResting(false);
-      setIsRestPaused(false);
-    }
-    return () => { if (interval) clearInterval(interval); };
-  }, [isResting, isRestPaused, restTimer]);
+    if (!isResting || isRestPaused) return;
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((restEndRef.current - Date.now()) / 1000));
+      setRestTimer(remaining);
+      if (remaining <= 0) {
+        setIsResting(false);
+        setIsRestPaused(false);
+      }
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    const handleVisibility = () => { if (document.visibilityState === 'visible') tick(); };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => { clearInterval(interval); document.removeEventListener('visibilitychange', handleVisibility); };
+  }, [isResting, isRestPaused]);
 
   const workoutPlan = session.items || [];
   const currentExerciseIndex = currentStep - 1;
@@ -327,6 +342,8 @@ export function WorkoutRunner({
 
   const startRestTimer = (duration: number) => {
     if (duration <= 0) return;
+    restEndRef.current = Date.now() + duration * 1000;
+    restPausedRemainingRef.current = 0;
     setRestTimer(duration);
     setIsResting(true);
     setIsRestPaused(false);
@@ -769,28 +786,44 @@ export function WorkoutRunner({
                 <Button
                   variant="outline"
                   className="rounded-full"
-                  onClick={() => setRestTimer((prev) => prev + 15)}
+                  onClick={() => {
+                    restEndRef.current += 15 * 1000;
+                    if (isRestPaused) restPausedRemainingRef.current += 15 * 1000;
+                    setRestTimer((prev) => prev + 15);
+                  }}
                 >
                   +15s
                 </Button>
                 <Button
                   variant="outline"
                   className="rounded-full"
-                  onClick={() => setRestTimer((prev) => prev + 30)}
+                  onClick={() => {
+                    restEndRef.current += 30 * 1000;
+                    if (isRestPaused) restPausedRemainingRef.current += 30 * 1000;
+                    setRestTimer((prev) => prev + 30);
+                  }}
                 >
                   +30s
                 </Button>
                 <Button
                   variant="outline"
                   className="rounded-full"
-                  onClick={() => setRestTimer((prev) => Math.max(0, prev - 15))}
+                  onClick={() => {
+                    restEndRef.current = Math.max(Date.now(), restEndRef.current - 15 * 1000);
+                    if (isRestPaused) restPausedRemainingRef.current = Math.max(0, restPausedRemainingRef.current - 15 * 1000);
+                    setRestTimer((prev) => Math.max(0, prev - 15));
+                  }}
                 >
                   -15s
                 </Button>
                 <Button
                   variant="outline"
                   className="ml-auto rounded-full"
-                  onClick={() => setRestTimer(restDuration)}
+                  onClick={() => {
+                    restEndRef.current = Date.now() + restDuration * 1000;
+                    if (isRestPaused) restPausedRemainingRef.current = restDuration * 1000;
+                    setRestTimer(restDuration);
+                  }}
                 >
                   <RotateCcw className="mr-2 h-4 w-4" />
                   Reset
@@ -800,7 +833,18 @@ export function WorkoutRunner({
             <div className="flex w-full max-w-sm flex-wrap gap-3">
               <Button
                 className="flex-1 rounded-full py-6 text-base font-semibold"
-                onClick={() => setIsRestPaused((prev) => !prev)}
+                onClick={() => {
+                  setIsRestPaused((prev) => {
+                    if (!prev) {
+                      // Pausing: save remaining ms
+                      restPausedRemainingRef.current = Math.max(0, restEndRef.current - Date.now());
+                    } else {
+                      // Resuming: recalculate end time from saved remaining
+                      restEndRef.current = Date.now() + restPausedRemainingRef.current;
+                    }
+                    return !prev;
+                  });
+                }}
               >
                 <Pause className="mr-2 h-4 w-4" /> {isRestPaused ? "Reprendre" : "Pause"}
               </Button>
@@ -808,6 +852,8 @@ export function WorkoutRunner({
                 variant="outline"
                 className="rounded-full px-6 py-6 text-base font-semibold"
                 onClick={() => {
+                  restEndRef.current = 0;
+                  restPausedRemainingRef.current = 0;
                   setIsResting(false);
                   setRestTimer(0);
                   setIsRestPaused(false);
