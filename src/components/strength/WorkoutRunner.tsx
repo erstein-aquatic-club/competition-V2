@@ -133,7 +133,6 @@ export function WorkoutRunner({
   const [isResting, setIsResting] = useState(false);
   const [isRestPaused, setIsRestPaused] = useState(false);
   const restEndRef = useRef(0);
-  const restPausedRemainingRef = useRef(0);
   const [autoRest, setAutoRest] = useState(true);
   const [difficulty, setDifficulty] = useState(3);
   const [fatigue, setFatigue] = useState(3);
@@ -172,21 +171,26 @@ export function WorkoutRunner({
   }, [isGifOpen]);
 
   useEffect(() => {
-    if (!isResting || isRestPaused) return;
-    const tick = () => {
-      const remaining = Math.max(0, Math.ceil((restEndRef.current - Date.now()) / 1000));
-      setRestTimer(remaining);
-      if (remaining <= 0) {
-        setIsResting(false);
-        setIsRestPaused(false);
+    let interval: ReturnType<typeof setInterval> | null = null;
+    if (isResting && !isRestPaused && restTimer > 0) {
+      interval = setInterval(() => setRestTimer((t) => t - 1), 1000);
+    } else if (restTimer === 0 && isResting) {
+      setIsResting(false);
+      setIsRestPaused(false);
+    }
+    // On iOS PWA, setInterval is throttled in background — correct on foreground return
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && isResting && !isRestPaused && restEndRef.current > 0) {
+        const remaining = Math.max(0, Math.ceil((restEndRef.current - Date.now()) / 1000));
+        setRestTimer(remaining);
       }
     };
-    tick();
-    const interval = setInterval(tick, 1000);
-    const handleVisibility = () => { if (document.visibilityState === 'visible') tick(); };
     document.addEventListener('visibilitychange', handleVisibility);
-    return () => { clearInterval(interval); document.removeEventListener('visibilitychange', handleVisibility); };
-  }, [isResting, isRestPaused]);
+    return () => {
+      if (interval) clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [isResting, isRestPaused, restTimer]);
 
   const workoutPlan = session.items || [];
   const currentExerciseIndex = currentStep - 1;
@@ -343,7 +347,6 @@ export function WorkoutRunner({
   const startRestTimer = (duration: number) => {
     if (duration <= 0) return;
     restEndRef.current = Date.now() + duration * 1000;
-    restPausedRemainingRef.current = 0;
     setRestTimer(duration);
     setIsResting(true);
     setIsRestPaused(false);
@@ -788,7 +791,6 @@ export function WorkoutRunner({
                   className="rounded-full"
                   onClick={() => {
                     restEndRef.current += 15 * 1000;
-                    if (isRestPaused) restPausedRemainingRef.current += 15 * 1000;
                     setRestTimer((prev) => prev + 15);
                   }}
                 >
@@ -799,7 +801,6 @@ export function WorkoutRunner({
                   className="rounded-full"
                   onClick={() => {
                     restEndRef.current += 30 * 1000;
-                    if (isRestPaused) restPausedRemainingRef.current += 30 * 1000;
                     setRestTimer((prev) => prev + 30);
                   }}
                 >
@@ -810,7 +811,6 @@ export function WorkoutRunner({
                   className="rounded-full"
                   onClick={() => {
                     restEndRef.current = Math.max(Date.now(), restEndRef.current - 15 * 1000);
-                    if (isRestPaused) restPausedRemainingRef.current = Math.max(0, restPausedRemainingRef.current - 15 * 1000);
                     setRestTimer((prev) => Math.max(0, prev - 15));
                   }}
                 >
@@ -821,7 +821,6 @@ export function WorkoutRunner({
                   className="ml-auto rounded-full"
                   onClick={() => {
                     restEndRef.current = Date.now() + restDuration * 1000;
-                    if (isRestPaused) restPausedRemainingRef.current = restDuration * 1000;
                     setRestTimer(restDuration);
                   }}
                 >
@@ -834,16 +833,13 @@ export function WorkoutRunner({
               <Button
                 className="flex-1 rounded-full py-6 text-base font-semibold"
                 onClick={() => {
-                  setIsRestPaused((prev) => {
-                    if (!prev) {
-                      // Pausing: save remaining ms
-                      restPausedRemainingRef.current = Math.max(0, restEndRef.current - Date.now());
-                    } else {
-                      // Resuming: recalculate end time from saved remaining
-                      restEndRef.current = Date.now() + restPausedRemainingRef.current;
-                    }
-                    return !prev;
-                  });
+                  if (!isRestPaused) {
+                    // Pausing: ref stays as-is, interval will stop via deps
+                  } else {
+                    // Resuming: recalculate end time from current restTimer state
+                    restEndRef.current = Date.now() + restTimer * 1000;
+                  }
+                  setIsRestPaused((prev) => !prev);
                 }}
               >
                 <Pause className="mr-2 h-4 w-4" /> {isRestPaused ? "Reprendre" : "Pause"}
@@ -853,7 +849,6 @@ export function WorkoutRunner({
                 className="rounded-full px-6 py-6 text-base font-semibold"
                 onClick={() => {
                   restEndRef.current = 0;
-                  restPausedRemainingRef.current = 0;
                   setIsResting(false);
                   setRestTimer(0);
                   setIsRestPaused(false);
