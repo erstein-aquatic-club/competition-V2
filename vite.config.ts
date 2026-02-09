@@ -28,6 +28,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
+    target: ['es2020', 'safari14'],
     outDir: path.resolve(import.meta.dirname, "dist"),
     emptyOutDir: true,
     rollupOptions: {

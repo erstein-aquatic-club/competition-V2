@@ -1,5 +1,6 @@
 
-import React, { Suspense, lazy, useState, useEffect } from "react";
+import React, { Suspense, lazy, useState, useEffect, Component } from "react";
+import type { ReactNode, ErrorInfo } from "react";
 import { Switch, Route, Redirect, Router } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -14,24 +15,107 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-// Lazy load all pages for code splitting
-const Login = lazy(() => import("@/pages/Login"));
-const Dashboard = lazy(() => import("@/pages/Dashboard"));
-const Progress = lazy(() => import("@/pages/Progress"));
-const HallOfFame = lazy(() => import("@/pages/HallOfFame"));
-const Coach = lazy(() => import("@/pages/Coach"));
-const Admin = lazy(() => import("@/pages/Admin"));
-const Administratif = lazy(() => import("@/pages/Administratif"));
-const Comite = lazy(() => import("@/pages/Comite"));
-const Strength = lazy(() => import("@/pages/Strength"));
-const Profile = lazy(() => import("@/pages/Profile"));
-const Records = lazy(() => import("@/pages/Records"));
-const RecordsAdmin = lazy(() => import("@/pages/RecordsAdmin"));
-const RecordsClub = lazy(() => import("@/pages/RecordsClub"));
-const Notifications = lazy(() => import("@/pages/Notifications"));
-const SwimSessionView = lazy(() => import("@/pages/SwimSessionView"));
-const ComingSoon = lazy(() => import("@/pages/ComingSoon"));
-const NotFound = lazy(() => import("@/pages/not-found"));
+// Retry wrapper for lazy imports — handles stale chunk filenames after deployments
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function lazyWithRetry(factory: () => Promise<{ default: React.ComponentType<any> }>) {
+  return lazy(() =>
+    factory().catch((err: unknown) => {
+      // If chunk loading fails (e.g. stale cache pointing to old filename),
+      // try a full page reload once to get fresh index.html
+      const hasReloaded = sessionStorage.getItem('chunk_reload');
+      if (!hasReloaded) {
+        sessionStorage.setItem('chunk_reload', '1');
+        window.location.reload();
+        // Return a never-resolving promise to prevent rendering while reloading
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return new Promise<{ default: React.ComponentType<any> }>(() => {});
+      }
+      sessionStorage.removeItem('chunk_reload');
+      throw err;
+    })
+  );
+}
+
+// Clear the reload flag on successful app load
+sessionStorage.removeItem('chunk_reload');
+
+// Error Boundary — catches runtime errors and chunk loading failures
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+  isChunkError: boolean;
+}
+
+class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryState> {
+  state: ErrorBoundaryState = { hasError: false, error: null, isChunkError: false };
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    const isChunkError = /loading.*(chunk|module)|failed to fetch/i.test(error.message);
+    return { hasError: true, error, isChunkError };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('[EAC] Error Boundary caught:', error, info.componentStack);
+  }
+
+  render() {
+    if (!this.state.hasError) return this.props.children;
+
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center p-4">
+        <div className="max-w-sm w-full text-center space-y-4">
+          <div className="text-4xl">{this.state.isChunkError ? '\u26A0\uFE0F' : '\u274C'}</div>
+          <h2 className="text-lg font-semibold">
+            {this.state.isChunkError
+              ? 'Mise à jour disponible'
+              : 'Une erreur est survenue'}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {this.state.isChunkError
+              ? "L'application a été mise à jour. Rechargez la page pour continuer."
+              : (this.state.error?.message || 'Erreur inconnue')}
+          </p>
+          <div className="flex gap-2 justify-center">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
+            >
+              Recharger
+            </button>
+            <button
+              onClick={() => {
+                this.setState({ hasError: false, error: null, isChunkError: false });
+                window.location.hash = '#/';
+              }}
+              className="px-4 py-2 rounded-lg bg-muted text-muted-foreground text-sm font-medium"
+            >
+              Retour accueil
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
+
+// Lazy load all pages for code splitting (with retry for stale chunks)
+const Login = lazyWithRetry(() => import("@/pages/Login"));
+const Dashboard = lazyWithRetry(() => import("@/pages/Dashboard"));
+const Progress = lazyWithRetry(() => import("@/pages/Progress"));
+const HallOfFame = lazyWithRetry(() => import("@/pages/HallOfFame"));
+const Coach = lazyWithRetry(() => import("@/pages/Coach"));
+const Admin = lazyWithRetry(() => import("@/pages/Admin"));
+const Administratif = lazyWithRetry(() => import("@/pages/Administratif"));
+const Comite = lazyWithRetry(() => import("@/pages/Comite"));
+const Strength = lazyWithRetry(() => import("@/pages/Strength"));
+const Profile = lazyWithRetry(() => import("@/pages/Profile"));
+const Records = lazyWithRetry(() => import("@/pages/Records"));
+const RecordsAdmin = lazyWithRetry(() => import("@/pages/RecordsAdmin"));
+const RecordsClub = lazyWithRetry(() => import("@/pages/RecordsClub"));
+const Notifications = lazyWithRetry(() => import("@/pages/Notifications"));
+const SwimSessionView = lazyWithRetry(() => import("@/pages/SwimSessionView"));
+const ComingSoon = lazyWithRetry(() => import("@/pages/ComingSoon"));
+const NotFound = lazyWithRetry(() => import("@/pages/not-found"));
 
 // Loading fallback for lazy components
 function PageLoader() {
@@ -166,13 +250,15 @@ function AppRouter() {
 
   if (!user) {
     return (
-      <Suspense fallback={<PageLoader />}>
-        <Switch>
-          <Route path="/reset-password" component={ResetPassword} />
-          <Route path="/" component={Login} />
-          <Route path="/:rest*" component={() => <Redirect to="/" />} />
-        </Switch>
-      </Suspense>
+      <ErrorBoundary>
+        <Suspense fallback={<PageLoader />}>
+          <Switch>
+            <Route path="/reset-password" component={ResetPassword} />
+            <Route path="/" component={Login} />
+            <Route path="/:rest*" component={() => <Redirect to="/" />} />
+          </Switch>
+        </Suspense>
+      </ErrorBoundary>
     );
   }
 
@@ -197,27 +283,29 @@ function AppRouter() {
 
   return (
     <AppLayout>
-      <Suspense fallback={<PageLoader />}>
-        <Switch>
-          <Route path="/reset-password" component={ResetPassword} />
-          <Route path="/" component={Dashboard} />
-          <Route path="/progress" component={Progress} />
-          <Route path="/hall-of-fame" component={FEATURES.hallOfFame ? HallOfFame : ComingSoon} />
-          <Route path="/coach" component={Coach} />
-          <Route path="/admin" component={Admin} />
-          <Route path="/administratif" component={Administratif} />
-          <Route path="/comite" component={Comite} />
-          <Route path="/strength" component={FEATURES.strength ? Strength : ComingSoon} />
-          <Route path="/records" component={Records} />
-          <Route path="/records-admin" component={RecordsAdmin} />
-          <Route path="/records-club" component={RecordsClub} />
-          <Route path="/swim-session" component={SwimSessionView} />
-          <Route path="/profile" component={Profile} />
-          <Route path="/notifications" component={Notifications} />
-          <Route path="/coming-soon" component={ComingSoon} />
-          <Route component={NotFound} />
-        </Switch>
-      </Suspense>
+      <ErrorBoundary>
+        <Suspense fallback={<PageLoader />}>
+          <Switch>
+            <Route path="/reset-password" component={ResetPassword} />
+            <Route path="/" component={Dashboard} />
+            <Route path="/progress" component={Progress} />
+            <Route path="/hall-of-fame" component={FEATURES.hallOfFame ? HallOfFame : ComingSoon} />
+            <Route path="/coach" component={Coach} />
+            <Route path="/admin" component={Admin} />
+            <Route path="/administratif" component={Administratif} />
+            <Route path="/comite" component={Comite} />
+            <Route path="/strength" component={FEATURES.strength ? Strength : ComingSoon} />
+            <Route path="/records" component={Records} />
+            <Route path="/records-admin" component={RecordsAdmin} />
+            <Route path="/records-club" component={RecordsClub} />
+            <Route path="/swim-session" component={SwimSessionView} />
+            <Route path="/profile" component={Profile} />
+            <Route path="/notifications" component={Notifications} />
+            <Route path="/coming-soon" component={ComingSoon} />
+            <Route component={NotFound} />
+          </Switch>
+        </Suspense>
+      </ErrorBoundary>
     </AppLayout>
   );
 }
