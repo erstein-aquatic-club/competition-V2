@@ -170,4 +170,5 @@ export {
   getStrengthHistoryAggregate,
   get1RM,
   update1RM,
+  updateExerciseNote,
 } from './strength';

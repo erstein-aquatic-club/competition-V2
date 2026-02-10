@@ -679,3 +679,41 @@ b73611e Redesign strength exercise list for mobile-first UX
 840e36c Fix useMemo not returning filtered records
 1aa0e99 Update Cloudflare references to Supabase
 ```
+
+## 2026-02-10 — 5 améliorations module musculation
+**Branche** : `claude/continue-implementation-ajI8U`
+**Commit** : `33f66c7`
+
+### Contexte
+Remontées utilisateur sur le module musculation : bouton d'enregistrement bloqué, manque de retour visuel fin de récup, upload GIF impossible, saisie clavier peu fluide, besoin de notes personnelles par exercice.
+
+### Changements réalisés
+
+1. **Fix bouton "Enregistrement..." bloqué** — Le bouton utilisait `updateRun.isPending` partagé entre `onProgress` et `onFinish`. Remplacé par un état local `isFinishing` dédié + ajout `onError` pour le retry.
+
+2. **Toast "Temps de récupération terminé"** — Ajout d'un toast à la fin du timer de repos + correction bug secondaire où le handler visibilitychange ne fermait pas l'overlay repos.
+
+3. **Upload GIF exercices** — Bouton Upload ajouté à côté de l'input URL dans les dialogues création/édition du catalogue coach. Stockage via Supabase Storage (bucket `exercise-gifs`). Limite 10 Mo. Aperçu image dans le formulaire.
+
+4. **Saisie numpad : écrasement valeur pré-remplie** — État `shouldReplace` : la première frappe remplace la valeur pré-remplie au lieu de l'ajouter à la suite.
+
+5. **Notes privées par exercice** — Colonne `notes` ajoutée à `one_rm_records`. Éditable depuis le mode focus (icône StickyNote + Sheet en bas) et sauvegardée via `updateExerciseNote` (try update, fallback insert).
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/pages/Strength.tsx` | isFinishing state, exerciseNotes memo, updateNote mutation, props WorkoutRunner |
+| `src/components/strength/WorkoutRunner.tsx` | toast repos, shouldReplace numpad, noteSheet + props exerciseNotes/onUpdateNote |
+| `src/pages/coach/StrengthCatalog.tsx` | handleGifUpload + Upload button (edit + create dialogs) |
+| `src/lib/api/strength.ts` | get1RM notes, update1RM notes, new updateExerciseNote |
+| `src/lib/api/index.ts` | Re-export updateExerciseNote |
+| `src/lib/api.ts` | Facade stub updateExerciseNote |
+| `src/lib/types.ts` | OneRmEntry.notes |
+| `src/lib/schema.ts` | oneRmRecords.notes |
+| `supabase/migrations/00012_exercise_notes_and_storage.sql` | ALTER TABLE notes + storage bucket |
+
+### Validation
+- `npx tsc --noEmit` → 0 erreur
+- `npm run build` → OK
+- `npm test` → 63 pass, 2 pre-existing failures

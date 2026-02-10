@@ -25,6 +25,7 @@ import {
   Loader2,
   Pause,
   RotateCcw,
+  StickyNote,
   Timer,
   X,
 } from "lucide-react";
@@ -132,6 +133,8 @@ export function WorkoutRunner({
   initialInputOpen,
   initialSeriesOpen,
   onExitFocus,
+  exerciseNotes,
+  onUpdateNote,
 }: {
   session: StrengthSessionTemplate;
   exercises: Exercise[];
@@ -147,6 +150,8 @@ export function WorkoutRunner({
   initialInputOpen?: boolean;
   initialSeriesOpen?: boolean;
   onExitFocus?: () => void;
+  exerciseNotes?: Record<number, string | null>;
+  onUpdateNote?: (exerciseId: number, note: string | null) => void;
 }) {
   const { toast } = useToast();
   const isLoggingRef = useRef(false);
@@ -171,9 +176,12 @@ export function WorkoutRunner({
   const [inputSheetOpen, setInputSheetOpen] = useState(initialInputOpen ?? false);
   const [activeInput, setActiveInput] = useState<"weight" | "reps">("weight");
   const [draftValue, setDraftValue] = useState("");
+  const [shouldReplace, setShouldReplace] = useState(false);
   const [isGifOpen, setIsGifOpen] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
+  const [noteSheetOpen, setNoteSheetOpen] = useState(false);
+  const [noteDraft, setNoteDraft] = useState("");
 
   useEffect(() => {
     if (!isActive) return;
@@ -204,6 +212,7 @@ export function WorkoutRunner({
       interval = setInterval(() => setRestTimer((t) => t - 1), 1000);
     } else if (restTimer === 0 && isResting) {
       notifyRestEnd();
+      toast({ title: "Temps de récupération terminé" });
       setIsResting(false);
       setIsRestPaused(false);
     }
@@ -212,7 +221,12 @@ export function WorkoutRunner({
       if (document.visibilityState === 'visible' && isResting && !isRestPaused && restEndRef.current > 0) {
         const remaining = Math.max(0, Math.ceil((restEndRef.current - Date.now()) / 1000));
         setRestTimer(remaining);
-        if (remaining <= 0) notifyRestEnd();
+        if (remaining <= 0) {
+          notifyRestEnd();
+          toast({ title: "Temps de récupération terminé" });
+          setIsResting(false);
+          setIsRestPaused(false);
+        }
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
@@ -440,6 +454,7 @@ export function WorkoutRunner({
         ? currentSetInputs[currentSetIndex - 1]?.weight ?? targetWeight ?? ""
         : currentSetInputs[currentSetIndex - 1]?.reps ?? currentBlock?.reps ?? "";
     setDraftValue(existingValue ? String(existingValue) : "");
+    setShouldReplace(Boolean(existingValue));
     setInputSheetOpen(true);
   };
 
@@ -461,6 +476,11 @@ export function WorkoutRunner({
   };
 
   const appendDraft = (value: string) => {
+    if (shouldReplace) {
+      setShouldReplace(false);
+      setDraftValue(value);
+      return;
+    }
     setDraftValue((prev) => {
       if (value === "." && prev.includes(".")) {
         return prev;
@@ -477,6 +497,7 @@ export function WorkoutRunner({
         ? currentSetInputs[currentSetIndex - 1]?.weight ?? targetWeight ?? ""
         : currentSetInputs[currentSetIndex - 1]?.reps ?? currentBlock?.reps ?? "";
     setDraftValue(nextValue ? String(nextValue) : "");
+    setShouldReplace(Boolean(nextValue));
   };
 
   if (currentStep === 0) {
@@ -667,9 +688,30 @@ export function WorkoutRunner({
       </div>
 
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight">
-          {currentExerciseDef?.nom_exercice ?? "Exercice"}
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-2xl font-semibold tracking-tight">
+            {currentExerciseDef?.nom_exercice ?? "Exercice"}
+          </h2>
+          {onUpdateNote && currentBlock && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              onClick={() => {
+                setNoteDraft(exerciseNotes?.[currentBlock.exercise_id] ?? "");
+                setNoteSheetOpen(true);
+              }}
+              aria-label="Notes personnelles"
+            >
+              <StickyNote className={cn("h-4 w-4", exerciseNotes?.[currentBlock?.exercise_id] ? "text-primary" : "text-muted-foreground")} />
+            </Button>
+          )}
+        </div>
+        {currentBlock && exerciseNotes?.[currentBlock.exercise_id] && (
+          <p className="mt-1 text-xs italic text-muted-foreground line-clamp-2">
+            {exerciseNotes[currentBlock.exercise_id]}
+          </p>
+        )}
         {muscleTags.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
             {muscleTags.map((tag: string) => (
@@ -1092,7 +1134,7 @@ export function WorkoutRunner({
               <Button
                 variant="outline"
                 className="h-14 text-xl font-semibold rounded-xl active:scale-95 transition-transform"
-                onClick={() => setDraftValue((prev) => prev.slice(0, -1))}
+                onClick={() => { setShouldReplace(false); setDraftValue((prev) => prev.slice(0, -1)); }}
               >
                 ⌫
               </Button>
@@ -1103,7 +1145,7 @@ export function WorkoutRunner({
               <Button
                 variant="outline"
                 className="flex-1 h-14 text-base font-semibold rounded-xl"
-                onClick={() => setDraftValue("")}
+                onClick={() => { setShouldReplace(false); setDraftValue(""); }}
               >
                 Effacer
               </Button>
@@ -1136,6 +1178,32 @@ export function WorkoutRunner({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+      )}
+
+      {onUpdateNote && (
+        <Sheet open={noteSheetOpen} onOpenChange={(open) => {
+          if (!open && currentBlock) {
+            const trimmed = noteDraft.trim() || null;
+            const existing = exerciseNotes?.[currentBlock.exercise_id] ?? null;
+            if (trimmed !== existing) {
+              onUpdateNote(currentBlock.exercise_id, trimmed);
+            }
+          }
+          setNoteSheetOpen(open);
+        }}>
+          <SheetContent side="bottom" className="max-h-[60vh]">
+            <SheetHeader>
+              <SheetTitle>Notes — {currentExerciseDef?.nom_exercice}</SheetTitle>
+            </SheetHeader>
+            <textarea
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              placeholder="Réglages machine, repères personnels..."
+              rows={4}
+              className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm mt-4 resize-none ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+          </SheetContent>
+        </Sheet>
       )}
     </div>
   );
