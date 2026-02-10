@@ -558,6 +558,7 @@ export const oneRmRecords = pgTable(
       .notNull()
       .references(() => dimExercices.id, { onDelete: "cascade" }),
     oneRm: doublePrecision("one_rm").notNull(),
+    notes: text("notes"),
     sourceRunId: integer("source_run_id").references(
       () => strengthSessionRuns.id,
       { onDelete: "set null" }

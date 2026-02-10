@@ -139,6 +139,7 @@ import {
   getStrengthHistoryAggregate as _getStrengthHistoryAggregate,
   get1RM as _get1RM,
   update1RM as _update1RM,
+  updateExerciseNote as _updateExerciseNote,
 } from "./api/strength";
 
 // --- API Service ---
@@ -367,6 +368,7 @@ export const api = {
   async getStrengthHistoryAggregate(athleteName: string, options?: Parameters<typeof _getStrengthHistoryAggregate>[1]) { return _getStrengthHistoryAggregate(athleteName, options); },
   async get1RM(athlete: Parameters<typeof _get1RM>[0]) { return _get1RM(athlete); },
   async update1RM(record: Parameters<typeof _update1RM>[0]) { return _update1RM(record); },
+  async updateExerciseNote(params: Parameters<typeof _updateExerciseNote>[0]) { return _updateExerciseNote(params); },
 
   // ══════════════════════════════════════════════════════════════════
   // DELEGATION STUBS — Swim Catalog

@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, Save, Filter, Edit2, GripVertical, Eye } from "lucide-react";
+import { Plus, Trash2, Save, Filter, Edit2, GripVertical, Eye, Upload, Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -287,7 +288,31 @@ export default function StrengthCatalog() {
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [newWarmupMode, setNewWarmupMode] = useState<"reps" | "duration">("reps");
   const [editWarmupMode, setEditWarmupMode] = useState<"reps" | "duration">("reps");
-  
+  const [gifUploading, setGifUploading] = useState(false);
+
+  const handleGifUpload = async (file: File, setter: (url: string) => void) => {
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast({ title: "Fichier trop volumineux", description: "La taille maximale est de 10 Mo.", variant: "destructive" });
+      return;
+    }
+    setGifUploading(true);
+    try {
+      const ext = file.name.split(".").pop() ?? "gif";
+      const path = `exercises/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("exercise-gifs").upload(path, file, { upsert: false });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from("exercise-gifs").getPublicUrl(path);
+      setter(urlData.publicUrl);
+      toast({ title: "Image uploadée" });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Réessayez.";
+      toast({ title: "Erreur d'upload", description: message, variant: "destructive" });
+    } finally {
+      setGifUploading(false);
+    }
+  };
+
   // New Session State
   const [newSession, setNewSession] = useState<{
     title: string;
@@ -537,16 +562,41 @@ export default function StrengthCatalog() {
                     </div>
                     <div className="space-y-2">
                         <Label>Illustration (GIF)</Label>
-                        <Input
-                          value={editingExercise.illustration_gif ?? ""}
-                          onChange={(e) =>
-                            setEditingExercise({
-                              ...editingExercise,
-                              illustration_gif: e.target.value === "" ? null : e.target.value,
-                            })
-                          }
-                          placeholder="https://..."
-                        />
+                        <div className="flex gap-2">
+                          <Input
+                            value={editingExercise.illustration_gif ?? ""}
+                            onChange={(e) =>
+                              setEditingExercise({
+                                ...editingExercise,
+                                illustration_gif: e.target.value === "" ? null : e.target.value,
+                              })
+                            }
+                            placeholder="https://..."
+                            className="flex-1"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            disabled={gifUploading}
+                            onClick={() => {
+                              const input = document.createElement("input");
+                              input.type = "file";
+                              input.accept = "image/*,.gif";
+                              input.onchange = (e) => {
+                                const file = (e.target as HTMLInputElement).files?.[0];
+                                if (file) handleGifUpload(file, (url) => setEditingExercise((prev) => prev ? { ...prev, illustration_gif: url } : prev));
+                              };
+                              input.click();
+                            }}
+                            aria-label="Uploader une image"
+                          >
+                            {gifUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                        {editingExercise.illustration_gif && (
+                          <img src={editingExercise.illustration_gif} alt="Aperçu" className="mt-2 h-20 w-20 rounded-lg object-cover border" />
+                        )}
                     </div>
                     {editingExercise.exercise_type !== "warmup" ? (
                       <ExerciseCycleTabs
@@ -634,16 +684,41 @@ export default function StrengthCatalog() {
                   </div>
                   <div className="space-y-2">
                       <Label>Illustration (GIF)</Label>
-                      <Input
-                        value={newExercise.illustration_gif ?? ""}
-                        onChange={(e) =>
-                          setNewExercise({
-                            ...newExercise,
-                            illustration_gif: e.target.value === "" ? null : e.target.value,
-                          })
-                        }
-                        placeholder="https://..."
-                      />
+                      <div className="flex gap-2">
+                        <Input
+                          value={newExercise.illustration_gif ?? ""}
+                          onChange={(e) =>
+                            setNewExercise({
+                              ...newExercise,
+                              illustration_gif: e.target.value === "" ? null : e.target.value,
+                            })
+                          }
+                          placeholder="https://..."
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          disabled={gifUploading}
+                          onClick={() => {
+                            const input = document.createElement("input");
+                            input.type = "file";
+                            input.accept = "image/*,.gif";
+                            input.onchange = (e) => {
+                              const file = (e.target as HTMLInputElement).files?.[0];
+                              if (file) handleGifUpload(file, (url) => setNewExercise((prev) => ({ ...prev, illustration_gif: url })));
+                            };
+                            input.click();
+                          }}
+                          aria-label="Uploader une image"
+                        >
+                          {gifUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      {newExercise.illustration_gif && (
+                        <img src={newExercise.illustration_gif} alt="Aperçu" className="mt-2 h-20 w-20 rounded-lg object-cover border" />
+                      )}
                   </div>
                   {newExercise.exercise_type !== "warmup" ? (
                     <ExerciseCycleTabs

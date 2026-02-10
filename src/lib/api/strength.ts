@@ -932,6 +932,7 @@ export async function get1RM(
       exercise_id: safeInt(record.exercise_id),
       weight: Number(record.one_rm ?? 0),
       recorded_at: record.recorded_at ?? null,
+      notes: (record.notes as string) ?? null,
     }));
   }
   const records = (localStorageGet(STORAGE_KEYS.ONE_RM) || []) as any[];
@@ -946,6 +947,7 @@ export async function update1RM(record: {
   exercise_id: number;
   one_rm?: number;
   weight?: number;
+  notes?: string | null;
 }) {
   if (canUseSupabase()) {
     const athleteId = record.athlete_id ?? record.athleteId;
@@ -959,13 +961,15 @@ export async function update1RM(record: {
     ) {
       throw new Error("athlete_id et one_rm sont requis");
     }
+    const payload: Record<string, unknown> = {
+      athlete_id: Number(athleteId),
+      exercise_id: record.exercise_id,
+      one_rm: oneRm,
+      recorded_at: new Date().toISOString(),
+    };
+    if (record.notes !== undefined) payload.notes = record.notes;
     const { error } = await supabase.from("one_rm_records").upsert(
-      {
-        athlete_id: Number(athleteId),
-        exercise_id: record.exercise_id,
-        one_rm: oneRm,
-        recorded_at: new Date().toISOString(),
-      },
+      payload,
       { onConflict: "athlete_id,exercise_id" },
     );
     if (error) throw new Error(error.message);
@@ -986,5 +990,56 @@ export async function update1RM(record: {
       date: new Date().toISOString(),
     },
   ]);
+  return { status: "ok" };
+}
+
+export async function updateExerciseNote(params: {
+  athlete_id: number | string;
+  exercise_id: number;
+  notes: string | null;
+}) {
+  if (canUseSupabase()) {
+    // Try updating existing row first
+    const { data: updated, error: updateError } = await supabase
+      .from("one_rm_records")
+      .update({ notes: params.notes })
+      .eq("athlete_id", Number(params.athlete_id))
+      .eq("exercise_id", params.exercise_id)
+      .select("id");
+    if (updateError) throw new Error(updateError.message);
+    // If no row existed, insert one with one_rm=0
+    if (!updated || updated.length === 0) {
+      const { error: insertError } = await supabase
+        .from("one_rm_records")
+        .insert({
+          athlete_id: Number(params.athlete_id),
+          exercise_id: params.exercise_id,
+          notes: params.notes,
+          one_rm: 0,
+          recorded_at: new Date().toISOString(),
+        });
+      if (insertError) throw new Error(insertError.message);
+    }
+    return { status: "ok" };
+  }
+  const records = (localStorageGet(STORAGE_KEYS.ONE_RM) || []) as any[];
+  const idx = records.findIndex(
+    (r: any) =>
+      String(r.athlete_id) === String(params.athlete_id) &&
+      r.exercise_id === params.exercise_id,
+  );
+  if (idx >= 0) {
+    records[idx].notes = params.notes;
+  } else {
+    records.push({
+      athlete_id: Number(params.athlete_id),
+      exercise_id: params.exercise_id,
+      one_rm: 0,
+      notes: params.notes,
+      id: Date.now(),
+      date: new Date().toISOString(),
+    });
+  }
+  localStorageSave(STORAGE_KEYS.ONE_RM, records);
   return { status: "ok" };
 }

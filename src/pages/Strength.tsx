@@ -193,6 +193,7 @@ export default function Strength() {
   const [activeRunLogs, setActiveRunLogs] = useState<SetLogEntry[] | null>(null);
   const [activeRunnerStep, setActiveRunnerStep] = useState(0);
   const [screenMode, setScreenMode] = useState<"list" | "reader" | "focus" | "settings">("list");
+  const [isFinishing, setIsFinishing] = useState(false);
   const [preferences, setPreferences] = useState({
     poolMode: false,
     largeText: false,
@@ -319,6 +320,13 @@ export default function Strength() {
       queryFn: () => api.get1RM({ athleteName: user, athleteId: userId }),
       enabled: !!user
   });
+  const exerciseNotes = useMemo(() => {
+      const map: Record<number, string | null> = {};
+      (oneRMs ?? []).forEach((entry: OneRmEntry) => {
+          if (entry.notes) map[entry.exercise_id] = entry.notes;
+      });
+      return map;
+  }, [oneRMs]);
   const strengthHistoryQuery = useInfiniteQuery({
       queryKey: ["strength_history", historyAthleteKey, historyStatus, historyFrom, historyTo],
       queryFn: ({ pageParam = 0 }) =>
@@ -405,6 +413,7 @@ export default function Strength() {
   const updateRun = useMutation({
       mutationFn: (data: UpdateStrengthRunInput) => api.updateStrengthRun(data),
       onSuccess: (_data, variables) => {
+          setIsFinishing(false);
           queryClient.invalidateQueries({ queryKey: ["strength_history"] });
           if (variables?.status !== "completed") {
               return;
@@ -424,7 +433,28 @@ export default function Strength() {
           setActiveRunLogs(null);
           setScreenMode("list");
           toast({ title: "Séance sauvegardée", description: "Bravo pour l'effort !" });
-      }
+      },
+      onError: (_error, variables) => {
+          if (variables?.status === "completed") {
+              setIsFinishing(false);
+              toast({ title: "Erreur", description: "Impossible d'enregistrer la séance. Réessayez.", variant: "destructive" });
+          }
+      },
+  });
+
+  const updateNote = useMutation({
+      mutationFn: (params: { exercise_id: number; notes: string | null }) =>
+          api.updateExerciseNote({
+              athlete_id: userId ?? 0,
+              exercise_id: params.exercise_id,
+              notes: params.notes,
+          }),
+      onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["1rm", user, userId] });
+      },
+      onError: () => {
+          toast({ title: "Erreur", description: "Impossible de sauvegarder la note.", variant: "destructive" });
+      },
   });
 
   const startStrengthRun = useMutation({
@@ -641,13 +671,15 @@ export default function Strength() {
        {screenMode === "focus" && activeSession ? (
            exercises ? (
                <div className="animate-in fade-in motion-reduce:animate-none">
-                   <WorkoutRunner 
-                 session={activeSession} 
-                 exercises={exercises} 
+                   <WorkoutRunner
+                 session={activeSession}
+                 exercises={exercises}
                  oneRMs={oneRMs || []}
+                 exerciseNotes={exerciseNotes}
+                 onUpdateNote={(exerciseId, note) => updateNote.mutate({ exercise_id: exerciseId, notes: note })}
                  initialLogs={activeRunLogs}
                  initialStep={activeRunnerStep}
-                 isFinishing={updateRun.isPending}
+                 isFinishing={isFinishing}
                  onStepChange={(step) => setActiveRunnerStep(step)}
                  onExitFocus={() => setScreenMode("reader")}
                  onStart={async () => {
@@ -705,6 +737,7 @@ export default function Strength() {
                  }}
                  onFinish={(result) => {
                      if (!activeRunId) return;
+                     setIsFinishing(true);
                      updateRun.mutate({
                          assignment_id: activeAssignment?.id ?? undefined,
                          run_id: activeRunId,
