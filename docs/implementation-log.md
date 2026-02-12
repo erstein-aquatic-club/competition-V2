@@ -33,6 +33,54 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §9 RecordsAdmin UX: incomplete swimmer warnings | ✅ Fait | 2026-02-12 |
 | §10 Fix: extract age from competition_name, remove birthdate requirement | ✅ Fait | 2026-02-12 |
 | §11 Fix: FFN event code mapping (Bra., Pap., 4 N.) | ✅ Fait | 2026-02-12 |
+| §12 Fix: ignoreDuplicates empêche mise à jour performances + diagnostic stats | ✅ Fait | 2026-02-12 |
+
+---
+
+## 2026-02-12 — Fix: ignoreDuplicates empêche la mise à jour des performances (§12)
+
+**Branche** : `claude/continue-implementation-ajI8U`
+**Chantier ROADMAP** : §12 — Fix reimport + diagnostic stats
+
+### Contexte — Pourquoi ce patch
+
+Après déploiement des correctifs §10 et §11 (extraction d'âge depuis competition_name + mapping des épreuves abrégées), le recalcul des records ne montre toujours que 2 nageurs. Diagnostic :
+
+1. `ignoreDuplicates: true` dans les upserts des edge functions empêche la mise à jour des records existants (ON CONFLICT DO NOTHING)
+2. Les anciennes performances importées n'ont pas le préfixe `(XX ans)` dans `competition_name`
+3. `extractAgeFromText()` ne trouve donc pas l'âge → performance ignorée
+4. Les 2 nageurs qui fonctionnent ont `birthdate` dans `club_record_swimmers` (fallback)
+
+### Changements réalisés
+
+1. **Suppression `ignoreDuplicates: true`** dans les deux edge functions (`ffn-performances` + `import-club-records`) → l'upsert met maintenant à jour les colonnes non-clé (notamment `competition_name`)
+2. **Stats de diagnostic** ajoutées à `recalculateClubRecords()` : retourne un objet `RecalcStats` avec compteurs détaillés (nageurs, perfs totales, ignorées par raison, épreuves inconnues)
+3. **Affichage des stats** dans RecordsAdmin : les toasts du bouton Recalculer et de l'import complet montrent les statistiques détaillées
+4. **API records.ts** : `importClubRecords()` et `recalculateClubRecords()` retournent maintenant la réponse complète (avec `recalc_stats`)
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `supabase/functions/ffn-performances/index.ts` | Suppression `ignoreDuplicates: true` |
+| `supabase/functions/import-club-records/index.ts` | Suppression `ignoreDuplicates`, ajout `RecalcStats` et diagnostic |
+| `src/pages/RecordsAdmin.tsx` | Affichage stats diagnostic dans les toasts |
+| `src/lib/api/records.ts` | Retour réponse complète (avec `recalc_stats`) |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — 0 erreurs
+- [x] `npm run build` — succès
+
+### Décisions prises
+
+- Supprimer `ignoreDuplicates` plutôt que forcer un delete+reimport : plus propre, l'upsert ON CONFLICT DO UPDATE met à jour les colonnes existantes
+- Les stats de diagnostic sont renvoyées dans la réponse pour permettre au coach de voir exactement ce qui se passe
+
+### Limites / dette
+
+- L'utilisateur doit redéployer les edge functions puis ré-importer les performances pour que `competition_name` soit mis à jour avec le préfixe `(XX ans)`
+- Les épreuves inconnues sont listées dans les stats (max 20) pour faciliter l'ajout de nouveaux mappings si besoin
 
 ---
 

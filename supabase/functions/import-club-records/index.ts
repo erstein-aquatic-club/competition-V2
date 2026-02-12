@@ -138,19 +138,46 @@ function extractAgeFromText(text: string | null): number | null {
   return m ? Number(m[1]) : null;
 }
 
-async function recalculateClubRecords(): Promise<void> {
+interface RecalcStats {
+  active_swimmers: number;
+  swimmers_with_sex: number;
+  total_performances: number;
+  skipped_no_swimmer: number;
+  skipped_no_event_code: number;
+  skipped_no_age: number;
+  processed: number;
+  per_swimmer_bests: number;
+  club_records_upserted: number;
+  unmapped_event_codes: string[];
+}
+
+async function recalculateClubRecords(): Promise<RecalcStats> {
+  const stats: RecalcStats = {
+    active_swimmers: 0,
+    swimmers_with_sex: 0,
+    total_performances: 0,
+    skipped_no_swimmer: 0,
+    skipped_no_event_code: 0,
+    skipped_no_age: 0,
+    processed: 0,
+    per_swimmer_bests: 0,
+    club_records_upserted: 0,
+    unmapped_event_codes: [],
+  };
+
   const { data: allSwimmers } = await supabaseAdmin
     .from("club_record_swimmers")
     .select("iuf, sex, birthdate, display_name")
     .eq("is_active", true)
     .not("iuf", "is", null);
 
+  stats.active_swimmers = allSwimmers?.length ?? 0;
+
   const swimmerMap = new Map<
     string,
     { sex: string; birthdate: string | null; name: string }
   >();
   for (const s of allSwimmers ?? []) {
-    // Only require iuf + sex; birthdate is optional (age can come from competition_name)
     if (s.iuf && s.sex) {
       swimmerMap.set(s.iuf, {
         sex: s.sex,
@@ -159,31 +186,46 @@ async function recalculateClubRecords(): Promise<void> {
       });
     }
   }
+  stats.swimmers_with_sex = swimmerMap.size;
 
   // Fetch all performances
   const { data: allPerfs } = await supabaseAdmin
     .from("swimmer_performances")
     .select("*");
 
-  if (!allPerfs || allPerfs.length === 0) return;
+  stats.total_performances = allPerfs?.length ?? 0;
+  if (!allPerfs || allPerfs.length === 0) return stats;
 
-  // Build per-swimmer best time per (event_code, pool_length, sex, age)
-  // Key: "event__pool__sex__age__iuf" → best for that swimmer in that category
+  // Track unmapped event codes (collect unique ones, max 20)
+  const unmappedCodes = new Set<string>();
+
   const perSwimmerBests = new Map<string, PerSwimmerBest>();
 
   for (const perf of allPerfs) {
     const swimmerInfo = swimmerMap.get(perf.swimmer_iuf);
-    if (!swimmerInfo) continue;
+    if (!swimmerInfo) {
+      stats.skipped_no_swimmer++;
+      continue;
+    }
 
     const normalizedCode = normalizeEventCode(perf.event_code);
-    if (!normalizedCode) continue;
+    if (!normalizedCode) {
+      stats.skipped_no_event_code++;
+      if (unmappedCodes.size < 20) unmappedCodes.add(perf.event_code);
+      continue;
+    }
 
     // Extract age from competition_name "(XX ans)", fall back to birthdate calculation
     let age = extractAgeFromText(perf.competition_name);
     if (age === null && swimmerInfo.birthdate && perf.competition_date) {
       age = calculateAge(swimmerInfo.birthdate, perf.competition_date);
     }
-    if (age === null) continue;
+    if (age === null) {
+      stats.skipped_no_age++;
+      continue;
+    }
+
+    stats.processed++;
 
     // Clamp age: 8 means "8 and under", 17 means "17 and over"
     const clampedAge = Math.max(8, Math.min(17, age));
@@ -206,6 +248,9 @@ async function recalculateClubRecords(): Promise<void> {
       });
     }
   }
+
+  stats.per_swimmer_bests = perSwimmerBests.size;
+  stats.unmapped_event_codes = [...unmappedCodes];
 
   // Clear old club_performances before reinserting (prevent duplicates)
   await supabaseAdmin.from("club_performances").delete().neq("id", 0);
@@ -240,7 +285,6 @@ async function recalculateClubRecords(): Promise<void> {
 
   // Upsert club_records with the overall best
   for (const [, record] of overallBests) {
-    // Find the club_performances row id for this record
     const { data: perfRow } = await supabaseAdmin
       .from("club_performances")
       .select("id")
@@ -267,6 +311,9 @@ async function recalculateClubRecords(): Promise<void> {
       { onConflict: "pool_m,sex,age,event_code" },
     );
   }
+
+  stats.club_records_upserted = overallBests.size;
+  return stats;
 }
 
 // --- Main handler ---
@@ -309,9 +356,10 @@ Deno.serve(async (req) => {
 
     if (mode === "recalculate") {
       // Recalculate-only: skip FFN fetch, just rebuild club records
-      await recalculateClubRecords();
+      const recalcStats = await recalculateClubRecords();
       return jsonResponse({
         summary: { imported: 0, errors: 0, swimmers_processed: 0, mode: "recalculate" },
+        recalc_stats: recalcStats,
       });
     }
 
@@ -381,7 +429,6 @@ Deno.serve(async (req) => {
             .upsert(chunk, {
               onConflict:
                 "swimmer_iuf,event_code,pool_length,competition_date,time_seconds",
-              ignoreDuplicates: true,
             })
             .select("id");
           imported += data?.length ?? 0;
@@ -430,7 +477,7 @@ Deno.serve(async (req) => {
     }
 
     // 3. Recalculate club records from all swimmer_performances
-    await recalculateClubRecords();
+    const recalcStats = await recalculateClubRecords();
 
     return jsonResponse({
       summary: {
@@ -438,6 +485,7 @@ Deno.serve(async (req) => {
         errors: totalErrors,
         swimmers_processed: swimmers.length,
       },
+      recalc_stats: recalcStats,
     });
   } catch (e) {
     console.error("[import-club-records] Fatal error:", e);

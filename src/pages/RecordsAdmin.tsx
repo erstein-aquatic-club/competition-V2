@@ -180,13 +180,17 @@ export default function RecordsAdmin() {
 
   const importRecords = useMutation({
     mutationFn: () => api.importClubRecords(),
-    onSuccess: (summary) => {
-      toast({
-        title: "Import terminé",
-        description: summary
-          ? `Performances importées: ${summary.imported ?? 0}. Erreurs: ${summary.errors ?? 0}.`
-          : "",
-      });
+    onSuccess: (result: any) => {
+      const summary = result?.summary ?? result;
+      const s = result?.recalc_stats;
+      let desc = summary
+        ? `Performances importées: ${summary.imported ?? 0}. Erreurs: ${summary.errors ?? 0}.`
+        : "";
+      if (s) {
+        desc += ` Records: ${s.club_records_upserted} (${s.processed} perfs traitées).`;
+        if (s.skipped_no_age) desc += ` Ignorées (pas d'âge): ${s.skipped_no_age}.`;
+      }
+      toast({ title: "Import terminé", description: desc });
       void load();
       void refetchLogs();
       void queryClient.invalidateQueries({ queryKey: ["club-records"] });
@@ -250,8 +254,16 @@ export default function RecordsAdmin() {
 
   const recalculate = useMutation({
     mutationFn: () => api.recalculateClubRecords(),
-    onSuccess: () => {
-      toast({ title: "Records recalculés" });
+    onSuccess: (result: any) => {
+      const s = result?.recalc_stats;
+      const desc = s
+        ? `${s.swimmers_with_sex} nageur(s), ${s.total_performances} perfs, ${s.processed} traitées, ${s.club_records_upserted} records.${
+            s.skipped_no_swimmer ? ` Ignorées (pas de nageur): ${s.skipped_no_swimmer}.` : ""
+          }${s.skipped_no_event_code ? ` Ignorées (épreuve inconnue): ${s.skipped_no_event_code}.` : ""}${
+            s.skipped_no_age ? ` Ignorées (pas d'âge): ${s.skipped_no_age}.` : ""
+          }${s.unmapped_event_codes?.length ? ` Épreuves inconnues: ${s.unmapped_event_codes.join(", ")}` : ""}`
+        : "";
+      toast({ title: "Records recalculés", description: desc });
       void queryClient.invalidateQueries({ queryKey: ["club-records"] });
     },
     onError: () => {

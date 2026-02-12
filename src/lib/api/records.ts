@@ -242,7 +242,7 @@ export async function importClubRecords(): Promise<any> {
     const detail = data?.error ?? error.message;
     throw new Error(String(detail));
   }
-  return data?.summary ?? data;
+  return data;
 }
 
 export async function getImportLogs(filters?: {
@@ -432,7 +432,7 @@ export async function recalculateClubRecords(): Promise<any> {
     const detail = data?.error ?? error.message;
     throw new Error(String(detail));
   }
-  return data?.summary ?? data;
+  return data;
 }
 
 /** Sync club_record_swimmers with registered users (auto-create missing + update existing) */
