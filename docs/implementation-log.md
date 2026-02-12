@@ -717,3 +717,37 @@ Remontées utilisateur sur le module musculation : bouton d'enregistrement bloqu
 - `npx tsc --noEmit` → 0 erreur
 - `npm run build` → OK
 - `npm test` → 63 pass, 2 pre-existing failures
+
+---
+
+## 2026-02-12 — Reprendre button fix + Records 1RM enhancements
+
+### Contexte
+Trois bugs/demandes remontés par l'utilisateur :
+1. Le bouton "Reprendre" est toujours grisé sur les séances interrompues démarrées sans assignment
+2. Le bouton "Info 1RM" doit naviguer vers la page Records onglet 1RM
+3. Sur la page Records (onglet 1RM), ajouter une table des pourcentages et l'édition des notes
+
+### Changements
+
+1. **Fix bouton Reprendre** — Quand une séance est démarrée directement (sans assignment), `assignment_id` est null. Le code cherchait uniquement dans `activeStrengthAssignments`. Ajout d'un fallback vers `strengthCatalog` pour retrouver la session par `session_id`.
+
+2. **Navigation Info 1RM** — Le bouton "Info 1RM" sur la page Strength navigue maintenant vers `#/records?tab=1rm` au lieu d'afficher un toast.
+
+3. **Lecture du query param** — `Records.tsx` lit `?tab=1rm` depuis le hash URL pour initialiser l'onglet Musculation.
+
+4. **Table des pourcentages** — Chaque exercice avec un 1RM > 0 affiche un bouton "%" qui déploie une table compacte (50/60/70/80/90% du 1RM, arrondi à 0.1 kg).
+
+5. **Édition des notes** — Icône StickyNote à côté de chaque nom d'exercice dans l'onglet 1RM. Clic ouvre un textarea inline avec sauvegarde via `updateExerciseNote`. Notes existantes affichées en italique sous le nom.
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/pages/Strength.tsx` | inProgressSession fallback, canResumeInProgress update, Info 1RM navigation |
+| `src/pages/Records.tsx` | Tab query param, expandedExerciseId, percentage table, note editing (StickyNote + textarea) |
+
+### Validation
+- `npx tsc --noEmit` → 0 erreur
+- `npm run build` → OK
+- `npm test` → 63 pass, 2 pre-existing failures

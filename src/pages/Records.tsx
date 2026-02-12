@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { shouldShowRecords } from "@/pages/Profile";
-import { Check, Clock, Dumbbell, Edit2, Download, RefreshCw, Trophy, Waves, X } from "lucide-react";
+import { Check, ChevronDown, Clock, Dumbbell, Edit2, Download, RefreshCw, StickyNote, Trophy, Waves, X } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 type OneRmRecord = {
@@ -20,6 +20,7 @@ type OneRmRecord = {
   weight?: number | null;
   recorded_at?: string | null;
   date?: string | null;
+  notes?: string | null;
 };
 
 type SwimMode = "training" | "comp" | "history";
@@ -157,7 +158,15 @@ export default function Records() {
     notes: "",
   };
 
-  const [mainTab, setMainTab] = useState<"swim" | "1rm">("swim");
+  const [mainTab, setMainTab] = useState<"swim" | "1rm">(() => {
+    const hash = window.location.hash;
+    const qIdx = hash.indexOf("?");
+    if (qIdx >= 0) {
+      const params = new URLSearchParams(hash.substring(qIdx));
+      if (params.get("tab") === "1rm") return "1rm";
+    }
+    return "swim";
+  });
 
   const [swimForm, setSwimForm] = useState(emptySwimForm);
   const [swimMode, setSwimMode] = useState<SwimMode>("training");
@@ -166,6 +175,9 @@ export default function Records() {
 
   const [editingExerciseId, setEditingExerciseId] = useState<number | null>(null);
   const [editingOneRmValue, setEditingOneRmValue] = useState<string>("");
+  const [expandedExerciseId, setExpandedExerciseId] = useState<number | null>(null);
+  const [editingNoteExerciseId, setEditingNoteExerciseId] = useState<number | null>(null);
+  const [noteDraft, setNoteDraft] = useState<string>("");
 
   // History tab state
   const [histPoolLen, setHistPoolLen] = useState<25 | 50>(25);
@@ -322,6 +334,15 @@ export default function Records() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["1rm"] });
       toast({ title: "1RM mis à jour" });
+    },
+  });
+
+  const updateExerciseNote = useMutation({
+    mutationFn: (data: { exercise_id: number; notes: string | null }) =>
+      api.updateExerciseNote({ athlete_id: userId!, exercise_id: data.exercise_id, notes: data.notes }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["1rm"] });
+      toast({ title: "Note mise à jour" });
     },
   });
 
@@ -1143,34 +1164,80 @@ export default function Records() {
                           const recordWeight = Number(record?.weight ?? 0);
                           const displayWeight = recordWeight > 0 ? `${recordWeight} kg` : "—";
                           const recordDate = record?.recorded_at ?? record?.date ?? null;
+                          const exerciseNote = record?.notes ?? null;
 
                           const isEditing = editingExerciseId === ex.id;
+                          const isExpanded = expandedExerciseId === ex.id;
+                          const isEditingNote = editingNoteExerciseId === ex.id;
 
                           return (
                             <div key={ex.id} className="px-3 sm:px-4 py-3">
                               <div className="flex items-start justify-between gap-4">
                                 <div className="min-w-0">
-                                  <div className="text-sm font-semibold truncate">{ex.nom_exercice}</div>
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="text-sm font-semibold truncate">{ex.nom_exercice}</div>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (isEditingNote) {
+                                          setEditingNoteExerciseId(null);
+                                          setNoteDraft("");
+                                        } else {
+                                          setEditingNoteExerciseId(ex.id);
+                                          setNoteDraft(exerciseNote ?? "");
+                                        }
+                                      }}
+                                      className={cx(
+                                        "inline-flex items-center justify-center h-6 w-6 rounded-lg shrink-0",
+                                        exerciseNote
+                                          ? "text-primary hover:text-primary/80"
+                                          : "text-muted-foreground/50 hover:text-muted-foreground",
+                                      )}
+                                      aria-label="Notes"
+                                      title={exerciseNote ? "Modifier la note" : "Ajouter une note"}
+                                    >
+                                      <StickyNote className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
                                   <div className="mt-0.5 text-xs text-muted-foreground tabular-nums">
                                     {formatDateShort(recordDate)}
                                   </div>
+                                  {exerciseNote && !isEditingNote ? (
+                                    <div className="mt-1 text-xs italic text-muted-foreground truncate max-w-[200px]">{exerciseNote}</div>
+                                  ) : null}
                                 </div>
 
-                                <div className="text-right shrink-0">
-                                  <div className="text-base font-semibold tabular-nums whitespace-nowrap font-mono">
-                                    {displayWeight}
-                                  </div>
+                                <div className="text-right shrink-0 flex items-start gap-1">
+                                  <div>
+                                    <div className="text-base font-semibold tabular-nums whitespace-nowrap font-mono">
+                                      {displayWeight}
+                                    </div>
 
-                                  {!isEditing ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => openOneRmEdit(ex.id, record?.weight ?? null)}
-                                      className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                                    >
-                                      <Edit2 className="h-3.5 w-3.5" />
-                                      Modifier
-                                    </button>
-                                  ) : null}
+                                    {!isEditing ? (
+                                      <div className="flex items-center justify-end gap-1 mt-1">
+                                        {recordWeight > 0 ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => setExpandedExerciseId(isExpanded ? null : ex.id)}
+                                            className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground"
+                                            aria-label="Table des pourcentages"
+                                            title="Table des pourcentages"
+                                          >
+                                            <ChevronDown className={cx("h-3.5 w-3.5 transition-transform", isExpanded && "rotate-180")} />
+                                            %
+                                          </button>
+                                        ) : null}
+                                        <button
+                                          type="button"
+                                          onClick={() => openOneRmEdit(ex.id, record?.weight ?? null)}
+                                          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                                        >
+                                          <Edit2 className="h-3.5 w-3.5" />
+                                          Modifier
+                                        </button>
+                                      </div>
+                                    ) : null}
+                                  </div>
                                 </div>
                               </div>
 
@@ -1184,6 +1251,62 @@ export default function Records() {
                                     onCancel={cancelOneRmEdit}
                                     onSave={(draft) => saveOneRmEdit(ex.id, draft)}
                                   />
+                                </div>
+                              ) : null}
+
+                              {isEditingNote ? (
+                                <div className="mt-3">
+                                  <div className="w-full">
+                                    <Textarea
+                                      value={noteDraft}
+                                      onChange={(e) => setNoteDraft(e.target.value)}
+                                      placeholder="Ex: Machine n°3, cran 5, poignée large..."
+                                      rows={2}
+                                      className="rounded-xl text-sm"
+                                      autoFocus
+                                    />
+                                    <div className="flex items-center justify-end gap-2 mt-2">
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => { setEditingNoteExerciseId(null); setNoteDraft(""); }}
+                                        className="rounded-xl h-9 w-9 p-0"
+                                        aria-label="Annuler"
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        onClick={() => {
+                                          const trimmed = noteDraft.trim() || null;
+                                          updateExerciseNote.mutate({ exercise_id: ex.id, notes: trimmed });
+                                          setEditingNoteExerciseId(null);
+                                          setNoteDraft("");
+                                        }}
+                                        disabled={updateExerciseNote.isPending}
+                                        className="rounded-xl h-9 w-9 p-0"
+                                        aria-label="Enregistrer la note"
+                                      >
+                                        <Check className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : null}
+
+                              {isExpanded && recordWeight > 0 ? (
+                                <div className="mt-3 rounded-xl bg-muted/30 border border-border p-3">
+                                  <div className="text-xs font-semibold text-muted-foreground mb-2">Table des pourcentages</div>
+                                  <div className="grid grid-cols-5 gap-2 text-center text-xs">
+                                    {[50, 60, 70, 80, 90].map((pct) => (
+                                      <div key={pct}>
+                                        <div className="text-muted-foreground">{pct}%</div>
+                                        <div className="font-semibold tabular-nums">{Math.round(recordWeight * pct / 10) / 10} kg</div>
+                                      </div>
+                                    ))}
+                                  </div>
                                 </div>
                               ) : null}
                             </div>

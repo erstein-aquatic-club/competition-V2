@@ -501,8 +501,13 @@ export default function Strength() {
   const activeStrengthAssignments = strengthAssignments.filter((assignment) => assignment.status !== "completed");
   const inProgressAssignment = inProgressRun
       ? activeStrengthAssignments.find((assignment) => assignment.id === inProgressRun.assignment_id)
+        ?? null
       : null;
-  const canResumeInProgress = Boolean(inProgressAssignment?.items?.length) && !inProgressRunCompleted;
+  // If run was started without an assignment (direct session start), look up session from catalog
+  const inProgressSession = inProgressRun && !inProgressAssignment
+      ? strengthCatalog?.find((s) => s.id === inProgressRun.session_id) ?? null
+      : null;
+  const canResumeInProgress = (Boolean(inProgressAssignment?.items?.length) || Boolean(inProgressSession?.items?.length)) && !inProgressRunCompleted;
   const mergedAssignments: Array<StrengthAssignment & { session: StrengthSessionTemplate }> = activeStrengthAssignments.map(
       (assignment) => ({
         ...assignment,
@@ -771,7 +776,7 @@ export default function Strength() {
                   variant="ghost"
                   size="sm"
                   aria-label="Informations sur le calcul du 1RM"
-                  onClick={() => toast({ title: "Info", description: "Le 1RM est calculé automatiquement." })}
+                  onClick={() => { window.location.hash = "#/records?tab=1rm"; }}
                   className="text-muted-foreground"
                 >
                     <Dumbbell className="mr-2 h-4 w-4"/> Info 1RM
@@ -900,19 +905,20 @@ export default function Strength() {
                                             className="flex-1 h-12 rounded-xl font-semibold"
                                             disabled={!canResumeInProgress}
                                             onClick={() => {
-                                                if (!inProgressAssignment) return;
-                                                const sessionItems = inProgressAssignment.items ?? [];
+                                                const source = inProgressAssignment ?? inProgressSession;
+                                                if (!source) return;
+                                                const sessionItems = (inProgressAssignment?.items ?? inProgressSession?.items) ?? [];
                                                 const cycle = normalizeStrengthCycle(
-                                                    inProgressAssignment.cycle ??
+                                                    (inProgressAssignment?.cycle ?? inProgressSession?.cycle) ??
                                                     sessionItems.find((item) => item.cycle_type)?.cycle_type,
                                                 );
                                                 const filteredItems = sessionItems.filter((item) => item.cycle_type === cycle);
                                                 const items = orderStrengthItems(filteredItems.length ? filteredItems : sessionItems);
-                                                setActiveAssignment(inProgressAssignment);
+                                                setActiveAssignment(inProgressAssignment ?? null);
                                                 setActiveSession({
-                                                    ...inProgressAssignment,
-                                                    title: inProgressAssignment.title,
-                                                    description: inProgressAssignment.description,
+                                                    ...source,
+                                                    title: source.title,
+                                                    description: source.description ?? null,
                                                     cycle,
                                                     items,
                                                 });
