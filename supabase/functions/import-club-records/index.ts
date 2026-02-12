@@ -1,10 +1,11 @@
 // supabase/functions/import-club-records/index.ts
 // Edge Function: Bulk import FFN performances for all active club swimmers,
 // then recalculate club records.
+// Supports mode: "full" (default) or "recalculate" (skip FFN fetch).
 // Requires coach or admin role (verified via JWT).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { parseHtmlFull, formatTimeDisplay } from "../_shared/ffn-parser.ts";
+import { fetchAllPerformances, formatTimeDisplay } from "../_shared/ffn-parser.ts";
 import { normalizeEventCode, EVENT_LABELS } from "../_shared/ffn-event-map.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -90,6 +91,146 @@ async function verifyCallerRole(
   return { role: appRole, userId: appUserId };
 }
 
+/** Check monthly rate limit for coach role (admin unlimited) */
+async function checkRateLimit(userId: number, role: string): Promise<{ allowed: boolean; message?: string }> {
+  if (role === "admin") return { allowed: true };
+
+  const { data: settings } = await supabaseAdmin.from("app_settings").select("value").eq("key", "import_rate_limits").single();
+  const limits = settings?.value as Record<string, number> | null;
+  const monthlyLimit = role === "coach"
+    ? (limits?.coach_monthly ?? 3)
+    : (limits?.athlete_monthly ?? 1);
+  if (monthlyLimit < 0) return { allowed: true };
+
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const { count } = await supabaseAdmin
+    .from("import_logs")
+    .select("id", { count: "exact", head: true })
+    .eq("triggered_by", userId)
+    .gte("started_at", monthStart);
+
+  if ((count ?? 0) >= monthlyLimit) {
+    return { allowed: false, message: `Limite d'imports atteinte (${monthlyLimit}/mois).` };
+  }
+  return { allowed: true };
+}
+
+// --- Recalculate club records from swimmer_performances ---
+
+async function recalculateClubRecords(): Promise<void> {
+  const { data: allSwimmers } = await supabaseAdmin
+    .from("club_record_swimmers")
+    .select("iuf, sex, birthdate, display_name")
+    .eq("is_active", true)
+    .not("iuf", "is", null);
+
+  const swimmerMap = new Map<
+    string,
+    { sex: string; birthdate: string; name: string }
+  >();
+  for (const s of allSwimmers ?? []) {
+    if (s.iuf && s.sex && s.birthdate) {
+      swimmerMap.set(s.iuf, {
+        sex: s.sex,
+        birthdate: s.birthdate,
+        name: s.display_name,
+      });
+    }
+  }
+
+  // Fetch all performances
+  const { data: allPerfs } = await supabaseAdmin
+    .from("swimmer_performances")
+    .select("*");
+
+  if (!allPerfs || allPerfs.length === 0) return;
+
+  // Find best time per (normalized_event_code, pool_length, sex, age)
+  const bestTimes = new Map<
+    string,
+    {
+      time_seconds: number;
+      time_ms: number;
+      athlete_name: string;
+      record_date: string | null;
+      event_code: string;
+      event_label: string;
+      pool_m: number;
+      sex: string;
+      age: number;
+    }
+  >();
+
+  for (const perf of allPerfs) {
+    const swimmerInfo = swimmerMap.get(perf.swimmer_iuf);
+    if (!swimmerInfo || !perf.competition_date) continue;
+
+    const normalizedCode = normalizeEventCode(perf.event_code);
+    if (!normalizedCode) continue;
+
+    const age = calculateAge(
+      swimmerInfo.birthdate,
+      perf.competition_date,
+    );
+    // Clamp age: 8 means "8 and under", 17 means "17 and over"
+    const clampedAge = Math.max(8, Math.min(17, age));
+
+    const key = `${normalizedCode}__${perf.pool_length}__${swimmerInfo.sex}__${clampedAge}`;
+    const existing = bestTimes.get(key);
+
+    if (!existing || perf.time_seconds < existing.time_seconds) {
+      bestTimes.set(key, {
+        time_seconds: perf.time_seconds,
+        time_ms: Math.round(perf.time_seconds * 1000),
+        athlete_name: swimmerInfo.name,
+        record_date: perf.competition_date,
+        event_code: normalizedCode,
+        event_label: EVENT_LABELS[normalizedCode] ?? normalizedCode,
+        pool_m: perf.pool_length,
+        sex: swimmerInfo.sex,
+        age: clampedAge,
+      });
+    }
+  }
+
+  // Upsert club_performances and club_records
+  for (const [, record] of bestTimes) {
+    const { data: perfRow } = await supabaseAdmin
+      .from("club_performances")
+      .insert({
+        athlete_name: record.athlete_name,
+        sex: record.sex,
+        pool_m: record.pool_m,
+        event_code: record.event_code,
+        event_label: record.event_label,
+        age: record.age,
+        time_ms: record.time_ms,
+        record_date: record.record_date,
+        source: "ffn",
+      })
+      .select("id")
+      .single();
+
+    if (perfRow?.id) {
+      await supabaseAdmin.from("club_records").upsert(
+        {
+          performance_id: perfRow.id,
+          athlete_name: record.athlete_name,
+          sex: record.sex,
+          pool_m: record.pool_m,
+          event_code: record.event_code,
+          event_label: record.event_label,
+          age: record.age,
+          time_ms: record.time_ms,
+          record_date: record.record_date,
+        },
+        { onConflict: "pool_m,sex,age,event_code" },
+      );
+    }
+  }
+}
+
 // --- Main handler ---
 
 Deno.serve(async (req) => {
@@ -108,9 +249,35 @@ Deno.serve(async (req) => {
     return callerResult;
   }
 
-  const { userId: triggeredBy } = callerResult;
+  const { role, userId: triggeredBy } = callerResult;
 
   try {
+    // Parse request body for mode
+    let mode = "full";
+    try {
+      const body = await req.json();
+      if (body?.mode === "recalculate") mode = "recalculate";
+    } catch {
+      // No body or invalid JSON: default to full mode
+    }
+
+    // Rate limit check (only for full mode which fetches from FFN)
+    if (mode === "full") {
+      const rateCheck = await checkRateLimit(triggeredBy, role);
+      if (!rateCheck.allowed) {
+        return errorResponse(rateCheck.message ?? "Rate limit exceeded", 429);
+      }
+    }
+
+    if (mode === "recalculate") {
+      // Recalculate-only: skip FFN fetch, just rebuild club records
+      await recalculateClubRecords();
+      return jsonResponse({
+        summary: { imported: 0, errors: 0, swimmers_processed: 0, mode: "recalculate" },
+      });
+    }
+
+    // Full mode: fetch FFN + recalculate
     // 1. Get all active swimmers with IUF
     const { data: swimmers, error: swErr } = await supabaseAdmin
       .from("club_record_swimmers")
@@ -148,14 +315,8 @@ Deno.serve(async (req) => {
         .single();
 
       try {
-        // Fetch FFN performances page
-        const res = await fetch(
-          `https://ffn.extranat.fr/webffn/nat_recherche.php?idact=nat&idrch_id=${iuf}&idiuf=${iuf}`,
-          { headers: { "User-Agent": "suivi-natation/1.0" } },
-        );
-        if (!res.ok) throw new Error(`FFN HTTP ${res.status}`);
-
-        const perfs = parseHtmlFull(await res.text());
+        // Fetch ALL FFN performances (25m + 50m)
+        const perfs = await fetchAllPerformances(iuf);
 
         // Build rows for upsert into swimmer_performances
         const rows = perfs.map((p) => ({
@@ -188,6 +349,12 @@ Deno.serve(async (req) => {
 
         totalImported += imported;
 
+        // Update last_imported_at on club_record_swimmers
+        await supabaseAdmin
+          .from("club_record_swimmers")
+          .update({ last_imported_at: new Date().toISOString() })
+          .eq("iuf", iuf);
+
         // Update log entry with success
         if (logEntry?.id) {
           await supabaseAdmin
@@ -219,123 +386,11 @@ Deno.serve(async (req) => {
       }
 
       // Delay between swimmers to avoid hammering FFN
-      await delay(500);
+      await delay(1500);
     }
 
     // 3. Recalculate club records from all swimmer_performances
-    // Build a map of swimmer metadata (sex, birthdate, name) keyed by IUF
-    const { data: allSwimmers } = await supabaseAdmin
-      .from("club_record_swimmers")
-      .select("iuf, sex, birthdate, display_name")
-      .eq("is_active", true)
-      .not("iuf", "is", null);
-
-    const swimmerMap = new Map<
-      string,
-      { sex: string; birthdate: string; name: string }
-    >();
-    for (const s of allSwimmers ?? []) {
-      if (s.iuf && s.sex && s.birthdate) {
-        swimmerMap.set(s.iuf, {
-          sex: s.sex,
-          birthdate: s.birthdate,
-          name: s.display_name,
-        });
-      }
-    }
-
-    // Fetch all performances
-    const { data: allPerfs } = await supabaseAdmin
-      .from("swimmer_performances")
-      .select("*");
-
-    if (allPerfs && allPerfs.length > 0) {
-      // Find best time per (normalized_event_code, pool_length, sex, age)
-      const bestTimes = new Map<
-        string,
-        {
-          time_seconds: number;
-          time_ms: number;
-          athlete_name: string;
-          record_date: string | null;
-          event_code: string;
-          event_label: string;
-          pool_m: number;
-          sex: string;
-          age: number;
-        }
-      >();
-
-      for (const perf of allPerfs) {
-        const swimmerInfo = swimmerMap.get(perf.swimmer_iuf);
-        if (!swimmerInfo || !perf.competition_date) continue;
-
-        const normalizedCode = normalizeEventCode(perf.event_code);
-        if (!normalizedCode) continue;
-
-        const age = calculateAge(
-          swimmerInfo.birthdate,
-          perf.competition_date,
-        );
-        // Clamp age: 8 means "8 and under", 17 means "17 and over"
-        const clampedAge = Math.max(8, Math.min(17, age));
-
-        const key = `${normalizedCode}__${perf.pool_length}__${swimmerInfo.sex}__${clampedAge}`;
-        const existing = bestTimes.get(key);
-
-        if (!existing || perf.time_seconds < existing.time_seconds) {
-          bestTimes.set(key, {
-            time_seconds: perf.time_seconds,
-            time_ms: Math.round(perf.time_seconds * 1000),
-            athlete_name: swimmerInfo.name,
-            record_date: perf.competition_date,
-            event_code: normalizedCode,
-            event_label: EVENT_LABELS[normalizedCode] ?? normalizedCode,
-            pool_m: perf.pool_length,
-            sex: swimmerInfo.sex,
-            age: clampedAge,
-          });
-        }
-      }
-
-      // Upsert club_performances and club_records
-      for (const [, record] of bestTimes) {
-        // Insert into club_performances first (to get performance_id for club_records)
-        const { data: perfRow } = await supabaseAdmin
-          .from("club_performances")
-          .insert({
-            athlete_name: record.athlete_name,
-            sex: record.sex,
-            pool_m: record.pool_m,
-            event_code: record.event_code,
-            event_label: record.event_label,
-            age: record.age,
-            time_ms: record.time_ms,
-            record_date: record.record_date,
-            source: "ffn",
-          })
-          .select("id")
-          .single();
-
-        if (perfRow?.id) {
-          // Upsert into club_records (unique on pool_m, sex, age, event_code)
-          await supabaseAdmin.from("club_records").upsert(
-            {
-              performance_id: perfRow.id,
-              athlete_name: record.athlete_name,
-              sex: record.sex,
-              pool_m: record.pool_m,
-              event_code: record.event_code,
-              event_label: record.event_label,
-              age: record.age,
-              time_ms: record.time_ms,
-              record_date: record.record_date,
-            },
-            { onConflict: "pool_m,sex,age,event_code" },
-          );
-        }
-      }
-    }
+    await recalculateClubRecords();
 
     return jsonResponse({
       summary: {

@@ -113,6 +113,9 @@ export const mapToDbSession = (session: SyncSessionInputWithId): Record<string, 
   ) {
     payload.athlete_id = session.athlete_id;
   }
+  if (session.stroke_distances) {
+    payload.stroke_distances = session.stroke_distances;
+  }
   return payload;
 };
 
@@ -147,6 +150,7 @@ export const mapFromDbSession = (raw: Record<string, unknown>): Session | null =
     distance: safeInt(raw.distance, 0),
     duration: safeInt(raw.duration, 0),
     comments: (raw.comments || '') as string,
+    stroke_distances: (raw.stroke_distances as Session['stroke_distances']) ?? null,
     created_at: (raw.created_at || raw.updated_at || new Date().toISOString()) as string,
   };
 };

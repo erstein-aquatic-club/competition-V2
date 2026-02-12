@@ -1,6 +1,6 @@
 
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -19,6 +19,9 @@ import {
   Line,
   ComposedChart,
   Cell,
+  PieChart,
+  Pie,
+  Legend,
 } from "recharts";
 import { endOfDay, format, startOfDay, subDays } from "date-fns";
 import { useAuth } from "@/lib/auth";
@@ -333,6 +336,48 @@ export default function Progress() {
 
   const swimData = processData(swimPeriodDays);
 
+  // Stroke breakdown data
+  const STROKE_KEYS = ["NL", "DOS", "BR", "PAP", "QN"] as const;
+  const STROKE_LABELS: Record<string, string> = { NL: "NL", DOS: "Dos", BR: "Brasse", PAP: "Pap", QN: "4N" };
+  const STROKE_COLORS: Record<string, string> = {
+    NL: "hsl(210, 80%, 55%)",
+    DOS: "hsl(160, 60%, 45%)",
+    BR: "hsl(35, 85%, 55%)",
+    PAP: "hsl(280, 60%, 55%)",
+    QN: "hsl(340, 70%, 55%)",
+  };
+
+  const strokeBreakdown = useMemo(() => {
+    if (!swimSessionsPeriod.length) return { pie: [], daily: [], hasData: false };
+    const totals: Record<string, number> = { NL: 0, DOS: 0, BR: 0, PAP: 0, QN: 0 };
+    let hasAny = false;
+    const dailyMap = new Map<string, Record<string, number>>();
+
+    for (const s of swimSessionsPeriod) {
+      const sd = s.stroke_distances;
+      if (!sd) continue;
+      const dateStr = format(new Date(s.date), "dd/MM");
+      if (!dailyMap.has(dateStr)) dailyMap.set(dateStr, { NL: 0, DOS: 0, BR: 0, PAP: 0, QN: 0 });
+      const dayEntry = dailyMap.get(dateStr)!;
+      for (const k of STROKE_KEYS) {
+        const val = (sd as Record<string, number | undefined>)[k];
+        if (val && val > 0) {
+          totals[k] += val;
+          dayEntry[k] += val;
+          hasAny = true;
+        }
+      }
+    }
+
+    const pie = STROKE_KEYS
+      .filter((k) => totals[k] > 0)
+      .map((k) => ({ name: STROKE_LABELS[k], value: totals[k], fill: STROKE_COLORS[k] }));
+
+    const daily = Array.from(dailyMap.entries()).map(([date, vals]) => ({ date, ...vals }));
+
+    return { pie, daily, hasData: hasAny };
+  }, [swimSessionsPeriod]);
+
   const isLowScorePositive = (metricKey: string) =>
     metricKey === "rpe" || metricKey === "effort" || metricKey === "fatigue";
 
@@ -515,6 +560,53 @@ export default function Progress() {
                   </Card>
                 ))}
              </div>
+
+             {/* Stroke distance breakdown */}
+             {strokeBreakdown.hasData && (
+               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                 <Card>
+                   <CardHeader><CardTitle>Répartition par nage ({swimPeriodDays}j)</CardTitle></CardHeader>
+                   <CardContent className="h-[280px] w-full">
+                     <ResponsiveContainer width="100%" height="100%">
+                       <PieChart>
+                         <Pie
+                           data={strokeBreakdown.pie}
+                           dataKey="value"
+                           nameKey="name"
+                           cx="50%"
+                           cy="50%"
+                           outerRadius={90}
+                           label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                         >
+                           {strokeBreakdown.pie.map((entry, i) => (
+                             <Cell key={`pie-${i}`} fill={entry.fill} />
+                           ))}
+                         </Pie>
+                         <Tooltip formatter={(value: number) => [`${value.toLocaleString()}m`, "Distance"]} />
+                         <Legend />
+                       </PieChart>
+                     </ResponsiveContainer>
+                   </CardContent>
+                 </Card>
+                 <Card>
+                   <CardHeader><CardTitle>Distance par nage / jour</CardTitle></CardHeader>
+                   <CardContent className="h-[280px] w-full">
+                     <ResponsiveContainer width="100%" height="100%">
+                       <BarChart data={strokeBreakdown.daily}>
+                         <CartesianGrid strokeDasharray="3 3" opacity={0.1} vertical={false} />
+                         <XAxis dataKey="date" fontSize={10} tickLine={false} axisLine={false} />
+                         <YAxis fontSize={10} tickLine={false} axisLine={false} />
+                         <Tooltip />
+                         {STROKE_KEYS.map((k) => (
+                           <Bar key={k} dataKey={k} stackId="strokes" name={STROKE_LABELS[k]} fill={STROKE_COLORS[k]} radius={0} />
+                         ))}
+                         <Legend />
+                       </BarChart>
+                     </ResponsiveContainer>
+                   </CardContent>
+                 </Card>
+               </div>
+             )}
         </TabsContent>
 
         <TabsContent value="strength" className="space-y-6 animate-in fade-in motion-reduce:animate-none">

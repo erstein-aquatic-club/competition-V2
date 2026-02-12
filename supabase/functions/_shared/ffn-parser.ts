@@ -36,10 +36,10 @@ export interface RecFull extends Rec {
   competition_location: string | null;
 }
 
-export function parseHtmlFull(html: string): RecFull[] {
+export function parseHtmlFull(html: string, defaultPool?: number): RecFull[] {
   const results: RecFull[] = [];
   const parts = html.split(/Bassin\s*:\s*(25|50)\s*m/gi);
-  let pool: number | null = null;
+  let pool: number | null = defaultPool ?? null;
 
   for (const part of parts) {
     if (/^(25|50)$/.test(part.trim())) { pool = Number(part); continue; }
@@ -63,6 +63,23 @@ export function parseHtmlFull(html: string): RecFull[] {
       }
       results.push({ event_name: cells[0], pool_length: pool, time_seconds: time, record_date: date, ffn_points: pts, competition_name: competitionName, competition_location: null });
     }
+  }
+  return results;
+}
+
+/** Fetch ALL performances for a swimmer from FFN (both 25m and 50m pools) */
+export async function fetchAllPerformances(iuf: string): Promise<RecFull[]> {
+  const results: RecFull[] = [];
+  for (const poolSize of [25, 50] as const) {
+    const url = `https://ffn.extranat.fr/webffn/nat_recherche.php?idrch_id=${iuf}&idopt=prf&idbas=${poolSize}`;
+    const res = await fetch(url, { headers: { "User-Agent": "suivi-natation/1.0" } });
+    if (!res.ok) {
+      console.error(`[ffn-parser] Failed to fetch pool=${poolSize} for IUF=${iuf}: HTTP ${res.status}`);
+      continue;
+    }
+    const html = await res.text();
+    const parsed = parseHtmlFull(html, poolSize);
+    results.push(...parsed);
   }
   return results;
 }
