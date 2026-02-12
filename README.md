@@ -61,7 +61,7 @@ Application web de suivi des séances de natation et de musculation pour l'Erste
 | Messagerie | ✅ OK | Threads, individuel/groupe |
 | Pointage heures | ✅ OK | Shifts, dashboard, vue comité |
 | Records perso FFN | ✅ OK | Sync via Edge Function |
-| Records club | ⚠️ Partiel | UI prête, import FFN manquant |
+| Records club | ✅ OK | Table + classements, nécessite déploiement Edge Functions |
 | Hall of Fame | ✅ OK | Top 5 nage + muscu |
 | Admin | ✅ OK | Gestion utilisateurs, rôles |
 
@@ -89,7 +89,7 @@ competition/
 │   └── hooks/           # Hooks React personnalisés
 ├── supabase/
 │   ├── migrations/      # Migrations PostgreSQL
-│   └── functions/       # Edge Functions (ffn-sync, admin-user)
+│   └── functions/       # Edge Functions (ffn-sync, admin-user, ffn-performances, import-club-records)
 ├── docs/                # Documentation
 └── public/              # Assets statiques
 ```
@@ -152,13 +152,18 @@ supabase login
 # Lier le projet
 supabase link --project-ref <project-id>
 
-# Déployer les fonctions
+# Déployer TOUTES les fonctions
 supabase functions deploy ffn-sync
 supabase functions deploy admin-user
+supabase functions deploy ffn-performances
+supabase functions deploy import-club-records
 
 # Configurer les secrets
 supabase secrets set SERVICE_ROLE_KEY=<service-role-key>
 ```
+
+> **Important** : Les Edge Functions ne sont PAS déployées automatiquement par GitHub Actions.
+> Après chaque modification dans `supabase/functions/`, redéployer manuellement la fonction modifiée.
 
 ## Documentation additionnelle
 
@@ -173,15 +178,16 @@ supabase secrets set SERVICE_ROLE_KEY=<service-role-key>
 
 ## Roadmap
 
-### Prioritaire
-- [ ] Refonte du parcours d'inscription (UX post-inscription, callback email)
-- [ ] Import de toutes les performances FFN d'un nageur (pas juste les records)
-- [ ] Edge Function `import-club-records` (n'existe pas encore)
+### Fait
+- [x] Refonte du parcours d'inscription (approbation admin)
+- [x] Import de toutes les performances FFN d'un nageur (historique complet)
+- [x] Edge Function `import-club-records` + recalcul automatique
+- [x] Gestion coach des imports de performances (+ rate limiting)
+- [x] Records club avec classements par épreuve/âge
+- [x] Dette UI/UX (API refactoring, tokens CSS, skeletons, reset mot de passe)
 
-### Planifié
-- [ ] Gestion coach des imports de performances
-- [ ] Records club alimentés par les imports FFN
-- [ ] Dette UI/UX restante (couleurs hardcodées, skeletons manquants)
+### En cours
+- [ ] Déployer les Edge Functions `ffn-performances` et `import-club-records` sur Supabase Cloud
 
 Détail complet : [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
