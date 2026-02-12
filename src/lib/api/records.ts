@@ -12,6 +12,7 @@ import type {
   Session,
   ClubRecord,
   ClubRecordSwimmer,
+  ClubPerformanceRanked,
   SwimmerPerformance,
 } from './types';
 import { localStorageGet, localStorageSave } from './localStorage';
@@ -472,6 +473,27 @@ export async function syncClubRecordSwimmersFromUsers(): Promise<void> {
       }
     }
   }
+}
+
+/** Get ranked performances for a specific event/pool/sex/age (all swimmers, ordered by time) */
+export async function getClubRanking(filters: {
+  event_code: string;
+  pool_m: number;
+  sex: string;
+  age?: number | null;
+}): Promise<ClubPerformanceRanked[]> {
+  if (!canUseSupabase()) return [];
+  let query = supabase
+    .from("club_performances")
+    .select("*")
+    .eq("event_code", filters.event_code)
+    .eq("pool_m", filters.pool_m)
+    .eq("sex", filters.sex)
+    .order("time_ms", { ascending: true });
+  if (filters.age != null) query = query.eq("age", filters.age);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return data ?? [];
 }
 
 /** Get app settings by key */

@@ -50,7 +50,7 @@ export function parseHtmlFull(html: string, defaultPool?: number): RecFull[] {
       const cells = (row.match(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi) || []).map(c => clean(c.replace(/<[^>]*>/g, "")));
       if (cells.length < 2) continue;
       const time = parseTime(cells[1]);
-      if (!time || /épreuve|nage/i.test(cells[0])) continue;
+      if (!time || /^[ée]preuve$/i.test(cells[0]) || /^nage$/i.test(cells[0])) continue;
 
       let date: string | null = null, pts: number | null = null;
       let competitionName: string | null = null;

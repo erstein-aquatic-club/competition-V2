@@ -205,6 +205,20 @@ export interface ClubRecord {
   record_date?: string | null;
 }
 
+export interface ClubPerformanceRanked {
+  id: number;
+  athlete_name: string;
+  swimmer_iuf?: string | null;
+  sex: string;
+  pool_m: number;
+  event_code: string;
+  event_label?: string | null;
+  age: number;
+  time_ms: number;
+  record_date?: string | null;
+  source?: string | null;
+}
+
 export interface ClubRecordSwimmer {
   id: number | null;
   source_type: "user" | "manual";
