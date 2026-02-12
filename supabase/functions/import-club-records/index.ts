@@ -188,13 +188,23 @@ async function recalculateClubRecords(): Promise<RecalcStats> {
   }
   stats.swimmers_with_sex = swimmerMap.size;
 
-  // Fetch all performances
-  const { data: allPerfs } = await supabaseAdmin
-    .from("swimmer_performances")
-    .select("*");
+  // Fetch all performances (paginated to avoid Supabase default 1000-row limit)
+  const allPerfs: any[] = [];
+  const PAGE_SIZE = 1000;
+  let from = 0;
+  while (true) {
+    const { data: page } = await supabaseAdmin
+      .from("swimmer_performances")
+      .select("*")
+      .range(from, from + PAGE_SIZE - 1);
+    if (!page || page.length === 0) break;
+    allPerfs.push(...page);
+    if (page.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
 
-  stats.total_performances = allPerfs?.length ?? 0;
-  if (!allPerfs || allPerfs.length === 0) return stats;
+  stats.total_performances = allPerfs.length;
+  if (allPerfs.length === 0) return stats;
 
   // Track unmapped event codes (collect unique ones, max 20)
   const unmappedCodes = new Set<string>();
@@ -420,7 +430,7 @@ Deno.serve(async (req) => {
           source: "ffn",
         }));
 
-        // Upsert in chunks of 100 (ON CONFLICT DO NOTHING)
+        // Upsert in chunks of 100 (ON CONFLICT DO UPDATE)
         let imported = 0;
         for (let i = 0; i < rows.length; i += 100) {
           const chunk = rows.slice(i, i + 100);
