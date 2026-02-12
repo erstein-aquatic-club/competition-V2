@@ -101,7 +101,9 @@ Deno.serve(async (req) => {
       pool_length: p.pool_length,
       time_seconds: p.time_seconds,
       time_display: formatTimeDisplay(p.time_seconds),
-      competition_name: p.competition_name,
+      competition_name: p.swimmer_age != null
+        ? (p.competition_name ? `(${p.swimmer_age} ans) ${p.competition_name}` : `(${p.swimmer_age} ans)`)
+        : p.competition_name,
       competition_date: p.record_date,
       competition_location: p.competition_location,
       ffn_points: p.ffn_points,
