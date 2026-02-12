@@ -69,9 +69,15 @@ type PresenceDefaults = Record<number, Record<SlotKey, boolean>>;
 type AttendanceOverride = "present" | "absent";
 type AttendanceOverrides = Record<string, AttendanceOverride>;
 
+type StrokeDraft = { NL: string; DOS: string; BR: string; PAP: string; QN: string };
+const emptyStrokeDraft: StrokeDraft = { NL: "", DOS: "", BR: "", PAP: "", QN: "" };
+const STROKE_LABELS: Record<keyof StrokeDraft, string> = { NL: "NL", DOS: "Dos", BR: "Brasse", PAP: "Pap", QN: "4N" };
+
 type DraftState = Record<IndicatorKey, number | null> & {
   comment: string;
   distanceMeters: number | null;
+  showStrokeDetail: boolean;
+  strokes: StrokeDraft;
 };
 
 function pad2(n: number) {
@@ -885,6 +891,10 @@ export default function Dashboard() {
 
   const feedbackDraft = useMemo<DraftState>(() => {
     const base: Partial<Session> = activeLog || {};
+    const sd = base?.stroke_distances;
+    const strokes: StrokeDraft = sd
+      ? { NL: sd.NL ? String(sd.NL) : "", DOS: sd.DOS ? String(sd.DOS) : "", BR: sd.BR ? String(sd.BR) : "", PAP: sd.PAP ? String(sd.PAP) : "", QN: sd.QN ? String(sd.QN) : "" }
+      : emptyStrokeDraft;
     return {
       difficulty: base?.effort ?? null,
       fatigue_end: base?.fatigue ?? base?.feeling ?? null,
@@ -892,6 +902,8 @@ export default function Dashboard() {
       engagement: base?.engagement ?? base?.feeling ?? null,
       comment: String(base?.comments ?? ""),
       distanceMeters: Number.isFinite(Number(base?.distance)) ? Number(base.distance) : null,
+      showStrokeDetail: !!(sd && Object.values(sd).some((v) => v && v > 0)),
+      strokes,
     };
   }, [activeLog]);
 
@@ -902,6 +914,8 @@ export default function Dashboard() {
     engagement: null,
     comment: "",
     distanceMeters: null,
+    showStrokeDetail: false,
+    strokes: emptyStrokeDraft,
   }));
 
   useEffect(() => {
@@ -1029,6 +1043,13 @@ export default function Dashboard() {
     const distance = clampToStep(Number(draftState.distanceMeters ?? 0), 100);
     const duration = clampToStep(Number(stableDurationMin), 15);
 
+    // Build stroke_distances from draft inputs
+    const strokeDistances: Record<string, number> = {};
+    for (const [key, val] of Object.entries(draftState.strokes)) {
+      const n = Number(val);
+      if (n > 0) strokeDistances[key] = n;
+    }
+
     const payload = {
       date: iso,
       slot: slotLabel,
@@ -1041,6 +1062,7 @@ export default function Dashboard() {
       comments: String(draftState.comment || "").slice(0, 400),
       athlete_name: user!,
       athlete_id: userId ?? undefined,
+      stroke_distances: Object.keys(strokeDistances).length > 0 ? strokeDistances : null,
     };
 
     const existing = logsBySessionId[activeSessionId];
@@ -1677,6 +1699,46 @@ export default function Dashboard() {
                           onChange={(m) => setDraftState((p) => ({ ...p, distanceMeters: m }))}
                           disabled={!canRate}
                         />
+
+                        {/* Détail par nage (collapsible) */}
+                        <div className="mt-3">
+                          <button
+                            type="button"
+                            disabled={!canRate}
+                            onClick={() => setDraftState((p) => ({ ...p, showStrokeDetail: !p.showStrokeDetail }))}
+                            className={cn(
+                              "flex w-full items-center justify-between rounded-2xl border px-3 py-2 text-sm font-semibold transition",
+                              !canRate ? "text-muted-foreground border-border cursor-not-allowed" : "text-foreground border-border hover:bg-muted"
+                            )}
+                          >
+                            <span>Détail par nage</span>
+                            <ChevronRight className={cn("h-4 w-4 transition-transform", draftState.showStrokeDetail && "rotate-90")} />
+                          </button>
+                          {draftState.showStrokeDetail && (
+                            <div className="mt-2 grid grid-cols-5 gap-2">
+                              {(Object.keys(STROKE_LABELS) as (keyof StrokeDraft)[]).map((key) => (
+                                <div key={key} className="space-y-1">
+                                  <label className="block text-center text-xs font-medium text-muted-foreground">{STROKE_LABELS[key]}</label>
+                                  <input
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={0}
+                                    step={100}
+                                    disabled={!canRate}
+                                    value={draftState.strokes[key]}
+                                    onChange={(e) => setDraftState((p) => ({ ...p, strokes: { ...p.strokes, [key]: e.target.value } }))}
+                                    placeholder="0"
+                                    className={cn(
+                                      "w-full rounded-xl border px-1 py-2 text-center text-sm outline-none",
+                                      !canRate ? "bg-muted text-muted-foreground" : "bg-card text-foreground border-border focus:ring-2 focus:ring-foreground/10"
+                                    )}
+                                  />
+                                  <div className="text-center text-[10px] text-muted-foreground">m</div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
 
                         <div className="mt-4 flex items-center justify-between">
                           <button

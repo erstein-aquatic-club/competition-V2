@@ -259,7 +259,7 @@ export async function getImportLogs(filters?: {
 
 export async function importSingleSwimmer(
   swimmerIuf: string,
-  _swimmerName?: string,
+  swimmerName?: string,
 ): Promise<{
   total_found: number;
   new_imported: number;
@@ -267,7 +267,7 @@ export async function importSingleSwimmer(
 }> {
   if (!canUseSupabase()) throw new Error("Supabase not configured");
   const { data, error } = await supabase.functions.invoke("ffn-performances", {
-    body: { swimmer_iuf: swimmerIuf },
+    body: { swimmer_iuf: swimmerIuf, swimmer_name: swimmerName ?? null },
   });
   if (error) throw new Error(error.message);
   return (data ?? {
@@ -409,4 +409,72 @@ export async function importSwimmerPerformances(params: {
     new_imported: 0,
     already_existed: 0,
   }) as { total_found: number; new_imported: number; already_existed: number };
+}
+
+/** Recalculate club records without re-fetching from FFN */
+export async function recalculateClubRecords(): Promise<any> {
+  if (!canUseSupabase()) return null;
+  const { data, error } = await supabase.functions.invoke("import-club-records", {
+    body: { mode: "recalculate" },
+  });
+  if (error) throw new Error(error.message);
+  return data?.summary ?? data;
+}
+
+/** Sync club_record_swimmers with registered users (auto-create missing entries) */
+export async function syncClubRecordSwimmersFromUsers(): Promise<void> {
+  if (!canUseSupabase()) return;
+  const { data: users, error: usersErr } = await supabase
+    .from("users")
+    .select("id, display_name, role")
+    .eq("role", "athlete")
+    .eq("is_active", true);
+  if (usersErr) throw new Error(usersErr.message);
+  if (!users || users.length === 0) return;
+
+  const { data: existing } = await supabase
+    .from("club_record_swimmers")
+    .select("user_id")
+    .eq("source_type", "user");
+  const existingUserIds = new Set((existing ?? []).map((s: any) => s.user_id));
+
+  const { data: profiles } = await supabase
+    .from("user_profiles")
+    .select("user_id, ffn_iuf, birthdate, sex");
+  const profileMap = new Map((profiles ?? []).map((p: any) => [p.user_id, p]));
+
+  for (const user of users) {
+    if (existingUserIds.has(user.id)) continue;
+    const profile = profileMap.get(user.id);
+    await supabase.from("club_record_swimmers").insert({
+      source_type: "user",
+      user_id: user.id,
+      display_name: user.display_name,
+      iuf: profile?.ffn_iuf ?? null,
+      sex: profile?.sex ?? null,
+      birthdate: profile?.birthdate ?? null,
+      is_active: true,
+    });
+  }
+}
+
+/** Get app settings by key */
+export async function getAppSettings(key: string): Promise<any> {
+  if (!canUseSupabase()) return null;
+  const { data, error } = await supabase
+    .from("app_settings")
+    .select("value")
+    .eq("key", key)
+    .single();
+  if (error) return null;
+  return data?.value ?? null;
+}
+
+/** Update app settings by key */
+export async function updateAppSettings(key: string, value: any): Promise<void> {
+  if (!canUseSupabase()) return;
+  const { error } = await supabase
+    .from("app_settings")
+    .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: "key" });
+  if (error) throw new Error(error.message);
 }

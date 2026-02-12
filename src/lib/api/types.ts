@@ -1,5 +1,13 @@
 // API Types - All TypeScript interfaces for the API layer
 
+export type StrokeDistances = {
+  NL?: number;
+  DOS?: number;
+  BR?: number;
+  PAP?: number;
+  QN?: number;
+};
+
 export interface Session {
   id: number;
   athlete_id?: number;
@@ -15,6 +23,7 @@ export interface Session {
   distance: number;
   duration: number;
   comments: string;
+  stroke_distances?: StrokeDistances | null;
   created_at: string;
 }
 
@@ -259,6 +268,7 @@ export interface SyncSessionInput {
   distance: number;
   duration: number;
   comments: string;
+  stroke_distances?: StrokeDistances | null;
 }
 
 export interface StrengthRunPayload {

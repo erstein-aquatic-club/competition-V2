@@ -149,6 +149,10 @@ export {
   upsertSwimRecord,
   getSwimmerPerformances,
   importSwimmerPerformances,
+  recalculateClubRecords,
+  syncClubRecordSwimmersFromUsers,
+  getAppSettings,
+  updateAppSettings,
 } from './records';
 
 export {

@@ -10,9 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { Eye, Settings } from "lucide-react";
 
 const SEX_OPTIONS = [
-  { value: "M", label: "Gar\u00e7on" },
+  { value: "M", label: "Garçon" },
   { value: "F", label: "Fille" },
 ];
 
@@ -24,6 +25,21 @@ const formatDateTime = (value?: string | null) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString("fr-FR") + " " + date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+};
+
+const formatDateOnly = (value?: string | null) => {
+  if (!value) return "Jamais";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("fr-FR");
+};
+
+const isStale = (value?: string | null, daysThreshold = 30) => {
+  if (!value) return true;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return true;
+  const diffMs = Date.now() - date.getTime();
+  return diffMs > daysThreshold * 24 * 60 * 60 * 1000;
 };
 
 const statusBadgeVariant = (status: string) => {
@@ -67,8 +83,11 @@ export default function RecordsAdmin() {
   const [swimmers, setSwimmers] = useState<ClubRecordSwimmer[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [rateLimits, setRateLimits] = useState<{ coach_monthly: number; athlete_monthly: number; admin_monthly: number } | null>(null);
 
   const canAccess = role === "coach" || role === "admin";
+  const isAdmin = role === "admin";
 
   // Import logs query
   const { data: importLogs = [], refetch: refetchLogs } = useQuery({
@@ -82,6 +101,8 @@ export default function RecordsAdmin() {
     setIsLoading(true);
     setError(null);
     try {
+      // Auto-sync users first
+      await api.syncClubRecordSwimmersFromUsers();
       const data = await api.getClubRecordSwimmers();
       setSwimmers(data);
     } catch (err) {
@@ -97,6 +118,14 @@ export default function RecordsAdmin() {
     void load();
   }, [load]);
 
+  // Load rate limit settings
+  useEffect(() => {
+    if (!isAdmin) return;
+    void api.getAppSettings("import_rate_limits").then((value) => {
+      if (value) setRateLimits(value);
+    });
+  }, [isAdmin]);
+
   const createSwimmer = useMutation({
     mutationFn: () =>
       api.createClubRecordSwimmer({
@@ -107,7 +136,7 @@ export default function RecordsAdmin() {
         is_active: true,
       }),
     onSuccess: () => {
-      toast({ title: "Nageur ajout\u00e9" });
+      toast({ title: "Nageur ajouté" });
       setNewSwimmer({ display_name: "", iuf: "", sex: "", birthdate: "" });
       void load();
     },
@@ -121,10 +150,10 @@ export default function RecordsAdmin() {
       api.updateClubRecordSwimmer(id, payload),
     onSuccess: () => {
       void load();
-      toast({ title: "Sauvegard\u00e9" });
+      toast({ title: "Sauvegardé" });
     },
     onError: () => {
-      toast({ title: "Mise \u00e0 jour impossible", variant: "destructive" });
+      toast({ title: "Mise à jour impossible", variant: "destructive" });
     },
   });
 
@@ -133,10 +162,10 @@ export default function RecordsAdmin() {
       api.updateClubRecordSwimmerForUser(userId, payload),
     onSuccess: () => {
       void load();
-      toast({ title: "Sauvegard\u00e9" });
+      toast({ title: "Sauvegardé" });
     },
     onError: () => {
-      toast({ title: "Mise \u00e0 jour impossible", variant: "destructive" });
+      toast({ title: "Mise à jour impossible", variant: "destructive" });
     },
   });
 
@@ -154,17 +183,20 @@ export default function RecordsAdmin() {
     mutationFn: () => api.importClubRecords(),
     onSuccess: (summary) => {
       toast({
-        title: "Import termin\u00e9",
+        title: "Import terminé",
         description: summary
-          ? `Performances import\u00e9es: ${summary.imported ?? 0}. Erreurs: ${summary.errors ?? 0}.`
+          ? `Performances importées: ${summary.imported ?? 0}. Erreurs: ${summary.errors ?? 0}.`
           : "",
       });
       void load();
       void refetchLogs();
       void queryClient.invalidateQueries({ queryKey: ["club-records"] });
     },
-    onError: () => {
-      toast({ title: "Import impossible", variant: "destructive" });
+    onError: (err: any) => {
+      const msg = err?.message?.includes("Rate limit") || err?.message?.includes("Limite")
+        ? err.message
+        : "Import impossible";
+      toast({ title: msg, variant: "destructive" });
       void refetchLogs();
     },
   });
@@ -176,16 +208,32 @@ export default function RecordsAdmin() {
     onSuccess: (result, variables) => {
       toast({
         title: `Import de ${variables.name ?? variables.iuf}`,
-        description: `${result.total_found} performances trouv\u00e9es, ${result.new_imported} nouvelles import\u00e9es.`,
+        description: `${result.total_found} performances trouvées, ${result.new_imported} nouvelles importées.`,
       });
+      void refetchLogs();
+      // Trigger club records recalculation after individual import
+      void api.recalculateClubRecords().then(() => {
+        void queryClient.invalidateQueries({ queryKey: ["club-records"] });
+      });
+      void load();
+    },
+    onError: (_err: any, variables) => {
+      const msg = _err?.message?.includes("Rate limit") || _err?.message?.includes("Limite")
+        ? _err.message
+        : `Erreur import ${variables.name ?? variables.iuf}`;
+      toast({ title: msg, variant: "destructive" });
       void refetchLogs();
     },
-    onError: (_err, variables) => {
-      toast({
-        title: `Erreur import ${variables.name ?? variables.iuf}`,
-        variant: "destructive",
-      });
-      void refetchLogs();
+  });
+
+  const saveRateLimits = useMutation({
+    mutationFn: (limits: { coach_monthly: number; athlete_monthly: number; admin_monthly: number }) =>
+      api.updateAppSettings("import_rate_limits", limits),
+    onSuccess: () => {
+      toast({ title: "Limites sauvegardées" });
+    },
+    onError: () => {
+      toast({ title: "Erreur de sauvegarde", variant: "destructive" });
     },
   });
 
@@ -200,7 +248,7 @@ export default function RecordsAdmin() {
     return (
       <div className="space-y-4">
         <h1 className="text-3xl font-display font-bold uppercase italic text-primary">Administration des records</h1>
-        <p className="text-sm text-muted-foreground">Acc\u00e8s r\u00e9serv\u00e9 aux coachs.</p>
+        <p className="text-sm text-muted-foreground">Accès réservé aux coachs.</p>
       </div>
     );
   }
@@ -211,12 +259,22 @@ export default function RecordsAdmin() {
         <div>
           <h1 className="text-3xl font-display font-bold uppercase italic text-primary">Administration des records</h1>
           <p className="text-sm text-muted-foreground">
-            G\u00e9rez les nageurs pris en compte pour les records et lancez l'import FFN.
+            Gérez les nageurs pris en compte pour les records et lancez l'import FFN.
           </p>
         </div>
-        <Button onClick={() => importRecords.mutate()} disabled={importRecords.isPending}>
-          {importRecords.isPending ? "Import en cours..." : "Mettre \u00e0 jour les records"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => { window.location.hash = "#/records-club"; }}
+          >
+            <Eye className="h-4 w-4 mr-1" />
+            Voir les records
+          </Button>
+          <Button onClick={() => importRecords.mutate()} disabled={importRecords.isPending}>
+            {importRecords.isPending ? "Import en cours..." : "Mettre à jour les records"}
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -267,7 +325,7 @@ export default function RecordsAdmin() {
       <Card>
         <CardHeader>
           <CardTitle>Liste des nageurs suivis</CardTitle>
-          <CardDescription>Mettre \u00e0 jour l'IUF, le sexe ou l'activation pour l'import FFN.</CardDescription>
+          <CardDescription>Mettre à jour l'IUF, le sexe ou l'activation pour l'import FFN.</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading && (
@@ -287,99 +345,110 @@ export default function RecordsAdmin() {
             <p className="text-sm text-muted-foreground">Aucun nageur disponible.</p>
           )}
           {!isLoading && !error && swimmers.length > 0 && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nageur</TableHead>
-                  <TableHead>Source</TableHead>
-                  <TableHead>IUF</TableHead>
-                  <TableHead>Sexe</TableHead>
-                  <TableHead>Naissance</TableHead>
-                  <TableHead>Actif</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedSwimmers.map((swimmer) => {
-                  const rowKey = swimmer.id ?? `user-${swimmer.user_id ?? "unknown"}`;
-                  return (
-                  <TableRow key={rowKey}>
-                    <TableCell className="font-medium">{swimmer.display_name}</TableCell>
-                    <TableCell>
-                      <Badge variant={swimmer.source_type === "manual" ? "secondary" : "outline"}>
-                        {formatSource(swimmer.source_type)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        key={`${rowKey}-${swimmer.iuf ?? ""}`}
-                        defaultValue={swimmer.iuf ?? ""}
-                        onBlur={(event) =>
-                          updateSwimmerEntry(swimmer, { iuf: event.target.value.trim() || null })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Select
-                        value={swimmer.sex ?? ""}
-                        onValueChange={(value) =>
-                          updateSwimmerEntry(swimmer, { sex: value || null })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sexe" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {SEX_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="date"
-                        key={`${rowKey}-${swimmer.birthdate ?? ""}`}
-                        defaultValue={swimmer.birthdate ?? ""}
-                        onBlur={(event) =>
-                          updateSwimmerEntry(swimmer, { birthdate: event.target.value || null })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Switch
-                        checked={Boolean(swimmer.is_active)}
-                        onCheckedChange={(checked) =>
-                          updateSwimmerEntry(swimmer, { is_active: checked })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {swimmer.iuf ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={importSingle.isPending}
-                          onClick={() =>
-                            importSingle.mutate({
-                              iuf: swimmer.iuf!,
-                              name: swimmer.display_name,
-                            })
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nageur</TableHead>
+                    <TableHead>Source</TableHead>
+                    <TableHead>IUF</TableHead>
+                    <TableHead>Sexe</TableHead>
+                    <TableHead>Naissance</TableHead>
+                    <TableHead>Dernière maj</TableHead>
+                    <TableHead>Actif</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedSwimmers.map((swimmer) => {
+                    const rowKey = swimmer.id ?? `user-${swimmer.user_id ?? "unknown"}`;
+                    const stale = isStale((swimmer as any).last_imported_at);
+                    return (
+                    <TableRow key={rowKey} className={stale ? "bg-amber-50/50 dark:bg-amber-950/10" : ""}>
+                      <TableCell className="font-medium">{swimmer.display_name}</TableCell>
+                      <TableCell>
+                        <Badge variant={swimmer.source_type === "manual" ? "secondary" : "outline"}>
+                          {formatSource(swimmer.source_type)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          key={`${rowKey}-${swimmer.iuf ?? ""}`}
+                          defaultValue={swimmer.iuf ?? ""}
+                          onBlur={(event) =>
+                            updateSwimmerEntry(swimmer, { iuf: event.target.value.trim() || null })
+                          }
+                          className="w-24"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={swimmer.sex ?? ""}
+                          onValueChange={(value) =>
+                            updateSwimmerEntry(swimmer, { sex: value || null })
                           }
                         >
-                          Importer
-                        </Button>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">Pas d'IUF</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-                })}
-              </TableBody>
-            </Table>
+                          <SelectTrigger className="w-28">
+                            <SelectValue placeholder="Sexe" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {SEX_OPTIONS.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="date"
+                          key={`${rowKey}-${swimmer.birthdate ?? ""}`}
+                          defaultValue={swimmer.birthdate ?? ""}
+                          onBlur={(event) =>
+                            updateSwimmerEntry(swimmer, { birthdate: event.target.value || null })
+                          }
+                          className="w-36"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <span className={stale ? "text-amber-600 dark:text-amber-400 text-xs font-medium" : "text-xs text-muted-foreground"}>
+                          {formatDateOnly((swimmer as any).last_imported_at)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Switch
+                          checked={Boolean(swimmer.is_active)}
+                          onCheckedChange={(checked) =>
+                            updateSwimmerEntry(swimmer, { is_active: checked })
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {swimmer.iuf ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={importSingle.isPending}
+                            onClick={() =>
+                              importSingle.mutate({
+                                iuf: swimmer.iuf!,
+                                name: swimmer.display_name,
+                              })
+                            }
+                          >
+                            Importer
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Pas d'IUF</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -391,15 +460,15 @@ export default function RecordsAdmin() {
         </CardHeader>
         <CardContent>
           {importLogs.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aucun import effectu\u00e9.</p>
+            <p className="text-sm text-muted-foreground">Aucun import effectué.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Nageur</TableHead>
                   <TableHead>Statut</TableHead>
-                  <TableHead>Trouv\u00e9es</TableHead>
-                  <TableHead>Import\u00e9es</TableHead>
+                  <TableHead>Trouvées</TableHead>
+                  <TableHead>Importées</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Erreur</TableHead>
                 </TableRow>
@@ -430,6 +499,60 @@ export default function RecordsAdmin() {
           )}
         </CardContent>
       </Card>
+
+      {isAdmin && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Paramètres d'import</CardTitle>
+              <CardDescription>Limites mensuelles d'import par rôle.</CardDescription>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setShowSettings(!showSettings)}>
+              <Settings className="h-4 w-4" />
+            </Button>
+          </CardHeader>
+          {showSettings && rateLimits && (
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div>
+                  <label className="text-xs text-muted-foreground">Coach (par mois)</label>
+                  <Input
+                    type="number"
+                    value={rateLimits.coach_monthly}
+                    onChange={(e) => setRateLimits({ ...rateLimits, coach_monthly: Number(e.target.value) })}
+                    min={-1}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Nageur (par mois)</label>
+                  <Input
+                    type="number"
+                    value={rateLimits.athlete_monthly}
+                    onChange={(e) => setRateLimits({ ...rateLimits, athlete_monthly: Number(e.target.value) })}
+                    min={-1}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Admin (par mois, -1=illimité)</label>
+                  <Input
+                    type="number"
+                    value={rateLimits.admin_monthly}
+                    onChange={(e) => setRateLimits({ ...rateLimits, admin_monthly: Number(e.target.value) })}
+                    min={-1}
+                  />
+                </div>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => saveRateLimits.mutate(rateLimits)}
+                disabled={saveRateLimits.isPending}
+              >
+                Enregistrer
+              </Button>
+            </CardContent>
+          )}
+        </Card>
+      )}
     </div>
   );
 }

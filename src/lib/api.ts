@@ -118,6 +118,10 @@ import {
   upsertSwimRecord as _upsertSwimRecord,
   getSwimmerPerformances as _getSwimmerPerformances,
   importSwimmerPerformances as _importSwimmerPerformances,
+  recalculateClubRecords as _recalculateClubRecords,
+  syncClubRecordSwimmersFromUsers as _syncClubRecordSwimmersFromUsers,
+  getAppSettings as _getAppSettings,
+  updateAppSettings as _updateAppSettings,
 } from "./api/records";
 
 import {
@@ -346,6 +350,10 @@ export const api = {
   async upsertSwimRecord(payload: Parameters<typeof _upsertSwimRecord>[0]) { return _upsertSwimRecord(payload); },
   async getSwimmerPerformances(filters: Parameters<typeof _getSwimmerPerformances>[0]) { return _getSwimmerPerformances(filters); },
   async importSwimmerPerformances(params: Parameters<typeof _importSwimmerPerformances>[0]) { return _importSwimmerPerformances(params); },
+  async recalculateClubRecords() { return _recalculateClubRecords(); },
+  async syncClubRecordSwimmersFromUsers() { return _syncClubRecordSwimmersFromUsers(); },
+  async getAppSettings(key: string) { return _getAppSettings(key); },
+  async updateAppSettings(key: string, value: any) { return _updateAppSettings(key, value); },
 
   // ══════════════════════════════════════════════════════════════════
   // DELEGATION STUBS — Strength

@@ -187,6 +187,9 @@ const CoachHome = ({
           <Button className="w-full" variant="outline" onClick={onOpenRecordsAdmin}>
             Administration des records
           </Button>
+          <Button className="w-full mt-2" variant="outline" onClick={() => { window.location.hash = "#/records-club"; }}>
+            Voir les records du club
+          </Button>
         </CardContent>
       </Card>
     </div>
