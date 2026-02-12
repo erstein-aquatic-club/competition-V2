@@ -34,6 +34,49 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §10 Fix: extract age from competition_name, remove birthdate requirement | ✅ Fait | 2026-02-12 |
 | §11 Fix: FFN event code mapping (Bra., Pap., 4 N.) | ✅ Fait | 2026-02-12 |
 | §12 Fix: ignoreDuplicates empêche mise à jour performances + diagnostic stats | ✅ Fait | 2026-02-12 |
+| §13 Fix: pagination Supabase + normalizeEventCode robuste | ✅ Fait | 2026-02-12 |
+
+---
+
+## 2026-02-12 — Fix: pagination Supabase + normalizeEventCode robuste (§13)
+
+**Branche** : `claude/continue-implementation-ajI8U`
+**Chantier ROADMAP** : §13 — Fix missing records (pagination + event code normalization)
+
+### Contexte — Pourquoi ce patch
+
+Après déploiement du fix §12 (ignoreDuplicates), beaucoup de performances restent manquantes dans les records du club. Deux causes identifiées :
+
+1. **Limite 1000 lignes Supabase** : `recalculateClubRecords()` faisait `.select("*")` sur `swimmer_performances` sans pagination. Supabase renvoie par défaut max 1000 lignes. Si le club a plus de 1000 performances, le reste est silencieusement tronqué.
+2. **`normalizeEventCode()` trop strict** : correspondance exacte case-sensitive. Toute variation de casse ou d'espaces blancs cause un échec silencieux.
+
+### Changements réalisés
+
+1. **Pagination** dans `recalculateClubRecords()` : boucle `.range(from, to)` par pages de 1000 lignes pour récupérer TOUTES les performances
+2. **`normalizeEventCode()` robuste** : essai exact d'abord, puis fallback case-insensitive avec normalisation des espaces
+3. **Commentaire corrigé** : "ON CONFLICT DO NOTHING" → "ON CONFLICT DO UPDATE"
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `supabase/functions/import-club-records/index.ts` | Pagination fetch performances |
+| `supabase/functions/_shared/ffn-event-map.ts` | normalizeEventCode robuste |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — 0 erreurs
+- [x] `npm run build` — succès
+
+### Décisions prises
+
+- Pagination par pages de 1000 plutôt que `.limit(100000)` : plus sûr et compatible avec tous les plans Supabase
+- Lookup case-insensitive via Map pré-construite au chargement du module (pas de pénalité runtime)
+
+### Limites / dette
+
+- L'utilisateur doit redéployer `import-club-records` ET `_shared/ffn-event-map.ts` (les edge functions partagées sont bundlées)
+- Après redéploiement : ré-importer les performances (pour mettre à jour competition_name) puis cliquer Recalculer
 
 ---
 

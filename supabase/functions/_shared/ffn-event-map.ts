@@ -63,6 +63,17 @@ export const EVENT_LABELS: Record<string, string> = {
   "400_IM": "400 m 4N",
 };
 
+// Build a case-insensitive lookup from the mapping
+const _normalizedLookup = new Map<string, string>();
+for (const [key, value] of Object.entries(FFN_TO_EVENT_CODE)) {
+  _normalizedLookup.set(key.toLowerCase().replace(/\s+/g, " ").trim(), value);
+}
+
 export function normalizeEventCode(ffnEventName: string): string | null {
-  return FFN_TO_EVENT_CODE[ffnEventName] ?? null;
+  // Try exact match first
+  const exact = FFN_TO_EVENT_CODE[ffnEventName];
+  if (exact) return exact;
+  // Fallback to case-insensitive, whitespace-normalized lookup
+  const normalized = ffnEventName.toLowerCase().replace(/\s+/g, " ").trim();
+  return _normalizedLookup.get(normalized) ?? null;
 }
