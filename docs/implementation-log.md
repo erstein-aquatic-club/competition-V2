@@ -28,6 +28,66 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §4 Records club | ✅ Fait | 2026-02-08 |
 | §5 Dette UI/UX | ✅ Fait | 2026-02-08 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
+| §7 Records admin + FFN full history + stroke KPI | ✅ Fait | 2026-02-12 |
+
+---
+
+## 2026-02-12 — Records admin fixes, FFN full history, stroke breakdown, rate limiting (§7)
+
+**Branche** : `claude/continue-implementation-ajI8U`
+**Chantier ROADMAP** : §7 — Records admin + FFN + stroke KPI
+
+### Contexte
+
+Multiple issues reported: accent encoding bugs in RecordsAdmin, FFN scraper only importing personal bests (MPP) instead of full history, club records empty after individual imports, coach access to club records missing, no last update tracking, no rate limiting, and missing swim distance breakdown by stroke in KPI view.
+
+### Changements réalisés
+
+1. **Accent encoding** — Replaced all `\u00xx` escape sequences with actual UTF-8 characters in RecordsAdmin.tsx and RecordsClub.tsx
+2. **FFN full history** — Changed scraper to use `idopt=prf&idbas=25` and `idopt=prf&idbas=50` for all performances (not just MPP). New `fetchAllPerformances()` shared function in ffn-parser.ts
+3. **Import logs for single imports** — ffn-performances Edge Function now creates import_logs entries with status tracking (running/success/error)
+4. **Club records recalculation** — import-club-records supports `mode: "recalculate"` to rebuild records from existing data without fetching FFN
+5. **Coach access** — Added "Voir les records du club" button in Coach.tsx and RecordsAdmin header
+6. **Auto-sync swimmers** — New `syncClubRecordSwimmersFromUsers()` creates club_record_swimmers entries for all active athletes on RecordsAdmin mount
+7. **Last update tracking** — `last_imported_at` column on club_record_swimmers, amber highlight for stale (30+ days)
+8. **Rate limiting** — app_settings table with configurable limits (coach 3/month, athlete 1/month, admin unlimited), enforced in both Edge Functions
+9. **Stroke distance breakdown** — `stroke_distances` JSONB on dim_sessions, collapsible input UI in Dashboard, pie chart + stacked bar chart in Progress
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/pages/RecordsAdmin.tsx` | Fix accents, auto-sync, last_imported_at display, rate limit settings UI |
+| `src/pages/RecordsClub.tsx` | Fix accent in formatLastUpdate |
+| `src/pages/Coach.tsx` | Add "Voir les records du club" button |
+| `src/pages/Dashboard.tsx` | Stroke distance input UI (collapsible 5-field grid) |
+| `src/pages/Progress.tsx` | Stroke breakdown pie chart + stacked bar chart |
+| `src/lib/api.ts` | Facade stubs for new API functions |
+| `src/lib/api/index.ts` | Re-exports for new functions |
+| `src/lib/api/records.ts` | recalculateClubRecords, syncClubRecordSwimmers, getAppSettings, updateAppSettings |
+| `src/lib/api/types.ts` | StrokeDistances type, stroke_distances on Session/SyncSessionInput |
+| `src/lib/api/helpers.ts` | stroke_distances in mapToDbSession/mapFromDbSession |
+| `supabase/functions/_shared/ffn-parser.ts` | defaultPool param + fetchAllPerformances() |
+| `supabase/functions/ffn-performances/index.ts` | Full rewrite: fetchAll, import_logs, rate limit, last_imported_at |
+| `supabase/functions/import-club-records/index.ts` | Recalculate mode, fetchAll per swimmer, rate limit |
+| `supabase/migrations/00013_import_rate_limiting.sql` | New: last_imported_at, app_settings, stroke_distances |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — 0 erreur
+- [x] `npm run build` — succès (16.35s)
+
+### Décisions prises
+
+- FFN scraping: two separate fetches (25m + 50m pools) with `defaultPool` fallback in parser
+- Rate limiting enforced server-side in Edge Functions, configurable via app_settings table
+- Stroke breakdown only shown in Progress when data exists (`hasData` flag)
+- Stroke input is optional/collapsible in Dashboard (doesn't break existing workflow)
+
+### Limites / dette
+
+- Stroke distances are manually entered per session (no auto-extraction from swim catalog blocks)
+- Rate limiting counts all imports in current month regardless of target swimmer
 
 ---
 
