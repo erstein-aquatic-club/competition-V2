@@ -32,6 +32,31 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §8 4 bugfixes (IUF Coach, RecordsClub, Reprendre, 1RM 404) | ✅ Fait | 2026-02-12 |
 | §9 RecordsAdmin UX: incomplete swimmer warnings | ✅ Fait | 2026-02-12 |
 | §10 Fix: extract age from competition_name, remove birthdate requirement | ✅ Fait | 2026-02-12 |
+| §11 Fix: FFN event code mapping (Bra., Pap., 4 N.) | ✅ Fait | 2026-02-12 |
+
+---
+
+## 2026-02-12 — Fix: FFN event code mapping for abbreviated names (§11)
+
+**Branche** : `claude/continue-implementation-ajI8U`
+**Chantier ROADMAP** : §11 — Fix missing event mappings
+
+### Contexte
+Seules les performances NL et Dos apparaissaient dans les records du club. Brasse, Papillon et 4 Nages étaient ignorés. FFN renvoie des abréviations avec points (`50 Bra.`, `100 Pap.`, `200 4 N.`) que `normalizeEventCode()` ne reconnaissait pas.
+
+### Changements réalisés
+1. **`ffn-event-map.ts`** — Ajout de 11 entrées dans `FFN_TO_EVENT_CODE` : `Bra.`, `Pap.`, `4 N.`, `100 4 Nages`, `100 4N`. Ajout `100_IM` dans `EVENT_LABELS`.
+2. **`RecordsClub.tsx`** — Ajout du `100_IM` dans EVENTS.
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `supabase/functions/_shared/ffn-event-map.ts` | 11 nouvelles entrées + 100_IM label |
+| `src/pages/RecordsClub.tsx` | Ajout 100_IM |
+
+### Tests
+- [x] `npm run build` — succès
 
 ---
 

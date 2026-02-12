@@ -28,6 +28,18 @@ export const FFN_TO_EVENT_CODE: Record<string, string> = {
   "200 Pap": "200_FLY",
   "200 4N": "200_IM",
   "400 4N": "400_IM",
+  // FFN abbreviated forms (with periods)
+  "50 Bra.": "50_BREAST",
+  "100 Bra.": "100_BREAST",
+  "200 Bra.": "200_BREAST",
+  "50 Pap.": "50_FLY",
+  "100 Pap.": "100_FLY",
+  "200 Pap.": "200_FLY",
+  "100 4 N.": "100_IM",
+  "200 4 N.": "200_IM",
+  "400 4 N.": "400_IM",
+  "100 4 Nages": "100_IM",
+  "100 4N": "100_IM",
 };
 
 export const EVENT_LABELS: Record<string, string> = {
@@ -46,6 +58,7 @@ export const EVENT_LABELS: Record<string, string> = {
   "50_FLY": "50 m Pap",
   "100_FLY": "100 m Pap",
   "200_FLY": "200 m Pap",
+  "100_IM": "100 m 4N",
   "200_IM": "200 m 4N",
   "400_IM": "400 m 4N",
 };

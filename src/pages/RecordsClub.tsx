@@ -65,6 +65,7 @@ const EVENTS = [
   { id: "50_FLY", label: "50 Pap", stroke: "FLY" },
   { id: "100_FLY", label: "100 Pap", stroke: "FLY" },
   { id: "200_FLY", label: "200 Pap", stroke: "FLY" },
+  { id: "100_IM", label: "100 4N", stroke: "IM" },
   { id: "200_IM", label: "200 4N", stroke: "IM" },
   { id: "400_IM", label: "400 4N", stroke: "IM" },
 ];
