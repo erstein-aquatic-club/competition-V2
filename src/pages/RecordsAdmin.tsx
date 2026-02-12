@@ -79,7 +79,6 @@ export default function RecordsAdmin() {
     display_name: "",
     iuf: "",
     sex: "",
-    birthdate: "",
   });
   const [swimmers, setSwimmers] = useState<ClubRecordSwimmer[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -133,12 +132,11 @@ export default function RecordsAdmin() {
         display_name: newSwimmer.display_name.trim(),
         iuf: newSwimmer.iuf.trim() || null,
         sex: newSwimmer.sex ? (newSwimmer.sex as "M" | "F") : null,
-        birthdate: newSwimmer.birthdate || null,
         is_active: true,
       }),
     onSuccess: () => {
       toast({ title: "Nageur ajouté" });
-      setNewSwimmer({ display_name: "", iuf: "", sex: "", birthdate: "" });
+      setNewSwimmer({ display_name: "", iuf: "", sex: "" });
       void load();
     },
     onError: () => {
@@ -246,7 +244,7 @@ export default function RecordsAdmin() {
   }, [swimmers]);
 
   const incompleteCount = useMemo(
-    () => swimmers.filter((s) => s.is_active && (!s.iuf || !s.sex || !s.birthdate)).length,
+    () => swimmers.filter((s) => s.is_active && (!s.iuf || !s.sex)).length,
     [swimmers],
   );
 
@@ -308,7 +306,7 @@ export default function RecordsAdmin() {
           <CardTitle>Ajouter un ancien nageur</CardTitle>
           <CardDescription>Ajoutez un nageur sans compte pour l'import des performances FFN.</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-[2fr_1fr_1fr_1fr_auto]">
+        <CardContent className="grid gap-4 md:grid-cols-[2fr_1fr_1fr_auto]">
           <Input
             placeholder="Nom du nageur"
             value={newSwimmer.display_name}
@@ -334,11 +332,6 @@ export default function RecordsAdmin() {
               ))}
             </SelectContent>
           </Select>
-          <Input
-            type="date"
-            value={newSwimmer.birthdate}
-            onChange={(event) => setNewSwimmer((prev) => ({ ...prev, birthdate: event.target.value }))}
-          />
           <Button
             onClick={() => createSwimmer.mutate()}
             disabled={!newSwimmer.display_name.trim() || createSwimmer.isPending}
@@ -357,7 +350,7 @@ export default function RecordsAdmin() {
           {!isLoading && incompleteCount > 0 && (
             <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
               <strong>{incompleteCount} nageur{incompleteCount > 1 ? "s" : ""} incomplet{incompleteCount > 1 ? "s" : ""}</strong>{" "}
-              — les champs IUF, Sexe et Date de naissance sont tous requis pour le calcul des records.
+              — les champs IUF et Sexe sont requis pour le calcul des records.
             </div>
           )}
           {isLoading && (
@@ -385,7 +378,6 @@ export default function RecordsAdmin() {
                     <TableHead>Source</TableHead>
                     <TableHead>IUF</TableHead>
                     <TableHead>Sexe</TableHead>
-                    <TableHead>Naissance</TableHead>
                     <TableHead>Dernière maj</TableHead>
                     <TableHead>Actif</TableHead>
                     <TableHead>Actions</TableHead>
@@ -431,17 +423,6 @@ export default function RecordsAdmin() {
                             ))}
                           </SelectContent>
                         </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="date"
-                          key={`${rowKey}-${swimmer.birthdate ?? ""}`}
-                          defaultValue={swimmer.birthdate ?? ""}
-                          onBlur={(event) =>
-                            updateSwimmerEntry(swimmer, { birthdate: event.target.value || null })
-                          }
-                          className={cn("w-36", swimmer.is_active && !swimmer.birthdate && "ring-2 ring-destructive/50")}
-                        />
                       </TableCell>
                       <TableCell>
                         <span className={stale ? "text-amber-600 dark:text-amber-400 text-xs font-medium" : "text-xs text-muted-foreground"}>
