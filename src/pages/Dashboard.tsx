@@ -201,7 +201,7 @@ function assignmentIso(a: Record<string, unknown>): string | null {
   const s = String(raw);
   // handle ISO datetime or plain date
   const iso = s.length >= 10 ? s.slice(0, 10) : s;
-  return /\\d{4}-\\d{2}-\\d{2}/.test(iso) ? iso : null;
+  return /\d{4}-\d{2}-\d{2}/.test(iso) ? iso : null;
 }
 
 function assignmentPlannedKm(a: Record<string, unknown>): number | null {

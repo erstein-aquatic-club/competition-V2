@@ -238,7 +238,10 @@ export async function updateClubRecordSwimmerForUser(
 export async function importClubRecords(): Promise<any> {
   if (!canUseSupabase()) return null;
   const { data, error } = await supabase.functions.invoke("import-club-records");
-  if (error) throw new Error(error.message);
+  if (error) {
+    const detail = data?.error ?? error.message;
+    throw new Error(String(detail));
+  }
   return data?.summary ?? data;
 }
 
@@ -270,7 +273,10 @@ export async function importSingleSwimmer(
   const { data, error } = await supabase.functions.invoke("ffn-performances", {
     body: { swimmer_iuf: swimmerIuf, swimmer_name: swimmerName ?? null },
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    const detail = data?.error ?? error.message;
+    throw new Error(String(detail));
+  }
   return (data ?? {
     total_found: 0,
     new_imported: 0,
@@ -404,7 +410,11 @@ export async function importSwimmerPerformances(params: {
   const { data, error } = await supabase.functions.invoke("ffn-performances", {
     body: { swimmer_iuf: params.iuf, user_id: params.userId ?? null },
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    // Surface the actual error from the edge function response if available
+    const detail = data?.error ?? error.message;
+    throw new Error(String(detail));
+  }
   return (data ?? {
     total_found: 0,
     new_imported: 0,
@@ -418,7 +428,10 @@ export async function recalculateClubRecords(): Promise<any> {
   const { data, error } = await supabase.functions.invoke("import-club-records", {
     body: { mode: "recalculate" },
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    const detail = data?.error ?? error.message;
+    throw new Error(String(detail));
+  }
   return data?.summary ?? data;
 }
 

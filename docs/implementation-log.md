@@ -916,3 +916,41 @@ Trois problèmes identifiés sur les records du club :
 - `npx tsc --noEmit` → 0 erreur
 - `npm run build` → OK (15s)
 - `npm test` → 63 pass, 2 pre-existing failures
+
+---
+
+## 2026-02-12 — Fix assignments, notifications RLS, FFN import errors
+
+**Branche** : `claude/continue-implementation-ajI8U`
+
+### Contexte
+
+Trois bugs signalés :
+1. **Assignations coach invisibles** : Les séances assignées par le coach n'apparaissent jamais dans le calendrier du Dashboard nageur.
+2. **Messagerie coach→nageur** : Les messages envoyés aux groupes ne sont pas visibles par les nageurs.
+3. **Import FFN** : L'erreur "Edge Function returned a non-2xx status code" ne donne aucun détail utile.
+
+### Changements réalisés
+
+1. **Fix `assignmentIso` regex** (`Dashboard.tsx:204`) — La regex `/\\d{4}-\\d{2}-\\d{2}/` utilisait des double backslashes, ce qui match littéralement `\d` au lieu de digits. La fonction retournait TOUJOURS null, empêchant toute assignation d'apparaître sur le calendrier. Corrigé en `/\d{4}-\d{2}-\d{2}/`.
+
+2. **Fix notification_targets RLS** (migration 00016) — La politique SELECT de `notification_targets` ne vérifiait que `target_user_id = app_user_id()`. Les notifications ciblant un GROUPE (target_group_id set, target_user_id NULL) étaient invisibles pour les nageurs du groupe. Ajout de `OR target_group_id IN (SELECT group_id FROM group_members WHERE user_id = app_user_id())` sur les politiques SELECT et UPDATE.
+
+3. **FFN import error surfacing** (`records.ts`) — Les fonctions `importSingleSwimmer`, `importSwimmerPerformances`, `importClubRecords`, `recalculateClubRecords` affichent maintenant le message d'erreur réel retourné par l'Edge Function (`data?.error`) au lieu du générique "Edge Function returned a non-2xx status code".
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/pages/Dashboard.tsx` | Fix regex assignmentIso (\\\\d → \\d) |
+| `supabase/migrations/00016_fix_notifications_rls.sql` | Nouveau : RLS group membership pour notification_targets |
+| `src/lib/api/records.ts` | Error surfacing pour 4 fonctions edge function |
+
+### Validation
+- `npx tsc --noEmit` → 0 erreur
+- `npm run build` → OK
+- `npm test` → 63 pass, 2 pre-existing failures
+
+### Note
+- L'erreur FFN "non-2xx" était masquée — après ce fix le message réel sera visible (rate limit, FFN down, etc.)
+- Les Edge Functions doivent être redéployées via `supabase functions deploy` pour que les corrections de `ffn-parser.ts` (regex "Nage Libre") prennent effet côté serveur
