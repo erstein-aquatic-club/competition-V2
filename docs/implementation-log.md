@@ -859,3 +859,60 @@ Trois bugs/demandes remontés par l'utilisateur :
 - `npx tsc --noEmit` → 0 erreur
 - `npm run build` → OK
 - `npm test` → 63 pass, 2 pre-existing failures
+
+---
+
+## 2026-02-12 — Fix performances manquantes + refonte UI RecordsClub + classements
+
+**Branche** : `claude/continue-implementation-ajI8U`
+**Chantier ROADMAP** : §4 — Records club (corrections + améliorations)
+
+### Contexte
+
+Trois problèmes identifiés sur les records du club :
+1. **Performances manquantes** : Le parser FFN (`ffn-parser.ts`) avait une regex `/épreuve|nage/i` qui filtrait les événements contenant "nage" (ex: "50 Nage Libre", "100 Nage Libre"), les confondant avec des en-têtes de tableau.
+2. **Doublons dans club_performances** : `recalculateClubRecords()` ne nettoyait pas les anciennes données avant réinsertion, accumulant des doublons à chaque recalcul.
+3. **Pas de classement** : Seul le meilleur temps global par épreuve/bassin/sexe/âge était stocké, pas les temps par nageur.
+4. **UI verbeux** : L'interface en cartes avec dropdowns prenait trop de place et n'offrait pas de vue tabulaire compacte.
+
+### Changements réalisés
+
+1. **Fix parser FFN** (`ffn-parser.ts:53`) — Changé `/épreuve|nage/i` en `/^[ée]preuve$/i || /^nage$/i` pour ne matcher que les en-têtes exacts et pas les noms d'épreuves contenant "Nage Libre".
+
+2. **Refonte recalculateClubRecords** (`import-club-records/index.ts`) :
+   - DELETE de toutes les `club_performances` avant réinsertion (anti-doublons)
+   - Stockage de la meilleure performance PAR NAGEUR par épreuve/bassin/sexe/âge (pour classements)
+   - Insertion en batch de 100 lignes
+   - Calcul du best absolu dans un second passage pour `club_records`
+   - Ajout de `swimmer_iuf` dans les données `club_performances`
+
+3. **Migration 00015** — Ajout colonne `swimmer_iuf` sur `club_performances` + index ranking.
+
+4. **API ranking** (`records.ts`) — Nouvelle fonction `getClubRanking()` qui requête `club_performances` triées par temps pour un événement/bassin/sexe/âge donné. Nouveau type `ClubPerformanceRanked`.
+
+5. **Refonte UI RecordsClub** — Réécriture complète :
+   - Toggles bassin (25m/50m) et sexe (G/F) compacts
+   - Âge en pills (Tous, 8-, 9, 10, ..., 17+)
+   - Tabs nage compacts
+   - Table propre : Épreuve | Temps | Détenteur | Âge | Date | chevron
+   - Mode "Tous âges" : groupé par épreuve avec sous-tables par âge
+   - Mode "âge sélectionné" : table plate
+   - **Clic sur une ligne → déploie le classement** complet pour cette épreuve/bassin/sexe/âge avec Trophy icône pour le #1
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `supabase/functions/_shared/ffn-parser.ts` | Fix regex header filter |
+| `supabase/functions/import-club-records/index.ts` | Refonte recalculateClubRecords() |
+| `supabase/migrations/00015_club_performances_ranking.sql` | Nouveau : swimmer_iuf + index |
+| `src/lib/api/types.ts` | Nouveau type ClubPerformanceRanked |
+| `src/lib/api/records.ts` | Nouvelle fonction getClubRanking() |
+| `src/lib/api/index.ts` | Export getClubRanking |
+| `src/lib/api.ts` | Delegation stub + type re-export |
+| `src/pages/RecordsClub.tsx` | Réécriture complète UI |
+
+### Validation
+- `npx tsc --noEmit` → 0 erreur
+- `npm run build` → OK (15s)
+- `npm test` → 63 pass, 2 pre-existing failures

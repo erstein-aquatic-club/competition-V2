@@ -118,6 +118,19 @@ async function checkRateLimit(userId: number, role: string): Promise<{ allowed: 
 
 // --- Recalculate club records from swimmer_performances ---
 
+interface PerSwimmerBest {
+  time_seconds: number;
+  time_ms: number;
+  athlete_name: string;
+  swimmer_iuf: string;
+  record_date: string | null;
+  event_code: string;
+  event_label: string;
+  pool_m: number;
+  sex: string;
+  age: number;
+}
+
 async function recalculateClubRecords(): Promise<void> {
   const { data: allSwimmers } = await supabaseAdmin
     .from("club_record_swimmers")
@@ -146,21 +159,9 @@ async function recalculateClubRecords(): Promise<void> {
 
   if (!allPerfs || allPerfs.length === 0) return;
 
-  // Find best time per (normalized_event_code, pool_length, sex, age)
-  const bestTimes = new Map<
-    string,
-    {
-      time_seconds: number;
-      time_ms: number;
-      athlete_name: string;
-      record_date: string | null;
-      event_code: string;
-      event_label: string;
-      pool_m: number;
-      sex: string;
-      age: number;
-    }
-  >();
+  // Build per-swimmer best time per (event_code, pool_length, sex, age)
+  // Key: "event__pool__sex__age__iuf" → best for that swimmer in that category
+  const perSwimmerBests = new Map<string, PerSwimmerBest>();
 
   for (const perf of allPerfs) {
     const swimmerInfo = swimmerMap.get(perf.swimmer_iuf);
@@ -176,14 +177,15 @@ async function recalculateClubRecords(): Promise<void> {
     // Clamp age: 8 means "8 and under", 17 means "17 and over"
     const clampedAge = Math.max(8, Math.min(17, age));
 
-    const key = `${normalizedCode}__${perf.pool_length}__${swimmerInfo.sex}__${clampedAge}`;
-    const existing = bestTimes.get(key);
+    const key = `${normalizedCode}__${perf.pool_length}__${swimmerInfo.sex}__${clampedAge}__${perf.swimmer_iuf}`;
+    const existing = perSwimmerBests.get(key);
 
     if (!existing || perf.time_seconds < existing.time_seconds) {
-      bestTimes.set(key, {
+      perSwimmerBests.set(key, {
         time_seconds: perf.time_seconds,
         time_ms: Math.round(perf.time_seconds * 1000),
         athlete_name: swimmerInfo.name,
+        swimmer_iuf: perf.swimmer_iuf,
         record_date: perf.competition_date,
         event_code: normalizedCode,
         event_label: EVENT_LABELS[normalizedCode] ?? normalizedCode,
@@ -194,11 +196,54 @@ async function recalculateClubRecords(): Promise<void> {
     }
   }
 
-  // Upsert club_performances and club_records
-  for (const [, record] of bestTimes) {
+  // Clear old club_performances before reinserting (prevent duplicates)
+  await supabaseAdmin.from("club_performances").delete().neq("id", 0);
+
+  // Insert all per-swimmer bests into club_performances (for ranking support)
+  const allBests = [...perSwimmerBests.values()];
+  for (let i = 0; i < allBests.length; i += 100) {
+    const chunk = allBests.slice(i, i + 100).map((r) => ({
+      athlete_name: r.athlete_name,
+      swimmer_iuf: r.swimmer_iuf,
+      sex: r.sex,
+      pool_m: r.pool_m,
+      event_code: r.event_code,
+      event_label: r.event_label,
+      age: r.age,
+      time_ms: r.time_ms,
+      record_date: r.record_date,
+      source: "ffn",
+    }));
+    await supabaseAdmin.from("club_performances").insert(chunk);
+  }
+
+  // Now find overall best per (event_code, pool_m, sex, age) for club_records
+  const overallBests = new Map<string, PerSwimmerBest>();
+  for (const entry of allBests) {
+    const key = `${entry.event_code}__${entry.pool_m}__${entry.sex}__${entry.age}`;
+    const existing = overallBests.get(key);
+    if (!existing || entry.time_seconds < existing.time_seconds) {
+      overallBests.set(key, entry);
+    }
+  }
+
+  // Upsert club_records with the overall best
+  for (const [, record] of overallBests) {
+    // Find the club_performances row id for this record
     const { data: perfRow } = await supabaseAdmin
       .from("club_performances")
-      .insert({
+      .select("id")
+      .eq("event_code", record.event_code)
+      .eq("pool_m", record.pool_m)
+      .eq("sex", record.sex)
+      .eq("age", record.age)
+      .eq("time_ms", record.time_ms)
+      .limit(1)
+      .single();
+
+    await supabaseAdmin.from("club_records").upsert(
+      {
+        performance_id: perfRow?.id ?? 0,
         athlete_name: record.athlete_name,
         sex: record.sex,
         pool_m: record.pool_m,
@@ -207,27 +252,9 @@ async function recalculateClubRecords(): Promise<void> {
         age: record.age,
         time_ms: record.time_ms,
         record_date: record.record_date,
-        source: "ffn",
-      })
-      .select("id")
-      .single();
-
-    if (perfRow?.id) {
-      await supabaseAdmin.from("club_records").upsert(
-        {
-          performance_id: perfRow.id,
-          athlete_name: record.athlete_name,
-          sex: record.sex,
-          pool_m: record.pool_m,
-          event_code: record.event_code,
-          event_label: record.event_label,
-          age: record.age,
-          time_ms: record.time_ms,
-          record_date: record.record_date,
-        },
-        { onConflict: "pool_m,sex,age,event_code" },
-      );
-    }
+      },
+      { onConflict: "pool_m,sex,age,event_code" },
+    );
   }
 }
 

@@ -150,6 +150,7 @@ export {
   getSwimmerPerformances,
   importSwimmerPerformances,
   recalculateClubRecords,
+  getClubRanking,
   syncClubRecordSwimmersFromUsers,
   getAppSettings,
   updateAppSettings,
