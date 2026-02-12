@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
         const chunk = rows.slice(i, i + 100);
         const { data, error } = await supabase
           .from("swimmer_performances")
-          .upsert(chunk, { onConflict: "swimmer_iuf,event_code,pool_length,competition_date,time_seconds", ignoreDuplicates: true })
+          .upsert(chunk, { onConflict: "swimmer_iuf,event_code,pool_length,competition_date,time_seconds" })
           .select("id");
         if (error) console.error("[ffn-performances] upsert error:", error.message);
         else newImported += (data?.length ?? 0);
