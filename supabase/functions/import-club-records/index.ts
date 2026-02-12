@@ -131,6 +131,13 @@ interface PerSwimmerBest {
   age: number;
 }
 
+/** Extract age from competition_name like "(12 ans)" */
+function extractAgeFromText(text: string | null): number | null {
+  if (!text) return null;
+  const m = text.match(/\((\d+)\s*ans?\)/i);
+  return m ? Number(m[1]) : null;
+}
+
 async function recalculateClubRecords(): Promise<void> {
   const { data: allSwimmers } = await supabaseAdmin
     .from("club_record_swimmers")
@@ -140,13 +147,14 @@ async function recalculateClubRecords(): Promise<void> {
 
   const swimmerMap = new Map<
     string,
-    { sex: string; birthdate: string; name: string }
+    { sex: string; birthdate: string | null; name: string }
   >();
   for (const s of allSwimmers ?? []) {
-    if (s.iuf && s.sex && s.birthdate) {
+    // Only require iuf + sex; birthdate is optional (age can come from competition_name)
+    if (s.iuf && s.sex) {
       swimmerMap.set(s.iuf, {
         sex: s.sex,
-        birthdate: s.birthdate,
+        birthdate: s.birthdate ?? null,
         name: s.display_name,
       });
     }
@@ -165,15 +173,18 @@ async function recalculateClubRecords(): Promise<void> {
 
   for (const perf of allPerfs) {
     const swimmerInfo = swimmerMap.get(perf.swimmer_iuf);
-    if (!swimmerInfo || !perf.competition_date) continue;
+    if (!swimmerInfo) continue;
 
     const normalizedCode = normalizeEventCode(perf.event_code);
     if (!normalizedCode) continue;
 
-    const age = calculateAge(
-      swimmerInfo.birthdate,
-      perf.competition_date,
-    );
+    // Extract age from competition_name "(XX ans)", fall back to birthdate calculation
+    let age = extractAgeFromText(perf.competition_name);
+    if (age === null && swimmerInfo.birthdate && perf.competition_date) {
+      age = calculateAge(swimmerInfo.birthdate, perf.competition_date);
+    }
+    if (age === null) continue;
+
     // Clamp age: 8 means "8 and under", 17 means "17 and over"
     const clampedAge = Math.max(8, Math.min(17, age));
 

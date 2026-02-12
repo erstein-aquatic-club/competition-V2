@@ -34,6 +34,7 @@ export interface Rec {
 export interface RecFull extends Rec {
   competition_name: string | null;
   competition_location: string | null;
+  swimmer_age: number | null;
 }
 
 export function parseHtmlFull(html: string, defaultPool?: number): RecFull[] {
@@ -54,14 +55,18 @@ export function parseHtmlFull(html: string, defaultPool?: number): RecFull[] {
 
       let date: string | null = null, pts: number | null = null;
       let competitionName: string | null = null;
+      let swimmerAge: number | null = null;
       for (const c of cells.slice(2)) {
         if (!date) date = parseDate(c);
         if (!pts && /pts/i.test(c)) { const m2 = c.match(/(\d+)/); if (m2) pts = Number(m2[1]); }
+        // Extract age from "(XX ans)" cells
+        const ageMatch = c.match(/^\((\d+)\s*ans?\)$/i);
+        if (ageMatch) { swimmerAge = Number(ageMatch[1]); continue; }
         if (!competitionName && c.length > 3 && !parseDate(c) && !/pts/i.test(c) && !/^\d+$/.test(c)) {
           competitionName = c;
         }
       }
-      results.push({ event_name: cells[0], pool_length: pool, time_seconds: time, record_date: date, ffn_points: pts, competition_name: competitionName, competition_location: null });
+      results.push({ event_name: cells[0], pool_length: pool, time_seconds: time, record_date: date, ffn_points: pts, competition_name: competitionName, competition_location: null, swimmer_age: swimmerAge });
     }
   }
   return results;

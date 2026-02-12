@@ -31,6 +31,45 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §7 Records admin + FFN full history + stroke KPI | ✅ Fait | 2026-02-12 |
 | §8 4 bugfixes (IUF Coach, RecordsClub, Reprendre, 1RM 404) | ✅ Fait | 2026-02-12 |
 | §9 RecordsAdmin UX: incomplete swimmer warnings | ✅ Fait | 2026-02-12 |
+| §10 Fix: extract age from competition_name, remove birthdate requirement | ✅ Fait | 2026-02-12 |
+
+---
+
+## 2026-02-12 — Fix: extract age from competition_name, remove birthdate requirement (§10)
+
+**Branche** : `claude/continue-implementation-ajI8U`
+**Chantier ROADMAP** : §10 — Fix missing club records
+
+### Contexte
+Beaucoup de records manquent car `recalculateClubRecords()` exigeait `iuf + sex + birthdate` pour chaque nageur. Or la colonne `competition_name` de `swimmer_performances` contient déjà l'âge du nageur au format "(12 ans)". On peut donc extraire l'âge directement et supprimer l'exigence de `birthdate`.
+
+### Changements réalisés
+1. **`import-club-records/index.ts`** — `recalculateClubRecords()` :
+   - Ajout de `extractAgeFromText()` qui parse `(XX ans)` depuis `competition_name`
+   - Le swimmerMap n'exige plus que `iuf + sex` (birthdate optionnel)
+   - L'âge est extrait de `competition_name` en priorité, fallback sur `calculateAge(birthdate, date)` si disponible
+   - Les performances sans âge détectable sont ignorées (au lieu d'ignorer tous les nageurs sans birthdate)
+
+2. **`ffn-parser.ts`** — Séparation age/competition_name :
+   - Nouveau champ `swimmer_age: number | null` sur `RecFull`
+   - Les cellules "(XX ans)" sont détectées et extraites séparément
+   - `competition_name` contient maintenant le vrai nom de compétition (pas l'âge)
+   - Les anciens imports (où competition_name = "(12 ans)") restent gérés par `extractAgeFromText()`
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `supabase/functions/import-club-records/index.ts` | extractAgeFromText, relax birthdate requirement |
+| `supabase/functions/_shared/ffn-parser.ts` | swimmer_age field, separate age from competition_name |
+
+### Tests
+- [x] `npm run build` — succès
+
+### Décisions prises
+- Pas de nouvelle colonne DB — l'âge est parsé depuis `competition_name` existant
+- Les futurs imports stockeront correctement le nom de compétition (plus "(12 ans)")
+- Le warning RecordsAdmin reste en place (birthdate toujours recommandé comme fallback)
 
 ---
 
