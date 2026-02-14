@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, type ClubRecord, type ClubPerformanceRanked } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
@@ -12,8 +12,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronDown, ChevronUp, Trophy } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { exportRecordsPdf } from "@/lib/export-records-pdf";
 
 // ── Constants ──
 
@@ -111,6 +112,7 @@ export default function RecordsClub() {
   const [ageFilter, setAgeFilter] = useState("ALL");
   const [strokeFilter, setStrokeFilter] = useState("ALL");
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const ageValue = ageFilter === "ALL" ? null : Number(ageFilter);
 
@@ -192,15 +194,39 @@ export default function RecordsClub() {
     setExpandedKey((prev) => (prev === key ? null : key));
   };
 
+  const handleExportPdf = useCallback(async () => {
+    setExporting(true);
+    try {
+      // Fetch ALL records (no filters) for the complete PDF
+      const allRecords = await api.getClubRecords({});
+      exportRecordsPdf(allRecords);
+    } catch {
+      // Silently fail — the user will see nothing downloaded
+    } finally {
+      setExporting(false);
+    }
+  }, []);
+
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <Trophy className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-display font-bold uppercase italic text-primary">
-            Records du club
-          </h1>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Trophy className="h-6 w-6 text-primary" />
+            <h1 className="text-2xl font-display font-bold uppercase italic text-primary">
+              Records du club
+            </h1>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportPdf}
+            disabled={exporting}
+          >
+            <Download className="h-4 w-4 mr-1" />
+            {exporting ? "Export..." : "Export PDF"}
+          </Button>
         </div>
         {lastImportLogs &&
           lastImportLogs.length > 0 &&
