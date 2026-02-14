@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronDown, ChevronUp, Download, Trophy } from "lucide-react";
+import { AlertCircle, ChevronDown, ChevronUp, Download, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { exportRecordsPdf } from "@/lib/export-records-pdf";
 
@@ -332,14 +332,13 @@ export default function RecordsClub() {
       )}
 
       {error && (
-        <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
-          <p>Impossible de charger les records.</p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-2"
-            onClick={() => refetch()}
-          >
+        <div className="flex flex-col items-center justify-center p-8 text-center">
+          <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+          <h3 className="font-semibold">Impossible de charger les données</h3>
+          <p className="text-sm text-muted-foreground mt-2">
+            {error instanceof Error ? error.message : "Une erreur s'est produite"}
+          </p>
+          <Button onClick={() => refetch()} className="mt-4">
             Réessayer
           </Button>
         </div>

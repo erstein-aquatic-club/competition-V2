@@ -7,6 +7,7 @@ import eacLogo from "@assets/logo-eac.png";
 import { getNavItemsForRole } from "@/components/layout/navItems";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { OfflineDetector } from "@/components/shared/OfflineDetector";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -45,6 +46,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background pb-20 supports-[padding:env(safe-area-inset-bottom)]:pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0 md:pt-16">
+      <OfflineDetector />
       {/* Desktop Top Nav */}
       <header className="hidden md:flex fixed top-0 w-full h-16 border-b bg-card/95 backdrop-blur z-nav items-center px-8 justify-between shadow-sm">
         <div className="flex items-center gap-2">

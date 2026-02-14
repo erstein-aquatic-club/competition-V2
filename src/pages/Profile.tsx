@@ -9,10 +9,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import type { UserProfile as ProfileData, GroupSummary } from "@/lib/api";
 import { Link } from "wouter";
-import { Edit2, LogOut, RefreshCw, Save } from "lucide-react";
+import { Edit2, LogOut, RefreshCw, Save, AlertCircle } from "lucide-react";
 
 export const shouldShowRecords = (role: string | null) => role !== "coach" && role !== "admin" && role !== "comite";
 
@@ -58,17 +59,23 @@ export default function Profile() {
     ffn_iuf: "",
   });
 
-  const { data: profile } = useQuery({
+  const { data: profile, isLoading: profileLoading, error: profileError, refetch: refetchProfile } = useQuery({
     queryKey: ["profile", user, userId],
     queryFn: () => api.getProfile({ displayName: user, userId }),
     enabled: !!user,
   });
 
-  const { data: groups = [], isLoading: groupsLoading } = useQuery({
+  const { data: groups = [], isLoading: groupsLoading, error: groupsError, refetch: refetchGroups } = useQuery({
     queryKey: ["profile-groups"],
     queryFn: () => api.getGroups(),
     enabled: !!user,
   });
+
+  const error = profileError || groupsError;
+  const refetch = () => {
+    refetchProfile();
+    refetchGroups();
+  };
 
   const avatarSrc = useMemo(() => {
     const src = profile?.avatar_url;
@@ -185,6 +192,63 @@ export default function Profile() {
     groups.find((g) => g.id === profile?.group_id)?.name ||
     profile?.group_label ||
     "Non défini";
+
+  if (profileLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-10 w-32" />
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-4">
+              <Skeleton className="h-16 w-16 rounded-full" />
+              <div className="space-y-2">
+                <Skeleton className="h-6 w-32" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-5 w-24" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-5 w-20" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-5 w-28" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-5 w-32" />
+              </div>
+              <div className="col-span-2 space-y-2">
+                <Skeleton className="h-4 w-12" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center">
+        <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+        <h3 className="font-semibold">Impossible de charger les données</h3>
+        <p className="text-sm text-muted-foreground mt-2">{(error as Error).message}</p>
+        <Button onClick={() => refetch()} className="mt-4">
+          Réessayer
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -2,11 +2,12 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type Assignment, SwimSessionItem, SwimSessionTemplate } from "@/lib/api";
 import type { SwimSessionInput, SwimPayloadFields } from "@/lib/types";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,6 +25,7 @@ import { intensityTone } from "@/components/swim/IntensityDots";
 import { IntensityDotsSelector } from "@/components/swim/IntensityDotsSelector";
 import { SwimSessionConsultation } from "@/components/swim/SwimSessionConsultation";
 import {
+  AlertCircle,
   ArrowDown,
   ArrowUp,
   Archive,
@@ -272,8 +274,8 @@ export default function SwimCatalog() {
 
   const [newSession, setNewSession] = useState<SwimSessionDraft>(createEmptySession);
 
-  const { data: sessions, isLoading: sessionsLoading } = useQuery({ queryKey: ["swim_catalog"], queryFn: () => api.getSwimCatalog() });
-  const { data: assignments, isError: assignmentsError } = useQuery({
+  const { data: sessions, isLoading: sessionsLoading, error: sessionsError, refetch: refetchSessions } = useQuery({ queryKey: ["swim_catalog"], queryFn: () => api.getSwimCatalog() });
+  const { data: assignments, isLoading: assignmentsLoading, isError: assignmentsError, error: assignmentsErrorObj, refetch: refetchAssignments } = useQuery({
     queryKey: ["coach-assignments"],
     queryFn: () => api.getAssignmentsForCoach(),
     enabled: role === "coach" || role === "admin",
@@ -1077,6 +1079,64 @@ export default function SwimCatalog() {
     );
   }
 
+  if (sessionsLoading || assignmentsLoading) {
+    return (
+      <div>
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <div>
+            <Skeleton className="h-5 w-16 mb-1" />
+            <Skeleton className="h-3 w-20" />
+          </div>
+          <Skeleton className="h-9 w-24 rounded-full" />
+        </div>
+
+        <div className="p-4">
+          <Skeleton className="h-10 w-full rounded-2xl mb-4" />
+
+          <div className="space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={`skeleton-${i}`} className="rounded-2xl border-border">
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <Skeleton className="h-5 w-3/4 mb-2" />
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-4 w-16" />
+                        <Skeleton className="h-4 w-16" />
+                        <Skeleton className="h-4 w-12" />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-9 w-9 rounded-full" />
+                      <Skeleton className="h-9 w-9 rounded-full" />
+                      <Skeleton className="h-9 w-9 rounded-full" />
+                      <Skeleton className="h-9 w-9 rounded-full" />
+                    </div>
+                  </div>
+                </CardHeader>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (sessionsError) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center">
+        <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+        <h3 className="font-semibold">Impossible de charger les données</h3>
+        <p className="text-sm text-muted-foreground mt-2">
+          {sessionsError instanceof Error ? sessionsError.message : "Une erreur s'est produite"}
+        </p>
+        <Button onClick={() => refetchSessions()} className="mt-4">
+          Réessayer
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -1109,16 +1169,15 @@ export default function SwimCatalog() {
         </div>
 
         {assignmentsError && (
-          <div className="mt-4 rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
-            Impossible de charger les assignations.
-          </div>
-        )}
-
-        {sessionsLoading && (
-          <div className="mt-4 space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-24 w-full rounded-xl bg-muted animate-pulse motion-reduce:animate-none" />
-            ))}
+          <div className="mt-4 flex flex-col items-center rounded-lg border border-destructive/20 bg-destructive/10 p-4">
+            <AlertCircle className="h-8 w-8 text-destructive mb-2" />
+            <p className="text-sm text-destructive font-semibold">Impossible de charger les assignations</p>
+            <p className="text-xs text-destructive/80 mt-1">
+              {assignmentsErrorObj instanceof Error ? assignmentsErrorObj.message : "Une erreur s'est produite"}
+            </p>
+            <Button variant="outline" size="sm" onClick={() => refetchAssignments()} className="mt-2">
+              Réessayer
+            </Button>
           </div>
         )}
 

@@ -11,7 +11,8 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Dumbbell, Calendar, Search, SlidersHorizontal, Info, X, Play } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ChevronLeft, ChevronRight, Dumbbell, Calendar, Search, SlidersHorizontal, Info, X, Play, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -303,18 +304,24 @@ export default function Strength() {
   ]);
 
   // Queries
-  const { data: assignments, isLoading: assignmentsLoading } = useQuery({
+  const { data: assignments, isLoading: assignmentsLoading, error: assignmentsError, refetch: refetchAssignments } = useQuery({
       queryKey: ["assignments", user, "strength"],
       queryFn: () => api.getAssignments(user!, userId, { assignmentType: "strength" }),
       enabled: !!user
   });
-  const { data: strengthCatalog, isLoading: catalogLoading } = useQuery({
+  const { data: strengthCatalog, isLoading: catalogLoading, error: catalogError, refetch: refetchCatalog } = useQuery({
       queryKey: ["strength_catalog"],
       queryFn: () => api.getStrengthSessions(),
   });
 
-  const { data: exercises } = useQuery({ queryKey: ["exercises"], queryFn: () => api.getExercises() });
+  const { data: exercises, error: exercisesError, refetch: refetchExercises } = useQuery({ queryKey: ["exercises"], queryFn: () => api.getExercises() });
   const isListLoading = assignmentsLoading || catalogLoading;
+  const error = assignmentsError || catalogError || exercisesError;
+  const refetch = () => {
+    refetchAssignments();
+    refetchCatalog();
+    refetchExercises();
+  };
   const { data: oneRMs } = useQuery({
       queryKey: ["1rm", user, userId],
       queryFn: () => api.get1RM({ athleteName: user, athleteId: userId }),
@@ -664,6 +671,70 @@ export default function Strength() {
       });
     },
   });
+
+  const isLoading = assignmentsLoading || catalogLoading;
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4 md:space-y-6">
+        {/* Header skeleton */}
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-10 w-10 rounded-full" />
+        </div>
+
+        {/* Tabs skeleton */}
+        <div className="flex gap-2">
+          <Skeleton className="h-10 w-32" />
+          <Skeleton className="h-10 w-32" />
+        </div>
+
+        {/* Cycle selector skeleton */}
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          <Skeleton className="h-9 w-28 rounded-full" />
+          <Skeleton className="h-9 w-32 rounded-full" />
+          <Skeleton className="h-9 w-24 rounded-full" />
+        </div>
+
+        {/* Search bar skeleton */}
+        <Skeleton className="h-10 w-full rounded-lg" />
+
+        {/* Session cards skeleton */}
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={`skeleton-${i}`} className="overflow-hidden">
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-5 w-48" />
+                    <Skeleton className="h-4 w-32" />
+                  </div>
+                  <Skeleton className="h-6 w-20 rounded-full" />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center">
+        <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+        <h3 className="font-semibold">Impossible de charger les données</h3>
+        <p className="text-sm text-muted-foreground mt-2">{(error as Error).message}</p>
+        <Button onClick={() => refetch()} className="mt-4">
+          Réessayer
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div

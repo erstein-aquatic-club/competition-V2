@@ -1,6 +1,5 @@
 
-import React, { Suspense, lazy, useState, useEffect, Component } from "react";
-import type { ReactNode, ErrorInfo } from "react";
+import React, { Suspense, lazy, useState, useEffect } from "react";
 import { Switch, Route, Redirect, Router } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -14,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 
 // Retry wrapper for lazy imports — handles stale chunk filenames after deployments
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -38,65 +38,6 @@ function lazyWithRetry(factory: () => Promise<{ default: React.ComponentType<any
 
 // Clear the reload flag on successful app load
 sessionStorage.removeItem('chunk_reload');
-
-// Error Boundary — catches runtime errors and chunk loading failures
-interface ErrorBoundaryState {
-  hasError: boolean;
-  error: Error | null;
-  isChunkError: boolean;
-}
-
-class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { hasError: false, error: null, isChunkError: false };
-
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    const isChunkError = /loading.*(chunk|module)|failed to fetch/i.test(error.message);
-    return { hasError: true, error, isChunkError };
-  }
-
-  componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('[EAC] Error Boundary caught:', error, info.componentStack);
-  }
-
-  render() {
-    if (!this.state.hasError) return this.props.children;
-
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center p-4">
-        <div className="max-w-sm w-full text-center space-y-4">
-          <div className="text-4xl">{this.state.isChunkError ? '\u26A0\uFE0F' : '\u274C'}</div>
-          <h2 className="text-lg font-semibold">
-            {this.state.isChunkError
-              ? 'Mise à jour disponible'
-              : 'Une erreur est survenue'}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {this.state.isChunkError
-              ? "L'application a été mise à jour. Rechargez la page pour continuer."
-              : (this.state.error?.message || 'Erreur inconnue')}
-          </p>
-          <div className="flex gap-2 justify-center">
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
-            >
-              Recharger
-            </button>
-            <button
-              onClick={() => {
-                this.setState({ hasError: false, error: null, isChunkError: false });
-                window.location.hash = '#/';
-              }}
-              className="px-4 py-2 rounded-lg bg-muted text-muted-foreground text-sm font-medium"
-            >
-              Retour accueil
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-}
 
 // Lazy load all pages for code splitting (with retry for stale chunks)
 const Login = lazyWithRetry(() => import("@/pages/Login"));

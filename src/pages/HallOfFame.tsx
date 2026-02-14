@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Medal, Trophy, Crown, Dumbbell, Waves, Heart } from "lucide-react";
+import { Medal, Trophy, Crown, Dumbbell, Waves, Heart, AlertCircle } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HallOfFameValue } from "@/pages/hallOfFame/HallOfFameValue";
 import {
@@ -16,7 +17,7 @@ import { Link } from "wouter";
 import type { HallOfFameData, HallOfFameSwimDistance, HallOfFameSwimPerformance, HallOfFameSwimEngagement, HallOfFameStrength } from "@/lib/types";
 
 export default function HallOfFame() {
-  const { data } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["hall-of-fame"],
     queryFn: () => api.getHallOfFame()
   });
@@ -53,6 +54,54 @@ export default function HallOfFame() {
     if (rank === 2) return <Medal className="h-5 w-5 text-rank-bronze fill-rank-bronze" />;
     return <span className="font-mono font-bold text-muted-foreground w-6 text-center">{rank + 1}</span>;
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <Skeleton className="h-10 w-48" />
+          <Skeleton className="h-10 w-48" />
+        </div>
+
+        <div className="space-y-2">
+          <Skeleton className="h-10 w-full" />
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 pt-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Card key={`skeleton-${i}`} className="border-t-4">
+                <CardHeader>
+                  <Skeleton className="h-6 w-32" />
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {Array.from({ length: 5 }).map((_, j) => (
+                    <div key={`item-${j}`} className="flex items-center justify-between gap-3 p-3">
+                      <div className="flex items-center gap-4">
+                        <Skeleton className="h-6 w-6" />
+                        <Skeleton className="h-5 w-32" />
+                      </div>
+                      <Skeleton className="h-6 w-16" />
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center">
+        <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+        <h3 className="font-semibold">Impossible de charger les données</h3>
+        <p className="text-sm text-muted-foreground mt-2">{(error as Error).message}</p>
+        <Button onClick={() => refetch()} className="mt-4">
+          Réessayer
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

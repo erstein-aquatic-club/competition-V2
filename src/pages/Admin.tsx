@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Redirect } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ShieldCheck, UserMinus, UserPlus, Search, CheckCircle, XCircle, Clock } from "lucide-react";
+import { AlertCircle, ShieldCheck, UserMinus, UserPlus, Search, CheckCircle, XCircle, Clock } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { api, summarizeApiError, type UserSummary } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const userRoleOptions = ["athlete", "coach", "comite", "admin"] as const;
 type UserRole = (typeof userRoleOptions)[number];
@@ -44,7 +45,7 @@ export default function Admin() {
 
   const isAdmin = role === "admin";
 
-  const { data: users = [], isLoading: usersLoading } = useQuery({
+  const { data: users = [], isLoading: usersLoading, error: usersError, refetch: refetchUsers } = useQuery({
     queryKey: ["admin-users", includeInactive],
     queryFn: () => api.listUsers({ includeInactive }),
     enabled: isAdmin,
@@ -102,7 +103,7 @@ export default function Admin() {
     },
   });
 
-  const { data: pendingApprovals = [] } = useQuery({
+  const { data: pendingApprovals = [], error: approvalsError, refetch: refetchApprovals } = useQuery({
     queryKey: ["pending-approvals"],
     queryFn: () => api.getPendingApprovals(),
     enabled: isAdmin,
@@ -168,6 +169,24 @@ export default function Admin() {
       return null;
     }
     return <Redirect to="/" />;
+  }
+
+  if (usersError || approvalsError) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center">
+        <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+        <h3 className="font-semibold">Impossible de charger les données</h3>
+        <p className="text-sm text-muted-foreground mt-2">
+          {usersError instanceof Error ? usersError.message : approvalsError instanceof Error ? approvalsError.message : "Une erreur s'est produite"}
+        </p>
+        <Button onClick={() => {
+          refetchUsers();
+          refetchApprovals();
+        }} className="mt-4">
+          Réessayer
+        </Button>
+      </div>
+    );
   }
 
   return (
@@ -351,7 +370,13 @@ export default function Admin() {
           </div>
 
           {usersLoading ? (
-            <p className="text-sm text-muted-foreground">Chargement des utilisateurs...</p>
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={`skeleton-${i}`} className="flex items-center gap-4 p-3 rounded-lg border">
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ))}
+            </div>
           ) : filteredUsers.length ? (
             <div className="w-full overflow-x-auto">
               <Table>

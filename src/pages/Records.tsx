@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { shouldShowRecords } from "@/pages/Profile";
-import { Check, ChevronDown, Clock, Dumbbell, Edit2, Download, RefreshCw, StickyNote, Trophy, Waves, X } from "lucide-react";
+import { Check, ChevronDown, Clock, Dumbbell, Edit2, Download, RefreshCw, StickyNote, Trophy, Waves, X, AlertCircle } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 type OneRmRecord = {
@@ -238,6 +238,14 @@ export default function Records() {
     enabled: !!userId && showRecords,
   });
   const userIuf = String(profileQuery.data?.ffn_iuf ?? "").trim();
+
+  const mainError = oneRmQuery.error || exercisesQuery.error || swimRecordsQuery.error || profileQuery.error;
+  const refetchAll = () => {
+    oneRmQuery.refetch();
+    exercisesQuery.refetch();
+    swimRecordsQuery.refetch();
+    profileQuery.refetch();
+  };
 
   // Swimmer performances query (history tab)
   const performancesQuery = useQuery<SwimmerPerformance[]>({
@@ -547,6 +555,19 @@ export default function Records() {
             </Card>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (mainError) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center">
+        <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+        <h3 className="font-semibold">Impossible de charger les données</h3>
+        <p className="text-sm text-muted-foreground mt-2">{(mainError as Error).message}</p>
+        <Button onClick={() => refetchAll()} className="mt-4">
+          Réessayer
+        </Button>
       </div>
     );
   }

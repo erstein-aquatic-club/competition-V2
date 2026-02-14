@@ -10,10 +10,11 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, Save, Filter, Edit2, GripVertical, Eye, Upload, Loader2 } from "lucide-react";
+import { AlertCircle, Plus, Trash2, Save, Filter, Edit2, GripVertical, Eye, Upload, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -335,8 +336,8 @@ export default function StrengthCatalog() {
     }
   }, [editingExercise]);
 
-  const { data: exercises } = useQuery({ queryKey: ["exercises"], queryFn: () => api.getExercises() });
-  const { data: sessions } = useQuery({ queryKey: ["strength_catalog"], queryFn: () => api.getStrengthSessions() });
+  const { data: exercises, isLoading: isLoadingExercises, error: exercisesError, refetch: refetchExercises } = useQuery({ queryKey: ["exercises"], queryFn: () => api.getExercises() });
+  const { data: sessions, isLoading: isLoadingSessions, error: sessionsError, refetch: refetchSessions } = useQuery({ queryKey: ["strength_catalog"], queryFn: () => api.getStrengthSessions() });
   const exerciseById = useMemo(
     () => new Map((exercises ?? []).map((exercise) => [exercise.id, exercise])),
     [exercises],
@@ -871,6 +872,84 @@ export default function StrengthCatalog() {
       </AlertDialogContent>
     </AlertDialog>
   );
+
+  const isLoading = isLoadingExercises || isLoadingSessions;
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <Skeleton className="h-7 w-64" />
+          <Skeleton className="h-10 w-24" />
+        </div>
+
+        <div className="space-y-3">
+          <Skeleton className="h-6 w-48" />
+          <div className="grid gap-4 md:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={`skeleton-session-${i}`}>
+                <CardHeader>
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-1/2 mt-2" />
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-10 w-10" />
+                    <Skeleton className="h-10 w-10" />
+                    <Skeleton className="h-10 w-10" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-10 w-48" />
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Card key={`skeleton-exercise-${i}`}>
+                <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-14 w-14 rounded-md" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-5 w-32" />
+                      <Skeleton className="h-4 w-24" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Skeleton className="h-10 w-10" />
+                    <Skeleton className="h-10 w-10" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (exercisesError || sessionsError) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center">
+        <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+        <h3 className="font-semibold">Impossible de charger les données</h3>
+        <p className="text-sm text-muted-foreground mt-2">
+          {exercisesError instanceof Error ? exercisesError.message : sessionsError instanceof Error ? sessionsError.message : "Une erreur s'est produite"}
+        </p>
+        <Button onClick={() => {
+          refetchExercises();
+          refetchSessions();
+        }} className="mt-4">
+          Réessayer
+        </Button>
+      </div>
+    );
+  }
 
   if (isCreating) {
       return (

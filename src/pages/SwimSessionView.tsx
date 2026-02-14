@@ -3,13 +3,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { ChevronLeft, Layers, Route } from "lucide-react";
+import { ChevronLeft, Layers, Route, AlertCircle } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 import { SwimExerciseDetail, SwimSessionConsultation } from "@/components/swim/SwimSessionConsultation";
 import { api, Assignment, SwimSessionItem } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -49,7 +50,7 @@ export default function SwimSessionView() {
     return Number.isFinite(parsed) ? parsed : null;
   }, [location]);
 
-  const { data: assignments, isLoading } = useQuery({
+  const { data: assignments, isLoading, error, refetch } = useQuery({
     queryKey: ["assignments", user],
     queryFn: () => api.getAssignments(user!, userId),
     enabled: !!user,
@@ -87,6 +88,19 @@ export default function SwimSessionView() {
       toast({ title: "Erreur", description: "Impossible de retirer la séance.", variant: "destructive" });
     },
   });
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center">
+        <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+        <h3 className="font-semibold">Impossible de charger les données</h3>
+        <p className="text-sm text-muted-foreground mt-2">{(error as Error).message}</p>
+        <Button onClick={() => refetch()} className="mt-4">
+          Réessayer
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -173,7 +187,18 @@ export default function SwimSessionView() {
           </div>
           <Separator />
           {isLoading ? (
-            <div className="text-sm text-muted-foreground">Chargement de la séance...</div>
+            <div className="space-y-4">
+              <Skeleton className="h-6 w-48" />
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={`skeleton-${i}`} className="space-y-2">
+                    <Skeleton className="h-5 w-32" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                  </div>
+                ))}
+              </div>
+            </div>
           ) : assignment ? (
             <SwimSessionConsultation
               title={assignment.title}

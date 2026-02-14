@@ -24,6 +24,7 @@ import {
   UserCheck,
   Minus,
   Plus,
+  AlertCircle,
 } from "lucide-react";
 
 /**
@@ -601,19 +602,24 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
 
-  const { data: sessions, isLoading: sessionsLoading } = useQuery({
+  const { data: sessions, isLoading: sessionsLoading, error: sessionsError, refetch: refetchSessions } = useQuery({
     queryKey: ["sessions", userId ?? user],
     queryFn: () => api.getSessions(user!, userId),
     enabled: !!user,
   });
 
-  const { data: assignments, isLoading: assignmentsLoading } = useQuery({
+  const { data: assignments, isLoading: assignmentsLoading, error: assignmentsError, refetch: refetchAssignments } = useQuery({
     queryKey: ["assignments", user],
     queryFn: () => api.getAssignments(user!, userId),
     enabled: !!user,
   });
 
   const isLoading = sessionsLoading || assignmentsLoading;
+  const error = sessionsError || assignmentsError;
+  const refetch = () => {
+    refetchSessions();
+    refetchAssignments();
+  };
 
   const deleteMutation = useMutation({
     mutationFn: (sessionId: number) => api.deleteSession(sessionId),
@@ -1171,6 +1177,19 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center">
+        <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+        <h3 className="font-semibold">Impossible de charger les données</h3>
+        <p className="text-sm text-muted-foreground mt-2">{(error as Error).message}</p>
+        <Button onClick={() => refetch()} className="mt-4">
+          Réessayer
+        </Button>
       </div>
     );
   }
