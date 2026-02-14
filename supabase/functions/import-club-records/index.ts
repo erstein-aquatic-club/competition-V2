@@ -293,7 +293,44 @@ async function recalculateClubRecords(): Promise<RecalcStats> {
     }
   }
 
-  // Upsert club_records with the overall best
+  // Apply age cascade: if a younger age has a better time than an older age,
+  // the older age should also hold that record
+  // Example: if 15 ans has 1:30 and 16 ans has 1:35 (or no record),
+  // then 16 ans should also get 1:30
+  const eventCombinations = new Set<string>();
+  for (const [key] of overallBests) {
+    const [eventCode, poolM, sex] = key.split("__");
+    eventCombinations.add(`${eventCode}__${poolM}__${sex}`);
+  }
+
+  for (const combo of eventCombinations) {
+    const [eventCode, poolM, sex] = combo.split("__");
+
+    // For each age from 8 to 16, check if the record should cascade to older ages
+    for (let age = 8; age < 17; age++) {
+      const currentKey = `${eventCode}__${poolM}__${sex}__${age}`;
+      const currentRecord = overallBests.get(currentKey);
+
+      if (!currentRecord) continue; // No record for this age, skip
+
+      // Check all older ages and update if current age has a better time
+      for (let olderAge = age + 1; olderAge <= 17; olderAge++) {
+        const olderKey = `${eventCode}__${poolM}__${sex}__${olderAge}`;
+        const olderRecord = overallBests.get(olderKey);
+
+        // If no record exists for older age, or younger age has better time
+        if (!olderRecord || currentRecord.time_seconds < olderRecord.time_seconds) {
+          // Cascade the record to the older age category
+          overallBests.set(olderKey, {
+            ...currentRecord,
+            age: olderAge, // Update age to reflect the category
+          });
+        }
+      }
+    }
+  }
+
+  // Upsert club_records with the overall best (including cascaded records)
   for (const [, record] of overallBests) {
     const { data: perfRow } = await supabaseAdmin
       .from("club_performances")
