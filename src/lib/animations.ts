@@ -1,4 +1,5 @@
 import { Variants } from "framer-motion";
+import { durationsSeconds } from "./design-tokens";
 
 /**
  * Framer Motion animation presets for consistent, performant animations.
@@ -8,19 +9,19 @@ import { Variants } from "framer-motion";
 // Basic fade in animation
 export const fadeIn: Variants = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 0.2 } },
+  visible: { opacity: 1, transition: { duration: durationsSeconds.normal } },
 };
 
 // Slide up with fade
 export const slideUp: Variants = {
   hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
+  visible: { opacity: 1, y: 0, transition: { duration: durationsSeconds.medium } },
 };
 
 // Scale in with fade
 export const scaleIn: Variants = {
   hidden: { opacity: 0, scale: 0.95 },
-  visible: { opacity: 1, scale: 1, transition: { duration: 0.2 } },
+  visible: { opacity: 1, scale: 1, transition: { duration: durationsSeconds.normal } },
 };
 
 // Stagger children animation
@@ -63,7 +64,7 @@ export const slideInFromBottom: Variants = {
   exit: {
     opacity: 0,
     y: "100%",
-    transition: { duration: 0.2 },
+    transition: { duration: durationsSeconds.normal },
   },
 };
 
@@ -82,6 +83,6 @@ export const slideInFromRight: Variants = {
   exit: {
     opacity: 0,
     x: "100%",
-    transition: { duration: 0.2 },
+    transition: { duration: durationsSeconds.normal },
   },
 };

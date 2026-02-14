@@ -4,6 +4,7 @@ import { X, Waves, Power, Check, Circle, UserX, FileText, UserCheck, Minus, Plus
 import { useLocation } from "wouter";
 import { BottomActionBar, type SaveState } from "@/components/shared/BottomActionBar";
 import { slideInFromBottom, staggerChildren, listItem } from "@/lib/animations";
+import { durationsSeconds } from "@/lib/design-tokens";
 import { StrokeDetailForm } from "./StrokeDetailForm";
 import type { Session } from "@/lib/api";
 
@@ -447,7 +448,7 @@ export function FeedbackDrawer({
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 8 }}
-                      transition={{ duration: 0.18 }}
+                      transition={{ duration: durationsSeconds.normal }}
                       className="mt-4 rounded-3xl border border-border bg-card overflow-hidden"
                     >
                       {(() => {
@@ -527,7 +528,7 @@ export function FeedbackDrawer({
                                   initial={{ opacity: 0, y: 6 }}
                                   animate={{ opacity: 1, y: 0 }}
                                   exit={{ opacity: 0, y: 6 }}
-                                  transition={{ duration: 0.16 }}
+                                  transition={{ duration: durationsSeconds.normal }}
                                   className="mx-3 mb-3 rounded-2xl border border-border bg-muted p-3"
                                 >
                                   {activeSession.details?.length ? (

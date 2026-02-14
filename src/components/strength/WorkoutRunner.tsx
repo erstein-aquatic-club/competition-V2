@@ -34,6 +34,7 @@ import { ScrollContainer } from "@/components/shared/ScrollContainer";
 import { ScaleSelector5 } from "@/components/shared/ScaleSelector5";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { colors } from "@/lib/design-tokens";
 import type { Exercise, StrengthSessionTemplate } from "@/lib/api";
 import type { SetLogEntry, OneRmEntry, WorkoutFinishData, SetInputValues } from "@/lib/types";
 
@@ -284,7 +285,13 @@ export function WorkoutRunner({
 
   const launchConfetti = () => {
     if (typeof window === "undefined") return;
-    const colors = ["#22c55e", "#3b82f6", "#f97316", "#e11d48", "#a855f7"];
+    const confettiColors = [
+      colors.status.success,
+      colors.chart[2],
+      colors.chart[3],
+      colors.destructive,
+      colors.accent,
+    ];
     const confettiCount = 120;
     for (let i = 0; i < confettiCount; i += 1) {
       const piece = document.createElement("div");
@@ -294,7 +301,7 @@ export function WorkoutRunner({
       piece.style.left = `${Math.random() * 100}vw`;
       piece.style.width = `${size}px`;
       piece.style.height = `${size * 0.6}px`;
-      piece.style.backgroundColor = colors[i % colors.length];
+      piece.style.backgroundColor = confettiColors[i % confettiColors.length];
       piece.style.opacity = "0.9";
       piece.style.pointerEvents = "none";
       piece.style.zIndex = "9999";

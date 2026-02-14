@@ -3,6 +3,7 @@ import { CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { successBounce } from "@/lib/animations";
+import { durationsSeconds } from "@/lib/design-tokens";
 
 export type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -73,7 +74,7 @@ export function BottomActionBar({
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  transition={{ delay: 0.1, type: "spring", stiffness: 300 }}
+                  transition={{ delay: durationsSeconds.fast, type: "spring", stiffness: 300 }}
                 >
                   <CheckCircle2 className="h-4 w-4" />
                 </motion.div>

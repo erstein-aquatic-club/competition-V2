@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PasswordStrength } from "@/components/shared/PasswordStrength";
 import { fadeIn, slideUp, staggerChildren } from "@/lib/animations";
+import { durationsSeconds } from "@/lib/design-tokens";
 import eacLogo from "@assets/logo-eac.png";
 import {
   getLandingRouteForRole,
@@ -206,7 +207,7 @@ export default function Login() {
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
+          transition={{ duration: durationsSeconds.slow, delay: durationsSeconds.normal }}
           className="relative z-10 text-center space-y-8"
         >
           <img src={eacLogo} alt="EAC Logo" className="h-32 w-32 mx-auto drop-shadow-2xl" />
@@ -260,7 +261,7 @@ export default function Login() {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
-                    transition={{ duration: 0.2 }}
+                    transition={{ duration: durationsSeconds.normal }}
                     onSubmit={loginForm.handleSubmit(handleLogin)}
                     className="space-y-4"
                   >
@@ -356,7 +357,7 @@ export default function Login() {
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
-                    transition={{ duration: 0.2 }}
+                    transition={{ duration: durationsSeconds.normal }}
                     onSubmit={signupForm.handleSubmit(handleSignup)}
                     className="space-y-4"
                   >
@@ -522,7 +523,7 @@ export default function Login() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
+          transition={{ delay: durationsSeconds.slow }}
           className="mt-12 text-xs text-muted-foreground text-center"
         >
           <p className="uppercase tracking-widest font-bold">EAC Performance Tracking</p>
