@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, RefreshCw, Settings } from "lucide-react";
+import { ChevronDown, Eye, RefreshCw, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SEX_OPTIONS = [
@@ -84,6 +84,7 @@ export default function RecordsAdmin() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
   const [rateLimits, setRateLimits] = useState<{ coach_monthly: number; athlete_monthly: number; admin_monthly: number } | null>(null);
 
   const canAccess = role === "coach" || role === "admin";
@@ -240,11 +241,15 @@ export default function RecordsAdmin() {
     },
   });
 
-  const sortedSwimmers = useMemo(() => {
-    return [...swimmers].sort((a, b) => {
+  const { activeSwimmers, inactiveSwimmers } = useMemo(() => {
+    const sorted = [...swimmers].sort((a, b) => {
       if (a.source_type !== b.source_type) return a.source_type.localeCompare(b.source_type);
       return a.display_name.localeCompare(b.display_name);
     });
+    return {
+      activeSwimmers: sorted.filter((s) => s.is_active),
+      inactiveSwimmers: sorted.filter((s) => !s.is_active),
+    };
   }, [swimmers]);
 
   const incompleteCount = useMemo(
@@ -382,116 +387,226 @@ export default function RecordsAdmin() {
             <p className="text-sm text-muted-foreground">Aucun nageur disponible.</p>
           )}
           {!isLoading && !error && swimmers.length > 0 && (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nageur</TableHead>
-                    <TableHead>Source</TableHead>
-                    <TableHead>IUF</TableHead>
-                    <TableHead>Sexe</TableHead>
-                    <TableHead>Année naiss.</TableHead>
-                    <TableHead>Dernière maj</TableHead>
-                    <TableHead>Actif</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedSwimmers.map((swimmer) => {
-                    const rowKey = swimmer.id ?? `user-${swimmer.user_id ?? "unknown"}`;
-                    const stale = isStale((swimmer as any).last_imported_at);
-                    return (
-                    <TableRow key={rowKey} className={stale ? "bg-amber-50/50 dark:bg-amber-950/10" : ""}>
-                      <TableCell className="font-medium">{swimmer.display_name}</TableCell>
-                      <TableCell>
-                        <Badge variant={swimmer.source_type === "manual" ? "secondary" : "outline"}>
-                          {formatSource(swimmer.source_type)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          key={`${rowKey}-${swimmer.iuf ?? ""}`}
-                          defaultValue={swimmer.iuf ?? ""}
-                          onBlur={(event) =>
-                            updateSwimmerEntry(swimmer, { iuf: event.target.value.trim() || null })
-                          }
-                          className={cn("w-24", swimmer.is_active && !swimmer.iuf && "ring-2 ring-destructive/50")}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={swimmer.sex ?? ""}
-                          onValueChange={(value) =>
-                            updateSwimmerEntry(swimmer, { sex: value || null })
-                          }
-                        >
-                          <SelectTrigger className={cn("w-28", swimmer.is_active && !swimmer.sex && "ring-2 ring-destructive/50")}>
-                            <SelectValue placeholder="Sexe" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {SEX_OPTIONS.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          key={`${rowKey}-birth-${swimmer.birthdate ?? ""}`}
-                          type="number"
-                          placeholder="Année"
-                          defaultValue={swimmer.birthdate ? new Date(swimmer.birthdate).getFullYear() : ""}
-                          onBlur={(event) => {
-                            const year = event.target.value.trim();
-                            if (year && /^\d{4}$/.test(year)) {
-                              updateSwimmerEntry(swimmer, { birthdate: `${year}-01-01` });
-                            } else if (!year) {
-                              updateSwimmerEntry(swimmer, { birthdate: null });
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nageur</TableHead>
+                      <TableHead>Source</TableHead>
+                      <TableHead>IUF</TableHead>
+                      <TableHead>Sexe</TableHead>
+                      <TableHead>Année naiss.</TableHead>
+                      <TableHead>Dernière maj</TableHead>
+                      <TableHead>Actif</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {activeSwimmers.map((swimmer) => {
+                      const rowKey = swimmer.id ?? `user-${swimmer.user_id ?? "unknown"}`;
+                      const stale = isStale((swimmer as any).last_imported_at);
+                      return (
+                      <TableRow key={rowKey} className={stale ? "bg-amber-50/50 dark:bg-amber-950/10" : ""}>
+                        <TableCell className="font-medium">{swimmer.display_name}</TableCell>
+                        <TableCell>
+                          <Badge variant={swimmer.source_type === "manual" ? "secondary" : "outline"}>
+                            {formatSource(swimmer.source_type)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            key={`${rowKey}-${swimmer.iuf ?? ""}`}
+                            defaultValue={swimmer.iuf ?? ""}
+                            onBlur={(event) =>
+                              updateSwimmerEntry(swimmer, { iuf: event.target.value.trim() || null })
                             }
-                          }}
-                          className={cn("w-20", swimmer.is_active && !swimmer.birthdate && "ring-2 ring-amber-400/50")}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <span className={stale ? "text-amber-600 dark:text-amber-400 text-xs font-medium" : "text-xs text-muted-foreground"}>
-                          {formatDateOnly((swimmer as any).last_imported_at)}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Switch
-                          checked={Boolean(swimmer.is_active)}
-                          onCheckedChange={(checked) =>
-                            updateSwimmerEntry(swimmer, { is_active: checked })
-                          }
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {swimmer.iuf ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={importSingle.isPending}
-                            onClick={() =>
-                              importSingle.mutate({
-                                iuf: swimmer.iuf!,
-                                name: swimmer.display_name,
-                              })
+                            className={cn("w-24", !swimmer.iuf && "ring-2 ring-destructive/50")}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={swimmer.sex ?? ""}
+                            onValueChange={(value) =>
+                              updateSwimmerEntry(swimmer, { sex: value || null })
                             }
                           >
-                            Importer
-                          </Button>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">Pas d'IUF</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+                            <SelectTrigger className={cn("w-28", !swimmer.sex && "ring-2 ring-destructive/50")}>
+                              <SelectValue placeholder="Sexe" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {SEX_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            key={`${rowKey}-birth-${swimmer.birthdate ?? ""}`}
+                            type="number"
+                            placeholder="Année"
+                            defaultValue={swimmer.birthdate ? new Date(swimmer.birthdate).getFullYear() : ""}
+                            onBlur={(event) => {
+                              const year = event.target.value.trim();
+                              if (year && /^\d{4}$/.test(year)) {
+                                updateSwimmerEntry(swimmer, { birthdate: `${year}-01-01` });
+                              } else if (!year) {
+                                updateSwimmerEntry(swimmer, { birthdate: null });
+                              }
+                            }}
+                            className={cn("w-20", !swimmer.birthdate && "ring-2 ring-amber-400/50")}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <span className={stale ? "text-amber-600 dark:text-amber-400 text-xs font-medium" : "text-xs text-muted-foreground"}>
+                            {formatDateOnly((swimmer as any).last_imported_at)}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <Switch
+                            checked={Boolean(swimmer.is_active)}
+                            onCheckedChange={(checked) =>
+                              updateSwimmerEntry(swimmer, { is_active: checked })
+                            }
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {swimmer.iuf ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={importSingle.isPending}
+                              onClick={() =>
+                                importSingle.mutate({
+                                  iuf: swimmer.iuf!,
+                                  name: swimmer.display_name,
+                                })
+                              }
+                            >
+                              Importer
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Pas d'IUF</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {inactiveSwimmers.length > 0 && (
+                <div className="mt-4 border-t pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowArchive(!showArchive)}
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/50 transition-colors"
+                  >
+                    <ChevronDown className={cn("h-4 w-4 transition-transform", showArchive && "rotate-180")} />
+                    Archive ({inactiveSwimmers.length} nageur{inactiveSwimmers.length > 1 ? "s" : ""} inactif{inactiveSwimmers.length > 1 ? "s" : ""})
+                  </button>
+                  {showArchive && (
+                    <div className="mt-2 overflow-x-auto opacity-75">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Nageur</TableHead>
+                            <TableHead>Source</TableHead>
+                            <TableHead>IUF</TableHead>
+                            <TableHead>Sexe</TableHead>
+                            <TableHead>Année naiss.</TableHead>
+                            <TableHead>Dernière maj</TableHead>
+                            <TableHead>Actif</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {inactiveSwimmers.map((swimmer) => {
+                            const rowKey = swimmer.id ?? `user-${swimmer.user_id ?? "unknown"}`;
+                            return (
+                            <TableRow key={rowKey} className="text-muted-foreground">
+                              <TableCell className="font-medium">{swimmer.display_name}</TableCell>
+                              <TableCell>
+                                <Badge variant={swimmer.source_type === "manual" ? "secondary" : "outline"}>
+                                  {formatSource(swimmer.source_type)}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  key={`${rowKey}-${swimmer.iuf ?? ""}`}
+                                  defaultValue={swimmer.iuf ?? ""}
+                                  onBlur={(event) =>
+                                    updateSwimmerEntry(swimmer, { iuf: event.target.value.trim() || null })
+                                  }
+                                  className="w-24"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Select
+                                  value={swimmer.sex ?? ""}
+                                  onValueChange={(value) =>
+                                    updateSwimmerEntry(swimmer, { sex: value || null })
+                                  }
+                                >
+                                  <SelectTrigger className="w-28">
+                                    <SelectValue placeholder="Sexe" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {SEX_OPTIONS.map((option) => (
+                                      <SelectItem key={option.value} value={option.value}>
+                                        {option.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  key={`${rowKey}-birth-${swimmer.birthdate ?? ""}`}
+                                  type="number"
+                                  placeholder="Année"
+                                  defaultValue={swimmer.birthdate ? new Date(swimmer.birthdate).getFullYear() : ""}
+                                  onBlur={(event) => {
+                                    const year = event.target.value.trim();
+                                    if (year && /^\d{4}$/.test(year)) {
+                                      updateSwimmerEntry(swimmer, { birthdate: `${year}-01-01` });
+                                    } else if (!year) {
+                                      updateSwimmerEntry(swimmer, { birthdate: null });
+                                    }
+                                  }}
+                                  className="w-20"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <span className="text-xs text-muted-foreground">
+                                  {formatDateOnly((swimmer as any).last_imported_at)}
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                <Switch
+                                  checked={false}
+                                  onCheckedChange={(checked) =>
+                                    updateSwimmerEntry(swimmer, { is_active: checked })
+                                  }
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <span className="text-xs text-muted-foreground">Inactif</span>
+                              </TableCell>
+                            </TableRow>
+                          );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
