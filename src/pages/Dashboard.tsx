@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { BottomActionBar, type SaveState } from "@/components/shared/BottomActionBar";
+import { Button } from "@/components/ui/button";
 import {
   ChevronLeft,
   ChevronRight,
@@ -251,15 +252,19 @@ const CalendarCell = memo(function CalendarCell({
   inMonth,
   isToday,
   isSelected,
+  isFocused,
   status,
   onClick,
+  onKeyDown,
 }: {
   date: Date;
   inMonth: boolean;
   isToday: boolean;
   isSelected: boolean;
+  isFocused: boolean;
   status: { completed: number; total: number };
   onClick: () => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
 }) {
   const { completed, total } = status;
   const tone = toneForDay(status);
@@ -301,18 +306,25 @@ const CalendarCell = memo(function CalendarCell({
       : "ring-2 ring-primary/50"
     : "";
 
+  // Keyboard focus ring
+  const focusRing = isFocused ? "ring-2 ring-primary" : "";
+
   return (
     <button
       type="button"
       onClick={onClick}
+      onKeyDown={onKeyDown}
+      tabIndex={isFocused ? 0 : -1}
+      data-calendar-cell="true"
       className={cn(
         "aspect-square min-w-0 rounded-2xl border p-1 transition",
         bg,
         border,
         !inMonth && "opacity-40",
-        "hover:shadow-sm",
+        "hover:shadow-sm focus:outline-none",
         ring,
-        todayRing
+        todayRing,
+        focusRing
       )}
       aria-label={`${toISODate(date)} — ${total === 0 ? "Repos" : `${completed}/${total}`}`}
     >
@@ -730,6 +742,9 @@ export default function Dashboard() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
 
+  // keyboard navigation state
+  const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
+
   // auto-close drawer once day becomes fully completed
   const [autoCloseArmed, setAutoCloseArmed] = useState(false);
 
@@ -979,6 +994,7 @@ export default function Dashboard() {
     setActiveSessionId(null);
     setDetailsOpen(false);
     setAutoCloseArmed(false);
+    setSelectedDayIndex(null);
   }, []);
 
   const prevMonth = useCallback(() => {
@@ -1156,6 +1172,64 @@ export default function Dashboard() {
     return fmtKm(metersToKm(sumMeters));
   }, [sessionsForSelectedDay, getSessionStatus, selectedDate, logsBySessionId]);
 
+  // Keyboard navigation for calendar grid
+  useEffect(() => {
+    if (!drawerOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeDay();
+        return;
+      }
+
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        if (sessionsForSelectedDay.length > 0 && !activeSessionId) {
+          // Open first session when drawer is open but no session selected
+          openSession(sessionsForSelectedDay[0].id);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [drawerOpen, closeDay, sessionsForSelectedDay, activeSessionId, openSession]);
+
+  // Keyboard navigation for calendar
+  const handleCalendarKeyDown = useCallback(
+    (e: React.KeyboardEvent, currentIndex: number) => {
+      const navKeys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter", " "];
+      if (!navKeys.includes(e.key)) return;
+
+      e.preventDefault();
+
+      if (e.key === "Enter" || e.key === " ") {
+        const iso = toISODate(gridDates[currentIndex]);
+        openDay(iso);
+        return;
+      }
+
+      let nextIndex = currentIndex;
+      if (e.key === "ArrowLeft") nextIndex = Math.max(0, currentIndex - 1);
+      if (e.key === "ArrowRight") nextIndex = Math.min(gridDates.length - 1, currentIndex + 1);
+      if (e.key === "ArrowUp") nextIndex = Math.max(0, currentIndex - 7);
+      if (e.key === "ArrowDown") nextIndex = Math.min(gridDates.length - 1, currentIndex + 7);
+
+      setSelectedDayIndex(nextIndex);
+      setSelectedISO(toISODate(gridDates[nextIndex]));
+
+      // Focus the next cell
+      setTimeout(() => {
+        const cells = document.querySelectorAll('[data-calendar-cell="true"]');
+        if (cells[nextIndex]) {
+          (cells[nextIndex] as HTMLElement).focus();
+        }
+      }, 0);
+    },
+    [gridDates, openDay]
+  );
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-muted">
@@ -1313,12 +1387,13 @@ export default function Dashboard() {
                 </div>
               ))}
 
-              {gridDates.map((d) => {
+              {gridDates.map((d, index) => {
                 const iso = toISODate(d);
                 const inMonth = d.getMonth() === monthCursor.getMonth();
                 const isSel = iso === selectedISO;
                 const status = completionByISO[iso] || { completed: 0, total: 2 };
                 const isToday = isSameDay(d, today);
+                const isFocused = selectedDayIndex === index || (selectedDayIndex === null && isToday);
                 return (
                   <CalendarCell
                     key={iso}
@@ -1326,8 +1401,10 @@ export default function Dashboard() {
                     inMonth={inMonth}
                     isToday={isToday}
                     isSelected={isSel}
+                    isFocused={isFocused}
                     status={status}
                     onClick={() => openDay(iso)}
+                    onKeyDown={(e) => handleCalendarKeyDown(e, index)}
                   />
                 );
               })}
@@ -1504,16 +1581,19 @@ export default function Dashboard() {
                           {hasLog && (
                             <span className="inline-flex items-center text-emerald-800">
                               <Check className="h-4 w-4" />
+                              <span className="sr-only">Présent</span>
                             </span>
                           )}
                           {isAbsentLike && !hasLog && (
                             <span className="inline-flex items-center text-sky-800">
                               <UserX className="h-4 w-4" />
+                              <span className="sr-only">Absent</span>
                             </span>
                           )}
                           {needsAction && (
                             <span className="inline-flex items-center text-orange-900">
                               <Circle className="h-4 w-4" />
+                              <span className="sr-only">En attente</span>
                             </span>
                           )}
                         </div>
@@ -1592,14 +1672,17 @@ export default function Dashboard() {
                             {hasLog ? (
                               <span className="inline-flex items-center text-emerald-800">
                                 <Check className="h-4 w-4" />
+                                <span className="sr-only">Présent</span>
                               </span>
                             ) : isAbsentOverride || isNotExpected ? (
                               <span className="inline-flex items-center text-sky-800">
                                 <UserX className="h-4 w-4" />
+                                <span className="sr-only">Absent</span>
                               </span>
                             ) : (
                               <span className="inline-flex items-center text-orange-900">
                                 <Circle className="h-4 w-4" />
+                                <span className="sr-only">En attente</span>
                               </span>
                             )}
                           </div>

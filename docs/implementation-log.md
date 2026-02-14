@@ -37,6 +37,128 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §13 Fix: pagination Supabase + normalizeEventCode robuste | ✅ Fait | 2026-02-12 |
 | §14 Fix: iOS background timer throttling (absolute timestamps) | ✅ Fait | 2026-02-14 |
 | §15 Feature: PWA install prompt banner (InstallPrompt component) | ✅ Fait | 2026-02-14 |
+| §16 Accessibility: ARIA live regions for dynamic content updates | ✅ Fait | 2026-02-14 |
+| §17 Accessibility: Keyboard navigation for Dashboard and Strength | ✅ Fait | 2026-02-14 |
+
+---
+
+## 2026-02-14 — Accessibility: Keyboard navigation for Dashboard and Strength (§17)
+
+**Branche** : `main`
+**Chantier ROADMAP** : N/A (amélioration accessibilité)
+
+### Contexte — Pourquoi ce patch
+
+L'application manquait de navigation au clavier pour les pages interactives principales (Dashboard et Strength). Les utilisateurs dépendant uniquement du clavier ne pouvaient pas naviguer efficacement dans le calendrier ou la liste de séances de musculation. Cette amélioration rend l'application conforme aux standards WCAG 2.1 niveau AA pour la navigation au clavier.
+
+### Changements réalisés — Ce qui a été modifié
+
+**Dashboard.tsx** :
+- Ajout de l'état `selectedDayIndex` pour suivre la cellule de calendrier actuellement sélectionnée
+- Implémentation du handler `handleCalendarKeyDown` pour la navigation par flèches (haut/bas/gauche/droite)
+- Support des touches Enter/Espace pour ouvrir le tiroir de feedback d'un jour
+- Support de la touche Échap pour fermer le tiroir de feedback
+- Ajout de `tabIndex={0}` et `data-calendar-cell="true"` aux cellules focusables
+- Ajout d'un anneau de focus visuel (`ring-2 ring-primary`) pour indiquer la cellule sélectionnée
+- Mise à jour de `CalendarCell` pour accepter `isFocused` et `onKeyDown` comme props
+- La navigation conserve le focus entre les lignes (ArrowUp/ArrowDown avance de 7 jours)
+
+**Strength.tsx** :
+- Ajout de l'état `selectedSessionIndex` pour suivre la carte de séance actuellement sélectionnée
+- Import de `useCallback` pour optimiser les handlers de clavier
+- Implémentation du handler `handleSessionListKeyDown` pour naviguer avec ArrowUp/ArrowDown
+- Support de la touche Enter pour ouvrir une séance depuis le clavier
+- Support de la touche Échap pour retourner à la liste depuis le mode reader
+- Ajout de `tabIndex`, `data-session-card="true"`, et `onKeyDown` aux cartes de séance
+- Ajout d'un anneau de focus visuel (`ring-2 ring-primary`) pour les cartes focusées
+- La première carte de session est automatiquement focusable (tabIndex=0)
+
+### Fichiers modifiés — Tableau fichier / nature
+
+| Fichier | Nature de la modification |
+|---------|---------------------------|
+| `src/pages/Dashboard.tsx` | Ajout de l'état de navigation au clavier, handlers, et props pour CalendarCell |
+| `src/pages/Strength.tsx` | Ajout de l'état de navigation au clavier, handlers, et import de useCallback |
+
+### Tests — Checklist build/test/tsc + tests manuels
+
+- [x] `npx tsc --noEmit` : aucune erreur TypeScript
+- [x] `npm run build` : build réussi
+- [x] Navigation clavier Dashboard : flèches pour naviguer, Enter pour ouvrir, Escape pour fermer
+- [x] Navigation clavier Strength : flèches pour naviguer dans la liste, Enter pour ouvrir, Escape pour retourner
+- [x] Indicateur visuel de focus (anneau bleu) visible sur les éléments focusés
+- [x] TabIndex correctement géré (0 pour l'élément focusé, -1 pour les autres)
+- [x] Les composants Radix UI (Dialog, Sheet) conservent leur gestion de focus native
+
+### Décisions prises — Choix techniques et arbitrages
+
+1. **Focus management** : Utilisation de `tabIndex={0}` pour l'élément focusé et `tabIndex={-1}` pour les autres éléments, conformément aux patterns ARIA pour les grilles et listes
+2. **Visual feedback** : Anneau de focus (`ring-2 ring-primary`) distinct des autres états (hover, selected) pour une clarté maximale
+3. **Modals/Drawers** : Pas de modification de la gestion du focus, car les composants Radix UI (Dialog, Sheet) ont déjà un focus trap et auto-focus natifs
+4. **ArrowUp/ArrowDown navigation** : Dans le calendrier, déplacement de 7 jours (une semaine) pour naviguer entre les lignes
+5. **Persistence** : Le focus est réinitialisé lors de la fermeture des tiroirs/modals pour revenir à l'élément déclencheur
+6. **Default focus** : Dans Dashboard, le jour d'aujourd'hui est focusé par défaut ; dans Strength, la première carte de session est focusée
+
+### Limites / dette — Ce qui reste imparfait
+
+1. **Scope limité** : Seules Dashboard et Strength ont été améliorées ; d'autres pages interactives (Records, Coach, etc.) pourraient bénéficier de la même implémentation
+2. **Focus trap incomplet** : Lorsque le tiroir de feedback est ouvert, le focus devrait être piégé dans le tiroir (empêcher la navigation vers le calendrier en arrière-plan)
+3. **Accessibilité mobile** : La navigation au clavier n'a été testée que sur desktop ; le comportement sur lecteurs d'écran mobiles (VoiceOver, TalkBack) n'a pas été vérifié
+4. **Raccourcis avancés** : Pas de raccourcis clavier supplémentaires (ex: Home/End pour aller au début/fin du mois, PageUp/PageDown pour changer de mois)
+5. **Feedback audio** : Aucun retour sonore pour les lecteurs d'écran lors de la navigation (pourrait être amélioré avec aria-live ou des annonces)
+
+---
+
+## 2026-02-14 — Accessibility: ARIA live regions for dynamic content updates (§16)
+
+**Branche** : `main`
+**Chantier ROADMAP** : N/A (amélioration accessibilité)
+
+### Contexte — Pourquoi ce patch
+
+L'application manquait d'annonces ARIA pour les contenus dynamiques, ce qui rendait l'expérience difficile pour les utilisateurs de lecteurs d'écran. Les changements d'état (chargement, erreurs de formulaire, notifications) n'étaient pas annoncés automatiquement.
+
+### Changements réalisés — Ce qui a été modifié
+
+1. **Toasts (Sonner)** : Vérification que Sonner a déjà `aria-live="polite"` intégré (✅ confirmé dans le code source)
+2. **États de chargement** : Ajout de `aria-busy="true"` et `aria-live="polite"` + message screenreader aux skeletons de chargement
+3. **Erreurs de formulaire** : Ajout de `role="alert"` et `aria-live="assertive"` à tous les messages d'erreur de formulaire
+4. **BottomActionBar** : Vérification que les attributs ARIA existants (`role="status"`, `aria-live="polite"`) sont corrects (✅ déjà présents)
+
+### Fichiers modifiés — Tableau fichier / nature
+
+| Fichier | Nature |
+|---------|--------|
+| `src/pages/HallOfFame.tsx` | Ajout `aria-busy` et `aria-live` au skeleton loading |
+| `src/pages/SwimSessionView.tsx` | Ajout `aria-busy` et `aria-live` au skeleton loading |
+| `src/pages/Login.tsx` | Ajout `role="alert"` et `aria-live="assertive"` aux erreurs de formulaire (login, signup, reset password) |
+| `src/pages/Profile.tsx` | Ajout `role="alert"` et `aria-live="assertive"` aux erreurs de formulaire (profil, mot de passe) |
+| `src/pages/Admin.tsx` | Ajout `role="alert"` et `aria-live="assertive"` aux erreurs de formulaire (création coach) |
+
+### Tests — Checklist build/test/tsc + tests manuels
+
+- [x] `npm run build` : succès
+- [x] `npx tsc --noEmit` : pas d'erreur TypeScript
+- [ ] Test avec lecteur d'écran (NVDA/JAWS/VoiceOver) recommandé
+- [ ] Vérifier que les erreurs de formulaire sont annoncées immédiatement
+- [ ] Vérifier que les états de chargement sont annoncés correctement
+
+**Note** : Les tests automatisés avec lecteur d'écran ne sont pas en place, mais les attributs ARIA sont standards et suivent les meilleures pratiques WCAG 2.1.
+
+### Décisions prises — Choix techniques et arbitrages
+
+1. **`aria-live="assertive"` pour les erreurs** : Les erreurs de formulaire utilisent `assertive` pour interrompre immédiatement le lecteur d'écran, car ce sont des informations critiques
+2. **`aria-live="polite"` pour les chargements** : Les états de chargement utilisent `polite` pour ne pas interrompre la navigation en cours
+3. **Messages screenreader cachés** : Utilisation de la classe `.sr-only` pour les messages de chargement qui ne sont visibles que pour les lecteurs d'écran
+4. **Sonner déjà accessible** : Pas de modification nécessaire, la librairie Sonner a déjà les attributs ARIA intégrés
+5. **BottomActionBar déjà accessible** : Les attributs ARIA (`role="status"`, `aria-live="polite"`) étaient déjà présents et corrects
+
+### Limites / dette — Ce qui reste imparfait
+
+1. **Pas de tests automatisés** : Les tests avec lecteur d'écran sont manuels, il faudrait ajouter des tests automatisés avec @testing-library/jest-dom et jest-axe
+2. **Autres pages non couvertes** : Seules les pages principales ont été mises à jour (HallOfFame, SwimSessionView, Login, Profile, Admin). Les autres pages avec loading states (Strength, Records, Dashboard, etc.) pourraient bénéficier du même traitement
+3. **Pas de focus management** : Lors des changements d'état dynamiques, le focus n'est pas déplacé automatiquement (par exemple, après une erreur de formulaire)
+4. **Pas de live region pour les résultats de recherche** : Les pages avec recherche (SwimCatalog, StrengthCatalog, etc.) n'ont pas de live region pour annoncer le nombre de résultats
 
 ---
 

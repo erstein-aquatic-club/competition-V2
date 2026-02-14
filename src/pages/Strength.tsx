@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, StrengthCycleType, StrengthSessionTemplate, StrengthSessionItem, Exercise, Assignment } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -205,6 +205,7 @@ export default function Strength() {
   const [historyStatus, setHistoryStatus] = useState("all");
   const [historyFrom, setHistoryFrom] = useState("");
   const [historyTo, setHistoryTo] = useState("");
+  const [selectedSessionIndex, setSelectedSessionIndex] = useState<number | null>(null);
   const hasCoachSelection =
     (role === "coach" || role === "admin") &&
     (selectedAthleteId !== null || !!selectedAthleteName);
@@ -670,6 +671,56 @@ export default function Strength() {
     });
   };
 
+  // Keyboard navigation for session list
+  const handleSessionListKeyDown = useCallback(
+    (e: React.KeyboardEvent, currentIndex: number) => {
+      const navKeys = ["ArrowUp", "ArrowDown", "Enter"];
+      if (!navKeys.includes(e.key)) return;
+
+      e.preventDefault();
+
+      if (e.key === "Enter") {
+        const session = filteredDisplaySessions[currentIndex];
+        if (session.type === "assignment") {
+          startAssignment(session.assignment);
+        } else {
+          startCatalogSession(session.session);
+        }
+        return;
+      }
+
+      let nextIndex = currentIndex;
+      if (e.key === "ArrowUp") nextIndex = Math.max(0, currentIndex - 1);
+      if (e.key === "ArrowDown") nextIndex = Math.min(filteredDisplaySessions.length - 1, currentIndex + 1);
+
+      setSelectedSessionIndex(nextIndex);
+
+      // Focus the next session card
+      setTimeout(() => {
+        const cards = document.querySelectorAll('[data-session-card="true"]');
+        if (cards[nextIndex]) {
+          (cards[nextIndex] as HTMLElement).focus();
+        }
+      }, 0);
+    },
+    [filteredDisplaySessions, startAssignment, startCatalogSession]
+  );
+
+  // Escape key handler for reader mode
+  useEffect(() => {
+    if (screenMode !== "reader") return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setScreenMode("list");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [screenMode]);
+
   const deleteStrengthRun = useMutation({
     mutationFn: (runId: number) => api.deleteStrengthRun(runId),
     onMutate: () => {
@@ -1073,11 +1124,19 @@ export default function Strength() {
                         {/* Sessions list - modern cards */}
                         {filteredDisplaySessions.length > 0 ? (
                             <div className="space-y-3">
-                                {filteredDisplaySessions.map((session) => (
+                                {filteredDisplaySessions.map((session, index) => {
+                                    const isFocused = selectedSessionIndex === index || (selectedSessionIndex === null && index === 0);
+                                    return (
                                     <button
                                         key={session.key}
                                         type="button"
-                                        className="group w-full rounded-2xl border bg-card p-4 text-left shadow-sm transition-all active:scale-[0.98] hover:shadow-md hover:border-primary/30"
+                                        tabIndex={isFocused ? 0 : -1}
+                                        data-session-card="true"
+                                        onKeyDown={(e) => handleSessionListKeyDown(e, index)}
+                                        className={cn(
+                                            "group w-full rounded-2xl border bg-card p-4 text-left shadow-sm transition-all active:scale-[0.98] hover:shadow-md hover:border-primary/30 focus:outline-none",
+                                            isFocused && "ring-2 ring-primary"
+                                        )}
                                         onClick={() => {
                                             if (session.type === "assignment") {
                                                 startAssignment(session.assignment);
@@ -1090,8 +1149,8 @@ export default function Strength() {
                                             {/* Icon */}
                                             <div className={cn(
                                                 "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl",
-                                                session.type === "assignment" 
-                                                    ? "bg-primary/10 text-primary" 
+                                                session.type === "assignment"
+                                                    ? "bg-primary/10 text-primary"
                                                     : "bg-muted text-muted-foreground"
                                             )}>
                                                 <Dumbbell className="h-5 w-5" />
@@ -1126,7 +1185,7 @@ export default function Strength() {
                                             </div>
                                         </div>
                                     </button>
-                                ))}
+                                )})}
                             </div>
                         ) : (
                             <div className="py-12 text-center">

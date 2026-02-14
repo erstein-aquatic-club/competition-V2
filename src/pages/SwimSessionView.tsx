@@ -187,7 +187,8 @@ export default function SwimSessionView() {
           </div>
           <Separator />
           {isLoading ? (
-            <div className="space-y-4">
+            <div className="space-y-4" aria-live="polite" aria-busy="true">
+              <div className="sr-only">Chargement de la séance...</div>
               <Skeleton className="h-6 w-48" />
               <div className="space-y-3">
                 {Array.from({ length: 3 }).map((_, i) => (

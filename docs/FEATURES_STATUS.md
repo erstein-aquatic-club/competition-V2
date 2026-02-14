@@ -1,6 +1,6 @@
 # État des fonctionnalités
 
-*Dernière mise à jour : 2026-02-14 (§14 Fix timers iOS background — timestamps absolus)*
+*Dernière mise à jour : 2026-02-14 (§17 Keyboard navigation Dashboard + Strength)*
 
 ## Légende
 
@@ -132,6 +132,17 @@ Tous les feature flags sont activés.
 | Affichage infos | ✅ | `Profile.tsx` | Nom, anniversaire, groupe, objectifs, bio |
 | Édition profil | ✅ | `Profile.tsx` | Avatar, objectifs, groupe, FFN IUF |
 | Changement mot de passe | ✅ | `Profile.tsx` | Via Supabase Auth |
+
+### Accessibilité
+
+| Fonctionnalité | Statut | Fichiers | Notes |
+|----------------|--------|----------|-------|
+| ARIA live regions | ✅ | `WorkoutRunner.tsx`, `BottomActionBar.tsx` | Annonces pour les changements dynamiques (timers, sauvegarde) |
+| PWA install prompt | ✅ | `InstallPrompt.tsx`, `App.tsx` | Banner iOS-optimized avec guide d'installation |
+| Navigation clavier (Dashboard) | ✅ | `Dashboard.tsx` | Flèches (calendrier), Enter/Espace (ouvrir jour), Escape (fermer) |
+| Navigation clavier (Strength) | ✅ | `Strength.tsx` | Flèches (liste séances), Enter (ouvrir), Escape (retour liste) |
+| Focus trap (modals/drawers) | ✅ | Composants Radix UI | Natif dans Dialog/Sheet |
+| Indicateurs de focus visuels | ✅ | `Dashboard.tsx`, `Strength.tsx` | Anneau bleu (`ring-2 ring-primary`) |
 
 ---
 

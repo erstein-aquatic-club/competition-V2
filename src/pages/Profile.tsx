@@ -352,7 +352,7 @@ export default function Profile() {
                     inputMode="numeric"
                   />
                   {profileForm.formState.errors.ffn_iuf && (
-                    <p className="text-xs text-destructive">{profileForm.formState.errors.ffn_iuf.message}</p>
+                    <p className="text-xs text-destructive" role="alert" aria-live="assertive">{profileForm.formState.errors.ffn_iuf.message}</p>
                   )}
                   <div className="text-xs text-muted-foreground">
                     Identifiant unique FFN (utilisé pour importer vos records compétition).
@@ -364,7 +364,7 @@ export default function Profile() {
                 <Label>Objectifs</Label>
                 <Input {...profileForm.register("objectives")} />
                 {profileForm.formState.errors.objectives && (
-                  <p className="text-xs text-destructive">{profileForm.formState.errors.objectives.message}</p>
+                  <p className="text-xs text-destructive" role="alert" aria-live="assertive">{profileForm.formState.errors.objectives.message}</p>
                 )}
               </div>
 
@@ -372,7 +372,7 @@ export default function Profile() {
                 <Label>Bio</Label>
                 <Textarea {...profileForm.register("bio")} />
                 {profileForm.formState.errors.bio && (
-                  <p className="text-xs text-destructive">{profileForm.formState.errors.bio.message}</p>
+                  <p className="text-xs text-destructive" role="alert" aria-live="assertive">{profileForm.formState.errors.bio.message}</p>
                 )}
               </div>
 
@@ -383,7 +383,7 @@ export default function Profile() {
                   placeholder="https://..."
                 />
                 {profileForm.formState.errors.avatar_url && (
-                  <p className="text-xs text-destructive">{profileForm.formState.errors.avatar_url.message}</p>
+                  <p className="text-xs text-destructive" role="alert" aria-live="assertive">{profileForm.formState.errors.avatar_url.message}</p>
                 )}
               </div>
 
@@ -394,7 +394,7 @@ export default function Profile() {
                   {...profileForm.register("birthdate")}
                 />
                 {profileForm.formState.errors.birthdate && (
-                  <p className="text-xs text-destructive">{profileForm.formState.errors.birthdate.message}</p>
+                  <p className="text-xs text-destructive" role="alert" aria-live="assertive">{profileForm.formState.errors.birthdate.message}</p>
                 )}
               </div>
 
@@ -491,7 +491,7 @@ export default function Profile() {
                   placeholder="••••••••"
                 />
                 {passwordForm.formState.errors.password && (
-                  <p className="text-xs text-destructive">{passwordForm.formState.errors.password.message}</p>
+                  <p className="text-xs text-destructive" role="alert" aria-live="assertive">{passwordForm.formState.errors.password.message}</p>
                 )}
               </div>
               <div className="grid gap-2">
@@ -502,7 +502,7 @@ export default function Profile() {
                   placeholder="••••••••"
                 />
                 {passwordForm.formState.errors.confirmPassword && (
-                  <p className="text-xs text-destructive">{passwordForm.formState.errors.confirmPassword.message}</p>
+                  <p className="text-xs text-destructive" role="alert" aria-live="assertive">{passwordForm.formState.errors.confirmPassword.message}</p>
                 )}
               </div>
               <Button type="submit" className="w-full" disabled={updatePassword.isPending}>

@@ -315,7 +315,7 @@ export default function Admin() {
                   placeholder="Ex: Coach Martin"
                 />
                 {errors.display_name && (
-                  <p className="text-sm text-destructive">{errors.display_name.message}</p>
+                  <p className="text-sm text-destructive" role="alert" aria-live="assertive">{errors.display_name.message}</p>
                 )}
               </div>
               <div className="space-y-2">
@@ -327,7 +327,7 @@ export default function Admin() {
                   placeholder="coach@email.com"
                 />
                 {errors.email && (
-                  <p className="text-sm text-destructive">{errors.email.message}</p>
+                  <p className="text-sm text-destructive" role="alert" aria-live="assertive">{errors.email.message}</p>
                 )}
               </div>
               <div className="space-y-2">
@@ -339,7 +339,7 @@ export default function Admin() {
                   placeholder="Laisser vide pour auto"
                 />
                 {errors.password && (
-                  <p className="text-sm text-destructive">{errors.password.message}</p>
+                  <p className="text-sm text-destructive" role="alert" aria-live="assertive">{errors.password.message}</p>
                 )}
               </div>
             </div>

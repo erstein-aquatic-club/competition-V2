@@ -217,7 +217,7 @@ export default function Login() {
                 autoFocus
               />
               {loginForm.formState.errors.email && (
-                <p className="text-xs text-destructive text-center">{loginForm.formState.errors.email.message}</p>
+                <p className="text-xs text-destructive text-center" role="alert" aria-live="assertive">{loginForm.formState.errors.email.message}</p>
               )}
               <p className="text-xs text-muted-foreground text-center">Saisissez votre email et votre mot de passe.</p>
 
@@ -231,10 +231,10 @@ export default function Login() {
                 className="text-center text-lg h-12 border-2 focus-visible:ring-primary"
               />
               {loginForm.formState.errors.password && (
-                <p className="text-xs text-destructive text-center">{loginForm.formState.errors.password.message}</p>
+                <p className="text-xs text-destructive text-center" role="alert" aria-live="assertive">{loginForm.formState.errors.password.message}</p>
               )}
               {error && (
-                <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive text-center">
+                <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive text-center" role="alert" aria-live="assertive">
                   {error}
                 </div>
               )}
@@ -322,7 +322,7 @@ export default function Login() {
                     ref={registerNameInputRef}
                   />
                   {signupForm.formState.errors.name && (
-                    <p className="text-xs text-destructive">{signupForm.formState.errors.name.message}</p>
+                    <p className="text-xs text-destructive" role="alert" aria-live="assertive">{signupForm.formState.errors.name.message}</p>
                   )}
                 </div>
 
@@ -335,7 +335,7 @@ export default function Login() {
                     placeholder="prenom.nom@email.com"
                   />
                   {signupForm.formState.errors.email && (
-                    <p className="text-xs text-destructive">{signupForm.formState.errors.email.message}</p>
+                    <p className="text-xs text-destructive" role="alert" aria-live="assertive">{signupForm.formState.errors.email.message}</p>
                   )}
                 </div>
 
@@ -347,7 +347,7 @@ export default function Login() {
                     {...signupForm.register("birthdate")}
                   />
                   {signupForm.formState.errors.birthdate && (
-                    <p className="text-xs text-destructive">{signupForm.formState.errors.birthdate.message}</p>
+                    <p className="text-xs text-destructive" role="alert" aria-live="assertive">{signupForm.formState.errors.birthdate.message}</p>
                   )}
                 </div>
 
@@ -366,7 +366,7 @@ export default function Login() {
                     </SelectContent>
                   </Select>
                   {signupForm.formState.errors.sex && (
-                    <p className="text-xs text-destructive">{signupForm.formState.errors.sex.message}</p>
+                    <p className="text-xs text-destructive" role="alert" aria-live="assertive">{signupForm.formState.errors.sex.message}</p>
                   )}
                 </div>
 
@@ -389,7 +389,7 @@ export default function Login() {
                     </SelectContent>
                   </Select>
                   {signupForm.formState.errors.groupId && (
-                    <p className="text-xs text-destructive">{signupForm.formState.errors.groupId.message}</p>
+                    <p className="text-xs text-destructive" role="alert" aria-live="assertive">{signupForm.formState.errors.groupId.message}</p>
                   )}
                 </div>
 
@@ -402,13 +402,13 @@ export default function Login() {
                     placeholder="Choisissez un mot de passe"
                   />
                   {signupForm.formState.errors.password && (
-                    <p className="text-xs text-destructive">{signupForm.formState.errors.password.message}</p>
+                    <p className="text-xs text-destructive" role="alert" aria-live="assertive">{signupForm.formState.errors.password.message}</p>
                   )}
                   <PasswordStrength password={signupForm.watch("password")} />
                 </div>
 
                 {signupForm.formState.errors.root && (
-                  <p className="text-sm text-destructive">{signupForm.formState.errors.root.message}</p>
+                  <p className="text-sm text-destructive" role="alert" aria-live="assertive">{signupForm.formState.errors.root.message}</p>
                 )}
 
                 <Button type="submit" className="w-full" disabled={signupForm.formState.isSubmitting}>
@@ -471,12 +471,12 @@ export default function Login() {
                     autoFocus
                   />
                   {resetPasswordForm.formState.errors.email && (
-                    <p className="text-xs text-destructive">{resetPasswordForm.formState.errors.email.message}</p>
+                    <p className="text-xs text-destructive" role="alert" aria-live="assertive">{resetPasswordForm.formState.errors.email.message}</p>
                   )}
                 </div>
 
                 {resetPasswordForm.formState.errors.root && (
-                  <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive text-center">
+                  <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive text-center" role="alert" aria-live="assertive">
                     {resetPasswordForm.formState.errors.root.message}
                   </div>
                 )}
