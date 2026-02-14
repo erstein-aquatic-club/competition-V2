@@ -1,0 +1,270 @@
+import React from "react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { getEquipmentIconUrl } from "@/components/swim/EquipmentPill";
+import { intensityTone } from "@/components/swim/IntensityDots";
+import { IntensityDotsSelector } from "@/components/swim/IntensityDotsSelector";
+
+interface SwimExercise {
+  repetitions: number | null;
+  distance: number | null;
+  rest: number | null;
+  stroke: string;
+  strokeType: string;
+  intensity: string;
+  modalities: string;
+  equipment: string[];
+}
+
+interface SwimExerciseFormProps {
+  exercise: SwimExercise;
+  onChange: (field: keyof SwimExercise, value: string | number | null | string[]) => void;
+  onDelete?: () => void;
+  showDelete?: boolean;
+}
+
+const equipmentOptions = [
+  { value: "palmes", label: "Palmes" },
+  { value: "tuba", label: "Tuba" },
+  { value: "plaquettes", label: "Plaquettes" },
+  { value: "pull", label: "Pull" },
+  { value: "elastique", label: "Élastique" },
+];
+
+const strokeOptions = [
+  { value: "pap", label: "Papillon" },
+  { value: "dos", label: "Dos" },
+  { value: "brasse", label: "Brasse" },
+  { value: "crawl", label: "Crawl" },
+  { value: "4n", label: "4 nages" },
+  { value: "spe", label: "Spé" },
+];
+
+const strokeTypeOptions = [
+  { value: "nc", label: "NC" },
+  { value: "educ", label: "Educ" },
+  { value: "jambes", label: "Jambes" },
+];
+
+const legacyIntensityMap: Record<string, string> = {
+  souple: "V0",
+  facile: "V0",
+  relache: "V0",
+  "relâché": "V0",
+};
+
+const intensityScale = ["V0", "V1", "V2", "V3", "Max"] as const;
+
+const normalizeIntensityValue = (value?: string | null) => {
+  if (!value) return "V0";
+  const trimmed = value.trim();
+  if (!trimmed) return "V0";
+  const lower = trimmed.toLowerCase();
+  if (legacyIntensityMap[lower]) {
+    return legacyIntensityMap[lower];
+  }
+  const upper = trimmed.toUpperCase();
+  if (upper === "MAX") return "Max";
+  if (upper.startsWith("V")) {
+    const levelValue = Number.parseInt(upper.slice(1), 10);
+    if (Number.isFinite(levelValue) && levelValue >= 4) {
+      return "Max";
+    }
+    if (intensityScale.includes(upper as (typeof intensityScale)[number])) {
+      return upper;
+    }
+  }
+  return trimmed;
+};
+
+const formatIntensityLabel = (value: string) => (value === "Max" ? "MAX" : value);
+
+const intensityTextTone: Record<string, string> = {
+  V0: "text-intensity-1",
+  V1: "text-intensity-2",
+  V2: "text-intensity-3",
+  V3: "text-intensity-4",
+  Max: "text-intensity-5",
+};
+
+const intensityRingTone: Record<string, string> = {
+  V0: "ring-intensity-1/30",
+  V1: "ring-intensity-2/30",
+  V2: "ring-intensity-3/30",
+  V3: "ring-intensity-4/30",
+  Max: "ring-intensity-5/30",
+};
+
+export function SwimExerciseForm({ exercise, onChange, onDelete, showDelete = true }: SwimExerciseFormProps) {
+  const normalizedIntensity = normalizeIntensityValue(exercise.intensity);
+  const modalitesText = exercise.modalities ?? "";
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="grid flex-1 grid-cols-2 gap-3">
+          <div>
+            <div className="text-[11px] font-semibold text-muted-foreground">Répétitions</div>
+            <div className="mt-1">
+              <Input
+                type="number"
+                min={1}
+                value={exercise.repetitions ?? ""}
+                onChange={(e) =>
+                  onChange("repetitions", e.target.value === "" ? null : Number(e.target.value))
+                }
+                className="rounded-2xl"
+              />
+            </div>
+          </div>
+
+          <div>
+            <div className="text-[11px] font-semibold text-muted-foreground">Distance (m)</div>
+            <div className="mt-1">
+              <Input
+                type="number"
+                min={0}
+                value={exercise.distance ?? ""}
+                onChange={(e) => onChange("distance", e.target.value === "" ? null : Number(e.target.value))}
+                className="rounded-2xl"
+              />
+            </div>
+          </div>
+
+          <div>
+            <div className="text-[11px] font-semibold text-muted-foreground">Nage</div>
+            <div className="mt-1">
+              <Select value={exercise.stroke} onValueChange={(value) => onChange("stroke", value)}>
+                <SelectTrigger className="rounded-2xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {strokeOptions.map((stroke) => (
+                    <SelectItem key={stroke.value} value={stroke.value}>
+                      {stroke.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div>
+            <div className="text-[11px] font-semibold text-muted-foreground">Type</div>
+            <div className="mt-1">
+              <Select value={exercise.strokeType} onValueChange={(value) => onChange("strokeType", value)}>
+                <SelectTrigger className="rounded-2xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {strokeTypeOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="col-span-2">
+            <div className="flex items-center justify-between">
+              <div className="text-[11px] font-semibold text-muted-foreground">
+                Intensité (clic sur points)
+              </div>
+              <span
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-full bg-card px-2.5 py-1 text-xs font-semibold ring-1",
+                  intensityRingTone[normalizedIntensity],
+                  intensityTextTone[normalizedIntensity]
+                )}
+              >
+                <span
+                  className={cn(
+                    "h-2 w-2 rounded-full",
+                    intensityTone[normalizedIntensity] ?? "bg-muted"
+                  )}
+                />
+                {formatIntensityLabel(normalizedIntensity)}
+              </span>
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <IntensityDotsSelector
+                value={exercise.intensity}
+                onChange={(value) => onChange("intensity", value)}
+              />
+            </div>
+          </div>
+
+          <div className="col-span-2">
+            <div className="text-[11px] font-semibold text-muted-foreground">Équipements</div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {equipmentOptions.map((equipment) => {
+                const active = exercise.equipment.includes(equipment.value);
+                const iconUrl = getEquipmentIconUrl(equipment.value);
+                return (
+                  <button
+                    key={equipment.value}
+                    type="button"
+                    onClick={() => {
+                      const next = active
+                        ? exercise.equipment.filter((item) => item !== equipment.value)
+                        : [...exercise.equipment, equipment.value];
+                      onChange("equipment", next);
+                    }}
+                    className={cn(
+                      "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold",
+                      active
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-card text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "inline-flex h-7 w-7 items-center justify-center rounded-full",
+                        active ? "bg-white/10" : "bg-muted"
+                      )}
+                    >
+                      {iconUrl ? (
+                        <img src={iconUrl} alt="" className="h-4 w-4" aria-hidden="true" loading="lazy" />
+                      ) : null}
+                    </span>
+                    {equipment.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="col-span-2">
+            <div className="text-[11px] font-semibold text-muted-foreground">Modalités</div>
+            <div className="mt-1">
+              <Textarea
+                value={modalitesText}
+                onChange={(e) => onChange("modalities", e.target.value)}
+                placeholder="Une modalité par ligne"
+                rows={3}
+                className="rounded-2xl"
+              />
+            </div>
+          </div>
+        </div>
+
+        {showDelete && onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-destructive hover:bg-destructive/10"
+            aria-label="Supprimer exercice"
+            title="Supprimer exercice"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}

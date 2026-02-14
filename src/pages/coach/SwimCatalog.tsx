@@ -2,12 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type Assignment, SwimSessionItem, SwimSessionTemplate } from "@/lib/api";
 import type { SwimSessionInput, SwimPayloadFields } from "@/lib/types";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,36 +14,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { getEquipmentIconUrl } from "@/components/swim/EquipmentPill";
-import { intensityTone } from "@/components/swim/IntensityDots";
-import { IntensityDotsSelector } from "@/components/swim/IntensityDotsSelector";
+import { Button } from "@/components/ui/button";
 import { SwimSessionConsultation } from "@/components/swim/SwimSessionConsultation";
-import {
-  AlertCircle,
-  ArrowDown,
-  ArrowUp,
-  Archive,
-  ChevronLeft,
-  GripVertical,
-  Layers,
-  Pencil,
-  Play,
-  Plus,
-  Repeat,
-  Route,
-  Save,
-  Search,
-  Timer,
-  Trash2,
-} from "lucide-react";
+import { SessionListView } from "@/components/coach/shared/SessionListView";
+import { SwimSessionBuilder } from "@/components/coach/swim/SwimSessionBuilder";
+import { AlertCircle, Plus, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useBeforeUnload } from "@/hooks/use-before-unload";
 import { useAuth } from "@/lib/auth";
 import { formatSwimSessionDefaultTitle } from "@/lib/date";
-import { calculateSwimTotalDistance } from "@/lib/swimSessionUtils";
-import { cn } from "@/lib/utils";
 
 interface SwimExercise {
   repetitions: number | null;
@@ -76,6 +51,17 @@ interface SwimSessionDraft {
   estimatedDuration: number;
   blocks: SwimBlock[];
 }
+
+const normalizeEquipmentValue = (value: string) => {
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return trimmed;
+  if (trimmed.startsWith("plaquette")) return "plaquettes";
+  if (trimmed.startsWith("palm")) return "palmes";
+  if (trimmed.startsWith("tuba")) return "tuba";
+  if (trimmed.startsWith("pull")) return "pull";
+  if (trimmed.startsWith("elas")) return "elastique";
+  return trimmed;
+};
 
 const legacyIntensityMap: Record<string, string> = {
   souple: "V0",
@@ -107,8 +93,6 @@ const normalizeIntensityValue = (value?: string | null) => {
   }
   return trimmed;
 };
-
-const formatIntensityLabel = (value: string) => (value === "Max" ? "MAX" : value);
 
 const buildItemsFromBlocks = (blocks: SwimBlock[]): SwimSessionItem[] => {
   let orderIndex = 0;
@@ -204,44 +188,6 @@ const buildBlocksFromItems = (items: SwimSessionItem[] = []): SwimBlock[] => {
     }));
 };
 
-const trimPreview = (value: string) => {
-  if (!value) {
-    return "";
-  }
-  return value.length > 48 ? `${value.slice(0, 45).trim()}…` : value;
-};
-
-const normalizeEquipmentValue = (value: string) => {
-  const trimmed = value.trim().toLowerCase();
-  if (!trimmed) return trimmed;
-  if (trimmed.startsWith("plaquette")) return "plaquettes";
-  if (trimmed.startsWith("palm")) return "palmes";
-  if (trimmed.startsWith("tuba")) return "tuba";
-  if (trimmed.startsWith("pull")) return "pull";
-  if (trimmed.startsWith("elas")) return "elastique";
-  return trimmed;
-};
-
-const countBlocks = (items: SwimSessionItem[] = []) => {
-  const keys = new Set(
-    items.map((item) => {
-      const raw = item.raw_payload as Record<string, unknown> | null;
-      return raw?.block_title || raw?.section || "Bloc";
-    }),
-  );
-  return keys.size;
-};
-
-const getSessionMetrics = (session: SwimSessionTemplate) => {
-  const totalDistance = calculateSwimTotalDistance(session.items ?? []);
-  const hasDuration = session.items?.some((item) => item.duration != null) ?? false;
-  const totalDuration = hasDuration
-    ? session.items?.reduce((sum, item) => sum + (item.duration ?? 0), 0) ?? 0
-    : null;
-  const blockCount = countBlocks(session.items ?? []);
-  return { totalDistance, totalDuration, blockCount };
-};
-
 const ARCHIVED_SWIM_SESSIONS_KEY = "swim_catalog_archived_ids";
 
 export const canDeleteSwimCatalog = (sessionId: number, assignments: Assignment[] | null) => {
@@ -261,7 +207,6 @@ export default function SwimCatalog() {
   const [pendingDeleteSession, setPendingDeleteSession] = useState<SwimSessionTemplate | null>(null);
   const [pendingArchiveSession, setPendingArchiveSession] = useState<SwimSessionTemplate | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [coachView, setCoachView] = useState<"compact" | "detailed">("compact");
   const [archivedSessionIds, setArchivedSessionIds] = useState<Set<number>>(new Set());
 
   const createEmptySession = (): SwimSessionDraft => ({
@@ -274,7 +219,11 @@ export default function SwimCatalog() {
 
   const [newSession, setNewSession] = useState<SwimSessionDraft>(createEmptySession);
 
-  const { data: sessions, isLoading: sessionsLoading, error: sessionsError, refetch: refetchSessions } = useQuery({ queryKey: ["swim_catalog"], queryFn: () => api.getSwimCatalog() });
+  const { data: sessions, isLoading: sessionsLoading, error: sessionsError, refetch: refetchSessions } = useQuery({
+    queryKey: ["swim_catalog"],
+    queryFn: () => api.getSwimCatalog()
+  });
+
   const { data: assignments, isLoading: assignmentsLoading, isError: assignmentsError, error: assignmentsErrorObj, refetch: refetchAssignments } = useQuery({
     queryKey: ["coach-assignments"],
     queryFn: () => api.getAssignmentsForCoach(),
@@ -310,6 +259,7 @@ export default function SwimCatalog() {
     if (!q) return sessions ?? [];
     return (sessions ?? []).filter((session) => session.name.toLowerCase().includes(q));
   }, [sessions, searchQuery]);
+
   const visibleSessions = filteredSessions.filter((session) => !archivedSessionIds.has(session.id));
 
   const createSession = useMutation({
@@ -340,743 +290,71 @@ export default function SwimCatalog() {
     },
   });
 
-  const addBlock = () => {
-    setNewSession((prev) => ({
-      ...prev,
-      blocks: [
-        ...prev.blocks,
-        {
-          title: "Nouveau bloc",
-          repetitions: 1,
-          description: "",
-          modalities: "",
-          equipment: [],
-          exercises: [
-            {
-              repetitions: 4,
-              distance: 50,
-              rest: null,
-              stroke: "crawl",
-              strokeType: "nc",
-              intensity: "V2",
-              modalities: "",
-              equipment: [],
-            },
-          ],
-        },
-      ],
-    }));
-  };
-
-  const updateBlock = (index: number, field: keyof SwimBlock, value: string | number | null | string[]) => {
-    const blocks = [...newSession.blocks];
-    blocks[index] = { ...blocks[index], [field]: value };
-    setNewSession({ ...newSession, blocks });
-  };
-
-  const removeBlock = (index: number) => {
-    const blocks = newSession.blocks.filter((_, i) => i !== index);
-    setNewSession({ ...newSession, blocks });
-  };
-
-  const moveBlock = (fromIndex: number, direction: "up" | "down") => {
-    const toIndex = direction === "up" ? fromIndex - 1 : fromIndex + 1;
-    if (toIndex < 0 || toIndex >= newSession.blocks.length) return;
-    const blocks = [...newSession.blocks];
-    const [moved] = blocks.splice(fromIndex, 1);
-    blocks.splice(toIndex, 0, moved);
-    setNewSession({ ...newSession, blocks });
-  };
-
-  const addExercise = (blockIndex: number) => {
-    const blocks = [...newSession.blocks];
-    blocks[blockIndex].exercises.push({
-      repetitions: 4,
-      distance: 50,
-      rest: null,
-      stroke: "crawl",
-      strokeType: "nc",
-      intensity: "V2",
-      modalities: "",
-      equipment: [],
+  const handleSave = () => {
+    if (!newSession.name.trim()) {
+      toast({
+        title: "Titre requis",
+        description: "Ajoutez un nom de séance avant d'enregistrer.",
+        variant: "destructive",
+      });
+      return;
+    }
+    createSession.mutate({
+      id: newSession.id ?? undefined,
+      name: newSession.name,
+      description: newSession.description,
+      estimated_duration: newSession.estimatedDuration || null,
+      items: buildItemsFromBlocks(newSession.blocks),
+      created_by: userId ?? null,
     });
-    setNewSession({ ...newSession, blocks });
   };
 
-  const updateExercise = (
-    blockIndex: number,
-    exerciseIndex: number,
-    field: keyof SwimExercise,
-    value: string | number | null | string[],
-  ) => {
-    const blocks = [...newSession.blocks];
-    const exercises = [...blocks[blockIndex].exercises];
-    exercises[exerciseIndex] = { ...exercises[exerciseIndex], [field]: value } as SwimExercise;
-    blocks[blockIndex] = { ...blocks[blockIndex], exercises };
-    setNewSession({ ...newSession, blocks });
+  const handleCancel = () => {
+    setIsCreating(false);
+    setNewSession(createEmptySession());
   };
 
-  const removeExercise = (blockIndex: number, exerciseIndex: number) => {
-    const blocks = [...newSession.blocks];
-    blocks[blockIndex].exercises = blocks[blockIndex].exercises.filter((_, idx) => idx !== exerciseIndex);
-    setNewSession({ ...newSession, blocks });
+  const handleEdit = (session: SwimSessionTemplate) => {
+    setNewSession({
+      id: session.id ?? null,
+      name: session.name ?? formatSwimSessionDefaultTitle(new Date()),
+      description: session.description ?? "",
+      estimatedDuration: Number((session as { estimated_duration?: number }).estimated_duration ?? 0),
+      blocks: buildBlocksFromItems(session.items ?? []),
+    });
+    setIsCreating(true);
   };
 
-  const equipmentOptions = [
-    { value: "palmes", label: "Palmes" },
-    { value: "tuba", label: "Tuba" },
-    { value: "plaquettes", label: "Plaquettes" },
-    { value: "pull", label: "Pull" },
-    { value: "elastique", label: "Élastique" },
-  ];
-  const strokeOptions = [
-    { value: "pap", label: "Papillon" },
-    { value: "dos", label: "Dos" },
-    { value: "brasse", label: "Brasse" },
-    { value: "crawl", label: "Crawl" },
-    { value: "4n", label: "4 nages" },
-    { value: "spe", label: "Spé" },
-  ];
-  const strokeTypeOptions = [
-    { value: "nc", label: "NC" },
-    { value: "educ", label: "Educ" },
-    { value: "jambes", label: "Jambes" },
-  ];
-  const strokeLabels = strokeOptions.reduce<Record<string, string>>((acc, option) => {
-    acc[option.value] = option.label;
-    return acc;
-  }, {});
-  const strokeTypeLabels = strokeTypeOptions.reduce<Record<string, string>>((acc, option) => {
-    acc[option.value] = option.label;
-    return acc;
-  }, {});
-  const isEditing = Boolean(newSession.id);
-  const totalDistance = useMemo(
-    () => calculateSwimTotalDistance(buildItemsFromBlocks(newSession.blocks)),
-    [newSession.blocks],
-  );
-
-  const swimTypeTone: Record<string, string> = {
-    nc: "bg-sky-100 text-sky-900 ring-sky-200",
-    educ: "bg-violet-100 text-violet-900 ring-violet-200",
-    jambes: "bg-teal-100 text-teal-900 ring-teal-200",
+  const handleArchive = (session: SwimSessionTemplate) => {
+    setPendingArchiveSession(session);
   };
 
-  const intensityTextTone: Record<string, string> = {
-    V0: "text-intensity-1",
-    V1: "text-intensity-2",
-    V2: "text-intensity-3",
-    V3: "text-intensity-4",
-    Max: "text-intensity-5",
+  const handleArchiveConfirm = () => {
+    if (!pendingArchiveSession) return;
+    setArchivedSessionIds((prev) => new Set([...Array.from(prev), pendingArchiveSession.id]));
+    setPendingArchiveSession(null);
+    toast({ title: "Séance archivée" });
   };
 
-  const intensityRingTone: Record<string, string> = {
-    V0: "ring-intensity-1/30",
-    V1: "ring-intensity-2/30",
-    V2: "ring-intensity-3/30",
-    V3: "ring-intensity-4/30",
-    Max: "ring-intensity-5/30",
+  const handleDelete = (session: SwimSessionTemplate) => {
+    setPendingDeleteSession(session);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (!pendingDeleteSession) return;
+    deleteSession.mutate(pendingDeleteSession.id);
   };
 
   if (isCreating) {
     return (
-      <div className="animate-in slide-in-from-bottom-4 motion-reduce:animate-none">
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setIsCreating(false);
-                setNewSession(createEmptySession());
-              }}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"
-              aria-label="Retour"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <div className="text-base font-semibold">Édition</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() =>
-                setSelectedSession({
-                  id: newSession.id ?? Date.now(),
-                  name: newSession.name,
-                  description: newSession.description,
-                  created_by: userId ?? null,
-                  items: buildItemsFromBlocks(newSession.blocks),
-                })
-              }
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"
-              aria-label="Aperçu nageur"
-              title="Aperçu nageur"
-            >
-              <Play className="h-4 w-4" />
-            </button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => {
-                if (!newSession.name.trim()) {
-                  toast({
-                    title: "Titre requis",
-                    description: "Ajoutez un nom de séance avant d'enregistrer.",
-                    variant: "destructive",
-                  });
-                  return;
-                }
-                createSession.mutate({
-                  id: newSession.id ?? undefined,
-                  name: newSession.name,
-                  description: newSession.description,
-                  estimated_duration: newSession.estimatedDuration || null,
-                  items: buildItemsFromBlocks(newSession.blocks),
-                  created_by: userId,
-                });
-              }}
-              className="h-10 rounded-full"
-            >
-              <Save className="h-4 w-4" /> Sauver
-            </Button>
-          </div>
-        </div>
-
-        <div className="space-y-4 p-4">
-          <Card className="rounded-2xl border-border">
-            <div className="space-y-3 p-4">
-              <div className="text-sm font-semibold">Infos séance</div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
-                  <div className="text-xs font-semibold text-muted-foreground">Nom</div>
-                  <div className="mt-1">
-                    <Input
-                      value={newSession.name}
-                      onChange={(e) => setNewSession({ ...newSession, name: e.target.value })}
-                      placeholder="Nom de la séance"
-                      className="rounded-2xl"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-muted-foreground">Durée estimée (min)</div>
-                  <div className="mt-1">
-                    <Input
-                      type="number"
-                      min={0}
-                      value={newSession.estimatedDuration || ""}
-                      onChange={(e) =>
-                        setNewSession({
-                          ...newSession,
-                          estimatedDuration: e.target.value === "" ? 0 : Number(e.target.value),
-                        })
-                      }
-                      placeholder="55"
-                      className="rounded-2xl"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-muted-foreground">Distance totale</div>
-                  <div className="mt-1 rounded-2xl border border-border bg-muted px-3 py-2 text-sm font-semibold">
-                    {totalDistance}m
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold">Vue coach</div>
-            <div className="inline-flex rounded-full border border-border bg-card p-1 text-xs font-semibold">
-              <button
-                type="button"
-                onClick={() => setCoachView("compact")}
-                className={cn(
-                  "rounded-full px-3 py-1",
-                  coachView === "compact" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-                )}
-              >
-                Condensé
-              </button>
-              <button
-                type="button"
-                onClick={() => setCoachView("detailed")}
-                className={cn(
-                  "rounded-full px-3 py-1",
-                  coachView === "detailed" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-                )}
-              >
-                Détail
-              </button>
-            </div>
-          </div>
-
-          {coachView === "compact" ? (
-            <Card className="rounded-2xl border-border">
-              <div className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-semibold">Plan (ultra compact)</div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Manipule les blocs vite. Passe en “Détail” pour éditer.
-                    </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={addBlock}
-                    className="h-10 rounded-full px-3 text-xs"
-                  >
-                    <Plus className="h-4 w-4" /> Bloc
-                  </Button>
-                </div>
-
-                <div className="mt-3 space-y-2">
-                  {newSession.blocks.map((block, blockIndex) => (
-                    <div key={blockIndex} className="rounded-2xl border border-border bg-card px-3 py-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold text-primary-foreground">
-                              <Repeat className="inline h-3 w-3" /> {block.repetitions ?? 1}x
-                            </span>
-                            <div className="truncate text-xs font-semibold">
-                              {block.title ? block.title : `Bloc ${blockIndex + 1}`}
-                            </div>
-                            <div className="text-[11px] text-muted-foreground">· {block.exercises.length} ex</div>
-                          </div>
-
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {block.exercises.slice(0, 4).map((exercise, exerciseIndex) => {
-                              const normalizedIntensity = normalizeIntensityValue(exercise.intensity);
-                              const strokeTypeLabel =
-                                strokeTypeLabels[exercise.strokeType] ?? exercise.strokeType;
-                              return (
-                                <span
-                                  key={`${blockIndex}-${exerciseIndex}`}
-                                  className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground"
-                                  title={exercise.modalities ? trimPreview(exercise.modalities) : ""}
-                                >
-                                  {exercise.repetitions && exercise.distance ? `${exercise.repetitions}x` : ""}
-                                  {exercise.distance ? `${exercise.distance}m` : "—"}
-                                  <span
-                                    className={cn(
-                                      "ml-1 inline-flex items-center rounded-full px-2 py-0.5 ring-1",
-                                      swimTypeTone[exercise.strokeType] ?? "bg-muted text-muted-foreground ring-border",
-                                    )}
-                                  >
-                                    {strokeTypeLabel}
-                                  </span>
-                                  <span
-                                    className={cn(
-                                      "ml-1 inline-flex items-center gap-1 rounded-full bg-card px-2 py-0.5 ring-1",
-                                      intensityRingTone[normalizedIntensity],
-                                      intensityTextTone[normalizedIntensity],
-                                    )}
-                                  >
-                                    <span
-                                      className={cn(
-                                        "h-2 w-2 rounded-full",
-                                        intensityTone[normalizedIntensity] ?? "bg-muted",
-                                      )}
-                                    />
-                                    {formatIntensityLabel(normalizedIntensity)}
-                                  </span>
-                                </span>
-                              );
-                            })}
-                            {block.exercises.length > 4 ? (
-                              <span className="text-[11px] text-muted-foreground">
-                                +{block.exercises.length - 4}
-                              </span>
-                            ) : null}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => moveBlock(blockIndex, "up")}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
-                            aria-label="Monter"
-                            title="Monter"
-                            disabled={blockIndex === 0}
-                          >
-                            <ArrowUp className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => moveBlock(blockIndex, "down")}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
-                            aria-label="Descendre"
-                            title="Descendre"
-                            disabled={blockIndex === newSession.blocks.length - 1}
-                          >
-                            <ArrowDown className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => removeBlock(blockIndex)}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-destructive hover:bg-destructive/10"
-                            aria-label="Supprimer bloc"
-                            title="Supprimer bloc"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  {!newSession.blocks.length ? (
-                    <div className="rounded-2xl border border-dashed border-border bg-muted px-3 py-6 text-center text-sm text-muted-foreground">
-                      Aucun bloc. Ajoute un bloc pour commencer.
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </Card>
-          ) : (
-            <>
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold">Édition détaillée</div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={addBlock}
-                  className="h-10 rounded-full px-3 text-xs"
-                >
-                  <Plus className="h-4 w-4" /> Ajouter bloc
-                </Button>
-              </div>
-
-              <div className="space-y-4">
-                {newSession.blocks.map((block, blockIndex) => (
-                  <Card key={blockIndex} className="rounded-2xl border-border">
-                    <div className="p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-3">
-                          <span className="mt-1 inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
-                            <GripVertical className="h-4 w-4" />
-                          </span>
-                          <div className="space-y-2">
-                            <div className="text-xs font-semibold text-muted-foreground">Titre bloc</div>
-                            <Input
-                              value={block.title}
-                              onChange={(e) => updateBlock(blockIndex, "title", e.target.value)}
-                              placeholder={`Bloc ${blockIndex + 1}`}
-                              className="rounded-2xl"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => moveBlock(blockIndex, "up")}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
-                            aria-label="Monter"
-                            title="Monter"
-                            disabled={blockIndex === 0}
-                          >
-                            <ArrowUp className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => moveBlock(blockIndex, "down")}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
-                            aria-label="Descendre"
-                            title="Descendre"
-                            disabled={blockIndex === newSession.blocks.length - 1}
-                          >
-                            <ArrowDown className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => removeBlock(blockIndex)}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-destructive hover:bg-destructive/10"
-                            aria-label="Supprimer bloc"
-                            title="Supprimer bloc"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 grid grid-cols-2 gap-3">
-                        <div>
-                          <div className="text-xs font-semibold text-muted-foreground">Répétitions du bloc</div>
-                          <div className="mt-1">
-                            <Input
-                              type="number"
-                              min={1}
-                              value={block.repetitions ?? ""}
-                              onChange={(e) =>
-                                updateBlock(
-                                  blockIndex,
-                                  "repetitions",
-                                  e.target.value === "" ? null : Number(e.target.value),
-                                )
-                              }
-                              placeholder="1"
-                              className="rounded-2xl"
-                            />
-                          </div>
-                        </div>
-                        <div className="flex items-end justify-end">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => addExercise(blockIndex)}
-                            className="h-10 rounded-full px-3 text-xs"
-                          >
-                            <Plus className="h-4 w-4" /> Exercice
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 space-y-3">
-                        {block.exercises.map((exercise, exerciseIndex) => {
-                          const normalizedIntensity = normalizeIntensityValue(exercise.intensity);
-                          const modalitesText = exercise.modalities ?? "";
-                          return (
-                            <div key={exerciseIndex} className="rounded-2xl border border-border bg-card p-3">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="grid flex-1 grid-cols-2 gap-3">
-                                  <div>
-                                    <div className="text-[11px] font-semibold text-muted-foreground">Répétitions</div>
-                                    <div className="mt-1">
-                                      <Input
-                                        type="number"
-                                        min={1}
-                                        value={exercise.repetitions ?? ""}
-                                        onChange={(e) =>
-                                          updateExercise(
-                                            blockIndex,
-                                            exerciseIndex,
-                                            "repetitions",
-                                            e.target.value === "" ? null : Number(e.target.value),
-                                          )
-                                        }
-                                        className="rounded-2xl"
-                                      />
-                                    </div>
-                                  </div>
-
-                                  <div>
-                                    <div className="text-[11px] font-semibold text-muted-foreground">Distance (m)</div>
-                                    <div className="mt-1">
-                                      <Input
-                                        type="number"
-                                        min={0}
-                                        value={exercise.distance ?? ""}
-                                        onChange={(e) =>
-                                          updateExercise(
-                                            blockIndex,
-                                            exerciseIndex,
-                                            "distance",
-                                            e.target.value === "" ? null : Number(e.target.value),
-                                          )
-                                        }
-                                        className="rounded-2xl"
-                                      />
-                                    </div>
-                                  </div>
-
-                                  <div>
-                                    <div className="text-[11px] font-semibold text-muted-foreground">Nage</div>
-                                    <div className="mt-1">
-                                      <Select
-                                        value={exercise.stroke}
-                                        onValueChange={(value) =>
-                                          updateExercise(blockIndex, exerciseIndex, "stroke", value)
-                                        }
-                                      >
-                                        <SelectTrigger className="rounded-2xl">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {strokeOptions.map((stroke) => (
-                                            <SelectItem key={stroke.value} value={stroke.value}>
-                                              {stroke.label}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                  </div>
-
-                                  <div>
-                                    <div className="text-[11px] font-semibold text-muted-foreground">Type</div>
-                                    <div className="mt-1">
-                                      <Select
-                                        value={exercise.strokeType}
-                                        onValueChange={(value) =>
-                                          updateExercise(blockIndex, exerciseIndex, "strokeType", value)
-                                        }
-                                      >
-                                        <SelectTrigger className="rounded-2xl">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {strokeTypeOptions.map((option) => (
-                                            <SelectItem key={option.value} value={option.value}>
-                                              {option.label}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                  </div>
-
-                                  <div className="col-span-2">
-                                    <div className="flex items-center justify-between">
-                                      <div className="text-[11px] font-semibold text-muted-foreground">
-                                        Intensité (clic sur points)
-                                      </div>
-                                      <span
-                                        className={cn(
-                                          "inline-flex items-center gap-2 rounded-full bg-card px-2.5 py-1 text-xs font-semibold ring-1",
-                                          intensityRingTone[normalizedIntensity],
-                                          intensityTextTone[normalizedIntensity],
-                                        )}
-                                      >
-                                        <span
-                                          className={cn(
-                                            "h-2 w-2 rounded-full",
-                                            intensityTone[normalizedIntensity] ?? "bg-muted",
-                                          )}
-                                        />
-                                        {formatIntensityLabel(normalizedIntensity)}
-                                      </span>
-                                    </div>
-                                    <div className="mt-2 flex items-center justify-between gap-2">
-                                      <IntensityDotsSelector
-                                        value={exercise.intensity}
-                                        onChange={(value) =>
-                                          updateExercise(blockIndex, exerciseIndex, "intensity", value)
-                                        }
-                                      />
-                                    </div>
-                                  </div>
-
-                                  <div className="col-span-2">
-                                    <div className="text-[11px] font-semibold text-muted-foreground">Équipements</div>
-                                    <div className="mt-2 flex flex-wrap gap-2">
-                                      {equipmentOptions.map((equipment) => {
-                                        const active = exercise.equipment.includes(equipment.value);
-                                        const iconUrl = getEquipmentIconUrl(equipment.value);
-                                        return (
-                                          <button
-                                            key={equipment.value}
-                                            type="button"
-                                            onClick={() => {
-                                              const next = active
-                                                ? exercise.equipment.filter((item) => item !== equipment.value)
-                                                : [...exercise.equipment, equipment.value];
-                                              updateExercise(blockIndex, exerciseIndex, "equipment", next);
-                                            }}
-                                            className={cn(
-                                              "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold",
-                                              active
-                                                ? "border-primary bg-primary text-primary-foreground"
-                                                : "border-border bg-card text-muted-foreground hover:bg-muted",
-                                            )}
-                                          >
-                                            <span
-                                              className={cn(
-                                                "inline-flex h-7 w-7 items-center justify-center rounded-full",
-                                                active ? "bg-white/10" : "bg-muted",
-                                              )}
-                                            >
-                                              {iconUrl ? (
-                                                <img src={iconUrl} alt="" className="h-4 w-4" aria-hidden="true" loading="lazy" />
-                                              ) : null}
-                                            </span>
-                                            {equipment.label}
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-
-                                  <div className="col-span-2">
-                                    <div className="text-[11px] font-semibold text-muted-foreground">Modalités</div>
-                                    <div className="mt-1">
-                                      <Textarea
-                                        value={modalitesText}
-                                        onChange={(e) =>
-                                          updateExercise(blockIndex, exerciseIndex, "modalities", e.target.value)
-                                        }
-                                        placeholder="Une modalité par ligne"
-                                        rows={3}
-                                        className="rounded-2xl"
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <button
-                                  type="button"
-                                  onClick={() => removeExercise(blockIndex, exerciseIndex)}
-                                  className="inline-flex h-9 w-9 items-center justify-center rounded-full text-destructive hover:bg-destructive/10"
-                                  aria-label="Supprimer exercice"
-                                  title="Supprimer exercice"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      <div className="mt-4 flex items-center justify-between">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => addExercise(blockIndex)}
-                          className="h-10 rounded-full px-3 text-xs"
-                        >
-                          <Plus className="h-4 w-4" /> Ajouter exercice
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => removeBlock(blockIndex)}
-                          className="h-10 rounded-full px-3 text-xs"
-                        >
-                          <Trash2 className="h-4 w-4" /> Supprimer bloc
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </>
-          )}
-
-          <div className="h-8" />
-        </div>
-
-        <Dialog
-          open={Boolean(selectedSession)}
-          onOpenChange={(open) => {
-            if (!open) {
-              setSelectedSession(null);
-            }
-          }}
-        >
-          <DialogContent className="max-w-4xl">
-            <SwimSessionConsultation
-              title={selectedSession?.name ?? ""}
-              description={selectedSession?.description ?? undefined}
-              items={selectedSession?.items}
-            />
-          </DialogContent>
-        </Dialog>
-      </div>
+      <SwimSessionBuilder
+        session={newSession}
+        onSessionChange={setNewSession}
+        onSave={handleSave}
+        onCancel={handleCancel}
+        userId={userId}
+        isSaving={createSession.isPending}
+      />
     );
   }
 
@@ -1093,31 +371,15 @@ export default function SwimCatalog() {
 
         <div className="p-4">
           <Skeleton className="h-10 w-full rounded-2xl mb-4" />
-
-          <div className="space-y-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Card key={`skeleton-${i}`} className="rounded-2xl border-border">
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      <Skeleton className="h-5 w-3/4 mb-2" />
-                      <div className="flex items-center gap-2">
-                        <Skeleton className="h-4 w-16" />
-                        <Skeleton className="h-4 w-16" />
-                        <Skeleton className="h-4 w-12" />
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Skeleton className="h-9 w-9 rounded-full" />
-                      <Skeleton className="h-9 w-9 rounded-full" />
-                      <Skeleton className="h-9 w-9 rounded-full" />
-                      <Skeleton className="h-9 w-9 rounded-full" />
-                    </div>
-                  </div>
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
+          <SessionListView
+            sessions={[]}
+            isLoading={true}
+            onPreview={() => {}}
+            onEdit={() => {}}
+            onArchive={() => {}}
+            onDelete={() => {}}
+            canDelete={() => false}
+          />
         </div>
       </div>
     );
@@ -1149,7 +411,6 @@ export default function SwimCatalog() {
           type="button"
           onClick={() => {
             setNewSession(createEmptySession());
-            setCoachView("compact");
             setIsCreating(true);
           }}
           className="inline-flex items-center gap-2 rounded-full bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
@@ -1182,97 +443,19 @@ export default function SwimCatalog() {
           </div>
         )}
 
-        <div className="mt-4 space-y-3">
-          {visibleSessions.map((session) => {
-            const { totalDistance, totalDuration, blockCount } = getSessionMetrics(session);
-            const canDelete = canDeleteSwimCatalog(session.id, assignments ?? null);
-            const deleteDisabled = !canDelete || deleteSession.isPending;
-            return (
-              <Card key={session.id} className="rounded-2xl border-border">
-                <div className="p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-base font-semibold tracking-tight">{session.name}</div>
-                      <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="inline-flex items-center gap-1">
-                          <Route className="h-3.5 w-3.5" />
-                          {totalDistance}m
-                        </span>
-                        <span className="inline-flex items-center gap-1">
-                          <Timer className="h-3.5 w-3.5" />
-                          ~{totalDuration ?? "—"} min
-                        </span>
-                        <span className="inline-flex items-center gap-1">
-                          <Layers className="h-3.5 w-3.5" />
-                          {blockCount}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedSession(session)}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"
-                        aria-label="Aperçu nageur"
-                        title="Aperçu nageur"
-                      >
-                        <Play className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setNewSession({
-                            id: session.id ?? null,
-                            name: session.name ?? formatSwimSessionDefaultTitle(new Date()),
-                            description: session.description ?? "",
-                            estimatedDuration: Number((session as { estimated_duration?: number }).estimated_duration ?? 0),
-                            blocks: buildBlocksFromItems(session.items ?? []),
-                          });
-                          setCoachView("compact");
-                          setIsCreating(true);
-                        }}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"
-                        aria-label="Modifier"
-                        title="Modifier"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPendingArchiveSession(session)}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"
-                        aria-label="Archiver"
-                        title="Archiver"
-                      >
-                        <Archive className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (deleteDisabled) return;
-                          setPendingDeleteSession(session);
-                        }}
-                        className={cn(
-                          "inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted",
-                          deleteDisabled && "cursor-not-allowed text-muted-foreground",
-                        )}
-                        aria-label="Supprimer"
-                        title={
-                          assignments === null
-                            ? "Suppression désactivée"
-                            : canDelete
-                              ? "Supprimer"
-                              : "Séance déjà assignée"
-                        }
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
+        <div className="mt-4">
+          <SessionListView
+            sessions={visibleSessions}
+            isLoading={sessionsLoading}
+            error={sessionsError}
+            onPreview={setSelectedSession}
+            onEdit={handleEdit}
+            onArchive={handleArchive}
+            onDelete={handleDelete}
+            canDelete={(sessionId) => canDeleteSwimCatalog(sessionId, assignments ?? null)}
+            isDeleting={deleteSession.isPending}
+            assignments={assignments}
+          />
         </div>
 
         <div className="h-8" />
@@ -1310,14 +493,7 @@ export default function SwimCatalog() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (!pendingArchiveSession) return;
-                setArchivedSessionIds((prev) => new Set([...Array.from(prev), pendingArchiveSession.id]));
-                setPendingArchiveSession(null);
-                toast({ title: "Séance archivée" });
-              }}
-            >
+            <AlertDialogAction onClick={handleArchiveConfirm}>
               Archiver
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1339,12 +515,7 @@ export default function SwimCatalog() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (!pendingDeleteSession) return;
-                deleteSession.mutate(pendingDeleteSession.id);
-              }}
-            >
+            <AlertDialogAction onClick={handleDeleteConfirm}>
               Supprimer
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -237,10 +237,16 @@ export async function getPendingApprovals(): Promise<
   if (!canUseSupabase()) return [];
   const { data, error } = await supabase
     .from("user_profiles")
-    .select("user_id, display_name, email, created_at")
+    .select("user_id, display_name, email, users!inner(created_at)")
     .eq("is_approved", false);
   if (error) throw new Error(error.message);
-  return data ?? [];
+  // Transform the response to match the expected interface
+  return (data ?? []).map((item: any) => ({
+    user_id: item.user_id,
+    display_name: item.display_name,
+    email: item.email,
+    created_at: item.users?.created_at ?? new Date().toISOString(),
+  }));
 }
 
 export async function approveUser(userId: number): Promise<void> {
