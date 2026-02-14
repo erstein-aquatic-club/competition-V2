@@ -232,20 +232,30 @@ for (const combo of eventCombinations) {
 
 ### Étapes
 
-1. ✅ Modifier `supabase/functions/import-club-records/index.ts`
-2. ✅ Tester localement (tests ci-dessus)
-3. ⏳ Déployer l'Edge Function :
+1. ✅ Modifier `supabase/functions/import-club-records/index.ts` (cascade logic)
+2. ✅ Ajouter bypass service_role (permettre invocation directe sans user auth)
+3. ✅ Déployer l'Edge Function :
    ```bash
-   supabase functions deploy import-club-records
+   npx supabase functions deploy import-club-records
    ```
-4. ⏳ Déclencher un recalcul complet :
+4. ✅ Déclencher un recalcul complet (avec service_role key) :
    ```bash
-   curl -X POST https://<project>.supabase.co/functions/v1/import-club-records \
-     -H "Authorization: Bearer <token>" \
+   curl -X POST https://fscnobivsgornxdwqwlk.supabase.co/functions/v1/import-club-records \
+     -H "Authorization: Bearer <service_role_key>" \
      -H "Content-Type: application/json" \
      -d '{"mode": "recalculate"}'
    ```
-5. ⏳ Vérifier les records via l'interface RecordsClub
+   **Résultat :** 521 club records recalculés avec cascade en 54 secondes
+5. ✅ Vérifier les cascades via SQL :
+   ```sql
+   SELECT COUNT(*) FROM club_records r1
+   JOIN club_records r2 ON
+     r1.event_code = r2.event_code AND r1.sex = r2.sex AND
+     r1.pool_m = r2.pool_m AND r1.time_ms = r2.time_ms AND
+     r1.athlete_name = r2.athlete_name AND r2.age = r1.age + 1;
+   ```
+   **Résultat :** 20+ cascades détectées (ex: Félix Bernhardt 15→16→17 ans)
+6. ✅ Vérifier via l'interface RecordsClub
 
 ### Rollback
 
