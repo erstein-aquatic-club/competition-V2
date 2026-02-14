@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, Exercise, StrengthCycleType, StrengthSessionItem, StrengthSessionTemplate } from "@/lib/api";
@@ -8,11 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle, Plus, Trash2, Save, Filter, Edit2, GripVertical, Eye, Upload, Loader2 } from "lucide-react";
+import { AlertCircle, Plus, Edit2, Eye, Upload, Loader2, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -28,6 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { StrengthSessionBuilder } from "@/components/coach/strength/StrengthSessionBuilder";
 
 type ExerciseDraft = Omit<Exercise, "id"> & {
   id?: number;
@@ -212,7 +210,7 @@ const WarmupFields = ({
 }) => {
   return (
     <div className="space-y-3 rounded-lg border p-3">
-      <p className="text-sm font-semibold">Paramètres d’échauffement</p>
+      <p className="text-sm font-semibold">Paramètres d'échauffement</p>
       <RadioGroup
         value={warmupMode}
         onValueChange={(value) => {
@@ -277,16 +275,11 @@ export default function StrengthCatalog() {
   const queryClient = useQueryClient();
   const [isCreating, setIsCreating] = useState(false);
   const [editingSessionId, setEditingSessionId] = useState<number | null>(null);
-  const [exerciseFilter, setExerciseFilter] = useState<"all" | "strength" | "warmup">("all");
   const [exerciseDialogOpen, setExerciseDialogOpen] = useState(false);
   const [exerciseEditOpen, setExerciseEditOpen] = useState(false);
   const [editingExercise, setEditingExercise] = useState<ExerciseDraft | null>(null);
-  const [detailSession, setDetailSession] = useState<StrengthSessionTemplate | null>(null);
-  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [pendingDeleteSession, setPendingDeleteSession] = useState<StrengthSessionTemplate | null>(null);
   const [pendingDeleteExercise, setPendingDeleteExercise] = useState<Exercise | null>(null);
-  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [newWarmupMode, setNewWarmupMode] = useState<"reps" | "duration">("reps");
   const [editWarmupMode, setEditWarmupMode] = useState<"reps" | "duration">("reps");
   const [gifUploading, setGifUploading] = useState(false);
@@ -314,7 +307,6 @@ export default function StrengthCatalog() {
     }
   };
 
-  // New Session State
   const [newSession, setNewSession] = useState<{
     title: string;
     description: string;
@@ -326,6 +318,7 @@ export default function StrengthCatalog() {
     cycle: "endurance",
     items: [],
   });
+
   const [newExercise, setNewExercise] = useState<ExerciseDraft>({
     ...createDefaultExercise(),
   });
@@ -336,482 +329,424 @@ export default function StrengthCatalog() {
     }
   }, [editingExercise]);
 
-  const { data: exercises, isLoading: isLoadingExercises, error: exercisesError, refetch: refetchExercises } = useQuery({ queryKey: ["exercises"], queryFn: () => api.getExercises() });
-  const { data: sessions, isLoading: isLoadingSessions, error: sessionsError, refetch: refetchSessions } = useQuery({ queryKey: ["strength_catalog"], queryFn: () => api.getStrengthSessions() });
-  const exerciseById = useMemo(
-    () => new Map((exercises ?? []).map((exercise) => [exercise.id, exercise])),
-    [exercises],
-  );
+  const { data: exercises, isLoading: isLoadingExercises, error: exercisesError, refetch: refetchExercises } = useQuery({
+    queryKey: ["exercises"],
+    queryFn: () => api.getExercises()
+  });
+
+  const { data: sessions, isLoading: isLoadingSessions, error: sessionsError, refetch: refetchSessions } = useQuery({
+    queryKey: ["strength_catalog"],
+    queryFn: () => api.getStrengthSessions()
+  });
 
   const createExercise = useMutation({
-      mutationFn: (data: Omit<Exercise, "id">) => api.createExercise(data),
-      onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: ["exercises"] });
-          setExerciseDialogOpen(false);
-          toast({ title: "Exercice ajouté" });
-      },
+    mutationFn: (data: Omit<Exercise, "id">) => api.createExercise(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["exercises"] });
+      setExerciseDialogOpen(false);
+      toast({ title: "Exercice ajouté" });
+    },
   });
 
   const createSession = useMutation({
-      mutationFn: (data: StrengthSessionInput) => api.createStrengthSession(data),
-      onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: ["strength_catalog"] });
-          setIsCreating(false);
-          setNewSession({ title: "", description: "", cycle: "endurance", items: [] });
-          toast({ title: "Séance créée avec succès" });
-      }
+    mutationFn: (data: StrengthSessionInput) => api.createStrengthSession(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["strength_catalog"] });
+      setIsCreating(false);
+      setNewSession({ title: "", description: "", cycle: "endurance", items: [] });
+      toast({ title: "Séance créée avec succès" });
+    }
   });
 
   const updateExercise = useMutation({
-      mutationFn: (data: Exercise) => api.updateExercise(data),
-      onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: ["exercises"] });
-          queryClient.invalidateQueries({ queryKey: ["strength_catalog"] });
-          setExerciseEditOpen(false);
-          setEditingExercise(null);
-          toast({ title: "Exercice mis à jour" });
-      },
+    mutationFn: (data: Exercise) => api.updateExercise(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["exercises"] });
+      queryClient.invalidateQueries({ queryKey: ["strength_catalog"] });
+      setExerciseEditOpen(false);
+      setEditingExercise(null);
+      toast({ title: "Exercice mis à jour" });
+    },
   });
 
   const deleteExercise = useMutation({
-      mutationFn: (exerciseId: number) => api.deleteExercise(exerciseId),
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["exercises"] });
-        queryClient.invalidateQueries({ queryKey: ["strength_catalog"] });
-        setPendingDeleteExercise(null);
-        toast({ title: "Exercice supprimé" });
-      },
+    mutationFn: (exerciseId: number) => api.deleteExercise(exerciseId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["exercises"] });
+      queryClient.invalidateQueries({ queryKey: ["strength_catalog"] });
+      setPendingDeleteExercise(null);
+      toast({ title: "Exercice supprimé" });
+    },
   });
 
   const deleteSession = useMutation({
-      mutationFn: (sessionId: number) => api.deleteStrengthSession(sessionId),
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["strength_catalog"] });
-        setPendingDeleteSession(null);
-        toast({ title: "Séance supprimée" });
-      },
+    mutationFn: (sessionId: number) => api.deleteStrengthSession(sessionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["strength_catalog"] });
+      setPendingDeleteSession(null);
+      toast({ title: "Séance supprimée" });
+    },
   });
 
   const updateSession = useMutation({
-      mutationFn: (data: StrengthSessionInput) => api.updateStrengthSession(data),
-      onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: ["strength_catalog"] });
-          setIsCreating(false);
-          setEditingSessionId(null);
-          setNewSession({ title: "", description: "", cycle: "endurance", items: [] });
-          toast({ title: "Séance mise à jour" });
-      }
-  });
-
-  const persistOrder = useMutation({
-      mutationFn: (session: StrengthSessionTemplate) => api.persistStrengthSessionOrder(session),
-  });
-
-  const resetSessionForm = () => {
+    mutationFn: (data: StrengthSessionInput) => api.updateStrengthSession(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["strength_catalog"] });
       setIsCreating(false);
       setEditingSessionId(null);
       setNewSession({ title: "", description: "", cycle: "endurance", items: [] });
+      toast({ title: "Séance mise à jour" });
+    }
+  });
+
+  const persistOrder = useMutation({
+    mutationFn: (session: StrengthSessionTemplate) => api.persistStrengthSessionOrder(session),
+  });
+
+  const resetSessionForm = () => {
+    setIsCreating(false);
+    setEditingSessionId(null);
+    setNewSession({ title: "", description: "", cycle: "endurance", items: [] });
   };
 
   const startEditSession = (session: StrengthSessionTemplate) => {
-      setEditingSessionId(session.id);
-      setNewSession({
-          title: session.title ?? "",
-          description: session.description ?? "",
-          cycle: normalizeStrengthCycle(session.cycle),
-          items: session.items?.map((item) => ({
-              exercise_id: item.exercise_id,
-              order_index: item.order_index ?? 0,
-              sets: item.sets,
-              reps: item.reps,
-              rest_seconds: item.rest_seconds,
-              percent_1rm: item.percent_1rm,
-              cycle_type: item.cycle_type,
-              notes: item.notes ?? "",
-          })) ?? [],
-      });
-      setIsCreating(true);
+    setEditingSessionId(session.id);
+    setNewSession({
+      title: session.title ?? "",
+      description: session.description ?? "",
+      cycle: normalizeStrengthCycle(session.cycle),
+      items: session.items?.map((item) => ({
+        exercise_id: item.exercise_id,
+        order_index: item.order_index ?? 0,
+        sets: item.sets,
+        reps: item.reps,
+        rest_seconds: item.rest_seconds,
+        percent_1rm: item.percent_1rm,
+        cycle_type: item.cycle_type,
+        notes: item.notes ?? "",
+      })) ?? [],
+    });
+    setIsCreating(true);
   };
 
   const startEditExercise = (exercise: Exercise) => {
-      setEditingExercise(exercise);
-      setExerciseEditOpen(true);
+    setEditingExercise(exercise);
+    setExerciseEditOpen(true);
   };
 
   const handleSaveSession = () => {
-      const sessionPayload = { ...newSession, items: updateOrderIndexes(newSession.items) };
-      if (editingSessionId) {
-          updateSession.mutate({ ...sessionPayload, id: editingSessionId });
-      } else {
-          createSession.mutate(sessionPayload);
-      }
+    const sessionPayload = { ...newSession, items: updateOrderIndexes(newSession.items) };
+    if (editingSessionId) {
+      updateSession.mutate({ ...sessionPayload, id: editingSessionId });
+    } else {
+      createSession.mutate(sessionPayload);
+    }
   };
 
   const updateOrderIndexes = (items: StrengthSessionItem[]) =>
-      items.map((item, index) => ({ ...item, order_index: index }));
+    items.map((item, index) => ({ ...item, order_index: index }));
 
   const addItem = () => {
-      const fallbackExercise = exercises?.[0];
-      setNewSession(prev => ({
-          ...prev,
-          items: [
-            ...prev.items,
-            fallbackExercise
-              ? createStrengthItemFromExercise(fallbackExercise, prev.cycle, prev.items.length)
-              : {
-                  exercise_id: 1,
-                  order_index: prev.items.length,
-                  sets: 0,
-                  reps: 0,
-                  rest_seconds: 0,
-                  percent_1rm: 0,
-                },
-          ]
-      }));
+    const fallbackExercise = exercises?.[0];
+    setNewSession(prev => ({
+      ...prev,
+      items: [
+        ...prev.items,
+        fallbackExercise
+          ? createStrengthItemFromExercise(fallbackExercise, prev.cycle, prev.items.length)
+          : {
+              exercise_id: 1,
+              order_index: prev.items.length,
+              sets: 0,
+              reps: 0,
+              rest_seconds: 0,
+              percent_1rm: 0,
+            },
+      ]
+    }));
   };
 
   const updateItem = (index: number, field: string, value: string | number | null) => {
-      const items = [...newSession.items];
-      if (field === "exercise_id") {
-        const exercise = exercises?.find((entry) => entry.id === value);
-        if (exercise) {
-          items[index] = createStrengthItemFromExercise(
-            exercise,
-            newSession.cycle,
-            items[index].order_index ?? index,
-            items[index],
-          );
-        } else {
-          items[index] = { ...items[index], exercise_id: Number(value) };
-        }
+    const items = [...newSession.items];
+    if (field === "exercise_id") {
+      const exercise = exercises?.find((entry) => entry.id === value);
+      if (exercise) {
+        items[index] = createStrengthItemFromExercise(
+          exercise,
+          newSession.cycle,
+          items[index].order_index ?? index,
+          items[index],
+        );
       } else {
-        items[index] = { ...items[index], [field]: value };
+        items[index] = { ...items[index], exercise_id: Number(value) };
       }
-      setNewSession({ ...newSession, items });
+    } else {
+      items[index] = { ...items[index], [field]: value };
+    }
+    setNewSession({ ...newSession, items });
   };
 
   const removeItem = (index: number) => {
-      const items = updateOrderIndexes(newSession.items.filter((_, i) => i !== index));
-      setNewSession({ ...newSession, items });
+    const items = updateOrderIndexes(newSession.items.filter((_, i) => i !== index));
+    setNewSession({ ...newSession, items });
   };
 
   const reorderItems = (fromIndex: number, toIndex: number) => {
-      if (fromIndex === toIndex) return;
-      const items = [...newSession.items];
-      const [moved] = items.splice(fromIndex, 1);
-      items.splice(toIndex, 0, moved);
-      const updatedItems = updateOrderIndexes(items);
-      setNewSession({ ...newSession, items: updatedItems });
-      if (editingSessionId) {
-        persistOrder.mutate({
-          id: editingSessionId,
-          title: newSession.title,
-          description: newSession.description,
-          cycle: newSession.cycle,
-          items: updatedItems,
-        });
-      }
+    if (fromIndex === toIndex) return;
+    const items = [...newSession.items];
+    const [moved] = items.splice(fromIndex, 1);
+    items.splice(toIndex, 0, moved);
+    const updatedItems = updateOrderIndexes(items);
+    setNewSession({ ...newSession, items: updatedItems });
+    if (editingSessionId) {
+      persistOrder.mutate({
+        id: editingSessionId,
+        title: newSession.title,
+        description: newSession.description,
+        cycle: newSession.cycle,
+        items: updatedItems,
+      });
+    }
   };
 
-  const selectedExerciseIds = new Set(newSession.items.map((item) => item.exercise_id));
-  const filteredExercises =
-      exercises?.filter((exercise) => {
-          if (exerciseFilter === "all") return true;
-          if (selectedExerciseIds.has(exercise.id)) return true;
-          return exercise.exercise_type === exerciseFilter;
-      }) ?? [];
-
   const exerciseEditDialog = (
-      <Dialog open={exerciseEditOpen} onOpenChange={setExerciseEditOpen}>
+    <Dialog open={exerciseEditOpen} onOpenChange={setExerciseEditOpen}>
       <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto pb-safe">
-              <DialogHeader>
-                  <DialogTitle>Modifier l’exercice</DialogTitle>
-              </DialogHeader>
-              {editingExercise && (
-                <div className="space-y-4">
-                  {editingExercise.exercise_type === "warmup" ? (
-                      <WarmupFields
-                        exercise={editingExercise}
-                        warmupMode={editWarmupMode}
-                        onChange={(updates) =>
-                          setEditingExercise((prev) => (prev ? { ...prev, ...updates } : prev))
-                        }
-                        onWarmupModeChange={setEditWarmupMode}
-                        idPrefix="edit"
-                      />
-                    ) : null}
-                    <div className="space-y-2">
-                        <Label>Nom</Label>
-                        <Input
-                          value={editingExercise.nom_exercice}
-                          onChange={(e) =>
-                            setEditingExercise({ ...editingExercise, nom_exercice: e.target.value })
-                          }
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Description</Label>
-                        <Textarea
-                          value={editingExercise.description ?? ""}
-                          onChange={(e) =>
-                            setEditingExercise({
-                              ...editingExercise,
-                              description: e.target.value === "" ? null : e.target.value,
-                            })
-                          }
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Illustration (GIF)</Label>
-                        <div className="flex gap-2">
-                          <Input
-                            value={editingExercise.illustration_gif ?? ""}
-                            onChange={(e) =>
-                              setEditingExercise({
-                                ...editingExercise,
-                                illustration_gif: e.target.value === "" ? null : e.target.value,
-                              })
-                            }
-                            placeholder="https://..."
-                            className="flex-1"
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            disabled={gifUploading}
-                            onClick={() => {
-                              const input = document.createElement("input");
-                              input.type = "file";
-                              input.accept = "image/*,.gif";
-                              input.onchange = (e) => {
-                                const file = (e.target as HTMLInputElement).files?.[0];
-                                if (file) handleGifUpload(file, (url) => setEditingExercise((prev) => prev ? { ...prev, illustration_gif: url } : prev));
-                              };
-                              input.click();
-                            }}
-                            aria-label="Uploader une image"
-                          >
-                            {gifUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                          </Button>
-                        </div>
-                        {editingExercise.illustration_gif && (
-                          <img src={editingExercise.illustration_gif} alt="Aperçu" className="mt-2 h-20 w-20 rounded-lg object-cover border" />
-                        )}
-                    </div>
-                    {editingExercise.exercise_type !== "warmup" ? (
-                      <ExerciseCycleTabs
-                        exercise={editingExercise}
-                        onChange={(updates) =>
-                          setEditingExercise((prev) => (prev ? { ...prev, ...updates } : prev))
-                        }
-                      />
-                    ) : null}
-                    <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="warmup-flag-edit"
-                          checked={editingExercise.exercise_type === "warmup"}
-                          onCheckedChange={(checked) =>
-                            setEditingExercise({
-                              ...editingExercise,
-                              exercise_type: checked === true ? "warmup" : "strength",
-                            })
-                          }
-                        />
-                        <Label htmlFor="warmup-flag-edit">Exercice d’échauffement (warmup)</Label>
-                    </div>
-                    <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            setExerciseEditOpen(false);
-                            setEditingExercise(null);
-                          }}
-                          className="h-10"
-                        >
-                          Annuler
-                        </Button>
-                        <Button
-                          variant="default"
-                          onClick={() => {
-                            if (!editingExercise?.id) return;
-                            updateExercise.mutate(editingExercise as Exercise);
-                          }}
-                          disabled={!editingExercise.nom_exercice.trim()}
-                          className="h-10"
-                        >
-                            <Save className="mr-2 h-4 w-4"/> Enregistrer
-                        </Button>
-                    </div>
-                </div>
+        <DialogHeader>
+          <DialogTitle>Modifier l'exercice</DialogTitle>
+        </DialogHeader>
+        {editingExercise && (
+          <div className="space-y-4">
+            {editingExercise.exercise_type === "warmup" ? (
+              <WarmupFields
+                exercise={editingExercise}
+                warmupMode={editWarmupMode}
+                onChange={(updates) =>
+                  setEditingExercise((prev) => (prev ? { ...prev, ...updates } : prev))
+                }
+                onWarmupModeChange={setEditWarmupMode}
+                idPrefix="edit"
+              />
+            ) : null}
+            <div className="space-y-2">
+              <Label>Nom</Label>
+              <Input
+                value={editingExercise.nom_exercice}
+                onChange={(e) =>
+                  setEditingExercise({ ...editingExercise, nom_exercice: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                value={editingExercise.description ?? ""}
+                onChange={(e) =>
+                  setEditingExercise({
+                    ...editingExercise,
+                    description: e.target.value === "" ? null : e.target.value,
+                  })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Illustration (GIF)</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={editingExercise.illustration_gif ?? ""}
+                  onChange={(e) =>
+                    setEditingExercise({
+                      ...editingExercise,
+                      illustration_gif: e.target.value === "" ? null : e.target.value,
+                    })
+                  }
+                  placeholder="https://..."
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  disabled={gifUploading}
+                  onClick={() => {
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = "image/*,.gif";
+                    input.onchange = (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file) handleGifUpload(file, (url) => setEditingExercise((prev) => prev ? { ...prev, illustration_gif: url } : prev));
+                    };
+                    input.click();
+                  }}
+                  aria-label="Uploader une image"
+                >
+                  {gifUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                </Button>
+              </div>
+              {editingExercise.illustration_gif && (
+                <img src={editingExercise.illustration_gif} alt="Aperçu" className="mt-2 h-20 w-20 rounded-lg object-cover border" />
               )}
-          </DialogContent>
-      </Dialog>
+            </div>
+            {editingExercise.exercise_type !== "warmup" ? (
+              <ExerciseCycleTabs
+                exercise={editingExercise}
+                onChange={(updates) =>
+                  setEditingExercise((prev) => (prev ? { ...prev, ...updates } : prev))
+                }
+              />
+            ) : null}
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="warmup-flag-edit"
+                checked={editingExercise.exercise_type === "warmup"}
+                onCheckedChange={(checked) =>
+                  setEditingExercise({
+                    ...editingExercise,
+                    exercise_type: checked === true ? "warmup" : "strength",
+                  })
+                }
+              />
+              <Label htmlFor="warmup-flag-edit">Exercice d'échauffement (warmup)</Label>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setExerciseEditOpen(false);
+                  setEditingExercise(null);
+                }}
+                className="h-10"
+              >
+                Annuler
+              </Button>
+              <Button
+                variant="default"
+                onClick={() => {
+                  if (!editingExercise?.id) return;
+                  updateExercise.mutate(editingExercise as Exercise);
+                }}
+                disabled={!editingExercise.nom_exercice.trim()}
+                className="h-10"
+              >
+                Enregistrer
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 
   const exerciseCreateDialog = (
-      <Dialog open={exerciseDialogOpen} onOpenChange={setExerciseDialogOpen}>
+    <Dialog open={exerciseDialogOpen} onOpenChange={setExerciseDialogOpen}>
       <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto pb-safe">
-                <DialogHeader>
-                    <DialogTitle>Créer un exercice</DialogTitle>
-                </DialogHeader>
-              <div className="space-y-4">
-                  {newExercise.exercise_type === "warmup" ? (
-                    <WarmupFields
-                      exercise={newExercise}
-                      warmupMode={newWarmupMode}
-                      onChange={(updates) => setNewExercise((prev) => ({ ...prev, ...updates }))}
-                      onWarmupModeChange={setNewWarmupMode}
-                      idPrefix="create"
-                    />
-                  ) : null}
-                  <div className="space-y-2">
-                      <Label>Nom</Label>
-                      <Input
-                        value={newExercise.nom_exercice}
-                        onChange={(e) => setNewExercise({ ...newExercise, nom_exercice: e.target.value })}
-                        placeholder="ex: Rotations Élastique"
-                      />
-                  </div>
-                  <div className="space-y-2">
-                      <Label>Description</Label>
-                      <Textarea
-                        value={newExercise.description ?? ""}
-                        onChange={(e) =>
-                          setNewExercise({
-                            ...newExercise,
-                            description: e.target.value === "" ? null : e.target.value,
-                          })
-                        }
-                        placeholder="Détails, consignes..."
-                      />
-                  </div>
-                  <div className="space-y-2">
-                      <Label>Illustration (GIF)</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          value={newExercise.illustration_gif ?? ""}
-                          onChange={(e) =>
-                            setNewExercise({
-                              ...newExercise,
-                              illustration_gif: e.target.value === "" ? null : e.target.value,
-                            })
-                          }
-                          placeholder="https://..."
-                          className="flex-1"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          disabled={gifUploading}
-                          onClick={() => {
-                            const input = document.createElement("input");
-                            input.type = "file";
-                            input.accept = "image/*,.gif";
-                            input.onchange = (e) => {
-                              const file = (e.target as HTMLInputElement).files?.[0];
-                              if (file) handleGifUpload(file, (url) => setNewExercise((prev) => ({ ...prev, illustration_gif: url })));
-                            };
-                            input.click();
-                          }}
-                          aria-label="Uploader une image"
-                        >
-                          {gifUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                        </Button>
-                      </div>
-                      {newExercise.illustration_gif && (
-                        <img src={newExercise.illustration_gif} alt="Aperçu" className="mt-2 h-20 w-20 rounded-lg object-cover border" />
-                      )}
-                  </div>
-                  {newExercise.exercise_type !== "warmup" ? (
-                    <ExerciseCycleTabs
-                      exercise={newExercise}
-                      onChange={(updates) => setNewExercise((prev) => ({ ...prev, ...updates }))}
-                    />
-                  ) : null}
-                  <div className="flex items-center gap-2">
-                      <Checkbox
-                        id="warmup-flag"
-                        checked={newExercise.exercise_type === "warmup"}
-                        onCheckedChange={(checked) =>
-                          setNewExercise({
-                            ...newExercise,
-                            exercise_type: checked === true ? "warmup" : "strength",
-                          })
-                        }
-                      />
-                      <Label htmlFor="warmup-flag">Exercice d’échauffement (warmup)</Label>
-                  </div>
-                  <div className="flex justify-end gap-2">
-                      <Button variant="outline" onClick={() => setExerciseDialogOpen(false)} className="h-10">Annuler</Button>
-                      <Button
-                        variant="default"
-                        onClick={() => createExercise.mutate(newExercise)}
-                        disabled={!newExercise.nom_exercice.trim()}
-                        className="h-10"
-                      >
-                          <Save className="mr-2 h-4 w-4"/> Enregistrer
-                      </Button>
-                  </div>
-              </div>
-          </DialogContent>
-      </Dialog>
-  );
-
-  const detailsDialog = (
-      <Dialog
-        open={detailDialogOpen}
-        onOpenChange={(open) => {
-          setDetailDialogOpen(open);
-          if (!open) {
-            setDetailSession(null);
-          }
-        }}
-      >
-          <DialogContent className="sm:max-w-3xl">
-              <DialogHeader>
-                  <DialogTitle>Détails de la séance</DialogTitle>
-              </DialogHeader>
-              {detailSession && (
-                <div className="space-y-4">
-                  <div className="space-y-1">
-                    <p className="text-lg font-semibold">{detailSession.title}</p>
-                    <p className="text-sm text-muted-foreground">{detailSession.description || "—"}</p>
-                    <p className="text-sm text-muted-foreground">Cycle : {detailSession.cycle}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-sm font-semibold">Exercices</p>
-                    <div className="space-y-2">
-                      {(detailSession.items ?? [])
-                        .slice()
-                        .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
-                        .map((item, index) => {
-                          const exercise = exerciseById.get(item.exercise_id);
-                          return (
-                            <div key={`${item.exercise_id}-${index}`} className="rounded-md border px-3 py-2 text-sm">
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="font-medium">
-                                  {index + 1}. {exercise?.nom_exercice ?? item.exercise_name ?? "Exercice"}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {exercise?.exercise_type === "warmup" || item.category === "warmup"
-                                    ? "Échauffement"
-                                    : "Travail"}
-                                </span>
-                              </div>
-                              <div className="mt-1 text-xs text-muted-foreground">
-                                {item.sets} séries • {item.reps} reps • {item.percent_1rm}% 1RM • {item.rest_seconds}s
-                              </div>
-                            </div>
-                          );
-                        })}
-                    </div>
-                  </div>
-                </div>
-              )}
-          </DialogContent>
-      </Dialog>
+        <DialogHeader>
+          <DialogTitle>Créer un exercice</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          {newExercise.exercise_type === "warmup" ? (
+            <WarmupFields
+              exercise={newExercise}
+              warmupMode={newWarmupMode}
+              onChange={(updates) => setNewExercise((prev) => ({ ...prev, ...updates }))}
+              onWarmupModeChange={setNewWarmupMode}
+              idPrefix="create"
+            />
+          ) : null}
+          <div className="space-y-2">
+            <Label>Nom</Label>
+            <Input
+              value={newExercise.nom_exercice}
+              onChange={(e) => setNewExercise({ ...newExercise, nom_exercice: e.target.value })}
+              placeholder="ex: Rotations Élastique"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Description</Label>
+            <Textarea
+              value={newExercise.description ?? ""}
+              onChange={(e) =>
+                setNewExercise({
+                  ...newExercise,
+                  description: e.target.value === "" ? null : e.target.value,
+                })
+              }
+              placeholder="Détails, consignes..."
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Illustration (GIF)</Label>
+            <div className="flex gap-2">
+              <Input
+                value={newExercise.illustration_gif ?? ""}
+                onChange={(e) =>
+                  setNewExercise({
+                    ...newExercise,
+                    illustration_gif: e.target.value === "" ? null : e.target.value,
+                  })
+                }
+                placeholder="https://..."
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                disabled={gifUploading}
+                onClick={() => {
+                  const input = document.createElement("input");
+                  input.type = "file";
+                  input.accept = "image/*,.gif";
+                  input.onchange = (e) => {
+                    const file = (e.target as HTMLInputElement).files?.[0];
+                    if (file) handleGifUpload(file, (url) => setNewExercise((prev) => ({ ...prev, illustration_gif: url })));
+                  };
+                  input.click();
+                }}
+                aria-label="Uploader une image"
+              >
+                {gifUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              </Button>
+            </div>
+            {newExercise.illustration_gif && (
+              <img src={newExercise.illustration_gif} alt="Aperçu" className="mt-2 h-20 w-20 rounded-lg object-cover border" />
+            )}
+          </div>
+          {newExercise.exercise_type !== "warmup" ? (
+            <ExerciseCycleTabs
+              exercise={newExercise}
+              onChange={(updates) => setNewExercise((prev) => ({ ...prev, ...updates }))}
+            />
+          ) : null}
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="warmup-flag"
+              checked={newExercise.exercise_type === "warmup"}
+              onCheckedChange={(checked) =>
+                setNewExercise({
+                  ...newExercise,
+                  exercise_type: checked === true ? "warmup" : "strength",
+                })
+              }
+            />
+            <Label htmlFor="warmup-flag">Exercice d'échauffement (warmup)</Label>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setExerciseDialogOpen(false)} className="h-10">
+              Annuler
+            </Button>
+            <Button
+              variant="default"
+              onClick={() => createExercise.mutate(newExercise)}
+              disabled={!newExercise.nom_exercice.trim()}
+              className="h-10"
+            >
+              Enregistrer
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 
   const deleteSessionDialog = (
@@ -857,9 +792,9 @@ export default function StrengthCatalog() {
     >
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Supprimer l’exercice ?</AlertDialogTitle>
+          <AlertDialogTitle>Supprimer l'exercice ?</AlertDialogTitle>
           <AlertDialogDescription>
-            Cette action est définitive. L’exercice "{pendingDeleteExercise?.nom_exercice}" sera supprimé.
+            Cette action est définitive. L'exercice "{pendingDeleteExercise?.nom_exercice}" sera supprimé.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -887,7 +822,6 @@ export default function StrengthCatalog() {
           <Skeleton className="h-7 w-64" />
           <Skeleton className="h-10 w-24" />
         </div>
-
         <div className="space-y-3">
           <Skeleton className="h-6 w-48" />
           <div className="grid gap-4 md:grid-cols-2">
@@ -908,7 +842,6 @@ export default function StrengthCatalog() {
             ))}
           </div>
         </div>
-
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Skeleton className="h-6 w-48" />
@@ -957,327 +890,134 @@ export default function StrengthCatalog() {
   }
 
   if (isCreating) {
-      return (
-          <div className="space-y-6 animate-in slide-in-from-bottom-4">
-              {exerciseCreateDialog}
-              {exerciseEditDialog}
-              {detailsDialog}
-              {deleteSessionDialog}
-              {deleteExerciseDialog}
-              <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-bold uppercase">
-                    {editingSessionId ? "Modifier Séance Muscu" : "Nouvelle Séance Muscu"}
-                  </h2>
-                  <div className="flex gap-2">
-                      <Button variant="outline" onClick={resetSessionForm} className="h-10">Annuler</Button>
-                      <Button variant="default" onClick={handleSaveSession} className="h-10">
-                        <Save className="mr-2 h-4 w-4"/> Enregistrer
-                      </Button>
-                  </div>
-              </div>
-
-              <Card>
-                  <CardHeader>
-                      <CardTitle>Informations Générales</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                      <div className="grid md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                              <Label>Titre</Label>
-                              <Input value={newSession.title} onChange={e => setNewSession({...newSession, title: e.target.value})} placeholder="ex: Full Body A" />
-                          </div>
-                          <div className="space-y-2">
-                              <Label>Cycle</Label>
-                              <Select
-                                value={newSession.cycle}
-                                onValueChange={(value) =>
-                                  setNewSession({ ...newSession, cycle: normalizeStrengthCycle(value) })
-                                }
-                              >
-                                  <SelectTrigger><SelectValue/></SelectTrigger>
-                                  <SelectContent>
-                                      <SelectItem value="endurance">Endurance</SelectItem>
-                                      <SelectItem value="hypertrophie">Hypertrophie</SelectItem>
-                                      <SelectItem value="force">Force</SelectItem>
-                                  </SelectContent>
-                              </Select>
-                          </div>
-                      </div>
-                      <div className="space-y-2">
-                          <Label>Description</Label>
-                          <Textarea value={newSession.description} onChange={e => setNewSession({...newSession, description: e.target.value})} />
-                      </div>
-                  </CardContent>
-              </Card>
-
-              <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                      <h3 className="font-bold">Exercices</h3>
-                      <div className="flex flex-wrap gap-2">
-                          <Button size="sm" variant="outline" onClick={() => setExerciseDialogOpen(true)} className="h-10">
-                              <Plus className="mr-2 h-4 w-4"/> Nouvel exercice
-                          </Button>
-                          <Button size="sm" variant="default" onClick={addItem} className="h-10"><Plus className="mr-2 h-4 w-4"/> Ajouter</Button>
-                      </div>
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-[220px_1fr] items-end">
-                      <div className="space-y-2">
-                          <Label className="flex items-center gap-2">
-                              <Filter className="h-4 w-4" /> Filtre exercices
-                          </Label>
-                          <Select value={exerciseFilter} onValueChange={(value: "all" | "strength" | "warmup") => setExerciseFilter(value)}>
-                              <SelectTrigger><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                  <SelectItem value="all">Tous</SelectItem>
-                                  <SelectItem value="strength">Séries de travail</SelectItem>
-                                  <SelectItem value="warmup">Échauffement</SelectItem>
-                              </SelectContent>
-                          </Select>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                          Les exercices marqués warmup sont affichés dans les séances avec le badge « Échauffement ».
-                      </p>
-                  </div>
-                  
-                  {newSession.items.map((item, index) => (
-                      <Card
-                        key={`${item.exercise_id}-${index}`}
-                        className={cn(
-                          "relative transition-all",
-                          dragOverIndex === index && draggingIndex !== null && draggingIndex !== index && "ring-2 ring-primary bg-accent/30",
-                        )}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDragEnter={() => setDragOverIndex(index)}
-                        onDragLeave={() => setDragOverIndex((prev) => (prev === index ? null : prev))}
-                        onDrop={() => {
-                          if (draggingIndex === null) return;
-                          reorderItems(draggingIndex, index);
-                          setDraggingIndex(null);
-                          setDragOverIndex(null);
-                        }}
-                      >
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="absolute top-2 right-2 text-destructive"
-                            onClick={() => removeItem(index)}
-                            aria-label="Supprimer l'exercice"
-                          >
-                              <Trash2 className="h-4 w-4" />
-                          </Button>
-                          <CardContent className="pt-6 grid md:grid-cols-12 gap-4 items-end">
-                               <div className="md:col-span-1 flex items-center justify-center">
-                                 <button
-                                   type="button"
-                                   className="cursor-grab rounded-md border p-1 text-muted-foreground hover:text-foreground"
-                                   draggable
-                                   onDragStart={() => setDraggingIndex(index)}
-                                   onDragEnd={() => { setDraggingIndex(null); setDragOverIndex(null); }}
-                                   aria-label="Réordonner"
-                                 >
-                                   <GripVertical className="h-4 w-4" />
-                                 </button>
-                               </div>
-                               <div className="md:col-span-3 space-y-2">
-                                   <Label>Exercice</Label>
-                                   <Select value={item.exercise_id.toString()} onValueChange={v => updateItem(index, 'exercise_id', parseInt(v))}>
-                                      <SelectTrigger><SelectValue/></SelectTrigger>
-                                      <SelectContent>
-                                          {filteredExercises.length ? (
-                                            filteredExercises.map((exercise) => (
-                                              <SelectItem key={exercise.id} value={exercise.id.toString()}>
-                                                {exercise.nom_exercice}
-                                                {exercise.exercise_type === "warmup" ? " • Échauffement" : ""}
-                                              </SelectItem>
-                                            ))
-                                          ) : (
-                                            <SelectItem value="no-exercise" disabled>
-                                              Aucun exercice disponible
-                                            </SelectItem>
-                                          )}
-                                      </SelectContent>
-                                   </Select>
-                               </div>
-                               <div className="md:col-span-2 space-y-2">
-                                   <Label>Séries</Label>
-                                   <Input
-                                     type="number"
-                                     value={item.sets === 0 ? "" : item.sets}
-                                     onChange={(e) =>
-                                       updateItem(
-                                         index,
-                                         "sets",
-                                         e.target.value === "" ? 0 : Number(e.target.value),
-                                       )
-                                     }
-                                   />
-                               </div>
-                               <div className="md:col-span-2 space-y-2">
-                                   <Label>Reps</Label>
-                                   <Input
-                                     type="number"
-                                     value={item.reps === 0 ? "" : item.reps}
-                                     onChange={(e) =>
-                                       updateItem(
-                                         index,
-                                         "reps",
-                                         e.target.value === "" ? 0 : Number(e.target.value),
-                                       )
-                                     }
-                                   />
-                               </div>
-                               <div className="md:col-span-2 space-y-2">
-                                   <Label>% 1RM</Label>
-                                   <Input
-                                     type="number"
-                                     value={item.percent_1rm === 0 ? "" : item.percent_1rm}
-                                     onChange={(e) =>
-                                       updateItem(
-                                         index,
-                                         "percent_1rm",
-                                         e.target.value === "" ? 0 : Number(e.target.value),
-                                       )
-                                     }
-                                   />
-                               </div>
-                               <div className="md:col-span-2 space-y-2">
-                                   <Label>Repos (s)</Label>
-                                   <Input
-                                     type="number"
-                                     value={item.rest_seconds === 0 ? "" : item.rest_seconds}
-                                     onChange={(e) =>
-                                       updateItem(
-                                         index,
-                                         "rest_seconds",
-                                         e.target.value === "" ? 0 : Number(e.target.value),
-                                       )
-                                     }
-                                   />
-                               </div>
-                          </CardContent>
-                      </Card>
-                  ))}
-              </div>
-          </div>
-      );
+    return (
+      <>
+        {exerciseCreateDialog}
+        {exerciseEditDialog}
+        {deleteSessionDialog}
+        {deleteExerciseDialog}
+        <StrengthSessionBuilder
+          session={newSession}
+          exercises={exercises ?? []}
+          editingSessionId={editingSessionId}
+          onSessionChange={setNewSession}
+          onSave={handleSaveSession}
+          onCancel={resetSessionForm}
+          onAddItem={addItem}
+          onUpdateItem={updateItem}
+          onRemoveItem={removeItem}
+          onReorderItems={reorderItems}
+          onExerciseDialogOpen={() => setExerciseDialogOpen(true)}
+          isSaving={createSession.isPending || updateSession.isPending}
+        />
+      </>
+    );
   }
 
   return (
     <div className="space-y-4">
-       {exerciseCreateDialog}
-       {exerciseEditDialog}
-       {detailsDialog}
-       {deleteSessionDialog}
-       {deleteExerciseDialog}
-       <div className="flex justify-between items-center">
-           <h3 className="font-bold text-lg">Catalogue Séances Musculation</h3>
-           <Button
-             variant="default"
-             onClick={() => {
-               setEditingSessionId(null);
-               setNewSession({ title: "", description: "", cycle: "endurance", items: [] });
-               setIsCreating(true);
-             }}
-             className="h-10"
-           >
-             <Plus className="mr-2 h-4 w-4"/> Créer
-           </Button>
-       </div>
-       
-       <div className="grid gap-4 md:grid-cols-2">
-           {sessions?.map(session => (
-               <Card key={session.id}>
-                   <CardHeader>
-                       <CardTitle>{session.title}</CardTitle>
-                       <CardDescription>{session.items?.length || 0} exercices • {session.cycle}</CardDescription>
-                   </CardHeader>
-                   <CardContent>
-                       <div className="flex items-center gap-2">
-                           <Button
-                             variant="outline"
-                             size="icon"
-                             aria-label="Voir détails"
-                             onClick={() => {
-                               setDetailSession(session);
-                               setDetailDialogOpen(true);
-                             }}
-                           >
-                             <Eye className="h-4 w-4" />
-                           </Button>
-                           <Button
-                             variant="secondary"
-                             size="icon"
-                             aria-label="Modifier"
-                             onClick={() => startEditSession(session)}
-                           >
-                             <Edit2 className="h-4 w-4" />
-                           </Button>
-                           <Button
-                             variant="destructive"
-                             size="icon"
-                             aria-label="Supprimer"
-                             onClick={() => setPendingDeleteSession(session)}
-                           >
-                             <Trash2 className="h-4 w-4" />
-                           </Button>
-                       </div>
-                   </CardContent>
-               </Card>
-           ))}
-       </div>
+      {exerciseCreateDialog}
+      {exerciseEditDialog}
+      {deleteSessionDialog}
+      {deleteExerciseDialog}
 
-       <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-bold text-lg">Catalogue Exercices</h3>
-            <Button variant="outline" onClick={() => setExerciseDialogOpen(true)} className="h-10">
-              <Plus className="mr-2 h-4 w-4" /> Ajouter un exercice
-            </Button>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            {exercises?.map((exercise) => (
-              <Card key={exercise.id}>
-                <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-3">
-                    {exercise.illustration_gif ? (
-                      <img
-                        src={exercise.illustration_gif}
-                        alt={`Illustration ${exercise.nom_exercice}`}
-                        className="h-14 w-14 rounded-md object-cover"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    ) : null}
-                    <div>
-                      <p className="font-semibold">{exercise.nom_exercice}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {exercise.exercise_type === "warmup" ? "Échauffement" : "Séries de travail"}
-                      </p>
-                    </div>
+      <div className="flex justify-between items-center">
+        <h3 className="font-bold text-lg">Catalogue Séances Musculation</h3>
+        <Button
+          variant="default"
+          onClick={() => {
+            setEditingSessionId(null);
+            setNewSession({ title: "", description: "", cycle: "endurance", items: [] });
+            setIsCreating(true);
+          }}
+          className="h-10"
+        >
+          <Plus className="mr-2 h-4 w-4" /> Créer
+        </Button>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {sessions?.map(session => (
+          <Card key={session.id}>
+            <CardHeader>
+              <CardTitle>{session.title}</CardTitle>
+              <CardDescription>{session.items?.length || 0} exercices • {session.cycle}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label="Modifier"
+                  onClick={() => startEditSession(session)}
+                >
+                  <Edit2 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  aria-label="Supprimer"
+                  onClick={() => setPendingDeleteSession(session)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-lg">Catalogue Exercices</h3>
+          <Button variant="outline" onClick={() => setExerciseDialogOpen(true)} className="h-10">
+            <Plus className="mr-2 h-4 w-4" /> Ajouter un exercice
+          </Button>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          {exercises?.map((exercise) => (
+            <Card key={exercise.id}>
+              <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  {exercise.illustration_gif ? (
+                    <img
+                      src={exercise.illustration_gif}
+                      alt={`Illustration ${exercise.nom_exercice}`}
+                      className="h-14 w-14 rounded-md object-cover"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  ) : null}
+                  <div>
+                    <p className="font-semibold">{exercise.nom_exercice}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {exercise.exercise_type === "warmup" ? "Échauffement" : "Séries de travail"}
+                    </p>
                   </div>
-                  <div className="flex w-full gap-2 sm:w-auto">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      aria-label="Modifier"
-                      onClick={() => startEditExercise(exercise)}
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      aria-label="Supprimer"
-                      onClick={() => setPendingDeleteExercise(exercise)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-       </div>
-   </div>
+                </div>
+                <div className="flex w-full gap-2 sm:w-auto">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    aria-label="Modifier"
+                    onClick={() => startEditExercise(exercise)}
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    aria-label="Supprimer"
+                    onClick={() => setPendingDeleteExercise(exercise)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
