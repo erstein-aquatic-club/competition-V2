@@ -7,6 +7,7 @@ import type { DashboardAssignment } from "@/lib/types";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { BottomActionBar, type SaveState } from "@/components/shared/BottomActionBar";
 import {
   ChevronLeft,
   ChevronRight,
@@ -601,6 +602,7 @@ export default function Dashboard() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
+  const [saveState, setSaveState] = useState<SaveState>("idle");
 
   const { data: sessions, isLoading: sessionsLoading, error: sessionsError, refetch: refetchSessions } = useQuery({
     queryKey: ["sessions", userId ?? user],
@@ -623,35 +625,56 @@ export default function Dashboard() {
 
   const deleteMutation = useMutation({
     mutationFn: (sessionId: number) => api.deleteSession(sessionId),
+    onMutate: () => {
+      setSaveState("saving");
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
       toast({ title: "Séance supprimée", description: "La saisie a été supprimée." });
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 2000);
     },
     onError: () => {
       toast({ title: "Erreur", description: "Impossible de supprimer la séance.", variant: "destructive" });
+      setSaveState("error");
+      setTimeout(() => setSaveState("idle"), 3000);
     },
   });
 
   const mutation = useMutation({
     mutationFn: (data: Omit<Session, "id" | "created_at">) => api.syncSession({ ...data, athlete_name: user!, athlete_id: userId ?? undefined }),
+    onMutate: () => {
+      setSaveState("saving");
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
       queryClient.invalidateQueries({ queryKey: ["assignments"] });
       toast({ title: "Séance enregistrée", description: "Vos données ont été synchronisées." });
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 2000);
     },
     onError: () => {
       toast({ title: "Erreur", description: "Impossible d'enregistrer la séance.", variant: "destructive" });
+      setSaveState("error");
+      setTimeout(() => setSaveState("idle"), 3000);
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: (data: Session) => api.updateSession(data),
+    onMutate: () => {
+      setSaveState("saving");
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
       toast({ title: "Séance mise à jour", description: "Votre saisie a été mise à jour." });
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 2000);
     },
     onError: () => {
       toast({ title: "Erreur", description: "Impossible de mettre à jour la séance.", variant: "destructive" });
+      setSaveState("error");
+      setTimeout(() => setSaveState("idle"), 3000);
     },
   });
 
@@ -1759,13 +1782,13 @@ export default function Dashboard() {
                           )}
                         </div>
 
-                        <div className="mt-4 flex items-center justify-between">
+                        <BottomActionBar saveState={saveState}>
                           <button
                             type="button"
                             onClick={saveFeedback}
                             disabled={isPending || !canRate || !INDICATORS.every((i) => Number.isInteger(draftState[i.key]))}
                             className={cn(
-                              "rounded-2xl px-4 py-3 text-sm font-semibold transition",
+                              "rounded-2xl px-4 py-3 text-sm font-semibold transition flex-1",
                               isPending || !canRate
                                 ? "bg-muted text-muted-foreground cursor-not-allowed"
                                 : INDICATORS.every((i) => Number.isInteger(draftState[i.key]))
@@ -1776,7 +1799,7 @@ export default function Dashboard() {
                             Valider
                           </button>
                           <div className="text-xs text-muted-foreground">→ km</div>
-                        </div>
+                        </BottomActionBar>
                       </div>
                     </>
                   );

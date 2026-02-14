@@ -1,13 +1,37 @@
 import React from "react";
+import { CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+export type SaveState = "idle" | "saving" | "saved" | "error";
 
 interface BottomActionBarProps {
   children: React.ReactNode;
   className?: string;
   containerClassName?: string;
+  saveState?: SaveState;
+  saveMessage?: string;
 }
 
-export function BottomActionBar({ children, className, containerClassName }: BottomActionBarProps) {
+/**
+ * Fixed bottom action bar for mobile-first pages.
+ *
+ * Positioned above mobile navigation (64px from bottom) with optional save state indicator.
+ *
+ * @param saveState - Current save state: idle, saving, saved, or error
+ * @param saveMessage - Optional message to display with save state
+ *
+ * @example
+ * <BottomActionBar saveState="saved" saveMessage="Modifications enregistrées">
+ *   <Button>Save</Button>
+ * </BottomActionBar>
+ */
+export function BottomActionBar({
+  children,
+  className,
+  containerClassName,
+  saveState = "idle",
+  saveMessage,
+}: BottomActionBarProps) {
   return (
     <div
       role="region"
@@ -18,6 +42,39 @@ export function BottomActionBar({ children, className, containerClassName }: Bot
         className
       )}
     >
+      {/* Save state indicator */}
+      {saveState !== "idle" && (
+        <div
+          className={cn(
+            "mx-auto mb-2 flex max-w-md items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium shadow-lg transition-all duration-300 animate-in slide-in-from-bottom-2 motion-reduce:animate-none",
+            saveState === "saving" && "bg-muted text-muted-foreground",
+            saveState === "saved" && "bg-status-success text-white",
+            saveState === "error" && "bg-destructive text-destructive-foreground"
+          )}
+          role="status"
+          aria-live="polite"
+        >
+          {saveState === "saving" && (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>{saveMessage || "Enregistrement..."}</span>
+            </>
+          )}
+          {saveState === "saved" && (
+            <>
+              <CheckCircle2 className="h-4 w-4" />
+              <span>{saveMessage || "Enregistré"}</span>
+            </>
+          )}
+          {saveState === "error" && (
+            <>
+              <AlertCircle className="h-4 w-4" />
+              <span>{saveMessage || "Erreur lors de l'enregistrement"}</span>
+            </>
+          )}
+        </div>
+      )}
+
       <div
         className={cn(
           "mx-auto flex w-full max-w-md items-center justify-between gap-2 border-t bg-background px-4 py-3 shadow-[0_-2px_10px_rgba(0,0,0,0.1)]",

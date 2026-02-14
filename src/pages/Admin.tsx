@@ -2,6 +2,9 @@ import * as React from "react";
 import { Redirect } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, ShieldCheck, UserMinus, UserPlus, Search, CheckCircle, XCircle, Clock } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useAuth } from "@/lib/auth";
 import { api, summarizeApiError, type UserSummary } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +22,24 @@ const userRoleOptions = ["athlete", "coach", "comite", "admin"] as const;
 type UserRole = (typeof userRoleOptions)[number];
 
 const isActiveUser = (isActive: boolean | number | null | undefined) => !(isActive === false || isActive === 0);
+
+const coachCreationSchema = z.object({
+  display_name: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
+  email: z.string().optional().refine(
+    (val) => !val || z.string().email().safeParse(val).success,
+    "L'email doit être valide"
+  ),
+  password: z.string().optional().refine(
+    (val) => !val || (
+      val.length >= 8 &&
+      /[A-Z]/.test(val) &&
+      /\d/.test(val)
+    ),
+    "Le mot de passe doit contenir au moins 8 caractères, une majuscule et un chiffre"
+  ),
+});
+
+type CoachCreationForm = z.infer<typeof coachCreationSchema>;
 
 export const updateUserRoleInList = (users: UserSummary[], userId: number, role: UserRole) =>
   users.map((user) => (user.id === userId ? { ...user, role } : user));
@@ -38,10 +59,21 @@ export default function Admin() {
   const [includeInactive, setIncludeInactive] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
 
-  const [createCoachName, setCreateCoachName] = useState("");
-  const [createCoachEmail, setCreateCoachEmail] = useState("");
-  const [createCoachPassword, setCreateCoachPassword] = useState("");
   const [createdCoachPassword, setCreatedCoachPassword] = useState<string | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<CoachCreationForm>({
+    resolver: zodResolver(coachCreationSchema),
+    defaultValues: {
+      display_name: "",
+      email: "",
+      password: "",
+    },
+  });
 
   const isAdmin = role === "admin";
 
@@ -58,9 +90,7 @@ export default function Admin() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-      setCreateCoachName("");
-      setCreateCoachEmail("");
-      setCreateCoachPassword("");
+      reset();
       setCreatedCoachPassword(data.initialPassword ?? null);
       toast({ title: "Coach créé" });
     },
@@ -268,51 +298,53 @@ export default function Admin() {
         <CardContent>
           <form
             className="space-y-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const trimmedName = createCoachName.trim();
-              if (!trimmedName) return;
+            onSubmit={handleSubmit((data) => {
               createCoach.mutate({
-                display_name: trimmedName,
-                email: createCoachEmail.trim() || undefined,
-                password: createCoachPassword || undefined,
+                display_name: data.display_name.trim(),
+                email: data.email?.trim() || undefined,
+                password: data.password || undefined,
               });
-            }}
+            })}
           >
             <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="coach-create-name">Nom affiché</Label>
                 <Input
                   id="coach-create-name"
-                  value={createCoachName}
-                  onChange={(event) => setCreateCoachName(event.target.value)}
+                  {...register("display_name")}
                   placeholder="Ex: Coach Martin"
-                  required
                 />
+                {errors.display_name && (
+                  <p className="text-sm text-destructive">{errors.display_name.message}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="coach-create-email">Email</Label>
                 <Input
                   id="coach-create-email"
                   type="email"
-                  value={createCoachEmail}
-                  onChange={(event) => setCreateCoachEmail(event.target.value)}
+                  {...register("email")}
                   placeholder="coach@email.com"
                 />
+                {errors.email && (
+                  <p className="text-sm text-destructive">{errors.email.message}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="coach-create-password">Mot de passe (optionnel)</Label>
                 <Input
                   id="coach-create-password"
                   type="text"
-                  value={createCoachPassword}
-                  onChange={(event) => setCreateCoachPassword(event.target.value)}
+                  {...register("password")}
                   placeholder="Laisser vide pour auto"
                 />
+                {errors.password && (
+                  <p className="text-sm text-destructive">{errors.password.message}</p>
+                )}
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <Button type="submit" disabled={!createCoachName.trim() || createCoach.isPending}>
+              <Button type="submit" disabled={createCoach.isPending}>
                 {createCoach.isPending ? "Création..." : "Créer le coach"}
               </Button>
               {createdCoachPassword ? (

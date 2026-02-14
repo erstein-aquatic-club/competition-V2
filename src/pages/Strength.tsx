@@ -18,7 +18,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { WorkoutRunner, resolveNextStep } from "@/components/strength/WorkoutRunner";
-import { BottomActionBar } from "@/components/shared/BottomActionBar";
+import { BottomActionBar, SaveState } from "@/components/shared/BottomActionBar";
 import type { SetLogEntry, LocalStrengthRun, UpdateStrengthRunInput, OneRmEntry } from "@/lib/types";
 
 const normalizeStrengthCycle = (value?: string | null): StrengthCycleType => {
@@ -195,6 +195,7 @@ export default function Strength() {
   const [activeRunnerStep, setActiveRunnerStep] = useState(0);
   const [screenMode, setScreenMode] = useState<"list" | "reader" | "focus" | "settings">("list");
   const [isFinishing, setIsFinishing] = useState(false);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
   const [preferences, setPreferences] = useState({
     poolMode: false,
     largeText: false,
@@ -372,7 +373,12 @@ export default function Strength() {
 
   const startRun = useMutation({
       mutationFn: (data: Parameters<typeof api.startStrengthRun>[0]) => api.startStrengthRun(data),
+      onMutate: () => {
+          setSaveState("saving");
+      },
       onSuccess: (data) => {
+          setSaveState("saved");
+          setTimeout(() => setSaveState("idle"), 2000);
           if (data?.run_id) {
               setActiveRunId(data.run_id);
               setActiveRunLogs((prev) => prev ?? []);
@@ -393,13 +399,20 @@ export default function Strength() {
           queryClient.invalidateQueries({ queryKey: ["strength_history"] });
       },
       onError: () => {
+          setSaveState("error");
+          setTimeout(() => setSaveState("idle"), 3000);
           toast({ title: "Erreur", description: "Impossible de démarrer la séance.", variant: "destructive" });
       },
   });
 
   const logStrengthSet = useMutation({
       mutationFn: (data: Parameters<typeof api.logStrengthSet>[0]) => api.logStrengthSet(data),
+      onMutate: () => {
+          setSaveState("saving");
+      },
       onSuccess: (data) => {
+          setSaveState("saved");
+          setTimeout(() => setSaveState("idle"), 2000);
           if (data?.one_rm_updated) {
               queryClient.invalidateQueries({ queryKey: ["1rm", user, userId] });
               toast({
@@ -409,6 +422,8 @@ export default function Strength() {
           }
       },
       onError: () => {
+          setSaveState("error");
+          setTimeout(() => setSaveState("idle"), 3000);
           toast({
               title: "Erreur",
               description: "Impossible d'enregistrer une série.",
@@ -419,7 +434,12 @@ export default function Strength() {
 
   const updateRun = useMutation({
       mutationFn: (data: UpdateStrengthRunInput) => api.updateStrengthRun(data),
+      onMutate: () => {
+          setSaveState("saving");
+      },
       onSuccess: (_data, variables) => {
+          setSaveState("saved");
+          setTimeout(() => setSaveState("idle"), 2000);
           setIsFinishing(false);
           queryClient.invalidateQueries({ queryKey: ["strength_history"] });
           if (variables?.status !== "completed") {
@@ -442,6 +462,8 @@ export default function Strength() {
           toast({ title: "Séance sauvegardée", description: "Bravo pour l'effort !" });
       },
       onError: (_error, variables) => {
+          setSaveState("error");
+          setTimeout(() => setSaveState("idle"), 3000);
           if (variables?.status === "completed") {
               setIsFinishing(false);
               toast({ title: "Erreur", description: "Impossible d'enregistrer la séance. Réessayez.", variant: "destructive" });
@@ -456,10 +478,17 @@ export default function Strength() {
               exercise_id: params.exercise_id,
               notes: params.notes,
           }),
+      onMutate: () => {
+          setSaveState("saving");
+      },
       onSuccess: () => {
+          setSaveState("saved");
+          setTimeout(() => setSaveState("idle"), 2000);
           queryClient.invalidateQueries({ queryKey: ["1rm", user, userId] });
       },
       onError: () => {
+          setSaveState("error");
+          setTimeout(() => setSaveState("idle"), 3000);
           toast({ title: "Erreur", description: "Impossible de sauvegarder la note.", variant: "destructive" });
       },
   });
@@ -643,7 +672,12 @@ export default function Strength() {
 
   const deleteStrengthRun = useMutation({
     mutationFn: (runId: number) => api.deleteStrengthRun(runId),
+    onMutate: () => {
+      setSaveState("saving");
+    },
     onSuccess: (data) => {
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 2000);
       clearActiveRunState();
       if (historyAthleteKey) {
         queryClient.setQueryData(
@@ -664,6 +698,8 @@ export default function Strength() {
       });
     },
     onError: () => {
+      setSaveState("error");
+      setTimeout(() => setSaveState("idle"), 3000);
       toast({
         title: "Erreur",
         description: "Impossible de supprimer la séance en cours.",
@@ -1391,7 +1427,7 @@ export default function Strength() {
                        </div>
 
                        {/* Bottom action bar fixe - plus visible */}
-                       <BottomActionBar>
+                       <BottomActionBar saveState={saveState}>
                            <Button
                                className="flex-1 h-14 rounded-xl font-bold text-base bg-primary hover:bg-primary/90 shadow-lg"
                                onClick={handleLaunchFocus}

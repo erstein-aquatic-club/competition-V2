@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -14,6 +14,9 @@ import { useToast } from "@/hooks/use-toast";
 import type { UserProfile as ProfileData, GroupSummary } from "@/lib/api";
 import { Link } from "wouter";
 import { Edit2, LogOut, RefreshCw, Save, AlertCircle } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 
 export const shouldShowRecords = (role: string | null) => role !== "coach" && role !== "admin" && role !== "comite";
 
@@ -36,6 +39,48 @@ function formatBirthdate(value?: string | null) {
   return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString("fr-FR");
 }
 
+// Profile edit validation schema
+const profileEditSchema = z.object({
+  group_id: z.string().optional(),
+  objectives: z.string().optional(),
+  bio: z.string().optional(),
+  avatar_url: z.string().url("URL invalide").optional().or(z.literal("")),
+  birthdate: z.string().optional().refine(
+    (val) => {
+      if (!val) return true;
+      const date = new Date(val);
+      if (isNaN(date.getTime())) return false;
+      const age = (new Date().getTime() - date.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+      return age >= 6 && age <= 100;
+    },
+    { message: "L'âge doit être entre 6 et 100 ans" }
+  ),
+  ffn_iuf: z.string().optional().refine(
+    (val) => {
+      if (!val) return true;
+      return /^\d+$/.test(val);
+    },
+    { message: "L'IUF FFN doit être un nombre" }
+  ),
+});
+
+type ProfileEditForm = z.infer<typeof profileEditSchema>;
+
+// Password change validation schema
+const passwordChangeSchema = z.object({
+  password: z
+    .string()
+    .min(8, "Le mot de passe doit contenir au moins 8 caractères")
+    .regex(/[A-Z]/, "Le mot de passe doit contenir au moins une majuscule")
+    .regex(/\d/, "Le mot de passe doit contenir au moins un chiffre"),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Les mots de passe ne correspondent pas",
+  path: ["confirmPassword"],
+});
+
+type PasswordChangeForm = z.infer<typeof passwordChangeSchema>;
+
 export default function Profile() {
   const { user, userId, logout, role } = useAuth();
   const { toast } = useToast();
@@ -47,16 +92,26 @@ export default function Profile() {
 
   const [isEditing, setIsEditing] = useState(false);
 
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  // Profile edit form with React Hook Form + Zod
+  const profileForm = useForm<ProfileEditForm>({
+    resolver: zodResolver(profileEditSchema),
+    defaultValues: {
+      group_id: "",
+      objectives: "",
+      bio: "",
+      avatar_url: "",
+      birthdate: "",
+      ffn_iuf: "",
+    },
+  });
 
-  const [editForm, setEditForm] = useState({
-    group_id: "",
-    objectives: "",
-    bio: "",
-    avatar_url: "",
-    birthdate: "",
-    ffn_iuf: "",
+  // Password change form with React Hook Form + Zod
+  const passwordForm = useForm<PasswordChangeForm>({
+    resolver: zodResolver(passwordChangeSchema),
+    defaultValues: {
+      password: "",
+      confirmPassword: "",
+    },
   });
 
   const { data: profile, isLoading: profileLoading, error: profileError, refetch: refetchProfile } = useQuery({
@@ -85,7 +140,7 @@ export default function Profile() {
   }, [profile, user]);
 
   const updateProfile = useMutation({
-    mutationFn: (data: typeof editForm) =>
+    mutationFn: (data: ProfileEditForm) =>
       api.updateProfile({
         userId,
         // api.updateProfile est typé sans ffn_iuf : on cast pour garder le change minimal côté front
@@ -115,8 +170,7 @@ export default function Profile() {
   const updatePassword = useMutation({
     mutationFn: (payload: { password: string }) => api.authPasswordUpdate(payload),
     onSuccess: () => {
-      setNewPassword("");
-      setConfirmPassword("");
+      passwordForm.reset();
       toast({ title: "Mot de passe mis à jour" });
     },
     onError: (error: unknown) => {
@@ -155,7 +209,7 @@ export default function Profile() {
   });
 
   const startEdit = () => {
-    setEditForm({
+    profileForm.reset({
       group_id: profile?.group_id ? String(profile.group_id) : "",
       objectives: profile?.objectives || "",
       bio: profile?.bio || "",
@@ -166,27 +220,13 @@ export default function Profile() {
     setIsEditing(true);
   };
 
-  const handleSaveProfile = () => updateProfile.mutate(editForm);
+  const handleSaveProfile = profileForm.handleSubmit((data) => {
+    updateProfile.mutate(data);
+  });
 
-  const handleUpdatePassword = () => {
-    if (!newPassword || newPassword.length < 6) {
-      toast({
-        title: "Mot de passe invalide",
-        description: "Minimum 6 caractères.",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      toast({
-        title: "Mot de passe invalide",
-        description: "Les mots de passe ne correspondent pas.",
-        variant: "destructive",
-      });
-      return;
-    }
-    updatePassword.mutate({ password: newPassword });
-  };
+  const handleUpdatePassword = passwordForm.handleSubmit((data) => {
+    updatePassword.mutate({ password: data.password });
+  });
 
   const groupLabel =
     groups.find((g) => g.id === profile?.group_id)?.name ||
@@ -282,12 +322,12 @@ export default function Profile() {
 
         <CardContent className="space-y-4">
           {isEditing ? (
-            <div className="space-y-4">
+            <form onSubmit={handleSaveProfile} className="space-y-4">
               <div className="grid gap-2">
                 <Label>Groupe</Label>
                 <Select
-                  value={editForm.group_id}
-                  onValueChange={(value) => setEditForm({ ...editForm, group_id: value })}
+                  value={profileForm.watch("group_id")}
+                  onValueChange={(value) => profileForm.setValue("group_id", value)}
                   disabled={groupsLoading}
                 >
                   <SelectTrigger>
@@ -307,11 +347,13 @@ export default function Profile() {
                 <div className="grid gap-2">
                   <Label>IUF FFN</Label>
                   <Input
-                    value={editForm.ffn_iuf}
-                    onChange={(e) => setEditForm({ ...editForm, ffn_iuf: e.target.value })}
+                    {...profileForm.register("ffn_iuf")}
                     placeholder="879576"
                     inputMode="numeric"
                   />
+                  {profileForm.formState.errors.ffn_iuf && (
+                    <p className="text-xs text-destructive">{profileForm.formState.errors.ffn_iuf.message}</p>
+                  )}
                   <div className="text-xs text-muted-foreground">
                     Identifiant unique FFN (utilisé pour importer vos records compétition).
                   </div>
@@ -320,42 +362,52 @@ export default function Profile() {
 
               <div className="grid gap-2">
                 <Label>Objectifs</Label>
-                <Input value={editForm.objectives} onChange={(e) => setEditForm({ ...editForm, objectives: e.target.value })} />
+                <Input {...profileForm.register("objectives")} />
+                {profileForm.formState.errors.objectives && (
+                  <p className="text-xs text-destructive">{profileForm.formState.errors.objectives.message}</p>
+                )}
               </div>
 
               <div className="grid gap-2">
                 <Label>Bio</Label>
-                <Textarea value={editForm.bio} onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })} />
+                <Textarea {...profileForm.register("bio")} />
+                {profileForm.formState.errors.bio && (
+                  <p className="text-xs text-destructive">{profileForm.formState.errors.bio.message}</p>
+                )}
               </div>
 
               <div className="grid gap-2">
                 <Label>Avatar (URL)</Label>
                 <Input
-                  value={editForm.avatar_url}
-                  onChange={(e) => setEditForm({ ...editForm, avatar_url: e.target.value })}
+                  {...profileForm.register("avatar_url")}
                   placeholder="https://..."
                 />
+                {profileForm.formState.errors.avatar_url && (
+                  <p className="text-xs text-destructive">{profileForm.formState.errors.avatar_url.message}</p>
+                )}
               </div>
 
               <div className="grid gap-2">
                 <Label>Date de naissance</Label>
                 <Input
                   type="date"
-                  value={editForm.birthdate}
-                  onChange={(e) => setEditForm({ ...editForm, birthdate: e.target.value })}
+                  {...profileForm.register("birthdate")}
                 />
+                {profileForm.formState.errors.birthdate && (
+                  <p className="text-xs text-destructive">{profileForm.formState.errors.birthdate.message}</p>
+                )}
               </div>
 
               <div className="flex gap-2">
-                <Button onClick={handleSaveProfile} disabled={updateProfile.isPending} className="w-full">
+                <Button type="submit" disabled={updateProfile.isPending} className="w-full">
                   <Save className="mr-2 h-4 w-4" />
                   Enregistrer
                 </Button>
-                <Button variant="outline" onClick={() => setIsEditing(false)} disabled={updateProfile.isPending}>
+                <Button type="button" variant="outline" onClick={() => setIsEditing(false)} disabled={updateProfile.isPending}>
                   Annuler
                 </Button>
               </div>
-            </div>
+            </form>
           ) : (
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
@@ -429,28 +481,34 @@ export default function Profile() {
             <CardTitle>Mot de passe</CardTitle>
             <CardDescription>Modifiez votre mot de passe.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid gap-2">
-              <Label>Nouveau mot de passe</Label>
-              <Input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="••••••••"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Confirmer</Label>
-              <Input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="••••••••"
-              />
-            </div>
-            <Button className="w-full" onClick={handleUpdatePassword} disabled={updatePassword.isPending}>
-              Mettre à jour le mot de passe
-            </Button>
+          <CardContent>
+            <form onSubmit={handleUpdatePassword} className="space-y-3">
+              <div className="grid gap-2">
+                <Label>Nouveau mot de passe</Label>
+                <Input
+                  type="password"
+                  {...passwordForm.register("password")}
+                  placeholder="••••••••"
+                />
+                {passwordForm.formState.errors.password && (
+                  <p className="text-xs text-destructive">{passwordForm.formState.errors.password.message}</p>
+                )}
+              </div>
+              <div className="grid gap-2">
+                <Label>Confirmer</Label>
+                <Input
+                  type="password"
+                  {...passwordForm.register("confirmPassword")}
+                  placeholder="••••••••"
+                />
+                {passwordForm.formState.errors.confirmPassword && (
+                  <p className="text-xs text-destructive">{passwordForm.formState.errors.confirmPassword.message}</p>
+                )}
+              </div>
+              <Button type="submit" className="w-full" disabled={updatePassword.isPending}>
+                Mettre à jour le mot de passe
+              </Button>
+            </form>
           </CardContent>
         </Card>
       ) : null}
