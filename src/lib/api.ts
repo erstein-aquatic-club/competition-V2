@@ -34,6 +34,7 @@ export type {
   StrokeCountEntry,
   SwimExerciseLog,
   SwimExerciseLogInput,
+  StrengthFolder,
 } from "./api/types";
 
 import type {
@@ -107,6 +108,9 @@ import {
   getSwimCatalog as _getSwimCatalog,
   createSwimSession as _createSwimSession,
   deleteSwimSession as _deleteSwimSession,
+  archiveSwimSession as _archiveSwimSession,
+  moveSwimSession as _moveSwimSession,
+  migrateLocalStorageArchive as _migrateLocalStorageArchive,
 } from "./api/swim";
 
 import {
@@ -157,6 +161,11 @@ import {
   get1RM as _get1RM,
   update1RM as _update1RM,
   updateExerciseNote as _updateExerciseNote,
+  getStrengthFolders as _getStrengthFolders,
+  createStrengthFolder as _createStrengthFolder,
+  renameStrengthFolder as _renameStrengthFolder,
+  deleteStrengthFolder as _deleteStrengthFolder,
+  moveToFolder as _moveToFolder,
 } from "./api/strength";
 
 // --- API Service ---
@@ -392,6 +401,11 @@ export const api = {
   async get1RM(athlete: Parameters<typeof _get1RM>[0]) { return _get1RM(athlete); },
   async update1RM(record: Parameters<typeof _update1RM>[0]) { return _update1RM(record); },
   async updateExerciseNote(params: Parameters<typeof _updateExerciseNote>[0]) { return _updateExerciseNote(params); },
+  async getStrengthFolders(type: 'session' | 'exercise') { return _getStrengthFolders(type); },
+  async createStrengthFolder(name: string, type: 'session' | 'exercise') { return _createStrengthFolder(name, type); },
+  async renameStrengthFolder(id: number, name: string) { return _renameStrengthFolder(id, name); },
+  async deleteStrengthFolder(id: number) { return _deleteStrengthFolder(id); },
+  async moveToFolder(itemId: number, folderId: number | null, table: 'strength_sessions' | 'dim_exercices') { return _moveToFolder(itemId, folderId, table); },
 
   // ══════════════════════════════════════════════════════════════════
   // DELEGATION STUBS — Swim Exercise Logs
@@ -407,6 +421,9 @@ export const api = {
   async getSwimCatalog() { return _getSwimCatalog(); },
   async createSwimSession(session: any) { return _createSwimSession(session); },
   async deleteSwimSession(sessionId: number) { return _deleteSwimSession(sessionId); },
+  async archiveSwimSession(sessionId: number, archived: boolean) { return _archiveSwimSession(sessionId, archived); },
+  async moveSwimSession(sessionId: number, folder: string | null) { return _moveSwimSession(sessionId, folder); },
+  async migrateLocalStorageArchive(archivedIds: number[]) { return _migrateLocalStorageArchive(archivedIds); },
 
   // ══════════════════════════════════════════════════════════════════
   // DELEGATION STUBS — Assignments

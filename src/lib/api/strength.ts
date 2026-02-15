@@ -21,6 +21,7 @@ import type {
   StrengthSessionTemplate,
   StrengthSessionItem,
   StrengthCycleType,
+  StrengthFolder,
 } from './types';
 import { normalizeExercise } from './helpers';
 import type {
@@ -152,6 +153,7 @@ export async function getStrengthSessions(): Promise<StrengthSessionTemplate[]> 
         title: String(session.name || ""),
         description: session.description ?? "",
         cycle,
+        folder_id: safeOptionalInt(session.folder_id),
         items: rawItems
           .sort((a: any, b: any) => (a.ordre ?? 0) - (b.ordre ?? 0))
           .map((item: any, index: number) => ({
@@ -175,6 +177,7 @@ export async function createStrengthSession(session: any) {
       .insert({
         name: session?.title ?? session?.name ?? "",
         description: session?.description ?? "",
+        folder_id: session?.folder_id ?? null,
       })
       .select("id")
       .single();
@@ -221,6 +224,7 @@ export async function updateStrengthSession(session: any) {
       .update({
         name: session?.title ?? session?.name ?? "",
         description: session?.description ?? "",
+        folder_id: session?.folder_id ?? null,
       })
       .eq("id", session.id);
     if (error) throw new Error(error.message);
@@ -1043,4 +1047,57 @@ export async function updateExerciseNote(params: {
   }
   localStorageSave(STORAGE_KEYS.ONE_RM, records);
   return { status: "ok" };
+}
+
+// --- Strength Folders ---
+
+export async function getStrengthFolders(type: 'session' | 'exercise'): Promise<StrengthFolder[]> {
+  if (canUseSupabase()) {
+    const { data, error } = await supabase
+      .from("strength_folders")
+      .select("*")
+      .eq("type", type)
+      .order("sort_order", { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((row: any) => ({
+      id: safeInt(row.id),
+      name: String(row.name || ""),
+      type: row.type as 'session' | 'exercise',
+      sort_order: safeInt(row.sort_order),
+    }));
+  }
+  return [];
+}
+
+export async function createStrengthFolder(name: string, type: 'session' | 'exercise'): Promise<StrengthFolder> {
+  if (!canUseSupabase()) throw new Error("Supabase requis");
+  const { data, error } = await supabase
+    .from("strength_folders")
+    .insert({ name, type })
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
+  return { id: safeInt(data.id), name: String(data.name), type: data.type, sort_order: safeInt(data.sort_order) };
+}
+
+export async function renameStrengthFolder(id: number, name: string): Promise<void> {
+  if (!canUseSupabase()) throw new Error("Supabase requis");
+  const { error } = await supabase.from("strength_folders").update({ name }).eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteStrengthFolder(id: number): Promise<void> {
+  if (!canUseSupabase()) throw new Error("Supabase requis");
+  const { error } = await supabase.from("strength_folders").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export async function moveToFolder(
+  itemId: number,
+  folderId: number | null,
+  table: 'strength_sessions' | 'dim_exercices',
+): Promise<void> {
+  if (!canUseSupabase()) throw new Error("Supabase requis");
+  const { error } = await supabase.from(table).update({ folder_id: folderId }).eq("id", itemId);
+  if (error) throw new Error(error.message);
 }

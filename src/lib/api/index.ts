@@ -133,6 +133,9 @@ export {
   getSwimCatalog,
   createSwimSession,
   deleteSwimSession,
+  archiveSwimSession,
+  moveSwimSession,
+  migrateLocalStorageArchive,
 } from './swim';
 
 export {
@@ -183,4 +186,9 @@ export {
   get1RM,
   update1RM,
   updateExerciseNote,
+  getStrengthFolders,
+  createStrengthFolder,
+  renameStrengthFolder,
+  deleteStrengthFolder,
+  moveToFolder,
 } from './strength';

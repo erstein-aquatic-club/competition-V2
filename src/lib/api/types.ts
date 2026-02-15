@@ -52,6 +52,7 @@ export interface Exercise {
   pct_1rm_force?: number | null;
   recup_force?: number | null;
   recup_exercices_force?: number | null;
+  folder_id?: number | null;
 }
 
 export type StrengthCycleType = "endurance" | "hypertrophie" | "force";
@@ -64,6 +65,7 @@ export interface StrengthSessionTemplate {
   cycle: StrengthCycleType;
   cycle_type?: StrengthCycleType | null;
   items?: StrengthSessionItem[];
+  folder_id?: number | null;
 }
 
 export interface StrengthSessionItem {
@@ -79,6 +81,13 @@ export interface StrengthSessionItem {
   category?: string;
 }
 
+export interface StrengthFolder {
+  id: number;
+  name: string;
+  type: 'session' | 'exercise';
+  sort_order: number;
+}
+
 export interface SwimSessionTemplate {
   id: number;
   name: string;
@@ -86,6 +95,8 @@ export interface SwimSessionTemplate {
   created_by?: number | null;
   created_at?: string | null;
   updated_at?: string | null;
+  folder?: string | null;
+  is_archived?: boolean;
   items?: SwimSessionItem[];
 }
 

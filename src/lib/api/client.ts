@@ -199,6 +199,7 @@ export const mapDbExerciseToApi = (row: Record<string, unknown>): Exercise => ({
   pct_1rm_force: safeOptionalNumber(row.pourcentage_charge_1rm_force),
   recup_force: safeOptionalInt(row.recup_series_force),
   recup_exercices_force: safeOptionalInt(row.recup_exercices_force),
+  folder_id: safeOptionalInt(row.folder_id),
 });
 
 export const mapApiExerciseToDb = (exercise: Partial<Exercise>) => ({
@@ -222,6 +223,7 @@ export const mapApiExerciseToDb = (exercise: Partial<Exercise>) => ({
   pourcentage_charge_1rm_force: exercise.pct_1rm_force ?? null,
   recup_series_force: exercise.recup_force ?? null,
   recup_exercices_force: exercise.recup_exercices_force ?? null,
+  folder_id: exercise.folder_id ?? null,
 });
 
 // --- Misc utilities ---
