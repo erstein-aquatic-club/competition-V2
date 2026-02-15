@@ -74,6 +74,7 @@ const intensityTextTone: Record<string, string> = {
   V2: "text-intensity-3",
   V3: "text-intensity-4",
   Max: "text-intensity-5",
+  Prog: "text-intensity-prog",
 };
 
 const intensityRingTone: Record<string, string> = {
@@ -82,6 +83,7 @@ const intensityRingTone: Record<string, string> = {
   V2: "ring-intensity-3/30",
   V3: "ring-intensity-4/30",
   Max: "ring-intensity-5/30",
+  Prog: "ring-intensity-prog/30",
 };
 
 const legacyIntensityMap: Record<string, string> = {
@@ -91,13 +93,14 @@ const legacyIntensityMap: Record<string, string> = {
   "relâché": "V0",
 };
 
-const intensityScale = ["V0", "V1", "V2", "V3", "Max"] as const;
+const intensityScale = ["V0", "V1", "V2", "V3", "Max", "Prog"] as const;
 
 const normalizeIntensityValue = (value?: string | null) => {
   if (!value) return "V0";
   const trimmed = value.trim();
   if (!trimmed) return "V0";
   const lower = trimmed.toLowerCase();
+  if (lower === "prog" || lower === "progressif") return "Prog";
   if (legacyIntensityMap[lower]) {
     return legacyIntensityMap[lower];
   }

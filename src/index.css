@@ -61,11 +61,13 @@
   --color-intensity-3: hsl(var(--intensity-3));
   --color-intensity-4: hsl(var(--intensity-4));
   --color-intensity-5: hsl(var(--intensity-5));
+  --color-intensity-prog: hsl(var(--intensity-prog));
   --color-intensity-1-bg: hsl(var(--intensity-1-bg));
   --color-intensity-2-bg: hsl(var(--intensity-2-bg));
   --color-intensity-3-bg: hsl(var(--intensity-3-bg));
   --color-intensity-4-bg: hsl(var(--intensity-4-bg));
   --color-intensity-5-bg: hsl(var(--intensity-5-bg));
+  --color-intensity-prog-bg: hsl(var(--intensity-prog-bg));
   --color-rank-gold: hsl(var(--rank-gold));
   --color-rank-silver: hsl(var(--rank-silver));
   --color-rank-bronze: hsl(var(--rank-bronze));
@@ -125,6 +127,7 @@
   --intensity-3: 45 93% 47%;     /* yellow-500 */
   --intensity-4: 25 95% 53%;     /* orange-500 */
   --intensity-5: 0 72% 51%;      /* red-600 - worst/hardest */
+  --intensity-prog: 220 70% 50%;  /* blue-600 - progressive */
 
   /* Intensity backgrounds (lighter versions) */
   --intensity-1-bg: 152 81% 96%;
@@ -132,6 +135,7 @@
   --intensity-3-bg: 48 96% 89%;
   --intensity-4-bg: 33 100% 90%;
   --intensity-5-bg: 0 93% 94%;
+  --intensity-prog-bg: 220 70% 94%;
 
   /* Category tags */
   --tag-swim-bg: 199 89% 48%;
@@ -188,6 +192,7 @@
   --intensity-3: 45 80% 55%;
   --intensity-4: 25 80% 55%;
   --intensity-5: 0 60% 55%;
+  --intensity-prog: 220 60% 55%;
 
   /* Intensity backgrounds (dark mode) */
   --intensity-1-bg: 152 40% 15%;
@@ -195,6 +200,7 @@
   --intensity-3-bg: 48 40% 15%;
   --intensity-4-bg: 33 40% 15%;
   --intensity-5-bg: 0 40% 15%;
+  --intensity-prog-bg: 220 40% 15%;
 
   /* Category tags (dark mode) */
   --tag-swim-bg: 199 70% 35%;

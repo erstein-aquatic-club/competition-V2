@@ -72,13 +72,14 @@ const legacyIntensityMap: Record<string, string> = {
   "relâché": "V0",
 };
 
-const intensityScale = ["V0", "V1", "V2", "V3", "Max"] as const;
+const intensityScale = ["V0", "V1", "V2", "V3", "Max", "Prog"] as const;
 
 const normalizeIntensityValue = (value?: string | null) => {
   if (!value) return "V0";
   const trimmed = value.trim();
   if (!trimmed) return "V0";
   const lower = trimmed.toLowerCase();
+  if (lower === "prog" || lower === "progressif") return "Prog";
   if (legacyIntensityMap[lower]) {
     return legacyIntensityMap[lower];
   }
