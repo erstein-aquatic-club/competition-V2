@@ -47,6 +47,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §23 Phase 7 Round 2: Component Refactor (Dashboard + StrengthCatalog) | ✅ Fait | 2026-02-14 |
 | §24 Phase 8: Storybook Setup & Design Tokens Consolidation | ✅ Fait | 2026-02-14 |
 | §25 Fix: Records Club - Cascade par Âge | ✅ Fait | 2026-02-14 |
+| §26 Audit UI: boutons masquant contenu, overflows, z-index | ✅ Fait | 2026-02-15 |
 
 ---
 
@@ -3075,3 +3076,61 @@ Les nageurs souhaitent enregistrer des details techniques (temps par repetition,
 
 - Pas de chargement des logs existants lors de l'edition d'une session deja enregistree (les logs ne sont charges que pour l'historique)
 - Les items d'assignment ne sont disponibles que si l'assignment a des items (type swim avec `swim_session_items`)
+
+---
+
+## 2026-02-15 — Audit UI : boutons masquant du contenu, overflows, z-index
+
+**Branche** : `main`
+
+### Contexte
+
+Plusieurs endroits de l'interface presentaient des problemes ou les boutons d'action (fixes en bas) masquaient du contenu, ou les z-index etaient incoherents avec le design system (tokens definis dans `@theme inline` de `index.css`).
+
+### Changements realises
+
+**Patch 1 — FeedbackDrawer barre d'action deborde du drawer (CRITIQUE)**
+- Ajout d'un prop `position?: "fixed" | "static"` a `BottomActionBar` (defaut: `"fixed"`)
+- Mode `"static"` : `shrink-0` + safe-area-inset-bottom, pas de `fixed/max-w-md/shadow`
+- Dans FeedbackDrawer : retrait de `pb-24 sm:pb-5` du scroll area, deplacement du `BottomActionBar` hors du `overflow-auto` comme enfant direct du flex column, avec `position="static"`
+
+**Patch 2 — WorkoutRunner z-index bouton valider serie (HAUTE)**
+- `z-[60]` remplace par `z-modal` (token = 60, meme valeur mais coherent)
+
+**Patch 3 — WorkoutRunner repos timer z-index (HAUTE)**
+- `z-50` remplace par `z-modal` (token = 60 au lieu de 50 hardcode)
+
+**Patch 4 — WorkoutRunner confetti z-index extreme (MOYENNE)**
+- `zIndex: "9999"` remplace par `zIndex: "80"` (au-dessus du toast/70, temporaire et decoratif)
+
+**Patch 5 — Toast provider z-index (BASSE)**
+- `z-[100]` remplace par `z-toast` (token = 70)
+
+### Fichiers modifies
+
+| Fichier | Nature |
+|---------|--------|
+| `src/components/shared/BottomActionBar.tsx` | Ajout prop `position`, logique conditionnelle fixed/static |
+| `src/components/dashboard/FeedbackDrawer.tsx` | Retrait padding, deplacement BottomActionBar hors scroll area |
+| `src/components/strength/WorkoutRunner.tsx` | 3 corrections z-index (z-modal, z-modal, zIndex: "80") |
+| `src/components/ui/toast.tsx` | z-[100] → z-toast |
+
+### Tests
+
+- [x] `npm run build` — succes
+- [x] `npx tsc --noEmit` — pas de nouvelle erreur (erreurs pre-existantes dans `.stories.tsx` uniquement)
+- [ ] Test manuel : FeedbackDrawer mobile — bouton Valider visible, contenu scrolle
+- [ ] Test manuel : FeedbackDrawer desktop — bouton ne deborde pas du drawer
+- [ ] Test manuel : WorkoutRunner — bouton Valider serie visible, timer de repos couvre l'ecran
+- [ ] Test manuel : Toast visible au-dessus des modals
+
+### Decisions prises
+
+1. **Mode `static` plutot que `absolute`/`sticky`** : Le BottomActionBar en mode static reste dans le flow du document. Place comme enfant direct du flex column (hors du `overflow-auto`), il est naturellement visible en bas sans debordement.
+2. **Confetti zIndex: "80"** : Valeur choisie au-dessus du toast (70) car les confettis sont temporaires et decoratifs, ils doivent etre au premier plan pendant l'animation.
+3. **Timer repos z-modal (60) au lieu de z-50** : Le timer est une overlay fullscreen qui doit etre au-dessus de tout le contenu, coherent avec le token modal.
+
+### Limites / dette
+
+- Le `BottomActionBar` en mode `static` ne supporte pas le `max-w-md` (volontaire — il prend la largeur du parent)
+- Les erreurs TypeScript dans les fichiers `.stories.tsx` sont pre-existantes et non liees a ce patch
