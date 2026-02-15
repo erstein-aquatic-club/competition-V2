@@ -1,16 +1,13 @@
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Filter, GripVertical } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Filter, Plus } from "lucide-react";
+import { SessionMetadataForm } from "../shared/SessionMetadataForm";
+import { DragDropList } from "../shared/DragDropList";
 import { FormActions } from "../shared/FormActions";
-import { StrengthExerciseForm } from "./StrengthExerciseForm";
-import type { Exercise, StrengthCycleType, StrengthSessionItem, StrengthSessionTemplate } from "@/lib/api";
+import { StrengthExerciseCard } from "./StrengthExerciseCard";
+import type { Exercise, StrengthCycleType, StrengthSessionItem } from "@/lib/api";
 
 interface StrengthSessionBuilderProps {
   session: {
@@ -59,26 +56,25 @@ export function StrengthSessionBuilder({
   isSaving,
 }: StrengthSessionBuilderProps) {
   const [exerciseFilter, setExerciseFilter] = useState<"all" | "strength" | "warmup">("all");
-  const [detailSession, setDetailSession] = useState<StrengthSessionTemplate | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
-  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const exerciseById = new Map(exercises.map((ex) => [ex.id, ex]));
+  const totalSets = session.items.reduce((sum, item) => sum + (item.sets || 0), 0);
+
+  const handleMoveUp = (index: number) => {
+    if (index > 0) onReorderItems(index, index - 1);
+  };
+
+  const handleMoveDown = (index: number) => {
+    if (index < session.items.length - 1) onReorderItems(index, index + 1);
+  };
 
   const handlePreview = () => {
-    setDetailSession({
-      id: editingSessionId ?? 0,
-      title: session.title,
-      description: session.description,
-      cycle: session.cycle,
-      items: session.items,
-    } as StrengthSessionTemplate);
     setDetailDialogOpen(true);
   };
 
   return (
-    <div className="space-y-6 animate-in slide-in-from-bottom-4">
+    <div className="space-y-4 animate-in slide-in-from-bottom-4">
       <FormActions
         isEditing={Boolean(editingSessionId)}
         isSaving={isSaving}
@@ -88,189 +84,159 @@ export function StrengthSessionBuilder({
       />
 
       <div className="p-4 space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Informations Générales</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Titre</Label>
-                <Input
-                  value={session.title}
-                  onChange={(e) => onSessionChange({ ...session, title: e.target.value })}
-                  placeholder="ex: Full Body A"
-                />
+        {/* Metadata — reuse shared SessionMetadataForm */}
+        <SessionMetadataForm
+          name={session.title}
+          onNameChange={(value) => onSessionChange({ ...session, title: value })}
+          showDuration={false}
+          showTotalDistance={false}
+          additionalFields={
+            <>
+              <div>
+                <div className="text-xs font-semibold text-muted-foreground">Cycle</div>
+                <div className="mt-1">
+                  <Select
+                    value={session.cycle}
+                    onValueChange={(value) =>
+                      onSessionChange({ ...session, cycle: normalizeStrengthCycle(value) })
+                    }
+                  >
+                    <SelectTrigger className="rounded-2xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="endurance">Endurance</SelectItem>
+                      <SelectItem value="hypertrophie">Hypertrophie</SelectItem>
+                      <SelectItem value="force">Force</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Cycle</Label>
-                <Select
-                  value={session.cycle}
-                  onValueChange={(value) =>
-                    onSessionChange({ ...session, cycle: normalizeStrengthCycle(value) })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="endurance">Endurance</SelectItem>
-                    <SelectItem value="hypertrophie">Hypertrophie</SelectItem>
-                    <SelectItem value="force">Force</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div>
+                <div className="text-xs font-semibold text-muted-foreground">Séries totales</div>
+                <div className="mt-1 rounded-2xl border border-border bg-muted px-3 py-2 text-sm font-semibold">
+                  {totalSets}
+                </div>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Description</Label>
-              <Textarea
-                value={session.description}
-                onChange={(e) => onSessionChange({ ...session, description: e.target.value })}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-bold">Exercices</h3>
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" onClick={onExerciseDialogOpen} className="h-10">
-                <Plus className="mr-2 h-4 w-4" /> Nouvel exercice
-              </Button>
-              <Button size="sm" variant="default" onClick={onAddItem} className="h-10">
-                <Plus className="mr-2 h-4 w-4" /> Ajouter
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-[220px_1fr] items-end">
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Filter className="h-4 w-4" /> Filtre exercices
-              </Label>
-              <Select
-                value={exerciseFilter}
-                onValueChange={(value: "all" | "strength" | "warmup") => setExerciseFilter(value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous</SelectItem>
-                  <SelectItem value="strength">Séries de travail</SelectItem>
-                  <SelectItem value="warmup">Échauffement</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Les exercices marqués warmup sont affichés dans les séances avec le badge « Échauffement ».
-            </p>
-          </div>
-
-          {session.items.map((item, index) => (
-            <div
-              key={`${item.exercise_id}-${index}`}
-              className={cn(
-                "relative transition-all",
-                dragOverIndex === index &&
-                  draggingIndex !== null &&
-                  draggingIndex !== index &&
-                  "ring-2 ring-primary bg-accent/30"
-              )}
-              onDragOver={(event) => event.preventDefault()}
-              onDragEnter={() => setDragOverIndex(index)}
-              onDragLeave={() => setDragOverIndex((prev) => (prev === index ? null : prev))}
-              onDrop={() => {
-                if (draggingIndex === null) return;
-                onReorderItems(draggingIndex, index);
-                setDraggingIndex(null);
-                setDragOverIndex(null);
-              }}
-            >
-              <div className="flex items-start gap-3">
-                <button
-                  type="button"
-                  className="mt-6 cursor-grab rounded-md border p-1 text-muted-foreground hover:text-foreground"
-                  draggable
-                  onDragStart={() => setDraggingIndex(index)}
-                  onDragEnd={() => {
-                    setDraggingIndex(null);
-                    setDragOverIndex(null);
-                  }}
-                  aria-label="Réordonner"
-                >
-                  <GripVertical className="h-4 w-4" />
-                </button>
-
-                <div className="flex-1">
-                  <StrengthExerciseForm
-                    exercise={item}
-                    exercises={exercises}
-                    exerciseFilter={exerciseFilter}
-                    onChange={(field, value) => onUpdateItem(index, field, value)}
-                    onDelete={() => onRemoveItem(index)}
-                    showDelete={true}
+              <div className="col-span-2">
+                <div className="text-xs font-semibold text-muted-foreground">Description</div>
+                <div className="mt-1">
+                  <Textarea
+                    value={session.description}
+                    onChange={(e) => onSessionChange({ ...session, description: e.target.value })}
+                    placeholder="Description optionnelle..."
+                    className="rounded-2xl min-h-[60px]"
                   />
                 </div>
               </div>
-            </div>
-          ))}
+            </>
+          }
+        />
+
+        {/* Exercise list header */}
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold">
+            Exercices ({session.items.length})
+          </div>
+          <div className="flex items-center gap-2">
+            <Select
+              value={exerciseFilter}
+              onValueChange={(value: "all" | "strength" | "warmup") => setExerciseFilter(value)}
+            >
+              <SelectTrigger className="h-8 w-auto gap-1 rounded-full border-dashed text-xs">
+                <Filter className="h-3 w-3" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous</SelectItem>
+                <SelectItem value="strength">Travail</SelectItem>
+                <SelectItem value="warmup">Échauf.</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Exercise list — DragDropList with compact cards */}
+        <DragDropList
+          items={session.items}
+          className="space-y-2"
+          onMoveUp={handleMoveUp}
+          onMoveDown={handleMoveDown}
+          onDelete={onRemoveItem}
+          renderItem={(item, index) => (
+            <StrengthExerciseCard
+              exercise={item}
+              exercises={exercises}
+              exerciseFilter={exerciseFilter}
+              index={index}
+              onChange={(field, value) => onUpdateItem(index, field, value)}
+              onDelete={() => onRemoveItem(index)}
+            />
+          )}
+        />
+
+        {/* Add exercise buttons */}
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onAddItem}
+            className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground"
+          >
+            <Plus className="h-4 w-4" /> Ajouter un exercice
+          </button>
+          <button
+            type="button"
+            onClick={onExerciseDialogOpen}
+            className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-semibold hover:bg-muted"
+          >
+            <Plus className="h-4 w-4" /> Nouvel exercice
+          </button>
         </div>
       </div>
 
-      <Dialog
-        open={detailDialogOpen}
-        onOpenChange={(open) => {
-          setDetailDialogOpen(open);
-          if (!open) {
-            setDetailSession(null);
-          }
-        }}
-      >
+      {/* Preview dialog */}
+      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
         <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Détails de la séance</DialogTitle>
+            <DialogTitle>Aperçu de la séance</DialogTitle>
           </DialogHeader>
-          {detailSession && (
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <p className="text-lg font-semibold">{detailSession.title}</p>
-                <p className="text-sm text-muted-foreground">{detailSession.description || "—"}</p>
-                <p className="text-sm text-muted-foreground">Cycle : {detailSession.cycle}</p>
-              </div>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <p className="text-lg font-semibold">{session.title || "Sans titre"}</p>
+              <p className="text-sm text-muted-foreground">{session.description || "—"}</p>
+              <p className="text-sm text-muted-foreground">Cycle : {session.cycle}</p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-semibold">Exercices</p>
               <div className="space-y-2">
-                <p className="text-sm font-semibold">Exercices</p>
-                <div className="space-y-2">
-                  {(detailSession.items ?? [])
-                    .slice()
-                    .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
-                    .map((item, index) => {
-                      const exercise = exerciseById.get(item.exercise_id);
-                      return (
-                        <div
-                          key={`${item.exercise_id}-${index}`}
-                          className="rounded-md border px-3 py-2 text-sm"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-medium">
-                              {index + 1}. {exercise?.nom_exercice ?? "Exercice"}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {exercise?.exercise_type === "warmup" ? "Échauffement" : "Travail"}
-                            </span>
-                          </div>
-                          <div className="mt-1 text-xs text-muted-foreground">
-                            {item.sets} séries • {item.reps} reps • {item.percent_1rm}% 1RM •{" "}
-                            {item.rest_seconds}s
-                          </div>
+                {session.items
+                  .slice()
+                  .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+                  .map((item, index) => {
+                    const exercise = exerciseById.get(item.exercise_id);
+                    return (
+                      <div
+                        key={`${item.exercise_id}-${index}`}
+                        className="rounded-xl border px-3 py-2 text-sm"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium">
+                            {index + 1}. {exercise?.nom_exercice ?? "Exercice"}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {exercise?.exercise_type === "warmup" ? "Échauffement" : "Travail"}
+                          </span>
                         </div>
-                      );
-                    })}
-                </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {item.sets} séries &bull; {item.reps} reps &bull; {item.percent_1rm}% 1RM &bull;{" "}
+                          {item.rest_seconds}s
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
             </div>
-          )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
