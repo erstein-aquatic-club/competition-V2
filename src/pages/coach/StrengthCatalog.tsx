@@ -2,13 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, Exercise, StrengthCycleType, StrengthSessionItem, StrengthSessionTemplate } from "@/lib/api";
 import type { StrengthSessionInput } from "@/lib/types";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle, Plus, Edit2, Eye, Upload, Loader2, Trash2 } from "lucide-react";
+import { AlertCircle, Plus, Edit2, Search, Dumbbell, Upload, Loader2, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,6 +25,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StrengthSessionBuilder } from "@/components/coach/strength/StrengthSessionBuilder";
+import { SessionListView } from "@/components/coach/shared/SessionListView";
+import { cn } from "@/lib/utils";
 
 type ExerciseDraft = Omit<Exercise, "id"> & {
   id?: number;
@@ -283,6 +284,7 @@ export default function StrengthCatalog() {
   const [newWarmupMode, setNewWarmupMode] = useState<"reps" | "duration">("reps");
   const [editWarmupMode, setEditWarmupMode] = useState<"reps" | "duration">("reps");
   const [gifUploading, setGifUploading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const handleGifUpload = async (file: File, setter: (url: string) => void) => {
     const maxSize = 10 * 1024 * 1024;
@@ -338,6 +340,13 @@ export default function StrengthCatalog() {
     queryKey: ["strength_catalog"],
     queryFn: () => api.getStrengthSessions()
   });
+
+  const filteredSessions = useMemo(() => {
+    if (!sessions) return [];
+    if (!searchQuery.trim()) return sessions;
+    const q = searchQuery.toLowerCase();
+    return sessions.filter((s) => s.title?.toLowerCase().includes(q));
+  }, [sessions, searchQuery]);
 
   const createExercise = useMutation({
     mutationFn: (data: Omit<Exercise, "id">) => api.createExercise(data),
@@ -813,82 +822,6 @@ export default function StrengthCatalog() {
     </AlertDialog>
   );
 
-  const isLoading = isLoadingExercises || isLoadingSessions;
-
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <Skeleton className="h-7 w-64" />
-          <Skeleton className="h-10 w-24" />
-        </div>
-        <div className="space-y-3">
-          <Skeleton className="h-6 w-48" />
-          <div className="grid gap-4 md:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Card key={`skeleton-session-${i}`}>
-                <CardHeader>
-                  <Skeleton className="h-6 w-3/4" />
-                  <Skeleton className="h-4 w-1/2 mt-2" />
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-2">
-                    <Skeleton className="h-10 w-10" />
-                    <Skeleton className="h-10 w-10" />
-                    <Skeleton className="h-10 w-10" />
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-6 w-48" />
-            <Skeleton className="h-10 w-48" />
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Card key={`skeleton-exercise-${i}`}>
-                <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-3">
-                    <Skeleton className="h-14 w-14 rounded-md" />
-                    <div className="space-y-2">
-                      <Skeleton className="h-5 w-32" />
-                      <Skeleton className="h-4 w-24" />
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Skeleton className="h-10 w-10" />
-                    <Skeleton className="h-10 w-10" />
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (exercisesError || sessionsError) {
-    return (
-      <div className="flex flex-col items-center justify-center p-8 text-center">
-        <AlertCircle className="h-12 w-12 text-destructive mb-4" />
-        <h3 className="font-semibold">Impossible de charger les données</h3>
-        <p className="text-sm text-muted-foreground mt-2">
-          {exercisesError instanceof Error ? exercisesError.message : sessionsError instanceof Error ? sessionsError.message : "Une erreur s'est produite"}
-        </p>
-        <Button variant="default" onClick={() => {
-          refetchExercises();
-          refetchSessions();
-        }} className="mt-4 h-12 md:h-10">
-          Réessayer
-        </Button>
-      </div>
-    );
-  }
-
   if (isCreating) {
     return (
       <>
@@ -914,108 +847,166 @@ export default function StrengthCatalog() {
     );
   }
 
+  // Keep loading state for exercises only
+  if (isLoadingExercises) {
+    return (
+      <div className="space-y-4 p-4">
+        <Skeleton className="h-7 w-64" />
+        <Skeleton className="h-10 w-full rounded-2xl" />
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-20 w-full rounded-2xl" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (exercisesError) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center">
+        <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+        <h3 className="font-semibold">Impossible de charger les données</h3>
+        <p className="text-sm text-muted-foreground mt-2">
+          {exercisesError instanceof Error ? exercisesError.message : "Une erreur s'est produite"}
+        </p>
+        <Button variant="default" onClick={() => refetchExercises()} className="mt-4 h-12 md:h-10">
+          Réessayer
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-4">
+    <div>
       {exerciseCreateDialog}
       {exerciseEditDialog}
       {deleteSessionDialog}
       {deleteExerciseDialog}
 
-      <div className="flex justify-between items-center">
-        <h3 className="font-bold text-lg">Catalogue Séances Musculation</h3>
-        <Button
-          variant="default"
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <div>
+          <div className="text-base font-semibold">Musculation</div>
+          <div className="text-xs text-muted-foreground">Catalogue</div>
+        </div>
+        <button
+          type="button"
           onClick={() => {
             setEditingSessionId(null);
             setNewSession({ title: "", description: "", cycle: "endurance", items: [] });
             setIsCreating(true);
           }}
-          className="h-10"
+          className="inline-flex items-center gap-2 rounded-full bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
         >
-          <Plus className="mr-2 h-4 w-4" /> Créer
-        </Button>
+          <Plus className="h-4 w-4" /> Nouvelle
+        </button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {sessions?.map(session => (
-          <Card key={session.id}>
-            <CardHeader>
-              <CardTitle>{session.title}</CardTitle>
-              <CardDescription>{session.items?.length || 0} exercices • {session.cycle}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  aria-label="Modifier"
-                  onClick={() => startEditSession(session)}
-                >
-                  <Edit2 className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  aria-label="Supprimer"
-                  onClick={() => setPendingDeleteSession(session)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="font-bold text-lg">Catalogue Exercices</h3>
-          <Button variant="outline" onClick={() => setExerciseDialogOpen(true)} className="h-10">
-            <Plus className="mr-2 h-4 w-4" /> Ajouter un exercice
-          </Button>
+      <div className="p-4 space-y-6">
+        {/* Search */}
+        <div className="flex items-center gap-2 rounded-2xl border border-border bg-card px-3 py-2">
+          <Search className="h-4 w-4 text-muted-foreground" />
+          <input
+            className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            placeholder="Rechercher une séance"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
-        <div className="grid gap-3 md:grid-cols-2">
-          {exercises?.map((exercise) => (
-            <Card key={exercise.id}>
-              <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                  {exercise.illustration_gif ? (
-                    <img
-                      src={exercise.illustration_gif}
-                      alt={`Illustration ${exercise.nom_exercice}`}
-                      className="h-14 w-14 rounded-md object-cover"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  ) : null}
-                  <div>
-                    <p className="font-semibold">{exercise.nom_exercice}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {exercise.exercise_type === "warmup" ? "Échauffement" : "Séries de travail"}
-                    </p>
+
+        {/* Sessions list */}
+        <SessionListView
+          sessions={filteredSessions}
+          isLoading={isLoadingSessions}
+          error={sessionsError}
+          renderTitle={(session) => session.title ?? "Sans titre"}
+          renderMetrics={(session) => {
+            const count = session.items?.length ?? 0;
+            const cycleBadgeClass =
+              session.cycle === "force"
+                ? "bg-red-100 text-red-800"
+                : session.cycle === "hypertrophie"
+                  ? "bg-violet-100 text-violet-800"
+                  : "bg-blue-100 text-blue-800";
+            return (
+              <>
+                <span className="inline-flex items-center gap-1">
+                  <Dumbbell className="h-3.5 w-3.5" />
+                  {count} exo{count > 1 ? "s" : ""}
+                </span>
+                <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", cycleBadgeClass)}>
+                  {session.cycle}
+                </span>
+              </>
+            );
+          }}
+          onPreview={(session) => startEditSession(session)}
+          onEdit={(session) => startEditSession(session)}
+          onDelete={(session) => setPendingDeleteSession(session)}
+          canDelete={() => true}
+          isDeleting={deleteSession.isPending}
+        />
+
+        {/* Exercise catalog — compact list */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-semibold">Exercices ({exercises?.length ?? 0})</div>
+            <button
+              type="button"
+              onClick={() => setExerciseDialogOpen(true)}
+              className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-2 text-xs font-semibold hover:bg-muted"
+            >
+              <Plus className="h-4 w-4" /> Ajouter
+            </button>
+          </div>
+
+          <div className="space-y-1">
+            {exercises?.map((exercise) => (
+              <div
+                key={exercise.id}
+                className="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-muted/50"
+              >
+                {exercise.illustration_gif ? (
+                  <img
+                    src={exercise.illustration_gif}
+                    alt={exercise.nom_exercice}
+                    className="h-10 w-10 shrink-0 rounded-lg object-cover"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                ) : (
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+                    <Dumbbell className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium">{exercise.nom_exercice}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {exercise.exercise_type === "warmup" ? "Échauffement" : "Séries de travail"}
                   </div>
                 </div>
-                <div className="flex w-full gap-2 sm:w-auto">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    aria-label="Modifier"
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
                     onClick={() => startEditExercise(exercise)}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"
+                    aria-label="Modifier"
                   >
                     <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="icon"
-                    aria-label="Supprimer"
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setPendingDeleteExercise(exercise)}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full text-destructive hover:bg-destructive/10"
+                    aria-label="Supprimer"
                   >
                     <Trash2 className="h-4 w-4" />
-                  </Button>
+                  </button>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
