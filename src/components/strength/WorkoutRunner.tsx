@@ -564,7 +564,7 @@ export function WorkoutRunner({
               <div className="bg-muted p-4 rounded-lg">
                 <div className="text-xs uppercase font-bold text-muted-foreground">Volume</div>
                 <div className="text-2xl font-mono font-bold">
-                  {logs.reduce((acc, l) => acc + (Number(l.weight) || 0) * (Number(l.reps) || 0), 0)} kg
+                  {logs.reduce((acc, l) => acc + (Number(l.weight) || 0) * (Number(l.reps) || 0), 0).toLocaleString("fr-FR")} kg
                 </div>
               </div>
               <div className="bg-muted p-4 rounded-lg">
@@ -629,16 +629,17 @@ export function WorkoutRunner({
 
   return (
     <div className="space-y-6 pb-32">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="space-y-3">
+        {/* Ligne 1 : GIF + titre + note + exit */}
         <div className="flex items-center gap-3">
           <button
             type="button"
-            aria-label="Voir l’animation de l’exercice"
+            aria-label="Voir l'animation de l'exercice"
             onClick={() => {
               if (!currentExerciseDef?.illustration_gif) return;
               setIsGifOpen(true);
             }}
-            className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border bg-card shadow-sm"
+            className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-card shadow-sm"
           >
             {currentExerciseDef?.illustration_gif ? (
               <img
@@ -652,45 +653,7 @@ export function WorkoutRunner({
               <Dumbbell className="h-5 w-5 text-muted-foreground" />
             )}
           </button>
-          <div className="flex flex-wrap gap-2">
-            <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold">
-              Ex {currentStep}/{workoutPlan.length}
-            </span>
-            <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold">
-              S {currentSetIndex}/{formatStrengthValue(currentBlock?.sets)}
-            </span>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="text-xs font-semibold text-muted-foreground">Séance</div>
-          <div className="flex items-center gap-2">
-            <div className="h-2 w-28 overflow-hidden rounded-full bg-muted">
-              <div className="h-full rounded-full bg-primary" style={{ width: `${progressPct}%` }} />
-            </div>
-            <div className="text-sm font-semibold">{progressPct}%</div>
-          </div>
-          {onExitFocus ? (
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Quitter le focus"
-              onClick={() => {
-                if (logs.length > 0) {
-                  setExitConfirmOpen(true);
-                } else {
-                  onExitFocus();
-                }
-              }}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          ) : null}
-        </div>
-      </div>
-
-      <div>
-        <div className="flex items-center gap-2">
-          <h2 className="text-2xl font-semibold tracking-tight">
+          <h2 className="flex-1 min-w-0 text-lg font-semibold tracking-tight truncate">
             {currentExerciseDef?.nom_exercice ?? "Exercice"}
           </h2>
           {onUpdateNote && currentBlock && (
@@ -707,18 +670,50 @@ export function WorkoutRunner({
               <StickyNote className={cn("h-4 w-4", exerciseNotes?.[currentBlock?.exercise_id] ? "text-primary" : "text-muted-foreground")} />
             </Button>
           )}
+          {onExitFocus && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              aria-label="Quitter le focus"
+              onClick={() => {
+                if (logs.length > 0) {
+                  setExitConfirmOpen(true);
+                } else {
+                  onExitFocus();
+                }
+              }}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
+        {/* Notes perso inline */}
         {currentBlock && exerciseNotes?.[currentBlock.exercise_id] && (
-          <p className="mt-1 text-xs italic text-muted-foreground line-clamp-2">
+          <p className="text-xs italic text-muted-foreground line-clamp-1 -mt-1">
             {exerciseNotes[currentBlock.exercise_id]}
           </p>
         )}
+        {/* Ligne 2 : badges + progress */}
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-primary/10 text-primary px-2.5 py-0.5 text-xs font-bold shrink-0">
+            Ex {currentStep}/{workoutPlan.length}
+          </span>
+          <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold shrink-0">
+            S {currentSetIndex}/{formatStrengthValue(currentBlock?.sets)}
+          </span>
+          <div className="flex-1 h-1.5 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progressPct}%` }} />
+          </div>
+          <span className="text-xs font-semibold text-muted-foreground shrink-0">{progressPct}%</span>
+        </div>
+        {/* Muscle tags */}
         {muscleTags.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2">
             {muscleTags.map((tag: string) => (
               <span
                 key={tag}
-                className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground"
+                className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground"
               >
                 {tag}
               </span>
@@ -728,22 +723,16 @@ export function WorkoutRunner({
       </div>
 
       <Card className="rounded-3xl border bg-card p-4 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="text-base font-semibold">Série en cours</div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Switch checked={autoRest} onCheckedChange={setAutoRest} />
-            Auto repos
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-sm font-semibold">
+            Série {currentSetIndex}/{formatStrengthValue(currentBlock?.sets)} · {formatStrengthValue(currentBlock?.reps)} reps
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Switch checked={autoRest} onCheckedChange={setAutoRest} className="scale-90" />
+            <span>Auto repos</span>
           </div>
         </div>
-        <div className="mt-4 rounded-2xl border bg-muted/20 p-4">
-          <div className="text-sm font-semibold">En cours</div>
-          <div className="mt-2 text-lg font-semibold">
-            Série {currentSetIndex}/{formatStrengthValue(currentBlock?.sets)} · Objectif{" "}
-            {formatStrengthValue(currentBlock?.reps)} reps
-          </div>
-          <div className="mt-2 text-sm text-muted-foreground">Appuie sur une tuile pour saisir.</div>
-        </div>
-        <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
             className="group relative rounded-2xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 p-4 text-left shadow-sm transition-all active:scale-[0.98] hover:border-primary/40 hover:shadow-md"
@@ -771,21 +760,18 @@ export function WorkoutRunner({
             </div>
           </button>
         </div>
-        <div className="mt-4 rounded-2xl border bg-muted/10 p-4">
-          <div className="text-sm font-semibold">Notes</div>
-          <div className="mt-2 text-sm text-muted-foreground">
-            {currentBlock?.notes || currentExerciseDef?.description || "Aucune note spécifique."}
-          </div>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          className="mt-4 w-full rounded-2xl"
-          onClick={() => setSeriesSheetOpen(true)}
-        >
-          Voir les séries
-        </Button>
       </Card>
+
+      {(currentBlock?.notes || currentExerciseDef?.description) && (
+        <div className="rounded-2xl border bg-muted/10 px-4 py-3">
+          <p className="text-sm text-muted-foreground line-clamp-2">
+            {currentBlock?.notes || currentExerciseDef?.description}
+          </p>
+        </div>
+      )}
+      <Button variant="outline" className="w-full rounded-2xl" onClick={() => setSeriesSheetOpen(true)}>
+        Voir les séries
+      </Button>
 
       {!inputSheetOpen && !isResting ? (
         <BottomActionBar 
@@ -801,23 +787,23 @@ export function WorkoutRunner({
           <Button
             type="button"
             variant="outline"
-            className="h-12 w-12 rounded-xl p-0 active:scale-95 transition-transform"
-            onClick={() => {
-              if (restDuration <= 0) return;
-              startRestTimer(restDuration);
-            }}
+            className="h-12 rounded-xl px-3 flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-transform"
+            onClick={() => { if (restDuration > 0) startRestTimer(restDuration); }}
+            disabled={restDuration <= 0}
             aria-label="Démarrer le repos"
           >
-            <Timer className="h-5 w-5" />
+            <Timer className="h-4 w-4" />
+            <span className="text-[10px] font-semibold leading-none">Repos</span>
           </Button>
           <Button
             type="button"
             variant="outline"
-            className="h-12 w-12 rounded-xl p-0 active:scale-95 transition-transform"
+            className="h-12 rounded-xl px-3 flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-transform"
             onClick={() => advanceExercise()}
             aria-label="Exercice suivant"
           >
-            <ChevronRight className="h-5 w-5" />
+            <ChevronRight className="h-4 w-4" />
+            <span className="text-[10px] font-semibold leading-none">Suivant</span>
           </Button>
         </BottomActionBar>
       ) : null}
@@ -858,20 +844,10 @@ export function WorkoutRunner({
                   }}
                 />
               </div>
-              <div className="mt-6 flex flex-wrap gap-3">
+              <div className="mt-6 flex gap-3">
                 <Button
                   variant="outline"
-                  className="rounded-full"
-                  onClick={() => {
-                    restEndRef.current += 15 * 1000;
-                    setRestTimer((prev) => prev + 15);
-                  }}
-                >
-                  +15s
-                </Button>
-                <Button
-                  variant="outline"
-                  className="rounded-full"
+                  className="flex-1 h-12 rounded-full text-base font-semibold"
                   onClick={() => {
                     restEndRef.current += 30 * 1000;
                     setRestTimer((prev) => prev + 30);
@@ -881,24 +857,13 @@ export function WorkoutRunner({
                 </Button>
                 <Button
                   variant="outline"
-                  className="rounded-full"
-                  onClick={() => {
-                    restEndRef.current = Math.max(Date.now(), restEndRef.current - 15 * 1000);
-                    setRestTimer((prev) => Math.max(0, prev - 15));
-                  }}
-                >
-                  -15s
-                </Button>
-                <Button
-                  variant="outline"
-                  className="ml-auto rounded-full"
+                  className="flex-1 h-12 rounded-full text-base font-semibold"
                   onClick={() => {
                     restEndRef.current = Date.now() + restDuration * 1000;
                     setRestTimer(restDuration);
                   }}
                 >
-                  <RotateCcw className="mr-2 h-4 w-4" />
-                  Reset
+                  <RotateCcw className="mr-2 h-4 w-4" /> Reset
                 </Button>
               </div>
             </Card>

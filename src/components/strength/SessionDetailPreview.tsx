@@ -53,7 +53,7 @@ export function SessionDetailPreview({
 
   return (
     <motion.div
-      className="space-y-5 pb-40"
+      className="space-y-5 pb-36"
       variants={fadeIn}
       initial="hidden"
       animate="visible"

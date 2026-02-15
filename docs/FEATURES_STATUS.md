@@ -1,6 +1,6 @@
 # État des fonctionnalités
 
-*Dernière mise à jour : 2026-02-15 (§26 Audit UI z-index & overflow)*
+*Dernière mise à jour : 2026-02-15 (§28 Audit UX flux musculation athlete)*
 
 ## Légende
 
@@ -70,10 +70,10 @@ Tous les feature flags sont activés.
 
 | Fonctionnalité | Statut | Fichiers | Notes |
 |----------------|--------|----------|-------|
-| Liste séances assignées | ✅ | `Strength.tsx` | + catalogue |
-| Preview séance | ✅ | `Strength.tsx` | Mode "reader" |
-| Mode focus (WorkoutRunner) | ✅ | `WorkoutRunner.tsx` | Mobile-first, chrono repos, timers absolus (fix iOS background) |
-| Saisie charge/reps | ✅ | `WorkoutRunner.tsx` | Auto-sauvegarde |
+| Liste séances assignées | ✅ | `Strength.tsx` | + catalogue, AlertDialog suppression, description cycle |
+| Preview séance | ✅ | `Strength.tsx` | Mode "reader", padding optimisé |
+| Mode focus (WorkoutRunner) | ✅ | `WorkoutRunner.tsx` | Header 2 lignes mobile, boutons labellisés, card allégée, timer simplifié |
+| Saisie charge/reps | ✅ | `WorkoutRunner.tsx` | Auto-sauvegarde, volume formaté fr-FR |
 | Historique | ✅ | `Strength.tsx` | Tab "Historique", 1RM, graphiques |
 | Fiche exercice avec GIF | 🔧 | `Strength.tsx` | Dépend des URLs dans `dim_exercices` |
 

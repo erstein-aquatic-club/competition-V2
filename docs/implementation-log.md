@@ -49,6 +49,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §25 Fix: Records Club - Cascade par Âge | ✅ Fait | 2026-02-14 |
 | §26 Audit UI: boutons masquant contenu, overflows, z-index | ✅ Fait | 2026-02-15 |
 | §27 Calendrier: pills dynamiques par creneau | ✅ Fait | 2026-02-15 |
+| §28 Audit UX flux musculation athlete (mobile first) | ✅ Fait | 2026-02-15 |
 
 ---
 
@@ -3195,3 +3196,56 @@ Le calendrier du Dashboard affichait toujours 2 pills (AM/PM) par jour, independ
 
 - Les stories Storybook (`DayCell.stories.tsx`, `CalendarHeader.stories.tsx`) ne sont pas mises a jour pour le nouveau format `slots` — les stories pre-existantes avaient deja des erreurs de type
 - Le design doc est dans `docs/plans/2026-02-15-calendar-pills-design.md`
+
+## 2026-02-15 — Audit UX flux musculation athlete (mobile first) (§28)
+
+**Branche** : `main`
+**Chantier ROADMAP** : Audit UX — Flux Musculation Athlete
+
+### Contexte — Pourquoi ce patch
+
+Audit UX mobile-first du parcours musculation athlete : Liste → Reader → Focus → Completion. Identification de 8 frictions UX et implementation de patches correctifs pour rendre le flux simple, naturel et guide sur mobile.
+
+### Changements realises
+
+1. **Patch 1 (CRITIQUE)** : `window.confirm()` remplace par AlertDialog Radix stylise pour la suppression de seance en cours — coherent avec le pattern existant (WorkoutRunner exitConfirm)
+2. **Patch 2 (HAUTE)** : Header WorkoutRunner reorganise en 2 lignes compactes — Ligne 1 : GIF + titre tronque + notes + exit ; Ligne 2 : badges colores + barre de progression + %
+3. **Patch 3 (HAUTE)** : Boutons action bar (Timer, Suivant) avec labels texte ("Repos", "Suivant") + bouton Timer desactive si pas de repos prevu
+4. **Patch 4 (HAUTE)** : Card "Serie en cours" allegee — suppression du bloc redondant "En cours" et de l'instruction permanente ; notes et "Voir les series" deplaces hors de la card
+5. **Patch 5 (MOYENNE)** : Padding bottom SessionDetailPreview reduit de pb-40 a pb-36
+6. **Patch 6 (MOYENNE)** : Description contextuelle sous le selecteur de cycle (endurance/hypertrophie/force)
+7. **Patch 7 (BASSE)** : Volume total sur ecran completion formate avec separateur de milliers (fr-FR)
+8. **Patch 8 (BASSE)** : Boutons timer repos simplifies de 4 a 2 (+30s, Reset) avec taille augmentee
+
+### Fichiers modifies
+
+| Fichier | Nature |
+|---------|--------|
+| `src/components/strength/SessionList.tsx` | Patches #1, #6 : AlertDialog + cycle description |
+| `src/components/strength/WorkoutRunner.tsx` | Patches #2, #3, #4, #7, #8 : header, action bar, card, volume, timer |
+| `src/components/strength/SessionDetailPreview.tsx` | Patch #5 : padding bottom |
+
+### Tests
+
+- [x] `npm run build` — succes (7.32s)
+- [x] `npx tsc --noEmit` — pas de nouvelle erreur (stories pre-existantes uniquement)
+- [ ] Test manuel : bouton X seance en cours → AlertDialog stylise (pas window.confirm)
+- [ ] Test manuel : changer de cycle → description sous les pills
+- [ ] Test manuel : header compact sur ecran 375px, 2 lignes claires
+- [ ] Test manuel : boutons "Repos" et "Suivant" avec labels texte
+- [ ] Test manuel : card serie allegee — tuiles visibles sans scroll
+- [ ] Test manuel : volume avec separateur de milliers (ex: "12 450 kg")
+- [ ] Test manuel : 2 boutons timer (+30s, Reset) grands
+
+### Decisions prises
+
+1. **AlertDialog pattern identique** au WorkoutRunner exitConfirm — coherence UX et code
+2. **Header 2 lignes** : badge exercice colore (bg-primary/10 text-primary) pour le differencier du badge serie (bg-muted)
+3. **Timer desactive visuellement** quand restDuration <= 0 plutot que silencieusement ignore
+4. **Notes hors card** : affichees uniquement si presentes (pas de "Aucune note specifique" inutile)
+5. **2 boutons timer** au lieu de 4 : +30s couvre les cas d'usage courants, -15s rarement utilise
+
+### Limites / dette
+
+- Les muscle tags sont gardes en ligne sous le header mais pourraient etre supprimes si l'espace reste contraint sur tres petits ecrans
+- Le bouton "Voir les series" est maintenant hors card, visuellement deconnecte — pourrait beneficier d'un regroupement visuel leger

@@ -3,6 +3,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, StrengthCycleType, StrengthSessionTemplate, Assignment } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Dumbbell, Search, Play, X } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -75,6 +85,8 @@ export function SessionList({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedSessionIndex, setSelectedSessionIndex] = useState<number | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [pendingDeleteRunId, setPendingDeleteRunId] = useState<number | null>(null);
 
   const cycleOptions: Array<{ value: StrengthCycleType; label: string }> = [
     { value: "endurance", label: "Endurance" },
@@ -317,6 +329,11 @@ export function SessionList({
           </button>
         ))}
       </div>
+      <p className="text-center text-[11px] text-muted-foreground">
+        {cycleType === "endurance" && "Beaucoup de reps, charges légères"}
+        {cycleType === "hypertrophie" && "Reps et charges modérées"}
+        {cycleType === "force" && "Peu de reps, charges lourdes"}
+      </p>
 
       {/* Search - minimal floating style */}
       <div className="relative">
@@ -407,9 +424,8 @@ export function SessionList({
                   disabled={deleteStrengthRun.isPending}
                   onClick={() => {
                     if (!inProgressRun) return;
-                    const confirmed = window.confirm("Supprimer la séance en cours ?");
-                    if (!confirmed) return;
-                    deleteStrengthRun.mutate(inProgressRun.id);
+                    setPendingDeleteRunId(inProgressRun.id);
+                    setDeleteConfirmOpen(true);
                   }}
                   aria-label="Supprimer la séance"
                 >
@@ -516,6 +532,29 @@ export function SessionList({
           </p>
         </div>
       )}
+
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer la séance ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Les séries déjà enregistrées seront perdues.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (pendingDeleteRunId) deleteStrengthRun.mutate(pendingDeleteRunId);
+                setDeleteConfirmOpen(false);
+              }}
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
