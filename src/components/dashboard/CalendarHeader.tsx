@@ -45,7 +45,7 @@ function IconButton({ onClick, label, children, tone = "neutral", disabled }: Ic
 
 interface CalendarHeaderProps {
   monthCursor: Date;
-  selectedDayStatus: { completed: number; total: number };
+  selectedDayStatus: { completed: number; total: number; slots: Array<{ slotKey: "AM" | "PM"; expected: boolean; completed: boolean }> };
   onPrevMonth: () => void;
   onNextMonth: () => void;
   onJumpToday: () => void;
@@ -66,18 +66,21 @@ export function CalendarHeader({ monthCursor, selectedDayStatus, onPrevMonth, on
       <div className="min-w-0 text-center">
         <div className="text-base font-semibold text-foreground capitalize truncate">{monthLabelFR(monthCursor)}</div>
         <div className="mt-1 flex items-center justify-center gap-1">
-          <span
-            className={cn(
-              "h-1.5 w-1.5 rounded-full",
-              selectedDayStatus.total > 0 && selectedDayStatus.completed >= 1 ? "bg-status-success" : "bg-muted-foreground/30"
-            )}
-          />
-          <span
-            className={cn(
-              "h-1.5 w-1.5 rounded-full",
-              selectedDayStatus.total > 0 && selectedDayStatus.completed >= 2 ? "bg-status-success" : "bg-muted-foreground/30"
-            )}
-          />
+          {selectedDayStatus.total > 0 ? (
+            selectedDayStatus.slots
+              .filter((s) => s.expected)
+              .map((s) => (
+                <span
+                  key={s.slotKey}
+                  className={cn(
+                    "h-1.5 w-1.5 rounded-full",
+                    s.completed ? "bg-status-success" : "bg-muted-foreground/30"
+                  )}
+                />
+              ))
+          ) : (
+            <span className="text-[10px] text-muted-foreground">repos</span>
+          )}
         </div>
       </div>
 

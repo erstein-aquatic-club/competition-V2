@@ -48,6 +48,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §24 Phase 8: Storybook Setup & Design Tokens Consolidation | ✅ Fait | 2026-02-14 |
 | §25 Fix: Records Club - Cascade par Âge | ✅ Fait | 2026-02-14 |
 | §26 Audit UI: boutons masquant contenu, overflows, z-index | ✅ Fait | 2026-02-15 |
+| §27 Calendrier: pills dynamiques par creneau | ✅ Fait | 2026-02-15 |
 
 ---
 
@@ -3134,3 +3135,63 @@ Plusieurs endroits de l'interface presentaient des problemes ou les boutons d'ac
 
 - Le `BottomActionBar` en mode `static` ne supporte pas le `max-w-md` (volontaire — il prend la largeur du parent)
 - Les erreurs TypeScript dans les fichiers `.stories.tsx` sont pre-existantes et non liees a ce patch
+
+---
+
+## 2026-02-15 — Calendrier : pills dynamiques par creneau
+
+**Branche** : `main`
+
+### Contexte
+
+Le calendrier du Dashboard affichait toujours 2 pills (AM/PM) par jour, independamment du nombre de seances attendues par l'athlete. Le fond de cellule portait toute l'information de completion (couleur globale) sans montrer quel creneau etait fait ou pas. L'athlete ne pouvait pas identifier instantanement le reste a faire.
+
+### Changements realises
+
+1. **Enrichissement `completionByISO`** (`useDashboardState.ts`)
+   - Le record passe de `{ completed, total }` a `{ completed, total, slots }` ou `slots` est un tableau `{ slotKey, expected, completed }[]`
+   - Chaque slot (AM/PM) porte son propre statut expected/completed
+
+2. **Refonte `DayCell.tsx`**
+   - Fond neutre : `bg-card` pour jours actifs, `bg-muted/30` pour repos
+   - Pills dynamiques : seules les seances attendues affichent une pill
+   - Position : AM = gauche, PM = droite (espace vide si un seul creneau)
+   - Couleurs : `bg-status-success` (vert) si fait, `bg-muted-foreground/30` (gris) si a faire
+   - Jours repos : icone `Minus` grisee au lieu de pills
+
+3. **Mise a jour `CalendarGrid.tsx`** et **`CalendarHeader.tsx`**
+   - Types de props adaptes au nouveau format `slots`
+   - Header : pills dynamiques (1 ou 2) au lieu de 2 hardcodees, texte "repos" si total=0
+
+4. **Mise a jour `Dashboard.tsx`**
+   - Fallback `completionByISO` avec `slots` pour coherence de type
+
+### Fichiers modifies
+
+| Fichier | Nature |
+|---------|--------|
+| `src/hooks/useDashboardState.ts` | Enrichissement completionByISO + selectedDayStatus fallback |
+| `src/components/dashboard/DayCell.tsx` | Refonte complete (pills dynamiques, fond neutre, icone repos) |
+| `src/components/dashboard/CalendarGrid.tsx` | Type props + fallback |
+| `src/components/dashboard/CalendarHeader.tsx` | Type props + rendu pills dynamiques |
+| `src/pages/Dashboard.tsx` | Fallback type coherence |
+
+### Tests
+
+- [x] `npm run build` — succes (8.84s)
+- [x] `npx tsc --noEmit` — pas de nouvelle erreur (stories pre-existantes uniquement)
+- [ ] Test manuel : calendrier affiche 1 pill si 1 seance, 2 si 2, trait si repos
+- [ ] Test manuel : pills vertes individuellement selon completion par creneau
+- [ ] Test manuel : header reflte le meme nombre de pills que le jour selectionne
+
+### Decisions prises
+
+1. **Pills AM=gauche, PM=droite** : coherent avec la lecture naturelle (matin a gauche, soir a droite)
+2. **Fond neutre pour tous les jours actifs** : les pills portent l'information, le fond distingue uniquement repos vs actif
+3. **Gris neutre pour pills non faites** : discret, le vert ressort par contraste sans urgence visuelle
+4. **Icone Minus pour repos** : signale clairement que le jour est "off" sans surcharger
+
+### Limites / dette
+
+- Les stories Storybook (`DayCell.stories.tsx`, `CalendarHeader.stories.tsx`) ne sont pas mises a jour pour le nouveau format `slots` — les stories pre-existantes avaient deja des erreurs de type
+- Le design doc est dans `docs/plans/2026-02-15-calendar-pills-design.md`

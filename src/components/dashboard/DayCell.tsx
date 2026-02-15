@@ -1,4 +1,5 @@
 import React, { memo } from "react";
+import { Minus } from "lucide-react";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -9,12 +10,7 @@ function toISODate(d: Date) {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
-function toneForDay({ completed, total }: { completed: number; total: number }) {
-  if (total === 0) return "rest";
-  if (completed >= total) return "full";
-  if (completed > 0) return "half";
-  return "none";
-}
+type SlotStatus = { slotKey: "AM" | "PM"; expected: boolean; completed: boolean };
 
 interface DayCellProps {
   date: Date;
@@ -22,7 +18,7 @@ interface DayCellProps {
   isToday: boolean;
   isSelected: boolean;
   isFocused: boolean;
-  status: { completed: number; total: number };
+  status: { completed: number; total: number; slots: SlotStatus[] };
   onClick: () => void;
   onKeyDown: (e: React.KeyboardEvent) => void;
 }
@@ -37,48 +33,18 @@ export const DayCell = memo(function DayCell({
   onClick,
   onKeyDown,
 }: DayCellProps) {
-  const { completed, total } = status;
-  const tone = toneForDay(status);
+  const { total, slots } = status;
+  const isRest = total === 0;
 
-  const bg =
-    tone === "full"
-      ? "bg-primary"
-      : tone === "half"
-      ? "bg-primary/10"
-      : tone === "none"
-      ? "bg-muted"
-      : "bg-muted/50";
+  const bg = isRest ? "bg-muted/30" : "bg-card";
+  const border = "border-border";
 
-  const border =
-    tone === "full"
-      ? "border-primary"
-      : tone === "half"
-      ? "border-primary/30"
-      : tone === "none"
-      ? "border-muted-foreground/20"
-      : "border-border";
-
-  const text = tone === "full" ? "text-primary-foreground" : "text-foreground";
-
-  // micro-progress 2 segments (no overflow)
-  const segOff = tone === "full" ? "bg-primary-foreground/25" : "bg-muted-foreground/30";
-  const segOn = tone === "full" ? "bg-primary-foreground" : "bg-primary";
-
-  const ring = isSelected
-    ? tone === "full"
-      ? "ring-2 ring-primary-foreground/50"
-      : "ring-2 ring-primary/30"
-    : "";
-
-  // Aujourd'hui = contour accentué (sans texte)
-  const todayRing = isToday
-    ? tone === "full"
-      ? "ring-2 ring-primary-foreground/40"
-      : "ring-2 ring-primary/50"
-    : "";
-
-  // Keyboard focus ring
+  const ring = isSelected ? "ring-2 ring-primary/30" : "";
+  const todayRing = isToday && !isSelected ? "ring-2 ring-primary/50" : "";
   const focusRing = isFocused ? "ring-2 ring-primary" : "";
+
+  const amSlot = slots.find((s) => s.slotKey === "AM");
+  const pmSlot = slots.find((s) => s.slotKey === "PM");
 
   return (
     <button
@@ -97,20 +63,32 @@ export const DayCell = memo(function DayCell({
         todayRing,
         focusRing
       )}
-      aria-label={`${toISODate(date)} — ${total === 0 ? "Repos" : `${completed}/${total}`}`}
+      aria-label={`${toISODate(date)} — ${isRest ? "Repos" : `${status.completed}/${total}`}`}
     >
       <div className="flex h-full flex-col justify-between">
         <div className="flex items-start justify-between">
-          <div className={cn("text-[12px] font-semibold", text)}>{date.getDate()}</div>
+          <div className="text-[12px] font-semibold text-foreground">{date.getDate()}</div>
           <div className="h-[14px] w-[14px]" />
         </div>
 
         <div className="flex items-center justify-end">
-          {total > 0 && (
+          {isRest ? (
+            <Minus className="h-3 w-3 text-muted-foreground/40" />
+          ) : (
             <div className="w-6">
               <div className="flex gap-1">
-                <span className={cn("h-1.5 flex-1 rounded-full", completed >= 1 ? segOn : segOff)} />
-                <span className={cn("h-1.5 flex-1 rounded-full", completed >= 2 ? segOn : segOff)} />
+                {/* AM pill (left position) */}
+                {amSlot?.expected ? (
+                  <span className={cn("h-1.5 flex-1 rounded-full", amSlot.completed ? "bg-status-success" : "bg-muted-foreground/30")} />
+                ) : (
+                  <span className="flex-1" />
+                )}
+                {/* PM pill (right position) */}
+                {pmSlot?.expected ? (
+                  <span className={cn("h-1.5 flex-1 rounded-full", pmSlot.completed ? "bg-status-success" : "bg-muted-foreground/30")} />
+                ) : (
+                  <span className="flex-1" />
+                )}
               </div>
             </div>
           )}

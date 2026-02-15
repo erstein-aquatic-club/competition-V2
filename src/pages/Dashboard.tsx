@@ -314,7 +314,7 @@ export default function Dashboard() {
       setActiveSessionId(null);
       setDetailsOpen(false);
 
-      const st = completionByISO[iso] || { completed: 0, total: 2 };
+      const st = completionByISO[iso] || { completed: 0, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: false }, { slotKey: "PM" as const, expected: true, completed: false }] };
       setAutoCloseArmed(st.total > 0 && st.completed < st.total);
     },
     [completionByISO, setSelectedISO, setDrawerOpen, setActiveSessionId, setDetailsOpen, setAutoCloseArmed]

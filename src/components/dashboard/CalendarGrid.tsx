@@ -16,7 +16,7 @@ function isSameDay(a: Date, b: Date) {
 interface CalendarGridProps {
   monthCursor: Date;
   gridDates: Date[];
-  completionByISO: Record<string, { completed: number; total: number }>;
+  completionByISO: Record<string, { completed: number; total: number; slots: Array<{ slotKey: "AM" | "PM"; expected: boolean; completed: boolean }> }>;
   selectedISO: string;
   selectedDayIndex: number | null;
   today: Date;
@@ -48,7 +48,7 @@ export function CalendarGrid({
           const iso = toISODate(d);
           const inMonth = d.getMonth() === monthCursor.getMonth();
           const isSel = iso === selectedISO;
-          const status = completionByISO[iso] || { completed: 0, total: 2 };
+          const status = completionByISO[iso] || { completed: 0, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: false }, { slotKey: "PM" as const, expected: true, completed: false }] };
           const isToday = isSameDay(d, today);
           const isFocused = selectedDayIndex === index || (selectedDayIndex === null && isToday);
           return (

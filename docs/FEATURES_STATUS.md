@@ -49,7 +49,7 @@ Tous les feature flags sont activés.
 
 | Fonctionnalité | Statut | Fichiers | Notes |
 |----------------|--------|----------|-------|
-| Dashboard calendrier | ✅ | `Dashboard.tsx` | Mois, 2 créneaux/jour |
+| Dashboard calendrier | ✅ | `Dashboard.tsx`, `DayCell.tsx`, `CalendarHeader.tsx`, `CalendarGrid.tsx`, `useDashboardState.ts` | Pills dynamiques par créneau (AM/PM), vert si rempli, gris si attendu, repos avec icône Minus |
 | Saisie ressenti | ✅ | `Dashboard.tsx` | Difficulté, fatigue, perf, engagement, distance, commentaire |
 | Notes techniques exercice | ✅ | `TechnicalNotesSection.tsx`, `swim-logs.ts` | Temps/rep, tempo, coups de bras, notes par exercice |
 | Historique notes techniques | ✅ | `SwimExerciseLogsHistory.tsx` | Vue chronologique groupée par date |
