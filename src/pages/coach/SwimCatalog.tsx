@@ -18,16 +18,18 @@ import { Button } from "@/components/ui/button";
 import { SwimSessionConsultation } from "@/components/swim/SwimSessionConsultation";
 import { SessionListView } from "@/components/coach/shared/SessionListView";
 import { SwimSessionBuilder } from "@/components/coach/swim/SwimSessionBuilder";
-import { AlertCircle, Plus, Search } from "lucide-react";
+import { AlertCircle, Layers, Plus, Route, Search, Timer } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useBeforeUnload } from "@/hooks/use-before-unload";
 import { useAuth } from "@/lib/auth";
 import { formatSwimSessionDefaultTitle } from "@/lib/date";
+import { calculateSwimTotalDistance } from "@/lib/swimSessionUtils";
 
 interface SwimExercise {
   repetitions: number | null;
   distance: number | null;
   rest: number | null;
+  restType: "departure" | "rest";
   stroke: string;
   strokeType: string;
   intensity: string;
@@ -107,6 +109,7 @@ const buildItemsFromBlocks = (blocks: SwimBlock[]): SwimSessionItem[] => {
         block_equipment: block.equipment ?? [],
         exercise_repetitions: exercise.repetitions ?? null,
         exercise_rest: exercise.rest ?? null,
+        exercise_rest_type: exercise.restType ?? "rest",
         exercise_stroke: exercise.stroke || null,
         exercise_stroke_type: exercise.strokeType || null,
         exercise_intensity: exercise.intensity ? normalizeIntensityValue(exercise.intensity) : null,
@@ -164,6 +167,7 @@ const buildBlocksFromItems = (items: SwimSessionItem[] = []): SwimBlock[] => {
       repetitions: payload.exercise_repetitions ?? null,
       distance: item.distance ?? null,
       rest: payload.exercise_rest ?? null,
+      restType: (payload.exercise_rest_type as "departure" | "rest") ?? "rest",
       stroke: payload.exercise_stroke ?? payload.stroke ?? "crawl",
       strokeType: payload.exercise_stroke_type ?? (payload.stroke_type as string) ?? "nc",
       intensity: normalizedIntensity,
@@ -186,6 +190,16 @@ const buildBlocksFromItems = (items: SwimSessionItem[] = []): SwimBlock[] => {
         .sort(([a], [b]) => a - b)
         .map(([, exercise]) => exercise),
     }));
+};
+
+const countBlocks = (items: SwimSessionItem[] = []) => {
+  const keys = new Set(
+    items.map((item) => {
+      const raw = item.raw_payload as Record<string, unknown> | null;
+      return raw?.block_title || raw?.section || "Bloc";
+    }),
+  );
+  return keys.size;
 };
 
 const ARCHIVED_SWIM_SESSIONS_KEY = "swim_catalog_archived_ids";
@@ -374,6 +388,8 @@ export default function SwimCatalog() {
           <SessionListView
             sessions={[]}
             isLoading={true}
+            renderTitle={() => ""}
+            renderMetrics={() => null}
             onPreview={() => {}}
             onEdit={() => {}}
             onArchive={() => {}}
@@ -448,13 +464,37 @@ export default function SwimCatalog() {
             sessions={visibleSessions}
             isLoading={sessionsLoading}
             error={sessionsError}
+            renderTitle={(session) => session.name}
+            renderMetrics={(session) => {
+              const totalDistance = calculateSwimTotalDistance(session.items ?? []);
+              const hasDuration = session.items?.some((item) => item.duration != null) ?? false;
+              const totalDuration = hasDuration
+                ? session.items?.reduce((sum, item) => sum + (item.duration ?? 0), 0) ?? 0
+                : null;
+              const blockCount = countBlocks(session.items ?? []);
+              return (
+                <>
+                  <span className="inline-flex items-center gap-1">
+                    <Route className="h-3.5 w-3.5" />
+                    {totalDistance}m
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <Timer className="h-3.5 w-3.5" />
+                    ~{totalDuration ?? "—"} min
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <Layers className="h-3.5 w-3.5" />
+                    {blockCount}
+                  </span>
+                </>
+              );
+            }}
             onPreview={setSelectedSession}
             onEdit={handleEdit}
             onArchive={handleArchive}
             onDelete={handleDelete}
             canDelete={(sessionId) => canDeleteSwimCatalog(sessionId, assignments ?? null)}
             isDeleting={deleteSession.isPending}
-            assignments={assignments}
           />
         </div>
 
