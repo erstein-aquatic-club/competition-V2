@@ -190,9 +190,7 @@ export default function RecordsClub() {
   }, [filteredRecords, ageValue]);
 
   const toggleExpand = (record: ClubRecord) => {
-    // Use original_age if available (cascaded record), otherwise use age
-    const rankingAge = record.original_age ?? record.age;
-    const key = `${record.event_code}__${pool}__${sex}__${rankingAge}`;
+    const key = `${record.event_code}__${pool}__${sex}__${record.age}`;
     setExpandedKey((prev) => (prev === key ? null : key));
   };
 
@@ -548,11 +546,15 @@ function RecordRow({
         <TableRow className="hover:bg-transparent">
           <TableCell colSpan={colSpan} className="p-0">
             <div className="bg-muted/30 px-4 py-3">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Classement — {label}
-                {!showAge &&
-                  ` (${isCascaded && originalAgeLabel ? originalAgeLabel : ageLabel} ans)`}
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Classement — {label} ({ageLabel} ans)
               </p>
+
+              {isCascaded && originalAgeLabel && (
+                <p className="mb-2 text-[11px] text-muted-foreground italic">
+                  Record du club détenu par {record.athlete_name} ({originalAgeLabel} ans) — {formatTime(record.time_ms)}
+                </p>
+              )}
 
               {rankingLoading ? (
                 <div className="space-y-1.5">
@@ -574,9 +576,7 @@ function RecordRow({
                       <th className="w-8 py-1 text-left">#</th>
                       <th className="py-1 text-left">Nageur</th>
                       <th className="w-[80px] py-1 text-left">Temps</th>
-                      {showAge && (
-                        <th className="w-[40px] py-1 text-left">Âge</th>
-                      )}
+                      <th className="w-[40px] py-1 text-left">Âge</th>
                       <th className="hidden w-[80px] py-1 text-left sm:table-cell">
                         Date
                       </th>
@@ -602,11 +602,9 @@ function RecordRow({
                         <td className="py-1 font-mono tabular-nums">
                           {formatTime(perf.time_ms)}
                         </td>
-                        {showAge && (
-                          <td className="py-1 text-muted-foreground">
-                            {perf.age}
-                          </td>
-                        )}
+                        <td className="py-1 text-muted-foreground">
+                          {perf.actual_age ?? perf.age}
+                        </td>
                         <td className="hidden py-1 text-muted-foreground sm:table-cell">
                           {formatDate(perf.record_date)}
                         </td>

@@ -216,6 +216,7 @@ export interface ClubPerformanceRanked {
   event_code: string;
   event_label?: string | null;
   age: number;
+  actual_age?: number | null;
   time_ms: number;
   record_date?: string | null;
   source?: string | null;

@@ -143,6 +143,7 @@ interface PerSwimmerBest {
   pool_m: number;
   sex: string;
   age: number;
+  actual_age: number;
   original_age?: number; // Track original age before cascade
 }
 
@@ -272,6 +273,7 @@ async function recalculateClubRecords(): Promise<RecalcStats> {
         pool_m: perf.pool_length,
         sex: swimmerInfo.sex,
         age: clampedAge,
+        actual_age: age,
       });
     }
   }
@@ -293,6 +295,7 @@ async function recalculateClubRecords(): Promise<RecalcStats> {
       event_code: r.event_code,
       event_label: r.event_label,
       age: r.age,
+      actual_age: r.actual_age,
       time_ms: r.time_ms,
       record_date: r.record_date,
       source: "ffn",
