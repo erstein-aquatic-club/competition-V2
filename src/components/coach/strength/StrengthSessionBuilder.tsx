@@ -2,10 +2,11 @@ import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Filter, Plus } from "lucide-react";
+import { ChevronDown, Filter, Plus } from "lucide-react";
 import { SessionMetadataForm } from "../shared/SessionMetadataForm";
 import { FormActions } from "../shared/FormActions";
 import { StrengthExerciseCard } from "./StrengthExerciseCard";
+import { cn } from "@/lib/utils";
 import type { Exercise, StrengthCycleType, StrengthSessionItem } from "@/lib/api";
 
 interface StrengthSessionBuilderProps {
@@ -23,6 +24,7 @@ interface StrengthSessionBuilderProps {
     cycle: StrengthCycleType;
     items: StrengthSessionItem[];
   }) => void;
+  onCycleChange: (cycle: StrengthCycleType) => void;
   onSave: () => void;
   onCancel: () => void;
   onAddItem: () => void;
@@ -45,6 +47,7 @@ export function StrengthSessionBuilder({
   exercises,
   editingSessionId,
   onSessionChange,
+  onCycleChange,
   onSave,
   onCancel,
   onAddItem,
@@ -56,6 +59,7 @@ export function StrengthSessionBuilder({
 }: StrengthSessionBuilderProps) {
   const [exerciseFilter, setExerciseFilter] = useState<"all" | "strength" | "warmup">("all");
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [metadataCollapsed, setMetadataCollapsed] = useState(false);
 
   const exerciseById = new Map(exercises.map((ex) => [ex.id, ex]));
   const totalSets = session.items.reduce((sum, item) => sum + (item.sets || 0), 0);
@@ -83,12 +87,24 @@ export function StrengthSessionBuilder({
       />
 
       <div className="p-4 space-y-4">
-        {/* Metadata — reuse shared SessionMetadataForm */}
+        {/* Collapsible metadata */}
         <SessionMetadataForm
           name={session.title}
           onNameChange={(value) => onSessionChange({ ...session, title: value })}
           showDuration={false}
           showTotalDistance={false}
+          collapsible
+          collapsed={metadataCollapsed}
+          onToggleCollapse={() => setMetadataCollapsed(!metadataCollapsed)}
+          collapsedSummary={
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">{session.title || "Sans titre"}</span>
+              <span>·</span>
+              <span className="capitalize">{session.cycle}</span>
+              <span>·</span>
+              <span>{totalSets} séries</span>
+            </div>
+          }
           additionalFields={
             <>
               <div>
@@ -96,9 +112,7 @@ export function StrengthSessionBuilder({
                 <div className="mt-1">
                   <Select
                     value={session.cycle}
-                    onValueChange={(value) =>
-                      onSessionChange({ ...session, cycle: normalizeStrengthCycle(value) })
-                    }
+                    onValueChange={(value) => onCycleChange(normalizeStrengthCycle(value))}
                   >
                     <SelectTrigger className="rounded-2xl">
                       <SelectValue />

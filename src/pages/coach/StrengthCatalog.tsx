@@ -834,6 +834,16 @@ export default function StrengthCatalog() {
           exercises={exercises ?? []}
           editingSessionId={editingSessionId}
           onSessionChange={setNewSession}
+          onCycleChange={(cycle) => {
+            const items = newSession.items.map((item, i) => {
+              const exercise = exercises?.find((ex) => ex.id === item.exercise_id);
+              if (exercise) {
+                return createStrengthItemFromExercise(exercise, cycle, i, item);
+              }
+              return { ...item, cycle_type: cycle };
+            });
+            setNewSession({ ...newSession, cycle, items });
+          }}
           onSave={handleSaveSession}
           onCancel={resetSessionForm}
           onAddItem={addItem}
