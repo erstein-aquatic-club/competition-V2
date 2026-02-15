@@ -3015,3 +3015,63 @@ Le PDF exporté depuis la page Records Club était très fade : titre rouge cent
 - Fontes limitées à Helvetica (contrainte jsPDF sans plugin de polices custom)
 - Les triangles décoratifs du header sont un effet subtil — visible surtout sur écran, moins en impression
 - Pas de test automatisé du rendu PDF (limitation intrinsèque)
+
+---
+
+## 2026-02-15 — Notes techniques par exercice de natation
+
+**Branche** : `main`
+**Chantier ROADMAP** : §10 — Notes techniques par exercice
+
+### Contexte
+
+Les nageurs souhaitent enregistrer des details techniques (temps par repetition, tempo, coups de bras, notes libres) sur des exercices specifiques apres une seance. Ces notes sont facultatives et s'integrent dans le flux de feedback post-seance existant (FeedbackDrawer).
+
+### Changements realises
+
+1. **Migration BDD** : Table `swim_exercise_logs` avec RLS (nageurs = propres logs, coachs = lecture tous)
+2. **Types TypeScript** : `SplitTimeEntry`, `StrokeCountEntry`, `SwimExerciseLog`, `SwimExerciseLogInput`
+3. **Module API** : `swim-logs.ts` avec CRUD (get, getHistory, save batch, delete)
+4. **Re-exports** : `api/index.ts` et `api.ts` mis a jour avec delegation stubs
+5. **syncSession** : Retourne desormais `{ status, sessionId }` pour lier les logs a la session creee
+6. **State management** : `exerciseLogs` ajoute au `DraftState` dans `useDashboardState.ts`
+7. **TechnicalNotesSection** : Composant collapsible avec selection exercice (depuis assignment ou saisie libre), temps/rep, tempo, coups de bras, notes
+8. **Integration FeedbackDrawer** : Section ajoutee apres StrokeDetailForm, logs sauves apres syncSession
+9. **SwimExerciseLogsHistory** : Vue historique chronologique groupee par date, accessible depuis le Dashboard
+10. **Auth UUID** : Recuperation du Supabase auth UUID pour les operations RLS
+
+### Fichiers modifies
+
+| Fichier | Nature |
+|---------|--------|
+| `supabase/migrations/00017_swim_exercise_logs.sql` | Nouveau — migration BDD |
+| `src/lib/api/types.ts` | Modifie — 4 interfaces ajoutees |
+| `src/lib/api/swim-logs.ts` | Nouveau — module API (4 fonctions) |
+| `src/lib/api/index.ts` | Modifie — re-exports swim-logs |
+| `src/lib/api.ts` | Modifie — delegation stubs + syncSession retourne sessionId |
+| `src/hooks/useDashboardState.ts` | Modifie — exerciseLogs dans DraftState |
+| `src/components/dashboard/TechnicalNotesSection.tsx` | Nouveau — composant UI |
+| `src/components/dashboard/SwimExerciseLogsHistory.tsx` | Nouveau — historique |
+| `src/components/dashboard/FeedbackDrawer.tsx` | Modifie — integration TechnicalNotesSection |
+| `src/pages/Dashboard.tsx` | Modifie — integration historique + save flow |
+| `docs/FEATURES_STATUS.md` | Modifie — 2 features ajoutees |
+| `docs/ROADMAP.md` | Modifie — chantier 10 ajoute |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — aucune erreur nouvelle (pre-existantes dans stories)
+- [x] `npm run build` — build OK
+- [ ] Test manuel : ajouter une note technique depuis le FeedbackDrawer
+- [ ] Test manuel : consulter l'historique des notes techniques
+
+### Decisions prises
+
+- **Delete + insert** pour le save batch plutot qu'upsert individuel — simplifie la logique de synchronisation
+- **Auth UUID** recupere via `supabase.auth.getSession()` car le store Zustand n'expose que l'ID app numerique
+- **Logs sauves apres syncSession** dans le meme mutation handler — erreur de logs ne bloque pas la sauvegarde du feedback principal
+- **session_id reference dim_sessions(id) INTEGER** — coherent avec le schema existant (dim_sessions.id est INTEGER)
+
+### Limites / dette
+
+- Pas de chargement des logs existants lors de l'edition d'une session deja enregistree (les logs ne sont charges que pour l'historique)
+- Les items d'assignment ne sont disponibles que si l'assignment a des items (type swim avec `swim_session_items`)

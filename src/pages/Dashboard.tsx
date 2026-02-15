@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { Session } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
+import type { Session, SwimSessionItem } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { useDashboardState } from "@/hooks/useDashboardState";
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { CalendarHeader } from "@/components/dashboard/CalendarHeader";
 import { CalendarGrid } from "@/components/dashboard/CalendarGrid";
 import { FeedbackDrawer } from "@/components/dashboard/FeedbackDrawer";
+import { SwimExerciseLogsHistory } from "@/components/dashboard/SwimExerciseLogsHistory";
 import {
   X,
   Settings2,
@@ -128,6 +130,15 @@ export default function Dashboard() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [saveState, setSaveState] = React.useState<SaveState>("idle");
+  const [historyExpanded, setHistoryExpanded] = React.useState(false);
+
+  // Get Supabase auth UUID for swim exercise logs
+  const [authUuid, setAuthUuid] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setAuthUuid(data.session?.user?.id ?? null);
+    });
+  }, [user]);
 
   const { data: sessions, isLoading: sessionsLoading, error: sessionsError, refetch: refetchSessions } = useQuery({
     queryKey: ["sessions", userId ?? user],
@@ -167,7 +178,23 @@ export default function Dashboard() {
   });
 
   const mutation = useMutation({
-    mutationFn: (data: Omit<Session, "id" | "created_at">) => api.syncSession({ ...data, athlete_name: user!, athlete_id: userId ?? undefined }),
+    mutationFn: async (data: Omit<Session, "id" | "created_at"> & { _exerciseLogs?: import("@/lib/api").SwimExerciseLogInput[] }) => {
+      const { _exerciseLogs, ...sessionData } = data;
+      const result = await api.syncSession({ ...sessionData, athlete_name: user!, athlete_id: userId ?? undefined });
+      // Save exercise logs if any
+      if (_exerciseLogs && _exerciseLogs.length > 0 && result.sessionId) {
+        try {
+          const { data: authData } = await supabase.auth.getSession();
+          const authUid = authData.session?.user?.id;
+          if (authUid) {
+            await api.saveSwimExerciseLogs(result.sessionId, authUid, _exerciseLogs);
+          }
+        } catch (e) {
+          console.warn("[EAC] Failed to save exercise logs:", e);
+        }
+      }
+      return result;
+    },
     onMutate: () => {
       setSaveState("saving");
     },
@@ -244,6 +271,16 @@ export default function Dashboard() {
     startTransition,
     getSessionStatus,
   } = state;
+
+  // Get swim session items for the active assignment (for technical notes)
+  const activeAssignmentItems = useMemo((): SwimSessionItem[] => {
+    if (!activeSessionId) return [];
+    const activeSession = sessionsForSelectedDay.find((s) => s.id === activeSessionId);
+    if (!activeSession?.assignmentId) return [];
+    const assignment = (assignments ?? []).find((a) => a.id === activeSession.assignmentId);
+    if (!assignment?.items) return [];
+    return (assignment.items as SwimSessionItem[]).filter((item) => item.label);
+  }, [activeSessionId, sessionsForSelectedDay, assignments]);
 
   const openDay = useCallback(
     (iso: string) => {
@@ -386,7 +423,7 @@ export default function Dashboard() {
     if (existing?.id) {
       updateMutation.mutate({ ...payload, id: existing.id, created_at: existing.created_at ?? new Date().toISOString() });
     } else {
-      mutation.mutate(payload);
+      mutation.mutate({ ...payload, _exerciseLogs: draftState.exerciseLogs.length > 0 ? draftState.exerciseLogs : undefined });
     }
 
     setActiveSessionId(null);
@@ -607,6 +644,15 @@ export default function Dashboard() {
           />
         </div>
 
+        {/* Swim Exercise Logs History */}
+        {authUuid && (
+          <SwimExerciseLogsHistory
+            userId={authUuid}
+            expanded={historyExpanded}
+            onToggle={() => setHistoryExpanded((v) => !v)}
+          />
+        )}
+
         {/* Info Modal */}
         <Modal open={infoOpen} title="Codes" onClose={() => setInfoOpen(false)}>
           <div className="space-y-3 text-sm">
@@ -718,6 +764,7 @@ export default function Dashboard() {
           onSaveFeedback={saveFeedback}
           onDraftStateChange={setDraftState}
           getSessionStatus={getSessionStatus}
+          assignmentItems={activeAssignmentItems}
         />
       </div>
     </div>

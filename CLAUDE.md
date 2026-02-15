@@ -37,6 +37,7 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 | `src/lib/api/notifications.ts` | Notifications CRUD | ~210 lignes |
 | `src/lib/api/timesheet.ts` | Pointage heures CRUD | ~180 lignes |
 | `src/lib/api/swim.ts` | Catalogue nage, sessions | ~160 lignes |
+| `src/lib/api/swim-logs.ts` | Notes techniques exercices natation | ~90 lignes |
 | `src/lib/auth.ts` | Gestion auth, session, rôles | ~240 lignes |
 | `src/lib/supabase.ts` | Client Supabase | ~70 lignes |
 | `src/lib/features.ts` | Feature flags | 5 lignes |
@@ -80,6 +81,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 4 | Records club alimentés | Moyenne | Fait |
 | 5 | Dette technique UI/UX | Basse | Fait |
 | 6 | Fix timers mode focus (PWA iOS background) | Haute | Fait (§14) |
+| 10 | Notes techniques par exercice natation | Moyenne | Fait |
 
 Détail complet dans `docs/ROADMAP.md`.
 

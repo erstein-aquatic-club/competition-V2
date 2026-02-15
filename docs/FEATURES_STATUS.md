@@ -1,6 +1,6 @@
 # État des fonctionnalités
 
-*Dernière mise à jour : 2026-02-14 (§24 Phase 8: Storybook & Design Tokens)*
+*Dernière mise à jour : 2026-02-15 (§25 Notes techniques par exercice)*
 
 ## Légende
 
@@ -51,6 +51,8 @@ Tous les feature flags sont activés.
 |----------------|--------|----------|-------|
 | Dashboard calendrier | ✅ | `Dashboard.tsx` | Mois, 2 créneaux/jour |
 | Saisie ressenti | ✅ | `Dashboard.tsx` | Difficulté, fatigue, perf, engagement, distance, commentaire |
+| Notes techniques exercice | ✅ | `TechnicalNotesSection.tsx`, `swim-logs.ts` | Temps/rep, tempo, coups de bras, notes par exercice |
+| Historique notes techniques | ✅ | `SwimExerciseLogsHistory.tsx` | Vue chronologique groupée par date |
 | Présence/absence | ✅ | `Dashboard.tsx` | Toggle par créneau |
 | Consultation séances | ✅ | `SwimSessionView.tsx` | Liste + détail |
 | Historique/Progression | ✅ | `Progress.tsx` | KPIs, graphiques Recharts, filtrage période |

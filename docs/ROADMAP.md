@@ -1,6 +1,6 @@
 # Roadmap de Développement
 
-*Dernière mise à jour : 2026-02-14*
+*Dernière mise à jour : 2026-02-15*
 
 Ce document décrit les fonctionnalités à implémenter. Il sert de référence pour reprendre le développement dans une future conversation.
 
@@ -19,6 +19,7 @@ Ce document décrit les fonctionnalités à implémenter. Il sert de référence
 | 7 | Visual Polish & Branding (Phase 6 UI/UX) | Haute | Moyenne | Fait |
 | 8 | Component Architecture Refactor (Phase 7) | Basse | Haute | Fait |
 | 9 | Design System Documentation (Phase 8) | Basse | Moyenne | Fait |
+| 10 | Notes techniques par exercice de natation | Moyenne | Moyenne | Fait |
 
 ---
 
