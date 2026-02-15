@@ -51,6 +51,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §27 Calendrier: pills dynamiques par creneau | ✅ Fait | 2026-02-15 |
 | §28 Audit UX flux musculation athlete (mobile first) | ✅ Fait | 2026-02-15 |
 | §29 Refonte builder séances natation coach | ✅ Fait | 2026-02-15 |
+| §31 UX fixes flux musculation: double start, redesign library, dock, notes | ✅ Fait | 2026-02-15 |
 
 ---
 
@@ -3338,3 +3339,57 @@ Audit UX mobile-first du parcours musculation athlete : Liste → Reader → Foc
 **Limites** :
 - Duplication de séance non implémentée (différée)
 - Pas de changement aux dialogues de création/édition d'exercice
+
+## 2026-02-15 — UX fixes flux musculation: double start, redesign library, dock, notes (§31)
+
+**Branche** : `main`
+
+### Contexte — Pourquoi ce patch
+
+Retours utilisateur sur le flux musculation athlete :
+1. Double invitation de demarrage de seance (reader "Lancer" + WorkoutRunner "COMMENCER")
+2. Vue bibliotheque peu attractive visuellement
+3. Dock mobile visible sous le bouton "Lancer la seance" dans l'apercu
+4. Bouton "Suivant" devrait s'appeler "Passer" (on saute la fin de serie)
+5. Notes exercice masquees par les boutons de la barre d'action
+6. Commentaires de l'exercice peu visibles (hauteur trop faible)
+
+### Changements realises
+
+1. **Double start elimine** : `handleLaunchFocus()` dans Strength.tsx appelle desormais `startRun.mutateAsync()` et initialise `activeRunnerStep` a 1, sautant l'ecran step 0 de WorkoutRunner. Le reader sert d'ecran de lancement unique.
+2. **Redesign bibliotheque** : Selecteur de cycle en segmented control (au lieu de pills), cards session plus compactes avec accent primaire a gauche pour les assignees, badge "Coach" au lieu de "Assignee", chevron au lieu de play, recherche masquee si <= 4 seances, compteur en section header avec ligne.
+3. **Dock masque dans apercu** : BottomActionBar dans SessionDetailPreview passe en `bottom-0` pour couvrir le dock mobile.
+4. **"Suivant" → "Passer"** : Label du bouton d'avance d'exercice renomme.
+5. **Notes visibles** : Padding bottom du WorkoutRunner augmente de `pb-32` a `pb-44` (176px), suffisant pour voir les notes au-dessus de la barre d'action.
+6. **Commentaires lisibles** : Suppression de `line-clamp-2` sur les notes exercice, ajout d'un label "Notes" au-dessus, et passage de `line-clamp-1` a `line-clamp-2` pour les notes perso inline.
+
+### Fichiers modifies
+
+| Fichier | Nature |
+|---------|--------|
+| `src/pages/Strength.tsx` | Fix double start (handleLaunchFocus auto-start) |
+| `src/components/strength/SessionList.tsx` | Redesign bibliotheque (segmented control, cards compactes) |
+| `src/components/strength/SessionDetailPreview.tsx` | Fix dock overlap (bottom-0) |
+| `src/components/strength/WorkoutRunner.tsx` | "Passer", pb-44, notes visibles |
+
+### Tests
+
+- [x] `npm run build` — succes (7.00s)
+- [ ] Test manuel : lancer seance = 1 seul ecran de demarrage (pas de double "Commencer")
+- [ ] Test manuel : bibliotheque redesignee avec segmented control et cards compactes
+- [ ] Test manuel : dock masque sous "Lancer la seance" dans l'apercu
+- [ ] Test manuel : bouton "Passer" au lieu de "Suivant"
+- [ ] Test manuel : notes exercice visibles au-dessus de la barre d'action
+- [ ] Test manuel : commentaires exercice pleine hauteur
+
+### Decisions prises
+
+1. **Auto-start dans handleLaunchFocus** : l'ecran step 0 de WorkoutRunner est redondant avec le reader (SessionDetailPreview). Le run est cree cote serveur des le clic sur "Lancer la seance".
+2. **Segmented control** au lieu de pills : plus standard iOS/Android, meilleure affordance visuelle.
+3. **Recherche conditionnelle** : masquee si <= 4 seances pour ne pas surcharger les petits catalogues.
+4. **"Passer" vs "Suivant"** : "Passer" communique mieux l'idee de sauter les series restantes.
+5. **pb-44 (176px)** : marge suffisante pour la barre d'action (fixee bottom-0, ~80px) + espace de lecture confortable.
+
+### Limites / dette
+
+- L'ecran step 0 de WorkoutRunner est toujours present dans le code (cas de reprise d'une seance a step 0), mais n'est plus atteint dans le flux normal.

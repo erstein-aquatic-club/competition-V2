@@ -411,7 +411,7 @@ export default function Strength() {
     setScreenMode("reader");
   };
 
-  const handleLaunchFocus = () => {
+  const handleLaunchFocus = async () => {
     if (!activeSession) return;
     if (activeFilteredItems.length === 0) {
       toast({
@@ -420,12 +420,43 @@ export default function Strength() {
       });
       return;
     }
-    setActiveSession({
+    const updatedSession = {
       ...activeSession,
       cycle: cycleType,
       items: activeFilteredItems,
-    });
-    setActiveRunnerStep(0);
+    };
+    setActiveSession(updatedSession);
+
+    // Auto-start the run so WorkoutRunner skips step 0
+    if (!activeRunId) {
+      const sessionId = activeAssignment?.session_id ?? activeSession?.id ?? null;
+      if (!sessionId) {
+        toast({
+          title: "Session manquante",
+          description: "Impossible de démarrer sans session associée.",
+          variant: "destructive",
+        });
+        return;
+      }
+      try {
+        const res = await startRun.mutateAsync({
+          assignment_id: activeAssignment?.id ?? null,
+          athlete_id: userId ?? null,
+          athleteName: user ?? undefined,
+          progress_pct: 0,
+          session_id: sessionId,
+          cycle_type: updatedSession.cycle,
+        });
+        if (res?.run_id) {
+          setActiveRunId(res.run_id);
+          setActiveRunLogs((prev) => prev ?? []);
+        }
+      } catch {
+        return;
+      }
+    }
+
+    setActiveRunnerStep(1);
     setScreenMode("focus");
   };
 

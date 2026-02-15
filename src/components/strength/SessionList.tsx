@@ -13,7 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Dumbbell, Search, Play, X } from "lucide-react";
+import { ChevronRight, Dumbbell, Search, X } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -275,26 +275,20 @@ export function SessionList({
 
   if (isLoading) {
     return (
-      <div className="space-y-5 pt-4">
+      <div className="space-y-5 pt-2">
         {/* Cycle selector skeleton */}
-        <div className="flex justify-center gap-2">
+        <div className="rounded-xl bg-muted/40 p-1 flex gap-1">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-10 w-28 rounded-full bg-muted animate-pulse" />
+            <div key={i} className="flex-1 h-10 rounded-lg bg-muted animate-pulse" />
           ))}
         </div>
-        {/* Search skeleton */}
-        <div className="h-12 rounded-2xl bg-muted/30 animate-pulse" />
         {/* Session cards skeleton */}
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="rounded-2xl border bg-card p-4 shadow-sm">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 shrink-0 rounded-xl bg-muted animate-pulse" />
-                <div className="flex-1 min-w-0 space-y-2">
-                  <div className="h-4 w-3/4 rounded bg-muted animate-pulse" />
-                  <div className="h-3 w-1/2 rounded bg-muted animate-pulse" />
-                </div>
-                <div className="h-10 w-10 shrink-0 rounded-full bg-muted animate-pulse" />
+            <div key={i} className="rounded-xl border bg-card p-4">
+              <div className="space-y-2">
+                <div className="h-4 w-3/5 rounded bg-muted animate-pulse" />
+                <div className="h-3 w-2/5 rounded bg-muted animate-pulse" />
               </div>
             </div>
           ))}
@@ -304,50 +298,48 @@ export function SessionList({
   }
 
   return (
-    <div className="space-y-5 animate-in fade-in motion-reduce:animate-none">
-      {/* Session count */}
-      <p className="text-center text-sm text-muted-foreground py-1">
-        {filteredDisplaySessions.length} séance{filteredDisplaySessions.length > 1 ? "s" : ""}{" "}
-        disponible{filteredDisplaySessions.length > 1 ? "s" : ""}
-      </p>
-
-      {/* Cycle selector - pill buttons */}
-      <div className="flex justify-center gap-2">
-        {cycleOptions.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => onCycleChange(normalizeStrengthCycle(option.value))}
-            className={cn(
-              "px-5 py-2.5 rounded-full text-sm font-semibold transition-all active:scale-95",
-              cycleType === option.value
-                ? "bg-primary text-primary-foreground shadow-md"
-                : "bg-muted/50 text-muted-foreground hover:bg-muted"
-            )}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
-      <p className="text-center text-[11px] text-muted-foreground">
-        {cycleType === "endurance" && "Beaucoup de reps, charges légères"}
-        {cycleType === "hypertrophie" && "Reps et charges modérées"}
-        {cycleType === "force" && "Peu de reps, charges lourdes"}
-      </p>
-
-      {/* Search - minimal floating style */}
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-        <Input
-          placeholder="Rechercher une séance..."
-          className="h-12 rounded-2xl bg-muted/30 pl-11 pr-4 border-0 shadow-sm focus-visible:ring-2"
-          value={searchQuery}
-          onChange={(event) => onSearchChange(event.target.value)}
-          aria-label="Rechercher une séance"
-        />
+    <div className="space-y-4 animate-in fade-in motion-reduce:animate-none">
+      {/* Cycle selector — segmented control */}
+      <div>
+        <div className="rounded-xl bg-muted/40 p-1 flex gap-1">
+          {cycleOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => onCycleChange(normalizeStrengthCycle(option.value))}
+              className={cn(
+                "flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all active:scale-[0.97]",
+                cycleType === option.value
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-center text-[11px] text-muted-foreground mt-2">
+          {cycleType === "endurance" && "Beaucoup de reps, charges légères"}
+          {cycleType === "hypertrophie" && "Reps et charges modérées"}
+          {cycleType === "force" && "Peu de reps, charges lourdes"}
+        </p>
       </div>
 
-      {/* In-progress session - prominent card */}
+      {/* Search — compact */}
+      {filteredDisplaySessions.length > 4 && (
+        <div className="relative">
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <Input
+            placeholder="Rechercher..."
+            className="h-10 rounded-xl bg-muted/30 pl-10 pr-4 border-0 text-sm focus-visible:ring-2"
+            value={searchQuery}
+            onChange={(event) => onSearchChange(event.target.value)}
+            aria-label="Rechercher une séance"
+          />
+        </div>
+      )}
+
+      {/* In-progress session — prominent card */}
       {inProgressRun && (
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-2 border-primary/30 p-5">
           <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-full blur-2xl -mr-8 -mt-8" />
@@ -438,19 +430,19 @@ export function SessionList({
       )}
 
       {/* Section header */}
-      {!inProgressRun && filteredDisplaySessions.length > 0 && (
-        <div className="flex items-center gap-2 pt-2">
-          <Dumbbell className="h-4 w-4 text-muted-foreground" />
+      {filteredDisplaySessions.length > 0 && (
+        <div className="flex items-center gap-3">
           <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Choisir une séance
+            {filteredDisplaySessions.length} séance{filteredDisplaySessions.length > 1 ? "s" : ""}
           </span>
+          <div className="flex-1 h-px bg-border" />
         </div>
       )}
 
-      {/* Sessions list - modern cards */}
+      {/* Sessions list — redesigned cards */}
       {filteredDisplaySessions.length > 0 ? (
         <motion.div
-          className="space-y-3 motion-reduce:animate-none"
+          className="space-y-2.5 motion-reduce:animate-none"
           variants={staggerChildren}
           initial="hidden"
           animate="visible"
@@ -458,6 +450,7 @@ export function SessionList({
           {filteredDisplaySessions.map((session, index) => {
             const isFocused =
               selectedSessionIndex === index || (selectedSessionIndex === null && index === 0);
+            const isAssignment = session.type === "assignment";
             return (
               <motion.button
                 key={session.key}
@@ -467,55 +460,45 @@ export function SessionList({
                 onKeyDown={(e) => handleSessionListKeyDown(e, index)}
                 variants={listItem}
                 className={cn(
-                  "group w-full rounded-2xl border bg-card p-4 text-left shadow-sm transition-all active:scale-[0.98] hover:shadow-md hover:border-primary/30 focus:outline-none motion-reduce:animate-none",
+                  "group w-full rounded-xl border bg-card text-left transition-all active:scale-[0.98] hover:shadow-md focus:outline-none motion-reduce:animate-none overflow-hidden",
+                  isAssignment && "border-l-[3px] border-l-primary",
                   isFocused && "ring-2 ring-primary"
                 )}
                 onClick={() => {
-                  if (session.type === "assignment" && session.assignment) {
+                  if (isAssignment && session.assignment) {
                     onStartAssignment(session.assignment);
                     return;
                   }
                   onStartCatalog(session.session);
                 }}
               >
-                <div className="flex items-center gap-4">
-                  {/* Icon */}
-                  <div
-                    className={cn(
-                      "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl",
-                      session.type === "assignment"
-                        ? "bg-primary/10 text-primary"
-                        : "bg-muted text-muted-foreground"
-                    )}
-                  >
-                    <Dumbbell className="h-5 w-5" />
-                  </div>
-
-                  {/* Content */}
+                <div className="flex items-center gap-3 px-4 py-3.5">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
-                      {session.type === "assignment" && (
-                        <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
-                          Assignée
-                        </span>
-                      )}
-                      {session.type === "assignment" && session.assignedDate && (
-                        <span className="text-xs text-muted-foreground">
-                          {format(new Date(session.assignedDate), "dd MMM", { locale: fr })}
+                      <h3 className="font-semibold tracking-tight truncate">{session.title}</h3>
+                      {isAssignment && (
+                        <span className="shrink-0 inline-flex items-center rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-primary">
+                          Coach
                         </span>
                       )}
                     </div>
-                    <h3 className="font-semibold tracking-tight truncate">{session.title}</h3>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {session.exerciseCount} exercice{session.exerciseCount > 1 ? "s" : ""}
-                      {session.description ? ` · ${session.description}` : ""}
-                    </p>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span>{session.exerciseCount} exercice{session.exerciseCount > 1 ? "s" : ""}</span>
+                      {isAssignment && session.assignedDate && (
+                        <>
+                          <span className="text-border">·</span>
+                          <span>{format(new Date(session.assignedDate), "dd MMM", { locale: fr })}</span>
+                        </>
+                      )}
+                      {session.description && (
+                        <>
+                          <span className="text-border">·</span>
+                          <span className="truncate">{session.description}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
-
-                  {/* Arrow */}
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted/50 text-muted-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                    <Play className="h-4 w-4 ml-0.5" />
-                  </div>
+                  <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
                 </div>
               </motion.button>
             );
@@ -523,12 +506,12 @@ export function SessionList({
         </motion.div>
       ) : (
         <div className="py-12 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-            <Dumbbell className="h-7 w-7 text-muted-foreground" />
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted/60">
+            <Dumbbell className="h-6 w-6 text-muted-foreground" />
           </div>
-          <h3 className="font-semibold">Aucune séance</h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            Essayez un autre mot-clé ou changez de cycle.
+          <h3 className="font-semibold text-sm">Aucune séance trouvée</h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            Changez de cycle ou modifiez votre recherche.
           </p>
         </div>
       )}

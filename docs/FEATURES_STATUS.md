@@ -1,6 +1,6 @@
 # État des fonctionnalités
 
-*Dernière mise à jour : 2026-02-15 (§30 Refonte mobile-first catalogue musculation coach)*
+*Dernière mise à jour : 2026-02-15 (§31 UX fixes flux musculation)*
 
 ## Légende
 
@@ -71,9 +71,9 @@ Tous les feature flags sont activés.
 
 | Fonctionnalité | Statut | Fichiers | Notes |
 |----------------|--------|----------|-------|
-| Liste séances assignées | ✅ | `Strength.tsx` | + catalogue, AlertDialog suppression, description cycle |
-| Preview séance | ✅ | `Strength.tsx` | Mode "reader", padding optimisé |
-| Mode focus (WorkoutRunner) | ✅ | `WorkoutRunner.tsx` | Header 2 lignes mobile, boutons labellisés, card allégée, timer simplifié |
+| Liste séances assignées | ✅ | `Strength.tsx` | Segmented control, cards compactes, auto-start, AlertDialog |
+| Preview séance | ✅ | `Strength.tsx` | Mode "reader", dock masqué, lancement unique |
+| Mode focus (WorkoutRunner) | ✅ | `WorkoutRunner.tsx` | Header compact, bouton "Passer", notes visibles, timer simplifié |
 | Saisie charge/reps | ✅ | `WorkoutRunner.tsx` | Auto-sauvegarde, volume formaté fr-FR |
 | Historique | ✅ | `Strength.tsx` | Tab "Historique", 1RM, graphiques |
 | Fiche exercice avec GIF | 🔧 | `Strength.tsx` | Dépend des URLs dans `dim_exercices` |

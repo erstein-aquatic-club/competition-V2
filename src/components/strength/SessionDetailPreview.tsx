@@ -277,8 +277,8 @@ export function SessionDetailPreview({
         )}
       </div>
 
-      {/* Bottom action bar fixe - plus visible */}
-      <BottomActionBar saveState={saveState}>
+      {/* Bottom action bar fixe — couvre le dock mobile */}
+      <BottomActionBar saveState={saveState} className="bottom-0">
         <Button
           variant="default"
           className="flex-1 h-14 rounded-xl font-bold text-base shadow-lg"

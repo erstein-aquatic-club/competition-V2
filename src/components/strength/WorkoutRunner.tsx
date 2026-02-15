@@ -628,7 +628,7 @@ export function WorkoutRunner({
   }
 
   return (
-    <div className="space-y-6 pb-32">
+    <div className="space-y-6 pb-44">
       <div className="space-y-3">
         {/* Ligne 1 : GIF + titre + note + exit */}
         <div className="flex items-center gap-3">
@@ -690,7 +690,7 @@ export function WorkoutRunner({
         </div>
         {/* Notes perso inline */}
         {currentBlock && exerciseNotes?.[currentBlock.exercise_id] && (
-          <p className="text-xs italic text-muted-foreground line-clamp-1 -mt-1">
+          <p className="text-xs italic text-muted-foreground line-clamp-2 -mt-1">
             {exerciseNotes[currentBlock.exercise_id]}
           </p>
         )}
@@ -764,7 +764,8 @@ export function WorkoutRunner({
 
       {(currentBlock?.notes || currentExerciseDef?.description) && (
         <div className="rounded-2xl border bg-muted/10 px-4 py-3">
-          <p className="text-sm text-muted-foreground line-clamp-2">
+          <p className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wide mb-1">Notes</p>
+          <p className="text-sm text-muted-foreground">
             {currentBlock?.notes || currentExerciseDef?.description}
           </p>
         </div>
@@ -803,7 +804,7 @@ export function WorkoutRunner({
             aria-label="Exercice suivant"
           >
             <ChevronRight className="h-4 w-4" />
-            <span className="text-[10px] font-semibold leading-none">Suivant</span>
+            <span className="text-[10px] font-semibold leading-none">Passer</span>
           </Button>
         </BottomActionBar>
       ) : null}
