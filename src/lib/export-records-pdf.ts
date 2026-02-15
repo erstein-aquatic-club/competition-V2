@@ -1,10 +1,15 @@
 // src/lib/export-records-pdf.ts
 // Generates a PDF of club records with one page per pool/sex combination.
 // Each page is a table: rows = events, columns = age categories.
+// Branding: EAC logo, EAC red color (#E30613), fixed column widths
 
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { ClubRecord } from "@/lib/api";
+
+// EAC branding colors (RGB)
+const EAC_RED: [number, number, number] = [227, 6, 19]; // #E30613
+const EAC_GRAY: [number, number, number] = [120, 120, 120];
 
 // ── Constants ──
 
@@ -71,14 +76,34 @@ function shortName(fullName: string): string {
   return `${firstName.charAt(0)}. ${lastName}`;
 }
 
+// Load logo image and convert to data URL for embedding in PDF
+async function loadLogoAsDataUrl(): Promise<string | null> {
+  try {
+    const response = await fetch("/icon-192.png");
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 // ── Main export function ──
 
-export function exportRecordsPdf(records: ClubRecord[]): void {
+export async function exportRecordsPdf(records: ClubRecord[]): Promise<void> {
   // Build a lookup: key = `${pool_m}_${sex}_${event_code}_${age}` → record
   const lookup = new Map<string, ClubRecord>();
   for (const r of records) {
     lookup.set(`${r.pool_m}_${r.sex}_${r.event_code}_${r.age}`, r);
   }
+
+  // Load EAC logo for branding
+  const logoDataUrl = await loadLogoAsDataUrl();
 
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -89,15 +114,25 @@ export function exportRecordsPdf(records: ClubRecord[]): void {
     if (!isFirstPage) doc.addPage();
     isFirstPage = false;
 
-    // Title
+    // Add EAC logo in top left corner
+    if (logoDataUrl) {
+      try {
+        doc.addImage(logoDataUrl, "PNG", 8, 6, 16, 16); // x, y, width, height
+      } catch {
+        // If logo fails to load, continue without it
+      }
+    }
+
+    // Title (offset right to accommodate logo)
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
+    doc.setTextColor(...EAC_RED); // EAC red for title
     doc.text(page.title, pageWidth / 2, 14, { align: "center" });
 
     // Subtitle
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(120, 120, 120);
+    doc.setTextColor(...EAC_GRAY);
     doc.text(
       `EAC — Erstein Aquatic Club — Édité le ${new Date().toLocaleDateString("fr-FR")}`,
       pageWidth / 2,
@@ -147,14 +182,25 @@ export function exportRecordsPdf(records: ClubRecord[]): void {
         lineColor: [200, 200, 200],
       },
       headStyles: {
-        fillColor: [30, 64, 120],
+        fillColor: EAC_RED, // EAC red for header background
         textColor: 255,
         fontStyle: "bold",
         fontSize: 7.5,
         halign: "center",
       },
       columnStyles: {
-        0: { halign: "left", fontStyle: "bold", cellWidth: 24 },
+        // Fixed column widths: Event column wider, age columns equal
+        0: { halign: "left", fontStyle: "bold", cellWidth: 28 }, // Event label
+        1: { cellWidth: 22 }, // Age 8
+        2: { cellWidth: 22 }, // Age 9
+        3: { cellWidth: 22 }, // Age 10
+        4: { cellWidth: 22 }, // Age 11
+        5: { cellWidth: 22 }, // Age 12
+        6: { cellWidth: 22 }, // Age 13
+        7: { cellWidth: 22 }, // Age 14
+        8: { cellWidth: 22 }, // Age 15
+        9: { cellWidth: 22 }, // Age 16
+        10: { cellWidth: 22 }, // Age 17
       },
       alternateRowStyles: {
         fillColor: [245, 247, 250],

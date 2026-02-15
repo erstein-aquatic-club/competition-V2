@@ -199,7 +199,7 @@ export default function RecordsClub() {
     try {
       // Fetch ALL records (no filters) for the complete PDF
       const allRecords = await api.getClubRecords({});
-      exportRecordsPdf(allRecords);
+      await exportRecordsPdf(allRecords);
     } catch {
       // Silently fail — the user will see nothing downloaded
     } finally {
