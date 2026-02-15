@@ -4,7 +4,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Filter, Plus } from "lucide-react";
 import { SessionMetadataForm } from "../shared/SessionMetadataForm";
-import { DragDropList } from "../shared/DragDropList";
 import { FormActions } from "../shared/FormActions";
 import { StrengthExerciseCard } from "./StrengthExerciseCard";
 import type { Exercise, StrengthCycleType, StrengthSessionItem } from "@/lib/api";
@@ -156,24 +155,23 @@ export function StrengthSessionBuilder({
           </div>
         </div>
 
-        {/* Exercise list — DragDropList with compact cards */}
-        <DragDropList
-          items={session.items}
-          className="space-y-2"
-          onMoveUp={handleMoveUp}
-          onMoveDown={handleMoveDown}
-          onDelete={onRemoveItem}
-          renderItem={(item, index) => (
+        {/* Exercise list — compact cards */}
+        <div className="space-y-2">
+          {session.items.map((item, index) => (
             <StrengthExerciseCard
+              key={`${item.exercise_id}-${index}`}
               exercise={item}
               exercises={exercises}
               exerciseFilter={exerciseFilter}
               index={index}
+              totalItems={session.items.length}
               onChange={(field, value) => onUpdateItem(index, field, value)}
               onDelete={() => onRemoveItem(index)}
+              onMoveUp={() => handleMoveUp(index)}
+              onMoveDown={() => handleMoveDown(index)}
             />
-          )}
-        />
+          ))}
+        </div>
 
         {/* Add exercise buttons */}
         <div className="flex flex-wrap gap-2">

@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronDown, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Exercise, StrengthSessionItem } from "@/lib/api";
 
@@ -13,8 +13,11 @@ interface StrengthExerciseCardProps {
   exercises: Exercise[];
   exerciseFilter: "all" | "strength" | "warmup";
   index: number;
+  totalItems: number;
   onChange: (field: string, value: string | number | null) => void;
   onDelete: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
 }
 
 export function StrengthExerciseCard({
@@ -22,8 +25,11 @@ export function StrengthExerciseCard({
   exercises,
   exerciseFilter,
   index,
+  totalItems,
   onChange,
   onDelete,
+  onMoveUp,
+  onMoveDown,
 }: StrengthExerciseCardProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -157,7 +163,27 @@ export function StrengthExerciseCard({
             />
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onMoveUp(); }}
+                disabled={index === 0}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted disabled:opacity-30"
+                aria-label="Monter"
+              >
+                <ArrowUp className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onMoveDown(); }}
+                disabled={index === totalItems - 1}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted disabled:opacity-30"
+                aria-label="Descendre"
+              >
+                <ArrowDown className="h-4 w-4" />
+              </button>
+            </div>
             <button
               type="button"
               onClick={(e) => {
