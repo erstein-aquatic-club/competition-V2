@@ -101,7 +101,8 @@ export async function createSwimSession(session: any) {
         })
         .eq("id", session.id);
       if (error) throw new Error(error.message);
-      await supabase.from("swim_session_items").delete().eq("catalog_id", session.id);
+      const { error: deleteError } = await supabase.from("swim_session_items").delete().eq("catalog_id", session.id);
+      if (deleteError) throw new Error(deleteError.message);
       if (items.length > 0) {
         const { error: itemsError } = await supabase
           .from("swim_session_items")

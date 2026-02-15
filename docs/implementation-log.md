@@ -52,6 +52,51 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §28 Audit UX flux musculation athlete (mobile first) | ✅ Fait | 2026-02-15 |
 | §29 Refonte builder séances natation coach | ✅ Fait | 2026-02-15 |
 | §31 UX fixes flux musculation: double start, redesign library, dock, notes | ✅ Fait | 2026-02-15 |
+| §32 Fix: items natation dupliqués à chaque édition (FK + error handling) | ✅ Fait | 2026-02-15 |
+
+---
+
+## 2026-02-15 — Fix: items natation dupliqués à chaque édition (§32)
+
+**Branche** : `main`
+
+### Contexte — Pourquoi ce patch
+
+Après la refonte du builder natation (§29), l'édition de séances existantes causait une multiplication des exercices : chaque sauvegarde ajoutait des items au lieu de remplacer les existants. La distance totale et l'aperçu étaient complètement faux.
+
+### Cause racine
+
+1. **FK bloquante** : `swim_exercise_logs.source_item_id` référençait `swim_session_items.id` avec `ON DELETE NO ACTION`. Quand un nageur avait des notes techniques sur un exercice, la suppression des items échouait silencieusement.
+2. **Erreur non vérifiée** : `createSwimSession()` dans `swim.ts` faisait `await supabase.from("swim_session_items").delete()` sans vérifier l'erreur retournée. Le delete échouait (violation FK), le code continuait et insérait de nouveaux items par-dessus les anciens.
+
+### Changements réalisés
+
+| Changement | Détail |
+|------------|--------|
+| Migration Supabase | FK changée de `NO ACTION` à `ON DELETE SET NULL` — les logs sont préservés avec `source_item_id = NULL` |
+| Error handling swim.ts | Ajout `const { error: deleteError }` + `throw` sur la ligne 104 |
+| Nettoyage données | Suppression des items dupliqués de la session 1 (16 → 4 items) |
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/lib/api/swim.ts:104` | Ajout error handling sur delete |
+| Migration Supabase | `fix_swim_exercise_logs_fk_set_null` |
+
+### Tests
+
+- [x] `npm run build` : OK
+- [x] `npm test` : 58 pass, 6 fail (pré-existants)
+- [x] Session 1 nettoyée : 4 items (vérifié via SQL)
+
+### Décisions prises
+
+- `ON DELETE SET NULL` plutôt que `CASCADE` : les notes techniques des nageurs ne doivent pas être perdues quand un coach réédite une séance.
+
+### Limites / dette
+
+- Les items dupliqués de la session 1 ont été nettoyés manuellement via SQL. Si d'autres sessions sont affectées à l'avenir, le même nettoyage serait nécessaire.
 
 ---
 
