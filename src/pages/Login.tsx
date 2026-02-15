@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -253,7 +253,7 @@ export default function Login() {
             </TabsList>
 
             {/* Login Tab */}
-                <TabsContent value="login" className="space-y-6">
+            <TabsContent value="login" className="space-y-6">
                   <motion.form
                     key="login-form"
                     initial={{ opacity: 0, x: -20 }}
@@ -344,7 +344,7 @@ export default function Login() {
                 </TabsContent>
 
             {/* Signup Tab */}
-                <TabsContent value="signup" className="space-y-6">
+            <TabsContent value="signup" className="space-y-6">
                   <motion.form
                     key="signup-form"
                     initial={{ opacity: 0, x: 20 }}
@@ -506,8 +506,6 @@ export default function Login() {
                     </motion.div>
                   </motion.form>
                 </TabsContent>
-              )}
-            </AnimatePresence>
           </Tabs>
         </motion.div>
 
