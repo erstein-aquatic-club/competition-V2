@@ -213,7 +213,23 @@ export default function Dashboard() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: Session) => api.updateSession(data),
+    mutationFn: async (data: Session & { _exerciseLogs?: import("@/lib/api").SwimExerciseLogInput[] }) => {
+      const { _exerciseLogs, ...sessionData } = data;
+      const result = await api.updateSession(sessionData);
+      // Save exercise logs if any
+      if (_exerciseLogs && sessionData.id) {
+        try {
+          const { data: authData } = await supabase.auth.getSession();
+          const authUid = authData.session?.user?.id;
+          if (authUid) {
+            await api.saveSwimExerciseLogs(sessionData.id, authUid, _exerciseLogs);
+          }
+        } catch (e) {
+          console.warn("[EAC] Failed to save exercise logs:", e);
+        }
+      }
+      return result;
+    },
     onMutate: () => {
       setSaveState("saving");
     },
@@ -421,7 +437,12 @@ export default function Dashboard() {
     });
 
     if (existing?.id) {
-      updateMutation.mutate({ ...payload, id: existing.id, created_at: existing.created_at ?? new Date().toISOString() });
+      updateMutation.mutate({
+        ...payload,
+        id: existing.id,
+        created_at: existing.created_at ?? new Date().toISOString(),
+        _exerciseLogs: draftState.exerciseLogs.length > 0 ? draftState.exerciseLogs : []
+      });
     } else {
       mutation.mutate({ ...payload, _exerciseLogs: draftState.exerciseLogs.length > 0 ? draftState.exerciseLogs : undefined });
     }
