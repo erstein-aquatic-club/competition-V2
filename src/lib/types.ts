@@ -26,6 +26,7 @@ export interface SwimPayloadFields {
   exercise_stroke?: string | null;
   exercise_stroke_type?: string | null;
   exercise_rest?: number | null;
+  exercise_rest_type?: "departure" | "rest" | null;
   instruction?: string | null;
   rest?: string | null;
   stroke?: string | null;

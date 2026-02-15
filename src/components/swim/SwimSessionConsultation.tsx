@@ -116,6 +116,15 @@ const normalizeIntensity = (intensity?: string | null) => {
   return trimmed;
 };
 
+const formatRecoveryDisplay = (seconds?: number | null) => {
+  if (!seconds) return "";
+  const min = Math.floor(seconds / 60);
+  const sec = seconds % 60;
+  if (min > 0 && sec > 0) return `${min}'${sec.toString().padStart(2, "0")}`;
+  if (min > 0) return `${min}'00`;
+  return `${sec}s`;
+};
+
 const groupItemsByBlock = (items: SwimSessionItem[] = []): BlockGroup[] => {
   const blocks = new Map<string, BlockGroup>();
   items.forEach((item, index) => {
@@ -204,6 +213,7 @@ export type SwimExerciseDetail = {
   strokeType?: string | null;
   intensity?: string | null;
   modalities?: string | null;
+  restType?: "departure" | "rest" | null;
   equipment?: string[];
   blockTitle?: string;
   blockIndex?: number;
@@ -295,6 +305,7 @@ export function SwimSessionConsultation({
                   distance: item.distance ?? null,
                   repetitions: payload.exercise_repetitions ?? null,
                   rest: payload.exercise_rest ?? null,
+                  restType: (payload.exercise_rest_type as "departure" | "rest") ?? "rest",
                   stroke: strokeLabel,
                   strokeType: strokeTypeLabel,
                   intensity: normalizedIntensity,
@@ -325,7 +336,9 @@ export function SwimSessionConsultation({
                             ) : null}
                             {payload.exercise_rest ? (
                               <span className="inline-flex items-center gap-1 rounded-full bg-card px-2 py-0.5 ring-1 ring-border">
-                                <Timer className="h-3 w-3" /> {payload.exercise_rest}s
+                                <Timer className="h-3 w-3" />
+                                {payload.exercise_rest_type === "departure" ? "Dép." : "Repos"}{" "}
+                                {formatRecoveryDisplay(payload.exercise_rest as number)}
                               </span>
                             ) : null}
                             {payload.exercise_stroke ? (
@@ -348,7 +361,9 @@ export function SwimSessionConsultation({
                             ) : null}
                             {payload.exercise_rest ? (
                               <span className="inline-flex items-center gap-1 rounded-full bg-card px-2 py-0.5 ring-1 ring-border">
-                                <Timer className="h-3 w-3" /> {payload.exercise_rest}s
+                                <Timer className="h-3 w-3" />
+                                {payload.exercise_rest_type === "departure" ? "Dép." : "Repos"}{" "}
+                                {formatRecoveryDisplay(payload.exercise_rest as number)}
                               </span>
                             ) : null}
                             {strokeLabel ? (

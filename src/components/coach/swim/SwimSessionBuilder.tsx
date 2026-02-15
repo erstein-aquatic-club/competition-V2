@@ -1,5 +1,4 @@
 import React, { useMemo } from "react";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -10,7 +9,6 @@ import { FormActions } from "../shared/FormActions";
 import {
   ArrowDown,
   ArrowUp,
-  GripVertical,
   Plus,
   Repeat,
   Trash2,
@@ -24,6 +22,7 @@ interface SwimExercise {
   repetitions: number | null;
   distance: number | null;
   rest: number | null;
+  restType: "departure" | "rest";
   stroke: string;
   strokeType: string;
   intensity: string;
@@ -118,11 +117,13 @@ const normalizeIntensityValue = (value?: string | null) => {
 
 const formatIntensityLabel = (value: string) => (value === "Max" ? "MAX" : value);
 
-const trimPreview = (value: string) => {
-  if (!value) {
-    return "";
-  }
-  return value.length > 48 ? `${value.slice(0, 45).trim()}…` : value;
+const formatRecoveryTime = (seconds: number | null) => {
+  if (!seconds) return "";
+  const min = Math.floor(seconds / 60);
+  const sec = seconds % 60;
+  if (min > 0 && sec > 0) return `${min}'${sec.toString().padStart(2, "0")}`;
+  if (min > 0) return `${min}'00`;
+  return `${sec}s`;
 };
 
 const buildItemsFromBlocks = (blocks: SwimBlock[]): SwimSessionItem[] => {
@@ -138,6 +139,7 @@ const buildItemsFromBlocks = (blocks: SwimBlock[]): SwimSessionItem[] => {
         block_equipment: block.equipment ?? [],
         exercise_repetitions: exercise.repetitions ?? null,
         exercise_rest: exercise.rest ?? null,
+        exercise_rest_type: exercise.restType ?? "rest",
         exercise_stroke: exercise.stroke || null,
         exercise_stroke_type: exercise.strokeType || null,
         exercise_intensity: exercise.intensity ? normalizeIntensityValue(exercise.intensity) : null,
@@ -172,7 +174,10 @@ export function SwimSessionBuilder({
   userId,
   isSaving,
 }: SwimSessionBuilderProps) {
-  const [coachView, setCoachView] = React.useState<"compact" | "detailed">("compact");
+  const [expandedExercise, setExpandedExercise] = React.useState<{
+    blockIndex: number;
+    exerciseIndex: number;
+  } | null>(null);
   const [selectedSession, setSelectedSession] = React.useState<{
     id: number;
     name: string;
@@ -202,6 +207,7 @@ export function SwimSessionBuilder({
               repetitions: 4,
               distance: 50,
               rest: null,
+              restType: "rest",
               stroke: "crawl",
               strokeType: "nc",
               intensity: "V2",
@@ -240,6 +246,7 @@ export function SwimSessionBuilder({
       repetitions: 4,
       distance: 50,
       rest: null,
+      restType: "rest",
       stroke: "crawl",
       strokeType: "nc",
       intensity: "V2",
@@ -266,6 +273,19 @@ export function SwimSessionBuilder({
     const blocks = [...session.blocks];
     blocks[blockIndex].exercises = blocks[blockIndex].exercises.filter((_, idx) => idx !== exerciseIndex);
     onSessionChange({ ...session, blocks });
+  };
+
+  const duplicateExercise = (blockIndex: number, exerciseIndex: number) => {
+    const blocks = [...session.blocks];
+    const original = blocks[blockIndex].exercises[exerciseIndex];
+    const copy = { ...original };
+    blocks[blockIndex].exercises = [
+      ...blocks[blockIndex].exercises.slice(0, exerciseIndex + 1),
+      copy,
+      ...blocks[blockIndex].exercises.slice(exerciseIndex + 1),
+    ];
+    onSessionChange({ ...session, blocks });
+    setExpandedExercise({ blockIndex, exerciseIndex: exerciseIndex + 1 });
   };
 
   return (
@@ -297,292 +317,165 @@ export function SwimSessionBuilder({
           showTotalDistance={true}
         />
 
-        <div className="flex items-center justify-between">
-          <div className="text-sm font-semibold">Vue coach</div>
-          <div className="inline-flex rounded-full border border-border bg-card p-1 text-xs font-semibold">
-            <button
-              type="button"
-              onClick={() => setCoachView("compact")}
-              className={cn(
-                "rounded-full px-3 py-1",
-                coachView === "compact" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-              )}
-            >
-              Condensé
-            </button>
-            <button
-              type="button"
-              onClick={() => setCoachView("detailed")}
-              className={cn(
-                "rounded-full px-3 py-1",
-                coachView === "detailed" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-              )}
-            >
-              Détail
-            </button>
-          </div>
-        </div>
-
-        {coachView === "compact" ? (
-          <Card className="rounded-2xl border-border">
-            <div className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-semibold">Plan (ultra compact)</div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    Manipule les blocs vite. Passe en "Détail" pour éditer.
+        <div className="space-y-3">
+          {session.blocks.map((block, blockIndex) => (
+            <div key={blockIndex} className="rounded-2xl border border-border bg-card">
+              {/* Block header */}
+              <div className="flex items-center justify-between gap-2 px-3 py-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold text-primary-foreground">
+                    <Repeat className="inline h-3 w-3" /> {block.repetitions ?? 1}x
+                  </span>
+                  <Input
+                    value={block.title}
+                    onChange={(e) => updateBlock(blockIndex, "title", e.target.value)}
+                    placeholder={`Bloc ${blockIndex + 1}`}
+                    className="h-7 rounded-lg border-none bg-transparent px-1 text-xs font-semibold shadow-none focus-visible:bg-muted focus-visible:ring-1"
+                  />
+                  <div className="text-[11px] text-muted-foreground whitespace-nowrap">
+                    · {block.exercises.length} ex
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={addBlock}
-                  className="h-10 rounded-full px-3 text-xs"
-                >
-                  <Plus className="h-4 w-4" /> Bloc
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    min={1}
+                    value={block.repetitions ?? ""}
+                    onChange={(e) =>
+                      updateBlock(blockIndex, "repetitions", e.target.value === "" ? null : Number(e.target.value))
+                    }
+                    className="h-7 w-12 rounded-lg text-center text-xs"
+                    placeholder="1"
+                  />
+                  <button type="button" onClick={() => moveBlock(blockIndex, "up")}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
+                    disabled={blockIndex === 0}>
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  </button>
+                  <button type="button" onClick={() => moveBlock(blockIndex, "down")}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
+                    disabled={blockIndex === session.blocks.length - 1}>
+                    <ArrowDown className="h-3.5 w-3.5" />
+                  </button>
+                  <button type="button" onClick={() => removeBlock(blockIndex)}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-destructive hover:bg-destructive/10">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
 
-              <div className="mt-3 space-y-2">
-                {session.blocks.map((block, blockIndex) => (
-                  <div key={blockIndex} className="rounded-2xl border border-border bg-card px-3 py-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold text-primary-foreground">
-                            <Repeat className="inline h-3 w-3" /> {block.repetitions ?? 1}x
-                          </span>
-                          <div className="truncate text-xs font-semibold">
-                            {block.title ? block.title : `Bloc ${blockIndex + 1}`}
-                          </div>
-                          <div className="text-[11px] text-muted-foreground">· {block.exercises.length} ex</div>
-                        </div>
-
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {block.exercises.slice(0, 4).map((exercise, exerciseIndex) => {
-                            const normalizedIntensity = normalizeIntensityValue(exercise.intensity);
-                            const strokeTypeLabel =
-                              strokeTypeLabels[exercise.strokeType] ?? exercise.strokeType;
-                            return (
-                              <span
-                                key={`${blockIndex}-${exerciseIndex}`}
-                                className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground"
-                                title={exercise.modalities ? trimPreview(exercise.modalities) : ""}
-                              >
-                                {exercise.repetitions && exercise.distance ? `${exercise.repetitions}x` : ""}
-                                {exercise.distance ? `${exercise.distance}m` : "—"}
-                                <span
-                                  className={cn(
-                                    "ml-1 inline-flex items-center rounded-full px-2 py-0.5 ring-1",
-                                    swimTypeTone[exercise.strokeType] ?? "bg-muted text-muted-foreground ring-border",
-                                  )}
-                                >
-                                  {strokeTypeLabel}
-                                </span>
-                                <span
-                                  className={cn(
-                                    "ml-1 inline-flex items-center gap-1 rounded-full bg-card px-2 py-0.5 ring-1",
-                                    intensityRingTone[normalizedIntensity],
-                                    intensityTextTone[normalizedIntensity],
-                                  )}
-                                >
-                                  <span
-                                    className={cn(
-                                      "h-2 w-2 rounded-full",
-                                      intensityTone[normalizedIntensity] ?? "bg-muted",
-                                    )}
-                                  />
-                                  {formatIntensityLabel(normalizedIntensity)}
-                                </span>
-                              </span>
-                            );
-                          })}
-                          {block.exercises.length > 4 ? (
-                            <span className="text-[11px] text-muted-foreground">
-                              +{block.exercises.length - 4}
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => moveBlock(blockIndex, "up")}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
-                          aria-label="Monter"
-                          title="Monter"
-                          disabled={blockIndex === 0}
-                        >
-                          <ArrowUp className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveBlock(blockIndex, "down")}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
-                          aria-label="Descendre"
-                          title="Descendre"
-                          disabled={blockIndex === session.blocks.length - 1}
-                        >
-                          <ArrowDown className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => removeBlock(blockIndex)}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-full text-destructive hover:bg-destructive/10"
-                          aria-label="Supprimer bloc"
-                          title="Supprimer bloc"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {!session.blocks.length ? (
-                  <div className="rounded-2xl border border-dashed border-border bg-muted px-3 py-6 text-center text-sm text-muted-foreground">
-                    Aucun bloc. Ajoute un bloc pour commencer.
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          </Card>
-        ) : (
-          <>
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-semibold">Édition détaillée</div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={addBlock}
-                className="h-10 rounded-full px-3 text-xs"
-              >
-                <Plus className="h-4 w-4" /> Ajouter bloc
-              </Button>
-            </div>
-
-            <div className="space-y-4">
-              {session.blocks.map((block, blockIndex) => (
-                <Card key={blockIndex} className="rounded-2xl border-border">
-                  <div className="p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3">
-                        <span className="mt-1 inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
-                          <GripVertical className="h-4 w-4" />
+              {/* Exercises */}
+              <div className="border-t border-border">
+                {block.exercises.map((exercise, exerciseIndex) => {
+                  const isExpanded =
+                    expandedExercise?.blockIndex === blockIndex &&
+                    expandedExercise?.exerciseIndex === exerciseIndex;
+                  const normalizedIntensity = normalizeIntensityValue(exercise.intensity);
+                  return (
+                    <div key={exerciseIndex} className="border-b border-border last:border-b-0">
+                      {/* Compact summary row */}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpandedExercise(
+                            isExpanded ? null : { blockIndex, exerciseIndex }
+                          )
+                        }
+                        className={cn(
+                          "flex w-full items-center gap-1.5 px-3 py-2 text-left text-[11px] font-semibold transition-colors hover:bg-muted/50",
+                          isExpanded && "bg-muted/50"
+                        )}
+                      >
+                        <span className="text-muted-foreground">
+                          {exercise.repetitions ?? ""}×{exercise.distance ?? ""}m
                         </span>
-                        <div className="space-y-2">
-                          <div className="text-xs font-semibold text-muted-foreground">Titre bloc</div>
-                          <Input
-                            value={block.title}
-                            onChange={(e) => updateBlock(blockIndex, "title", e.target.value)}
-                            placeholder={`Bloc ${blockIndex + 1}`}
-                            className="rounded-2xl"
-                          />
-                        </div>
-                      </div>
+                        <span className="text-muted-foreground">{exercise.stroke}</span>
+                        <span className={cn(
+                          "inline-flex items-center rounded-full px-1.5 py-0.5 ring-1",
+                          swimTypeTone[exercise.strokeType] ?? "bg-muted ring-border"
+                        )}>
+                          {strokeTypeLabels[exercise.strokeType] ?? exercise.strokeType}
+                        </span>
+                        <span className={cn(
+                          "inline-flex items-center gap-1 rounded-full bg-card px-1.5 py-0.5 ring-1",
+                          intensityRingTone[normalizedIntensity],
+                          intensityTextTone[normalizedIntensity],
+                        )}>
+                          <span className={cn("h-1.5 w-1.5 rounded-full", intensityTone[normalizedIntensity] ?? "bg-muted")} />
+                          {formatIntensityLabel(normalizedIntensity)}
+                        </span>
+                        {exercise.rest ? (
+                          <span className="text-muted-foreground">
+                            {exercise.restType === "departure" ? "⏱" : "⏸"}{" "}
+                            {exercise.restType === "departure" ? "Dép." : "Repos"}{" "}
+                            {formatRecoveryTime(exercise.rest)}
+                          </span>
+                        ) : null}
+                        {exercise.equipment.length > 0 ? (
+                          <span className="text-muted-foreground">
+                            🏊{exercise.equipment.length}
+                          </span>
+                        ) : null}
+                        <span className="ml-auto flex items-center gap-1">
+                          <span
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeExercise(blockIndex, exerciseIndex);
+                            }}
+                            className="inline-flex h-6 w-6 items-center justify-center rounded-full text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </span>
+                        </span>
+                      </button>
 
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => moveBlock(blockIndex, "up")}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
-                          aria-label="Monter"
-                          title="Monter"
-                          disabled={blockIndex === 0}
-                        >
-                          <ArrowUp className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveBlock(blockIndex, "down")}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
-                          aria-label="Descendre"
-                          title="Descendre"
-                          disabled={blockIndex === session.blocks.length - 1}
-                        >
-                          <ArrowDown className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => removeBlock(blockIndex)}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-full text-destructive hover:bg-destructive/10"
-                          aria-label="Supprimer bloc"
-                          title="Supprimer bloc"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 grid grid-cols-2 gap-3">
-                      <div>
-                        <div className="text-xs font-semibold text-muted-foreground">Répétitions du bloc</div>
-                        <div className="mt-1">
-                          <Input
-                            type="number"
-                            min={1}
-                            value={block.repetitions ?? ""}
-                            onChange={(e) =>
-                              updateBlock(
-                                blockIndex,
-                                "repetitions",
-                                e.target.value === "" ? null : Number(e.target.value),
-                              )
+                      {/* Expanded edit form */}
+                      {isExpanded ? (
+                        <div className="border-t border-border bg-muted/30 px-3 py-3">
+                          <SwimExerciseForm
+                            exercise={exercise}
+                            onChange={(field, value) =>
+                              updateExercise(blockIndex, exerciseIndex, field, value)
                             }
-                            placeholder="1"
-                            className="rounded-2xl"
+                            onDelete={() => removeExercise(blockIndex, exerciseIndex)}
+                            onDuplicate={() => duplicateExercise(blockIndex, exerciseIndex)}
+                            showDelete={true}
                           />
                         </div>
-                      </div>
-                      <div className="flex items-end justify-end">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => addExercise(blockIndex)}
-                          className="h-10 rounded-full px-3 text-xs"
-                        >
-                          <Plus className="h-4 w-4" /> Exercice
-                        </Button>
-                      </div>
+                      ) : null}
                     </div>
+                  );
+                })}
+              </div>
 
-                    <div className="mt-4 space-y-3">
-                      {block.exercises.map((exercise, exerciseIndex) => (
-                        <SwimExerciseForm
-                          key={exerciseIndex}
-                          exercise={exercise}
-                          onChange={(field, value) => updateExercise(blockIndex, exerciseIndex, field, value)}
-                          onDelete={() => removeExercise(blockIndex, exerciseIndex)}
-                          showDelete={true}
-                        />
-                      ))}
-                    </div>
-
-                    <div className="mt-4 flex items-center justify-between">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => addExercise(blockIndex)}
-                        className="h-10 rounded-full px-3 text-xs"
-                      >
-                        <Plus className="h-4 w-4" /> Ajouter exercice
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => removeBlock(blockIndex)}
-                        className="h-10 rounded-full px-3 text-xs"
-                      >
-                        <Trash2 className="h-4 w-4" /> Supprimer bloc
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              ))}
+              {/* Add exercise button */}
+              <div className="border-t border-border px-3 py-2">
+                <button
+                  type="button"
+                  onClick={() => addExercise(blockIndex)}
+                  className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1.5 text-[11px] font-semibold text-muted-foreground hover:bg-muted/80"
+                >
+                  <Plus className="h-3 w-3" /> Exercice
+                </button>
+              </div>
             </div>
-          </>
-        )}
+          ))}
+
+          {!session.blocks.length ? (
+            <div className="rounded-2xl border border-dashed border-border bg-muted px-3 py-6 text-center text-sm text-muted-foreground">
+              Aucun bloc. Ajoute un bloc pour commencer.
+            </div>
+          ) : null}
+        </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={addBlock}
+          className="h-10 rounded-full px-3 text-xs"
+        >
+          <Plus className="h-4 w-4" /> Ajouter bloc
+        </Button>
 
         <div className="h-8" />
       </div>

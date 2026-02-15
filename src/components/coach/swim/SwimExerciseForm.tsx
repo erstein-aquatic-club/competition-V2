@@ -2,7 +2,7 @@ import React from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2 } from "lucide-react";
+import { Copy, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getEquipmentIconUrl } from "@/components/swim/EquipmentPill";
 import { intensityTone } from "@/components/swim/IntensityDots";
@@ -12,6 +12,7 @@ interface SwimExercise {
   repetitions: number | null;
   distance: number | null;
   rest: number | null;
+  restType: "departure" | "rest";
   stroke: string;
   strokeType: string;
   intensity: string;
@@ -23,8 +24,23 @@ interface SwimExerciseFormProps {
   exercise: SwimExercise;
   onChange: (field: keyof SwimExercise, value: string | number | null | string[]) => void;
   onDelete?: () => void;
+  onDuplicate?: () => void;
   showDelete?: boolean;
 }
+
+const formatRecoveryTime = (seconds: number | null) => {
+  if (!seconds) return "";
+  const min = Math.floor(seconds / 60);
+  const sec = seconds % 60;
+  if (min > 0 && sec > 0) return `${min}'${sec.toString().padStart(2, "0")}`;
+  if (min > 0) return `${min}'00`;
+  return `${sec}s`;
+};
+
+const parseRecoveryMinSec = (seconds: number | null) => {
+  if (!seconds) return { min: 0, sec: 0 };
+  return { min: Math.floor(seconds / 60), sec: seconds % 60 };
+};
 
 const equipmentOptions = [
   { value: "palmes", label: "Palmes" },
@@ -98,16 +114,16 @@ const intensityRingTone: Record<string, string> = {
   Max: "ring-intensity-5/30",
 };
 
-export function SwimExerciseForm({ exercise, onChange, onDelete, showDelete = true }: SwimExerciseFormProps) {
+export function SwimExerciseForm({ exercise, onChange, onDelete, onDuplicate, showDelete = true }: SwimExerciseFormProps) {
   const normalizedIntensity = normalizeIntensityValue(exercise.intensity);
   const modalitesText = exercise.modalities ?? "";
 
   return (
     <div className="rounded-2xl border border-border bg-card p-3">
       <div className="flex items-start justify-between gap-3">
-        <div className="grid flex-1 grid-cols-2 gap-3">
+        <div className="grid flex-1 grid-cols-2 sm:grid-cols-4 gap-2">
           <div>
-            <div className="text-[11px] font-semibold text-muted-foreground">Répétitions</div>
+            <div className="text-[11px] font-semibold text-muted-foreground">Rép.</div>
             <div className="mt-1">
               <Input
                 type="number"
@@ -122,7 +138,7 @@ export function SwimExerciseForm({ exercise, onChange, onDelete, showDelete = tr
           </div>
 
           <div>
-            <div className="text-[11px] font-semibold text-muted-foreground">Distance (m)</div>
+            <div className="text-[11px] font-semibold text-muted-foreground">Dist. (m)</div>
             <div className="mt-1">
               <Input
                 type="number"
@@ -200,6 +216,77 @@ export function SwimExerciseForm({ exercise, onChange, onDelete, showDelete = tr
           </div>
 
           <div className="col-span-2">
+            <div className="text-[11px] font-semibold text-muted-foreground">Récupération</div>
+            <div className="mt-2 flex items-center gap-2">
+              <div className="inline-flex rounded-full border border-border bg-card p-0.5 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => onChange("restType", "departure")}
+                  className={cn(
+                    "rounded-full px-3 py-1.5 transition-colors",
+                    exercise.restType === "departure"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Départ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onChange("restType", "rest")}
+                  className={cn(
+                    "rounded-full px-3 py-1.5 transition-colors",
+                    exercise.restType === "rest"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Repos
+                </button>
+              </div>
+              <div className="flex items-center gap-1">
+                <Input
+                  type="number"
+                  min={0}
+                  max={59}
+                  value={parseRecoveryMinSec(exercise.rest).min || ""}
+                  onChange={(e) => {
+                    const min = e.target.value === "" ? 0 : Number(e.target.value);
+                    const sec = parseRecoveryMinSec(exercise.rest).sec;
+                    onChange("rest", min * 60 + sec || null);
+                  }}
+                  placeholder="0"
+                  className="w-14 rounded-2xl text-center"
+                />
+                <span className="text-xs text-muted-foreground">min</span>
+                <Input
+                  type="number"
+                  min={0}
+                  max={59}
+                  value={parseRecoveryMinSec(exercise.rest).sec || ""}
+                  onChange={(e) => {
+                    const sec = e.target.value === "" ? 0 : Number(e.target.value);
+                    const min = parseRecoveryMinSec(exercise.rest).min;
+                    onChange("rest", min * 60 + sec || null);
+                  }}
+                  placeholder="0"
+                  className="w-14 rounded-2xl text-center"
+                />
+                <span className="text-xs text-muted-foreground">sec</span>
+              </div>
+              {exercise.rest ? (
+                <button
+                  type="button"
+                  onClick={() => onChange("rest", null)}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Effacer
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="col-span-2">
             <div className="text-[11px] font-semibold text-muted-foreground">Équipements</div>
             <div className="mt-2 flex flex-wrap gap-2">
               {equipmentOptions.map((equipment) => {
@@ -253,17 +340,30 @@ export function SwimExerciseForm({ exercise, onChange, onDelete, showDelete = tr
           </div>
         </div>
 
-        {showDelete && onDelete && (
-          <button
-            type="button"
-            onClick={onDelete}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-destructive hover:bg-destructive/10"
-            aria-label="Supprimer exercice"
-            title="Supprimer exercice"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        )}
+        <div className="flex flex-col gap-1">
+          {onDuplicate && (
+            <button
+              type="button"
+              onClick={onDuplicate}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"
+              aria-label="Dupliquer exercice"
+              title="Dupliquer exercice"
+            >
+              <Copy className="h-4 w-4" />
+            </button>
+          )}
+          {showDelete && onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full text-destructive hover:bg-destructive/10"
+              aria-label="Supprimer exercice"
+              title="Supprimer exercice"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

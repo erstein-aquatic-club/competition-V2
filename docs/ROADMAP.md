@@ -20,6 +20,7 @@ Ce document décrit les fonctionnalités à implémenter. Il sert de référence
 | 8 | Component Architecture Refactor (Phase 7) | Basse | Haute | Fait |
 | 9 | Design System Documentation (Phase 8) | Basse | Moyenne | Fait |
 | 10 | Notes techniques par exercice de natation | Moyenne | Moyenne | Fait |
+| 11 | Refonte builder séances natation coach | Haute | Moyenne | Fait |
 
 ---
 
