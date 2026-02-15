@@ -30,6 +30,10 @@ export type {
   StrengthRunPayload,
   StrengthSetPayload,
   SwimmerPerformance,
+  SplitTimeEntry,
+  StrokeCountEntry,
+  SwimExerciseLog,
+  SwimExerciseLogInput,
 } from "./api/types";
 
 import type {
@@ -127,6 +131,13 @@ import {
 } from "./api/records";
 
 import {
+  getSwimExerciseLogs as _getSwimExerciseLogs,
+  getSwimExerciseLogsHistory as _getSwimExerciseLogsHistory,
+  saveSwimExerciseLogs as _saveSwimExerciseLogs,
+  deleteSwimExerciseLog as _deleteSwimExerciseLog,
+} from "./api/swim-logs";
+
+import {
   getExercises as _getExercises,
   createExercise as _createExercise,
   updateExercise as _updateExercise,
@@ -186,19 +197,20 @@ export const api = {
   },
 
   // ── Swim Sessions (kept in api.ts) ──
-  async syncSession(session: SyncSessionInputWithId): Promise<{ status: string }> {
+  async syncSession(session: SyncSessionInputWithId): Promise<{ status: string; sessionId: number }> {
     if (canUseSupabase()) {
       const dbPayload = mapToDbSession(session);
-      const { error } = await supabase.from("dim_sessions").insert(dbPayload);
+      const { data, error } = await supabase.from("dim_sessions").insert(dbPayload).select("id").single();
       if (error) throw new Error(error.message);
-      return { status: "ok" };
+      return { status: "ok", sessionId: data.id };
     }
 
     await delay(300);
     const sessions = this._get(STORAGE_KEYS.SESSIONS) || [];
-    const newSession = { ...session, id: Date.now(), created_at: new Date().toISOString() };
+    const newId = Date.now();
+    const newSession = { ...session, id: newId, created_at: new Date().toISOString() };
     this._save(STORAGE_KEYS.SESSIONS, [...sessions, newSession]);
-    return { status: "ok" };
+    return { status: "ok", sessionId: newId };
   },
 
   async getSessions(athleteName: string, athleteId?: number | string | null): Promise<Session[]> {
@@ -380,6 +392,14 @@ export const api = {
   async get1RM(athlete: Parameters<typeof _get1RM>[0]) { return _get1RM(athlete); },
   async update1RM(record: Parameters<typeof _update1RM>[0]) { return _update1RM(record); },
   async updateExerciseNote(params: Parameters<typeof _updateExerciseNote>[0]) { return _updateExerciseNote(params); },
+
+  // ══════════════════════════════════════════════════════════════════
+  // DELEGATION STUBS — Swim Exercise Logs
+  // ══════════════════════════════════════════════════════════════════
+  async getSwimExerciseLogs(sessionId: number) { return _getSwimExerciseLogs(sessionId); },
+  async getSwimExerciseLogsHistory(userId: string, limit?: number) { return _getSwimExerciseLogsHistory(userId, limit); },
+  async saveSwimExerciseLogs(sessionId: number, userId: string, logs: Parameters<typeof _saveSwimExerciseLogs>[2]) { return _saveSwimExerciseLogs(sessionId, userId, logs); },
+  async deleteSwimExerciseLog(logId: string) { return _deleteSwimExerciseLog(logId); },
 
   // ══════════════════════════════════════════════════════════════════
   // DELEGATION STUBS — Swim Catalog

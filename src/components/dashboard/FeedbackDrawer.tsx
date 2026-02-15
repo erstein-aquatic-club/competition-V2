@@ -6,7 +6,8 @@ import { BottomActionBar, type SaveState } from "@/components/shared/BottomActio
 import { slideInFromBottom, staggerChildren, listItem } from "@/lib/animations";
 import { durationsSeconds } from "@/lib/design-tokens";
 import { StrokeDetailForm } from "./StrokeDetailForm";
-import type { Session } from "@/lib/api";
+import { TechnicalNotesSection } from "./TechnicalNotesSection";
+import type { Session, SwimExerciseLogInput, SwimSessionItem } from "@/lib/api";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -63,6 +64,7 @@ type DraftState = Record<IndicatorKey, number | null> & {
   distanceMeters: number | null;
   showStrokeDetail: boolean;
   strokes: StrokeDraft;
+  exerciseLogs: SwimExerciseLogInput[];
 };
 
 const INDICATORS = [
@@ -219,6 +221,7 @@ interface FeedbackDrawerProps {
   saveState: SaveState;
   isPending: boolean;
   logsBySessionId: Record<string, Session>;
+  assignmentItems?: SwimSessionItem[];
   onClose: () => void;
   onDayOffAll: () => void;
   onOpenSession: (sessionId: string) => void;
@@ -244,6 +247,7 @@ export function FeedbackDrawer({
   saveState,
   isPending,
   logsBySessionId,
+  assignmentItems,
   onClose,
   onDayOffAll,
   onOpenSession,
@@ -637,6 +641,14 @@ export function FeedbackDrawer({
                                 disabled={!canRate}
                                 onToggle={() => onDraftStateChange({ ...draftState, showStrokeDetail: !draftState.showStrokeDetail })}
                                 onChange={(strokes) => onDraftStateChange({ ...draftState, strokes })}
+                              />
+
+                              {/* Notes techniques par exercice */}
+                              <TechnicalNotesSection
+                                exerciseLogs={draftState.exerciseLogs}
+                                assignmentItems={assignmentItems}
+                                disabled={!canRate}
+                                onLogsChange={(exerciseLogs) => onDraftStateChange({ ...draftState, exerciseLogs })}
                               />
 
                               <BottomActionBar saveState={saveState}>

@@ -320,3 +320,36 @@ export interface SwimmerPerformance {
   source: string;
   imported_at?: string | null;
 }
+
+export interface SplitTimeEntry {
+  rep: number;
+  time_seconds: number;
+}
+
+export interface StrokeCountEntry {
+  rep: number;
+  count: number;
+}
+
+export interface SwimExerciseLog {
+  id: string;
+  session_id: number;
+  user_id: string;
+  exercise_label: string;
+  source_item_id: number | null;
+  split_times: SplitTimeEntry[];
+  tempo: number | null;
+  stroke_count: StrokeCountEntry[];
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SwimExerciseLogInput {
+  exercise_label: string;
+  source_item_id?: number | null;
+  split_times?: SplitTimeEntry[];
+  tempo?: number | null;
+  stroke_count?: StrokeCountEntry[];
+  notes?: string | null;
+}

@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useTransition, useEffect, useRef } from "react";
-import type { Session, Assignment } from "@/lib/api";
+import type { Session, Assignment, SwimExerciseLogInput } from "@/lib/api";
 
 type SlotKey = "AM" | "PM";
 type IndicatorKey = "difficulty" | "fatigue_end" | "performance" | "engagement";
@@ -12,6 +12,7 @@ type DraftState = Record<IndicatorKey, number | null> & {
   distanceMeters: number | null;
   showStrokeDetail: boolean;
   strokes: StrokeDraft;
+  exerciseLogs: SwimExerciseLogInput[];
 };
 
 type PlannedSession = {
@@ -451,6 +452,7 @@ export function useDashboardState({ sessions, assignments, userId, user }: UseDa
       distanceMeters: Number.isFinite(Number(base?.distance)) ? Number(base.distance) : null,
       showStrokeDetail: !!(sd && Object.values(sd).some((v) => v && v > 0)),
       strokes,
+      exerciseLogs: [],
     };
   }, [activeLog]);
 
@@ -463,6 +465,7 @@ export function useDashboardState({ sessions, assignments, userId, user }: UseDa
     distanceMeters: null,
     showStrokeDetail: false,
     strokes: emptyStrokeDraft,
+    exerciseLogs: [],
   }));
 
   // Auto-sync draft state with active session

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
@@ -19,10 +19,7 @@ import { PasswordStrength } from "@/components/shared/PasswordStrength";
 import { fadeIn, staggerChildren } from "@/lib/animations";
 import { durationsSeconds } from "@/lib/design-tokens";
 import eacLogo from "@assets/logo-eac.png";
-import {
-  getLandingRouteForRole,
-  shouldFocusSignup,
-} from "@/pages/loginHelpers";
+import { getLandingRouteForRole } from "@/pages/loginHelpers";
 
 // Validation schemas
 const loginSchema = z.object({
@@ -66,7 +63,6 @@ export default function Login() {
   const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
   const { loginFromSession, loadUser } = useAuth();
   const [, setLocation] = useLocation();
-  const registerNameInputRef = useRef<HTMLInputElement>(null);
 
   // React Hook Form instances
   const loginForm = useForm<LoginFormData>({
@@ -106,13 +102,6 @@ export default function Login() {
       signupForm.setValue("groupId", String(groups[0].id));
     }
   }, [groups, activeTab, signupForm]);
-
-  // Focus name input when signup tab opens
-  useEffect(() => {
-    if (shouldFocusSignup(activeTab === "signup")) {
-      registerNameInputRef.current?.focus();
-    }
-  }, [activeTab]);
 
   const formatAuthError = (message: string) => {
     if (message.includes("Invalid login")) {
@@ -347,10 +336,12 @@ export default function Login() {
                       <Label htmlFor="signup-name">Nom d'affichage</Label>
                       <Input
                         id="signup-name"
-                        {...signupForm.register("name")}
+                        {...signupForm.register("name", {
+                          setValueAs: (v) => v?.trim()
+                        })}
                         placeholder="Votre nom"
                         className="min-h-12"
-                        ref={registerNameInputRef}
+                        autoFocus
                       />
                       {signupForm.formState.errors.name && (
                         <p className="text-xs text-destructive" role="alert" aria-live="assertive">

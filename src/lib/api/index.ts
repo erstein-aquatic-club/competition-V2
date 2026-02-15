@@ -157,6 +157,13 @@ export {
 } from './records';
 
 export {
+  getSwimExerciseLogs,
+  getSwimExerciseLogsHistory,
+  saveSwimExerciseLogs,
+  deleteSwimExerciseLog,
+} from './swim-logs';
+
+export {
   getExercises,
   createExercise,
   updateExercise,
