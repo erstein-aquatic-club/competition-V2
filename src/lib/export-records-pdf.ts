@@ -186,7 +186,7 @@ function drawHeader(
   doc.setFontSize(6);
   doc.setTextColor(255, 210, 210);
   doc.text(
-    `🆕 Records ${currentYear}`,
+    `★ Records ${currentYear}`,
     pageWidth - 12,
     21,
     { align: "right" },
@@ -300,7 +300,7 @@ export async function exportRecordsPdf(records: ClubRecord[]): Promise<void> {
       theme: "plain",
       styles: {
         fontSize: 7,
-        cellPadding: { top: 1.8, right: 1.2, bottom: 1.8, left: 1.2 },
+        cellPadding: { top: 1.5, right: 1.2, bottom: 1.5, left: 1.2 },
         valign: "middle",
         halign: "center",
         textColor: TEXT_DARK,
@@ -320,7 +320,7 @@ export async function exportRecordsPdf(records: ClubRecord[]): Promise<void> {
           fontStyle: "bold",
           cellWidth: 28,
           textColor: CHARCOAL,
-          cellPadding: { top: 1.8, right: 1.2, bottom: 1.8, left: 3.5 },
+          cellPadding: { top: 1.5, right: 1.2, bottom: 1.5, left: 3.5 },
         },
         1: { cellWidth: 24 },
         2: { cellWidth: 24 },
@@ -398,9 +398,9 @@ export async function exportRecordsPdf(records: ClubRecord[]): Promise<void> {
             // NEW badge for current year records
             if (isNewRecord) {
               doc.setFont("helvetica", "bold");
-              doc.setFontSize(5);
+              doc.setFontSize(6);
               doc.setTextColor(...EAC_RED);
-              doc.text("🆕", cx + 12, data.cell.y + data.cell.height * 0.28, {
+              doc.text("★", cx + 10, data.cell.y + data.cell.height * 0.35, {
                 align: "center",
               });
             }
