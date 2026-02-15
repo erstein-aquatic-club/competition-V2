@@ -217,16 +217,25 @@ export default function Dashboard() {
       const { _exerciseLogs, ...sessionData } = data;
       const result = await api.updateSession(sessionData);
       // Save exercise logs if any
+      console.log("[EAC] updateMutation - exerciseLogs:", _exerciseLogs);
       if (_exerciseLogs && sessionData.id) {
         try {
           const { data: authData } = await supabase.auth.getSession();
           const authUid = authData.session?.user?.id;
+          console.log("[EAC] updateMutation - authUid:", authUid, "sessionId:", sessionData.id);
           if (authUid) {
+            console.log("[EAC] updateMutation - calling saveSwimExerciseLogs with logs:", _exerciseLogs);
             await api.saveSwimExerciseLogs(sessionData.id, authUid, _exerciseLogs);
+            console.log("[EAC] updateMutation - saveSwimExerciseLogs completed successfully");
+          } else {
+            console.warn("[EAC] updateMutation - No authUid found, skipping exercise logs save");
           }
         } catch (e) {
-          console.warn("[EAC] Failed to save exercise logs:", e);
+          console.error("[EAC] Failed to save exercise logs:", e);
+          throw e; // Re-throw to show error to user
         }
+      } else {
+        console.log("[EAC] updateMutation - skipping exercise logs (empty or no session ID)");
       }
       return result;
     },
@@ -432,11 +441,14 @@ export default function Dashboard() {
 
     const existing = logsBySessionId[activeSessionId];
 
+    console.log("[EAC] saveFeedback - draftState.exerciseLogs:", draftState.exerciseLogs);
+
     startTransition(() => {
       setAttendanceOverrideBySessionId((prev) => ({ ...prev, [activeSessionId]: "present" }));
     });
 
     if (existing?.id) {
+      console.log("[EAC] saveFeedback - updating existing session:", existing.id);
       updateMutation.mutate({
         ...payload,
         id: existing.id,
@@ -444,6 +456,7 @@ export default function Dashboard() {
         _exerciseLogs: draftState.exerciseLogs.length > 0 ? draftState.exerciseLogs : []
       });
     } else {
+      console.log("[EAC] saveFeedback - creating new session");
       mutation.mutate({ ...payload, _exerciseLogs: draftState.exerciseLogs.length > 0 ? draftState.exerciseLogs : undefined });
     }
 
