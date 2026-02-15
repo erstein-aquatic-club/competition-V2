@@ -160,30 +160,53 @@ function DistanceStepper({ plannedMeters, valueMeters, onChange, disabled }: Dis
 
   return (
     <div className={cn("mt-4 rounded-3xl border px-4 py-3", disabled ? "bg-muted border-border" : "bg-card border-border")}>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-2">
         <div className={cn("text-xs font-semibold", disabled ? "text-muted-foreground" : "text-foreground")}>Ajuster kilométrage</div>
+        {delta !== 0 && (
+          <div className={cn(
+            "text-xs font-semibold px-2 py-0.5 rounded-full",
+            delta > 0
+              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+              : "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400"
+          )}>
+            {delta > 0 ? `+${delta}m` : `${delta}m`}
+          </div>
+        )}
+      </div>
+
+      {/* Planned value reference */}
+      <div className="text-center mb-3">
         <div className={cn("text-xs", disabled ? "text-muted-foreground" : "text-muted-foreground")}>
-          {delta === 0 ? "" : delta > 0 ? `+${delta}m` : `${delta}m`}
+          Planifié : {plannedMeters}m ({fmtKm(metersToKm(plannedMeters))} km)
         </div>
       </div>
 
-      <div className="mt-2 flex items-center justify-center gap-3">
+      <div className="flex items-center justify-center gap-3">
         <button
           type="button"
           disabled={disabled || displayMeters - step < min}
           onClick={() => onChange(displayMeters - step)}
           className={cn(
-            "h-11 w-11 rounded-2xl border flex items-center justify-center",
-            disabled ? "bg-muted border-border text-muted-foreground" : "bg-card border-border text-foreground hover:bg-muted"
+            "h-11 w-11 rounded-2xl border flex items-center justify-center transition-colors",
+            disabled
+              ? "bg-muted border-border text-muted-foreground cursor-not-allowed"
+              : "bg-card border-border text-foreground hover:bg-muted active:scale-95"
           )}
           aria-label="-100m"
         >
           <Minus className="h-5 w-5" />
         </button>
 
-        <div className="min-w-[120px] text-center">
-          <div className={cn("text-lg font-semibold", disabled ? "text-muted-foreground" : "text-foreground")}>{displayMeters}m</div>
-          <div className={cn("text-xs", disabled ? "text-muted-foreground" : "text-muted-foreground")}>({fmtKm(metersToKm(displayMeters))} km)</div>
+        <div className="min-w-[140px] text-center">
+          <div className={cn(
+            "text-2xl font-bold",
+            disabled ? "text-muted-foreground" : "text-foreground"
+          )}>
+            {displayMeters}m
+          </div>
+          <div className={cn("text-sm font-medium mt-0.5", disabled ? "text-muted-foreground" : "text-primary")}>
+            {fmtKm(metersToKm(displayMeters))} km
+          </div>
         </div>
 
         <button
@@ -191,8 +214,10 @@ function DistanceStepper({ plannedMeters, valueMeters, onChange, disabled }: Dis
           disabled={disabled || displayMeters + step > max}
           onClick={() => onChange(displayMeters + step)}
           className={cn(
-            "h-11 w-11 rounded-2xl border flex items-center justify-center",
-            disabled ? "bg-muted border-border text-muted-foreground" : "bg-card border-border text-foreground hover:bg-muted"
+            "h-11 w-11 rounded-2xl border flex items-center justify-center transition-colors",
+            disabled
+              ? "bg-muted border-border text-muted-foreground cursor-not-allowed"
+              : "bg-card border-border text-foreground hover:bg-muted active:scale-95"
           )}
           aria-label="+100m"
         >
