@@ -42,6 +42,7 @@ sessionStorage.removeItem('chunk_reload');
 
 // Lazy load all pages for code splitting (with retry for stale chunks)
 const Login = lazyWithRetry(() => import("@/pages/Login"));
+const LoginDebug = lazyWithRetry(() => import("@/pages/LoginDebug"));
 const Dashboard = lazyWithRetry(() => import("@/pages/Dashboard"));
 const Progress = lazyWithRetry(() => import("@/pages/Progress"));
 const HallOfFame = lazyWithRetry(() => import("@/pages/HallOfFame"));
@@ -197,6 +198,7 @@ function AppRouter() {
         <Suspense fallback={<PageSkeleton />}>
           <Switch>
             <Route path="/reset-password" component={ResetPassword} />
+            <Route path="/login-debug" component={LoginDebug} />
             <Route path="/" component={Login} />
             <Route path="/:rest*" component={() => <Redirect to="/" />} />
           </Switch>
