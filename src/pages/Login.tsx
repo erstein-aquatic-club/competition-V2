@@ -253,14 +253,11 @@ export default function Login() {
             </TabsList>
 
             {/* Login Tab */}
-            <AnimatePresence mode="wait">
-              {activeTab === "login" && (
                 <TabsContent value="login" className="space-y-6">
                   <motion.form
                     key="login-form"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
                     transition={{ duration: durationsSeconds.normal }}
                     onSubmit={loginForm.handleSubmit(handleLogin)}
                     className="space-y-4"
@@ -345,18 +342,13 @@ export default function Login() {
                     </motion.div>
                   </motion.form>
                 </TabsContent>
-              )}
-            </AnimatePresence>
 
             {/* Signup Tab */}
-            <AnimatePresence mode="wait">
-              {activeTab === "signup" && (
                 <TabsContent value="signup" className="space-y-6">
                   <motion.form
                     key="signup-form"
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: durationsSeconds.normal }}
                     onSubmit={signupForm.handleSubmit(handleSignup)}
                     className="space-y-4"

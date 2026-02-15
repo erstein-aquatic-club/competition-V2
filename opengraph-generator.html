@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenGraph Image Generator - EAC</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #f0f0f0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: 'Inter', -apple-system, sans-serif;
+      padding: 20px;
+    }
+
+    .container {
+      text-align: center;
+    }
+
+    .og-card {
+      width: 1200px;
+      height: 630px;
+      background: linear-gradient(135deg, #E30613 0%, #B3040E 100%);
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+
+    /* Diagonal pattern overlay */
+    .og-card::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -20%;
+      width: 800px;
+      height: 800px;
+      background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+      transform: rotate(15deg);
+    }
+
+    /* Diagonal stripes accent */
+    .stripes {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 40%;
+      height: 100%;
+      opacity: 0.1;
+      background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 20px,
+        rgba(255,255,255,0.3) 20px,
+        rgba(255,255,255,0.3) 40px
+      );
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 80px;
+    }
+
+    .logo {
+      width: 180px;
+      height: 180px;
+      margin-bottom: 50px;
+      background: white;
+      border-radius: 24px;
+      padding: 20px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    h1 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 84px;
+      font-weight: 700;
+      color: white;
+      text-transform: uppercase;
+      letter-spacing: -2px;
+      margin-bottom: 20px;
+      text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      line-height: 1.1;
+    }
+
+    h2 {
+      font-size: 36px;
+      font-weight: 400;
+      color: rgba(255,255,255,0.95);
+      margin-bottom: 40px;
+      letter-spacing: 0.5px;
+    }
+
+    .subtitle {
+      font-size: 28px;
+      font-weight: 300;
+      color: rgba(255,255,255,0.85);
+      max-width: 800px;
+      line-height: 1.5;
+    }
+
+    .footer {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 60px;
+      backdrop-filter: blur(10px);
+    }
+
+    .footer-text {
+      font-size: 20px;
+      font-weight: 600;
+      color: white;
+      letter-spacing: 1px;
+    }
+
+    .footer-subtitle {
+      font-size: 18px;
+      font-weight: 400;
+      color: rgba(255,255,255,0.8);
+    }
+
+    .instructions {
+      margin-top: 30px;
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      max-width: 1200px;
+      text-align: left;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+
+    .instructions h3 {
+      color: #E30613;
+      margin-bottom: 15px;
+      font-size: 24px;
+    }
+
+    .instructions ol {
+      margin-left: 20px;
+      line-height: 1.8;
+    }
+
+    .instructions code {
+      background: #f5f5f5;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 14px;
+    }
+
+    .instructions .note {
+      background: #fff3cd;
+      border-left: 4px solid #E30613;
+      padding: 15px;
+      margin-top: 15px;
+      border-radius: 4px;
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <div class="og-card" id="ogCard">
+      <div class="stripes"></div>
+      <div class="content">
+        <div class="logo">
+          <img src="public/icon-512.png" alt="EAC Logo" id="logoImg">
+        </div>
+        <h1>EAC Natation</h1>
+        <h2>Suivi d'entraînement</h2>
+        <div class="subtitle">
+          Application de suivi des performances pour l'Erstein Aquatic Club
+        </div>
+      </div>
+      <div class="footer">
+        <div class="footer-text">ERSTEIN AQUATIC CLUB</div>
+        <div class="footer-subtitle">eac-natation.fr</div>
+      </div>
+    </div>
+
+    <div class="instructions">
+      <h3>📸 Instructions pour générer l'image OpenGraph</h3>
+      <ol>
+        <li>Ouvre cette page dans Chrome ou Firefox</li>
+        <li>Ouvre les DevTools (F12)</li>
+        <li>Active le mode "Device Toolbar" (Ctrl+Shift+M ou Cmd+Shift+M)</li>
+        <li>Configure les dimensions : <code>1200 × 630</code> pixels</li>
+        <li>Zoom à 100%</li>
+        <li>Clique-droit sur le rectangle rouge → "Capture node screenshot"</li>
+        <li>Ou utilise l'outil "Screenshot" dans les DevTools</li>
+        <li>Sauvegarde l'image en tant que <code>opengraph.jpg</code></li>
+        <li>Replace l'ancien fichier dans <code>/public/opengraph.jpg</code></li>
+      </ol>
+
+      <div class="note">
+        <strong>💡 Alternative rapide :</strong> Utilise l'outil de capture d'écran macOS (Cmd+Shift+4) et sélectionne exactement la zone du rectangle rouge. Redimensionne ensuite l'image à 1200×630px avec Preview ou un éditeur d'images.
+      </div>
+
+      <div class="note" style="margin-top: 10px; background: #d4edda; border-left-color: #28a745;">
+        <strong>✅ Vérification :</strong> Teste ton image avec le <a href="https://www.opengraph.xyz/" target="_blank" style="color: #E30613; font-weight: 600;">OpenGraph Debugger</a> ou le <a href="https://cards-dev.twitter.com/validator" target="_blank" style="color: #E30613; font-weight: 600;">Twitter Card Validator</a>.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Fallback si le logo ne charge pas
+    const logoImg = document.getElementById('logoImg');
+    logoImg.onerror = function() {
+      this.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="50" font-size="40" fill="%23E30613">EAC</text></svg>';
+    };
+  </script>
+</body>
+</html>
