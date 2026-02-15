@@ -124,9 +124,17 @@ function assignmentPlannedKm(a: Record<string, unknown>): number | null {
     let totalMeters = 0;
     for (const item of a.items as any[]) {
       const dist = Number(item?.distance);
-      if (Number.isFinite(dist) && dist > 0) {
-        totalMeters += dist;
-      }
+      if (!Number.isFinite(dist) || dist <= 0) continue;
+
+      // Check for repetitions in raw_payload (exercise_repetitions or block_repetitions)
+      const payload = item?.raw_payload as Record<string, any> | null | undefined;
+      const exerciseReps = Number(payload?.exercise_repetitions);
+      const blockReps = Number(payload?.block_repetitions);
+
+      const reps = Number.isFinite(exerciseReps) && exerciseReps > 0 ? exerciseReps : 1;
+      const blockMultiplier = Number.isFinite(blockReps) && blockReps > 0 ? blockReps : 1;
+
+      totalMeters += dist * reps * blockMultiplier;
     }
     if (totalMeters > 0) {
       return metersToKm(totalMeters);
@@ -190,14 +198,22 @@ function assignmentPlannedStrokes(items: any[] | null | undefined): Record<strin
     if (!Number.isFinite(distance) || distance <= 0) continue;
 
     const payload = item?.raw_payload as Record<string, any> | null | undefined;
+
+    // Calculate total distance with repetitions
+    const exerciseReps = Number(payload?.exercise_repetitions);
+    const blockReps = Number(payload?.block_repetitions);
+    const reps = Number.isFinite(exerciseReps) && exerciseReps > 0 ? exerciseReps : 1;
+    const blockMultiplier = Number.isFinite(blockReps) && blockReps > 0 ? blockReps : 1;
+    const totalDistance = distance * reps * blockMultiplier;
+
     const exerciseStroke = payload?.exercise_stroke ?? payload?.stroke ?? "crawl";
     const strokeCode = strokeMap[String(exerciseStroke).toLowerCase()];
 
     if (strokeCode) {
-      strokes[strokeCode] += distance;
+      strokes[strokeCode] += totalDistance;
     } else {
       // Unknown stroke: distribute proportionally across all strokes or default to crawl
-      strokes.NL += distance;
+      strokes.NL += totalDistance;
     }
   }
 
