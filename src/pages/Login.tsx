@@ -35,7 +35,7 @@ const signupSchema = z.object({
     if (Number.isNaN(date.getTime())) return false;
     const age = (Date.now() - date.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
     return age >= 6 && age <= 100;
-  }, "Âge invalide (6-100 ans)"),
+  }, "Utilisez le sélecteur de date ou le format AAAA-MM-JJ"),
   sex: z.enum(["M", "F"], { required_error: "Sexe requis" }),
   groupId: z.string().min(1, "Groupe requis"),
   password: z.string()
@@ -374,10 +374,15 @@ export default function Login() {
                           type="date"
                           {...signupForm.register("birthdate")}
                           className="min-h-12"
+                          max={new Date().toISOString().split('T')[0]}
                         />
-                        {signupForm.formState.errors.birthdate && (
+                        {signupForm.formState.errors.birthdate ? (
                           <p className="text-xs text-destructive" role="alert" aria-live="assertive">
                             {signupForm.formState.errors.birthdate.message}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            Cliquez sur l'icône calendrier
                           </p>
                         )}
                       </div>
