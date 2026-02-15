@@ -35,12 +35,14 @@ interface AdministratifProps extends RouteComponentProps {
 
 const buildTimeLabel = (value?: string | null) => {
   if (!value) return "";
+  // Handle "HH:MM" or "HH:MM:SS" time-only strings from the DB
+  if (/^\d{2}:\d{2}(:\d{2})?$/.test(value)) return value.slice(0, 5);
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   return format(date, "HH:mm");
 };
 
-const buildShiftDateKey = (shift: TimesheetShift) => shift.shift_date || shift.start_time.split("T")[0];
+const buildShiftDateKey = (shift: TimesheetShift) => shift.shift_date;
 
 const withinRangeYMD = (value: string, from: string, to: string) => {
   const valueTime = new Date(value).getTime();
@@ -281,9 +283,7 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
       toast({ title: "Champs requis", description: "Date et heure de début obligatoires." });
       return;
     }
-    const startIso = `${date}T${startTime}`;
-    const endIso = endTime ? `${date}T${endTime}` : null;
-    if (endIso && new Date(endIso) < new Date(startIso)) {
+    if (endTime && endTime <= startTime) {
       toast({ title: "Heures invalides", description: "La fin doit être après le début." });
       return;
     }
@@ -297,8 +297,8 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
         id: editingShiftId,
         coach_id: userId,
         shift_date: date,
-        start_time: startIso,
-        end_time: endIso,
+        start_time: startTime,
+        end_time: endTime || null,
         location: location.trim() || null,
         is_travel: isTravel,
       });
@@ -308,8 +308,8 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
     createShift.mutate({
       coach_id: userId,
       shift_date: date,
-      start_time: startIso,
-      end_time: endIso,
+      start_time: startTime,
+      end_time: endTime || null,
       location: location.trim() || null,
       is_travel: isTravel,
     });

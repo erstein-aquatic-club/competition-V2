@@ -18,6 +18,7 @@ import {
 
 const formatTime = (value?: string | null) => {
   if (!value) return "—";
+  if (/^\d{2}:\d{2}(:\d{2})?$/.test(value)) return value.slice(0, 5);
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
   return format(date, "HH:mm");
@@ -60,7 +61,7 @@ export default function Comite() {
   const grouped = useMemo(() => {
     const map = new Map<string, TimesheetShift[]>();
     visibleShifts.forEach((shift) => {
-      const key = shift.shift_date || shift.start_time.split("T")[0];
+      const key = shift.shift_date;
       if (!map.has(key)) map.set(key, []);
       map.get(key)?.push(shift);
     });
