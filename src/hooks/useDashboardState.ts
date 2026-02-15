@@ -119,6 +119,21 @@ function assignmentIso(a: Record<string, unknown>): string | null {
 }
 
 function assignmentPlannedKm(a: Record<string, unknown>): number | null {
+  // First, try to calculate from swim session items (most accurate)
+  if (Array.isArray(a?.items)) {
+    let totalMeters = 0;
+    for (const item of a.items as any[]) {
+      const dist = Number(item?.distance);
+      if (Number.isFinite(dist) && dist > 0) {
+        totalMeters += dist;
+      }
+    }
+    if (totalMeters > 0) {
+      return metersToKm(totalMeters);
+    }
+  }
+
+  // Fallback: check direct fields
   const meters =
     a?.distance_meters ??
     a?.distanceMeters ??
