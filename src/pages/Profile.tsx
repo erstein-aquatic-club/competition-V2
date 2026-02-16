@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import type { UserProfile as ProfileData, GroupSummary } from "@/lib/api";
 import { Link } from "wouter";
@@ -93,7 +94,7 @@ export default function Profile() {
   const canUpdatePassword = role === "athlete" || role === "coach" || role === "admin";
   const roleLabel = getRoleLabel(role);
 
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
 
   // Profile edit form with React Hook Form + Zod
   const profileForm = useForm<ProfileEditForm>({
@@ -158,7 +159,7 @@ export default function Profile() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
-      setIsEditing(false);
+      setIsEditSheetOpen(false);
       toast({ title: "Profil mis à jour" });
     },
     onError: (error: unknown) => {
@@ -220,7 +221,7 @@ export default function Profile() {
       birthdate: profile?.birthdate ? String(profile.birthdate).split("T")[0] : "",
       ffn_iuf: profile?.ffn_iuf ? String(profile.ffn_iuf) : "",
     });
-    setIsEditing(true);
+    setIsEditSheetOpen(true);
   };
 
   const handleSaveProfile = profileForm.handleSubmit((data) => {
@@ -331,123 +332,34 @@ export default function Profile() {
 
       <Card>
         <CardContent className="space-y-4 pt-6">
-          {isEditing ? (
-            <form onSubmit={handleSaveProfile} className="space-y-4">
-              <div className="grid gap-2">
-                <Label>Groupe</Label>
-                <Select
-                  value={profileForm.watch("group_id")}
-                  onValueChange={(value) => profileForm.setValue("group_id", value)}
-                  disabled={groupsLoading}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={groupsLoading ? "Chargement..." : "Choisir un groupe"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {groups.map((group) => (
-                      <SelectItem key={group.id} value={String(group.id)}>
-                        {group.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {showRecords ? (
-                <div className="grid gap-2">
-                  <Label>IUF FFN</Label>
-                  <Input
-                    {...profileForm.register("ffn_iuf")}
-                    placeholder="879576"
-                    inputMode="numeric"
-                  />
-                  {profileForm.formState.errors.ffn_iuf && (
-                    <p className="text-xs text-destructive" role="alert" aria-live="assertive">{profileForm.formState.errors.ffn_iuf.message}</p>
-                  )}
-                  <div className="text-xs text-muted-foreground">
-                    Identifiant unique FFN (utilisé pour importer vos records compétition).
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="grid gap-2">
-                <Label>Objectifs</Label>
-                <Input {...profileForm.register("objectives")} />
-                {profileForm.formState.errors.objectives && (
-                  <p className="text-xs text-destructive" role="alert" aria-live="assertive">{profileForm.formState.errors.objectives.message}</p>
-                )}
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Bio</Label>
-                <Textarea {...profileForm.register("bio")} />
-                {profileForm.formState.errors.bio && (
-                  <p className="text-xs text-destructive" role="alert" aria-live="assertive">{profileForm.formState.errors.bio.message}</p>
-                )}
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Avatar (URL)</Label>
-                <Input
-                  {...profileForm.register("avatar_url")}
-                  placeholder="https://..."
-                />
-                {profileForm.formState.errors.avatar_url && (
-                  <p className="text-xs text-destructive" role="alert" aria-live="assertive">{profileForm.formState.errors.avatar_url.message}</p>
-                )}
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Date de naissance</Label>
-                <Input
-                  type="date"
-                  {...profileForm.register("birthdate")}
-                />
-                {profileForm.formState.errors.birthdate && (
-                  <p className="text-xs text-destructive" role="alert" aria-live="assertive">{profileForm.formState.errors.birthdate.message}</p>
-                )}
-              </div>
-
-              <div className="flex gap-2">
-                <Button type="submit" disabled={updateProfile.isPending} className="w-full">
-                  <Save className="mr-2 h-4 w-4" />
-                  Enregistrer
-                </Button>
-                <Button type="button" variant="outline" onClick={() => setIsEditing(false)} disabled={updateProfile.isPending}>
-                  Annuler
-                </Button>
-              </div>
-            </form>
-          ) : (
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <Label className="text-xs text-muted-foreground uppercase">Groupe</Label>
-                <div className="font-medium">{groupLabel}</div>
-              </div>
-
-              <div>
-                <Label className="text-xs text-muted-foreground uppercase">Date de naissance</Label>
-                <div className="font-medium">{formatBirthdate(profile?.birthdate ?? null)}</div>
-              </div>
-
-              {showRecords ? (
-                <div>
-                  <Label className="text-xs text-muted-foreground uppercase">IUF FFN</Label>
-                  <div className="font-medium">{String(profile?.ffn_iuf ?? "") || "Non renseigné"}</div>
-                </div>
-              ) : null}
-
-              <div className={showRecords ? "" : "col-span-2"}>
-                <Label className="text-xs text-muted-foreground uppercase">Objectifs</Label>
-                <div className="font-medium">{profile?.objectives || "Aucun objectif défini."}</div>
-              </div>
-
-              <div className="col-span-2">
-                <Label className="text-xs text-muted-foreground uppercase">Bio</Label>
-                <div className="font-medium">{profile?.bio || "Non renseignée."}</div>
-              </div>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase">Groupe</Label>
+              <div className="font-medium">{groupLabel}</div>
             </div>
-          )}
+
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase">Date de naissance</Label>
+              <div className="font-medium">{formatBirthdate(profile?.birthdate ?? null)}</div>
+            </div>
+
+            {showRecords ? (
+              <div>
+                <Label className="text-xs text-muted-foreground uppercase">IUF FFN</Label>
+                <div className="font-medium">{String(profile?.ffn_iuf ?? "") || "Non renseigné"}</div>
+              </div>
+            ) : null}
+
+            <div className={showRecords ? "" : "col-span-2"}>
+              <Label className="text-xs text-muted-foreground uppercase">Objectifs</Label>
+              <div className="font-medium">{profile?.objectives || "Aucun objectif défini."}</div>
+            </div>
+
+            <div className="col-span-2">
+              <Label className="text-xs text-muted-foreground uppercase">Bio</Label>
+              <div className="font-medium">{profile?.bio || "Non renseignée."}</div>
+            </div>
+          </div>
         </CardContent>
 
         <CardFooter className="flex justify-end">
@@ -457,6 +369,101 @@ export default function Profile() {
           </Button>
         </CardFooter>
       </Card>
+
+      <Sheet open={isEditSheetOpen} onOpenChange={setIsEditSheetOpen}>
+        <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Modifier le profil</SheetTitle>
+            <SheetDescription>Mettez à jour vos informations personnelles.</SheetDescription>
+          </SheetHeader>
+          <form onSubmit={handleSaveProfile} className="space-y-4 mt-4">
+            <div className="grid gap-2">
+              <Label>Groupe</Label>
+              <Select
+                value={profileForm.watch("group_id")}
+                onValueChange={(value) => profileForm.setValue("group_id", value)}
+                disabled={groupsLoading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={groupsLoading ? "Chargement..." : "Choisir un groupe"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {groups.map((group) => (
+                    <SelectItem key={group.id} value={String(group.id)}>
+                      {group.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {showRecords ? (
+              <div className="grid gap-2">
+                <Label>IUF FFN</Label>
+                <Input
+                  {...profileForm.register("ffn_iuf")}
+                  placeholder="879576"
+                  inputMode="numeric"
+                />
+                {profileForm.formState.errors.ffn_iuf && (
+                  <p className="text-xs text-destructive" role="alert" aria-live="assertive">{profileForm.formState.errors.ffn_iuf.message}</p>
+                )}
+                <div className="text-xs text-muted-foreground">
+                  Identifiant unique FFN (utilisé pour importer vos records compétition).
+                </div>
+              </div>
+            ) : null}
+
+            <div className="grid gap-2">
+              <Label>Objectifs</Label>
+              <Input {...profileForm.register("objectives")} />
+              {profileForm.formState.errors.objectives && (
+                <p className="text-xs text-destructive" role="alert" aria-live="assertive">{profileForm.formState.errors.objectives.message}</p>
+              )}
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Bio</Label>
+              <Textarea {...profileForm.register("bio")} />
+              {profileForm.formState.errors.bio && (
+                <p className="text-xs text-destructive" role="alert" aria-live="assertive">{profileForm.formState.errors.bio.message}</p>
+              )}
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Avatar (URL)</Label>
+              <Input
+                {...profileForm.register("avatar_url")}
+                placeholder="https://..."
+              />
+              {profileForm.formState.errors.avatar_url && (
+                <p className="text-xs text-destructive" role="alert" aria-live="assertive">{profileForm.formState.errors.avatar_url.message}</p>
+              )}
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Date de naissance</Label>
+              <Input
+                type="date"
+                {...profileForm.register("birthdate")}
+              />
+              {profileForm.formState.errors.birthdate && (
+                <p className="text-xs text-destructive" role="alert" aria-live="assertive">{profileForm.formState.errors.birthdate.message}</p>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <Button type="submit" disabled={updateProfile.isPending} className="w-full">
+                <Save className="mr-2 h-4 w-4" />
+                Enregistrer
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setIsEditSheetOpen(false)} disabled={updateProfile.isPending}>
+                Annuler
+              </Button>
+            </div>
+          </form>
+        </SheetContent>
+      </Sheet>
 
       {showRecords ? (
         <Card>
