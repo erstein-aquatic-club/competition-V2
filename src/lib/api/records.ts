@@ -43,11 +43,53 @@ export async function getHallOfFame() {
         }))
         .sort((a, b) => b.avg_engagement - a.avg_engagement)
         .slice(0, 5);
+      // Strength stats: query strength_set_logs joined with runs and users
+      let strengthStats: any[] = [];
+      const { data: strengthData } = await supabase
+        .from("strength_set_logs")
+        .select("reps, weight, run_id, strength_session_runs!inner(athlete_id)");
+      if (strengthData && strengthData.length > 0) {
+        // Collect athlete IDs
+        const athleteIds = new Set<number>();
+        for (const row of strengthData as any[]) {
+          const aid = row.strength_session_runs?.athlete_id;
+          if (aid != null) athleteIds.add(aid);
+        }
+        // Fetch display names
+        const { data: usersData } = await supabase
+          .from("users")
+          .select("id, display_name")
+          .in("id", [...athleteIds]);
+        const nameMap = new Map((usersData ?? []).map((u: any) => [u.id, u.display_name]));
+
+        // Aggregate per athlete
+        const sMap = new Map<number, { volume: number; reps: number; sets: number; maxWeight: number }>();
+        for (const row of strengthData as any[]) {
+          const aid = row.strength_session_runs?.athlete_id;
+          if (aid == null) continue;
+          const reps = Number(row.reps ?? 0);
+          const weight = Number(row.weight ?? 0);
+          if (!sMap.has(aid)) sMap.set(aid, { volume: 0, reps: 0, sets: 0, maxWeight: 0 });
+          const entry = sMap.get(aid)!;
+          entry.volume += reps * weight;
+          entry.reps += reps;
+          entry.sets += 1;
+          if (weight > entry.maxWeight) entry.maxWeight = weight;
+        }
+        strengthStats = [...sMap.entries()].map(([aid, stats]) => ({
+          athlete_name: nameMap.get(aid) ?? "Inconnu",
+          total_volume: stats.volume,
+          total_reps: stats.reps,
+          total_sets: stats.sets,
+          max_weight: stats.maxWeight,
+        }));
+      }
+
       return {
         distance: swimDistance,
         performance: swimPerformance,
         engagement: swimEngagement,
-        strength: [] as any[],
+        strength: strengthStats,
       };
     }
   }

@@ -4189,4 +4189,41 @@ Le Hall of Fame n'affichait aucune donnée. Diagnostic systématique :
 
 ### Limites / dette
 
-- La section "Musculation" du Hall of Fame retourne toujours `strength: []` côté client (pas de parsing des données strength depuis la RPC). Les données existent en base mais ne sont pas exploitées.
+- ~~La section "Musculation" du Hall of Fame retourne toujours `strength: []` côté client~~ — Corrigé (voir patch suivant)
+
+---
+
+## 2026-02-16 — Fix Hall of Fame musculation vide
+
+**Branche** : `main`
+**Chantier ROADMAP** : Bug fix
+
+### Contexte — Pourquoi ce patch
+
+Suite au fix de la RPC `get_hall_of_fame()`, la section natation fonctionnait mais la musculation restait vide : le code client retournait `strength: [] as any[]` en dur dans le chemin Supabase.
+
+### Changements réalisés
+
+- Ajout d'une requête directe dans `getHallOfFame()` pour récupérer les stats musculation :
+  - Query `strength_set_logs` avec join `strength_session_runs` pour l'athlete_id
+  - Query `users` pour résoudre les noms d'athlètes
+  - Agrégation côté client : `total_volume`, `total_reps`, `total_sets`, `max_weight` par athlète
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/lib/api/records.ts` | Remplacement de `strength: []` par requête Supabase |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — Aucune erreur nouvelle
+- [x] Données strength vérifiées en base (ex: total_volume: 3380.8)
+
+### Décisions prises
+
+1. **Query directe plutôt que RPC** — Pour ne pas complexifier la RPC TABLE avec des colonnes strength optionnelles. Deux queries séparées (swim RPC + strength query) sont plus lisibles.
+
+### Limites / dette
+
+- Aucune
