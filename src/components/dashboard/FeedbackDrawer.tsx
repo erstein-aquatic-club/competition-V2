@@ -323,9 +323,14 @@ export function FeedbackDrawer({
                 <div className="mx-auto h-1.5 w-12 rounded-full bg-muted" />
               </div>
 
-              <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-background px-4 sm:px-5 py-3">
-                <div className="min-w-0">
-                  <div className="truncate text-base font-semibold text-foreground">{dayLabelFR(selectedDate)}</div>
+              <div className="sticky top-0 z-10 flex items-center justify-between border-b border-primary/15 bg-background px-4 sm:px-5 py-2.5">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="flex items-center justify-center h-7 w-7 rounded-lg bg-primary text-primary-foreground shrink-0">
+                    <Waves className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-display font-bold uppercase italic tracking-tight text-primary">{dayLabelFR(selectedDate)}</div>
+                  </div>
                 </div>
                 <IconButton onClick={onClose} label="Fermer">
                   <X className="h-5 w-5" />
@@ -335,12 +340,9 @@ export function FeedbackDrawer({
               <div className="flex-1 overflow-auto p-4 sm:p-5">
                 {/* Header jour minimal */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="h-10 w-10 rounded-2xl border border-border bg-card flex items-center justify-center">
-                      <Waves className="h-5 w-5 text-foreground" />
-                    </div>
+                  <div className="flex items-center gap-2.5">
                     <div className="flex flex-col">
-                      <div className="text-sm font-semibold text-foreground">{dayKm} km</div>
+                      <div className="text-lg font-bold text-foreground">{dayKm} km</div>
                       <div className="flex items-center gap-1">
                         <span
                           className={cn(
