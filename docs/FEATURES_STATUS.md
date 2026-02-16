@@ -1,6 +1,6 @@
 # État des fonctionnalités
 
-*Dernière mise à jour : 2026-02-16 (§35 Redesign dashboard coach)*
+*Dernière mise à jour : 2026-02-16 (§39 Finalisation dashboard pointage heures)*
 
 ## Légende
 
@@ -120,7 +120,12 @@ Tous les feature flags sont activés.
 | Création shift | ✅ | `Administratif.tsx` | Date, heures, lieu, trajet |
 | Édition shift | ✅ | `Administratif.tsx` | |
 | Lieux de travail | ✅ | `Administratif.tsx` | Gestion CRUD lieux |
-| Dashboard totaux | ✅ | `Administratif.tsx` | Semaine/mois, graphiques |
+| Dashboard totaux | ✅ | `Administratif.tsx` | KPI hero, grille work/travel, comparaison période (§39) |
+| Sélecteur de période | ✅ | `Administratif.tsx` | ToggleGroup 7j/mois/mois-1/custom (§39) |
+| Donut chart travail/trajet | ✅ | `Administratif.tsx` | Recharts PieChart avec centre label (§39) |
+| Bar chart empilé par jour | ✅ | `Administratif.tsx` | BarChart stacked work + travel (§39) |
+| Top lieux par heures | ✅ | `Administratif.tsx` | Classement avec barres de progression (§39) |
+| Comparaison période | ✅ | `Administratif.tsx` | Delta badge TrendingUp/Down (§39) |
 | Vue comité | ✅ | `Comite.tsx` | Tous les coachs, filtrage |
 
 ### Admin

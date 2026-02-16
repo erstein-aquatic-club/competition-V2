@@ -152,6 +152,7 @@ export async function createTimesheetShift(
       start_time: payload.start_time,
       end_time: payload.end_time ?? null,
       location: payload.location ?? null,
+      is_travel: payload.is_travel,
     });
     if (error) throw new Error(error.message);
     return { status: "created" };

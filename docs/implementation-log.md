@@ -27,6 +27,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §3 Gestion coach imports | ✅ Fait | 2026-02-08 |
 | §4 Records club | ✅ Fait | 2026-02-08 |
 | §5 Dette UI/UX | ✅ Fait | 2026-02-08 |
+| §39 Finalisation dashboard pointage heures | ✅ Fait | 2026-02-16 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
 | §7 Records admin + FFN full history + stroke KPI | ✅ Fait | 2026-02-12 |
 | §8 4 bugfixes (IUF Coach, RecordsClub, Reprendre, 1RM 404) | ✅ Fait | 2026-02-12 |
@@ -3797,6 +3798,64 @@ La page "Records du club" utilisait des composants `<Table>` HTML (5-6 colonnes)
 
 - Les PillStrip n'ont pas d'indicateur visuel de scrollabilité (gradient fade) — acceptable car le comportement est intuitif sur mobile
 - La classe `no-scrollbar` est une utility CSS custom plutôt qu'un plugin Tailwind — suffisant pour un usage limité
+
+---
+
+## 2026-02-16 — §39 Finalisation dashboard pointage heures coach
+
+**Branche** : `main`
+**Chantier ROADMAP** : §39 — Finalisation dashboard pointage heures coach
+
+### Contexte
+
+Le dashboard (onglet DASHBOARD) de la page Administratif avait un placeholder "Graphiques (à venir)" avec des features manquantes : donut chart (% trajet vs travail), top lieux par heures, variations période, et presets de période. L'onglet POINTAGE fonctionnait mais manquait de résumé semaine/mois et d'animations. Par ailleurs, un bug dans `createTimesheetShift` faisait que `is_travel` n'était pas envoyé à Supabase.
+
+### Changements réalisés
+
+1. **Fix API is_travel** — Ajout de `is_travel: payload.is_travel` dans l'insert Supabase de `createTimesheetShift`. Le champ était omis, causant un défaut `false` sur tous les shifts.
+
+2. **Dashboard — Sélecteur de période** — ToggleGroup avec 4 presets (7 derniers jours, mois en cours, mois précédent, personnalisé). Helper `computePeriodDates(period, now)` calcule les bornes.
+
+3. **Dashboard — KPI hero** — Card grand format affichant le total heures de la période sélectionnée, avec badge delta de comparaison (même durée, période précédente, flèches TrendingUp/TrendingDown).
+
+4. **Dashboard — Grille work/travel** — 2 cards côte à côte : heures travail (Briefcase) et heures trajet (Car), avec pourcentages et barres de progression.
+
+5. **Dashboard — Donut chart** — Recharts PieChart (innerRadius/outerRadius) affichant la répartition travail/trajet. Label central absolu avec total.
+
+6. **Dashboard — Bar chart empilé** — BarChart avec stackId affichant travail + trajet par jour, couleurs distinctes, légende inline.
+
+7. **Dashboard — Top lieux** — Classement des lieux par heures avec barres de progression, icône MapPin.
+
+8. **Pointage — Améliorations** — Card "aujourd'hui" avec indicateur de shift en cours (badge pulsant), bande résumé semaine/mois, animations Framer Motion staggered.
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/pages/Administratif.tsx` | Refonte complète (~588 → ~910 lignes), dashboard avec graphiques, KPIs, animations |
+| `src/lib/api/timesheet.ts` | Bugfix : ajout `is_travel` dans createTimesheetShift Supabase insert |
+| `src/pages/__tests__/TimesheetViews.test.tsx` | Mise à jour assertion "Total période" (anciennement "Dashboard KPI") |
+
+### Tests
+
+- [x] `npm test -- TimesheetViews.test.tsx` — 6/6 PASS
+- [x] `npx tsc --noEmit` — Aucune erreur nouvelle
+- [x] `npm run build` — Build production OK (9.95s, chunk Administratif 30.95 kB / 9.36 kB gzip)
+
+### Décisions prises
+
+1. **ToggleGroup pour périodes** — Cohérent avec Coach.tsx qui utilise le même pattern pour les périodes. Presets 7d/mois/mois-1 couvrent 90% des cas d'usage.
+2. **Donut vs Pie** — Donut (PieChart avec innerRadius) pour afficher le total au centre, plus lisible qu'un pie plein.
+3. **Stacked bar** — stackId "hours" pour montrer la contribution travail/trajet par jour dans un seul graphique compact.
+4. **Comparaison de période** — Même longueur de période décalée (ex: 7j précédents) pour un delta significatif.
+5. **`as const` pour ease** — Résout l'erreur TS2322 où `"easeOut"` est inféré comme `string` au lieu de `Easing` dans les variants Framer Motion.
+6. **Couleurs CSS variables** — `hsl(var(--primary))` pour travail, `hsl(var(--chart-2))` pour trajet, cohérent avec le design system.
+
+### Limites / dette
+
+- Le sélecteur "personnalisé" ouvre les DatePickers natifs mais pas un range picker dédié
+- Les tests pre-existants (TimesheetHelpers date-based, StrengthOrder, etc.) échouent indépendamment de ce patch
+- Pas de responsive breakpoints spécifiques pour tablette sur le dashboard (fonctionne en 1 colonne mobile)
 
 ---
 

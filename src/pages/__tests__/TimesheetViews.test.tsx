@@ -60,7 +60,7 @@ test("Administratif switches between dashboard and shifts views", () => {
   );
 
   assert.ok(pointageMarkup.includes("Heures aujourd&#x27;hui"));
-  assert.ok(dashboardMarkup.includes("Dashboard KPI"));
+  assert.ok(dashboardMarkup.includes("Total période"));
   assert.ok(!dashboardMarkup.includes("Heures aujourd&#x27;hui"));
 });
 

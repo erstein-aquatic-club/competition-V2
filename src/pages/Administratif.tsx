@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Redirect, type RouteComponentProps } from "wouter";
-import { format } from "date-fns";
+import { endOfMonth, format, startOfMonth, subDays, subMonths } from "date-fns";
+import { motion } from "framer-motion";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { api, summarizeApiError, type TimesheetLocation } from "@/lib/api";
@@ -10,9 +11,11 @@ import { SafeArea } from "@/components/shared/SafeArea";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { TimesheetShiftForm } from "@/components/timesheet/TimesheetShiftForm";
 import { TimesheetShiftList, type TimesheetShiftGroup } from "@/components/timesheet/TimesheetShiftList";
 import {
+  calculateTimesheetTotals,
   formatMinutes,
   getShiftDurationMinutes,
   type TimesheetShift,
@@ -21,21 +24,41 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
+import { Briefcase, Car, Clock, MapPin, TrendingDown, TrendingUp } from "lucide-react";
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 type TimesheetTab = "POINTAGE" | "DASHBOARD";
+type DashboardPeriod = "7d" | "month" | "prevMonth" | "custom";
 
 interface AdministratifProps extends RouteComponentProps {
   initialTab?: TimesheetTab;
 }
 
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const WORK_COLOR = "hsl(var(--primary))";
+const TRAVEL_COLOR = "hsl(var(--chart-2))";
+
+const PERIOD_LABELS: Record<DashboardPeriod, string> = {
+  "7d": "7 jours",
+  month: "Ce mois",
+  prevMonth: "Mois préc.",
+  custom: "Dates",
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
 const buildTimeLabel = (value?: string | null) => {
   if (!value) return "";
-  // Handle "HH:MM" or "HH:MM:SS" time-only strings from the DB
   if (/^\d{2}:\d{2}(:\d{2})?$/.test(value)) return value.slice(0, 5);
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
@@ -48,23 +71,49 @@ const withinRangeYMD = (value: string, from: string, to: string) => {
   const valueTime = new Date(value).getTime();
   const fromTime = new Date(from).getTime();
   const toTime = new Date(to).getTime();
-  const min = Math.min(fromTime, toTime);
-  const max = Math.max(fromTime, toTime);
-  return valueTime >= min && valueTime <= max;
+  return valueTime >= Math.min(fromTime, toTime) && valueTime <= Math.max(fromTime, toTime);
 };
 
 const resolveDefaultLocation = (items: TimesheetLocation[]) =>
   items.find((item) => item.name === "Piscine")?.name ?? items[0]?.name ?? "Piscine";
 
+const computePeriodDates = (period: DashboardPeriod, now = new Date()): [string, string] => {
+  switch (period) {
+    case "7d":
+      return [format(subDays(now, 6), "yyyy-MM-dd"), format(now, "yyyy-MM-dd")];
+    case "month":
+      return [format(startOfMonth(now), "yyyy-MM-dd"), format(now, "yyyy-MM-dd")];
+    case "prevMonth": {
+      const prev = subMonths(now, 1);
+      return [format(startOfMonth(prev), "yyyy-MM-dd"), format(endOfMonth(prev), "yyyy-MM-dd")];
+    }
+    default:
+      return [format(startOfMonth(now), "yyyy-MM-dd"), format(now, "yyyy-MM-dd")];
+  }
+};
+
+// ─── Animation Variants ──────────────────────────────────────────────────────
+
+const stagger = { visible: { transition: { staggerChildren: 0.06 } } };
+const cardReveal = {
+  hidden: { opacity: 0, y: 14 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.28, ease: "easeOut" as const } },
+};
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
 export default function Administratif({ initialTab = "POINTAGE" }: AdministratifProps) {
   const { useMemo, useState } = React;
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const role = typeof window === "undefined" ? useAuth.getState().role : useAuth((state) => state.role);
-  const userId = typeof window === "undefined" ? useAuth.getState().userId : useAuth((state) => state.userId);
+  const role = typeof window === "undefined" ? useAuth.getState().role : useAuth((s) => s.role);
+  const userId = typeof window === "undefined" ? useAuth.getState().userId : useAuth((s) => s.userId);
   const isCoach = role === "coach" || role === "admin";
 
+  // ─── Tab state ──
   const [activeTab, setActiveTab] = useState<TimesheetTab>(initialTab);
+
+  // ─── Form state ──
   const [date, setDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
@@ -75,16 +124,21 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
   const [isLocationPanelOpen, setIsLocationPanelOpen] = useState(false);
   const [newLocationName, setNewLocationName] = useState("");
 
+  // ─── Dashboard state ──
+  const [dashboardPeriod, setDashboardPeriod] = useState<DashboardPeriod>("month");
+  const [dashboardFrom, setDashboardFrom] = useState(() =>
+    format(startOfMonth(new Date()), "yyyy-MM-dd"),
+  );
+  const [dashboardTo, setDashboardTo] = useState(() => format(new Date(), "yyyy-MM-dd"));
+
+  // ─── Queries ──
   const { data: shifts = [], error: shiftsError } = useQuery({
     queryKey: ["timesheet-shifts", userId],
     queryFn: () => api.listTimesheetShifts({ coachId: userId ?? undefined }),
     enabled: isCoach,
   });
 
-  const {
-    data: locations = [],
-    error: locationsError,
-  } = useQuery<TimesheetLocation[]>({
+  const { data: locations = [], error: locationsError } = useQuery<TimesheetLocation[]>({
     queryKey: ["timesheet-locations"],
     queryFn: () => api.listTimesheetLocations(),
     enabled: isCoach,
@@ -98,6 +152,7 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
 
   const defaultLocation = useMemo(() => resolveDefaultLocation(locations), [locations]);
 
+  // ─── Mutations ──
   const resetForm = React.useCallback(() => {
     setDate(format(new Date(), "yyyy-MM-dd"));
     setStartTime("");
@@ -114,8 +169,7 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
       toast({ title: "Shift enregistré" });
     },
     onError: (error: unknown) => {
-      const summary = summarizeApiError(error, "Impossible d'enregistrer le shift.");
-      toast({ title: "Erreur", description: summary.message });
+      toast({ title: "Erreur", description: summarizeApiError(error, "Impossible d'enregistrer le shift.").message });
     },
   });
 
@@ -129,8 +183,7 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
       toast({ title: "Shift mis à jour" });
     },
     onError: (error: unknown) => {
-      const summary = summarizeApiError(error, "Impossible de modifier le shift.");
-      toast({ title: "Erreur", description: summary.message });
+      toast({ title: "Erreur", description: summarizeApiError(error, "Impossible de modifier le shift.").message });
     },
   });
 
@@ -140,8 +193,7 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
       queryClient.invalidateQueries({ queryKey: ["timesheet-shifts"] });
     },
     onError: (error: unknown) => {
-      const summary = summarizeApiError(error, "Impossible de supprimer le shift.");
-      toast({ title: "Erreur", description: summary.message });
+      toast({ title: "Erreur", description: summarizeApiError(error, "Impossible de supprimer le shift.").message });
     },
   });
 
@@ -151,8 +203,7 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
       queryClient.invalidateQueries({ queryKey: ["timesheet-locations"] });
     },
     onError: (error: unknown) => {
-      const summary = summarizeApiError(error, "Impossible d'ajouter le lieu.");
-      toast({ title: "Erreur", description: summary.message });
+      toast({ title: "Erreur", description: summarizeApiError(error, "Impossible d'ajouter le lieu.").message });
     },
   });
 
@@ -166,22 +217,29 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
       }
     },
     onError: (error: unknown) => {
-      const summary = summarizeApiError(error, "Impossible de supprimer le lieu.");
-      toast({ title: "Erreur", description: summary.message });
+      toast({ title: "Erreur", description: summarizeApiError(error, "Impossible de supprimer le lieu.").message });
     },
   });
 
+  // ─── Pointage computed values ──
   const todayKey = format(new Date(), "yyyy-MM-dd");
+
   const todayMinutes = useMemo(
     () =>
       shifts.reduce((acc, shift) => {
-        const dateKey = buildShiftDateKey(shift);
-        if (dateKey !== todayKey) return acc;
+        if (buildShiftDateKey(shift) !== todayKey) return acc;
         const duration = getShiftDurationMinutes(shift);
         return duration ? acc + duration : acc;
       }, 0),
     [shifts, todayKey],
   );
+
+  const ongoingCount = useMemo(
+    () => shifts.filter((s) => buildShiftDateKey(s) === todayKey && !s.end_time).length,
+    [shifts, todayKey],
+  );
+
+  const weekMonthTotals = useMemo(() => calculateTimesheetTotals(shifts), [shifts]);
 
   const grouped = useMemo<TimesheetShiftGroup[]>(() => {
     const sorted = [...shifts].sort((a, b) => (a.start_time < b.start_time ? 1 : -1));
@@ -202,80 +260,120 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
       .sort((a, b) => (a.date < b.date ? 1 : -1));
   }, [shifts]);
 
-  const now = useMemo(() => new Date(), []);
-  const [dashboardFrom, setDashboardFrom] = useState(() =>
-    format(new Date(now.getFullYear(), now.getMonth(), 1), "yyyy-MM-dd"),
+  // ─── Dashboard computed values ──
+  const dashboardShiftsInRange = useMemo(
+    () => shifts.filter((s) => withinRangeYMD(buildShiftDateKey(s), dashboardFrom, dashboardTo)),
+    [shifts, dashboardFrom, dashboardTo],
   );
-  const [dashboardTo, setDashboardTo] = useState(() => format(now, "yyyy-MM-dd"));
-  const dashboardTotals = useMemo(() => {
-    const inRange = shifts.filter((shift) => withinRangeYMD(buildShiftDateKey(shift), dashboardFrom, dashboardTo));
-    return inRange.reduce(
-      (acc, shift) => {
-        const duration = getShiftDurationMinutes(shift);
-        const minutes = duration ?? 0;
-        if (shift.is_travel) {
-          acc.travel += minutes;
-        } else {
-          acc.work += minutes;
-        }
-        acc.total += minutes;
-        return acc;
-      },
-      { count: inRange.length, work: 0, travel: 0, total: 0 },
-    );
-  }, [dashboardFrom, dashboardTo, shifts]);
+
+  const dashboardTotals = useMemo(
+    () =>
+      dashboardShiftsInRange.reduce(
+        (acc, shift) => {
+          const duration = getShiftDurationMinutes(shift) ?? 0;
+          if (shift.is_travel) acc.travel += duration;
+          else acc.work += duration;
+          acc.total += duration;
+          return acc;
+        },
+        { count: dashboardShiftsInRange.length, work: 0, travel: 0, total: 0 },
+      ),
+    [dashboardShiftsInRange],
+  );
+
+  const dashboardUniqueDays = useMemo(
+    () => new Set(dashboardShiftsInRange.map((s) => buildShiftDateKey(s))).size,
+    [dashboardShiftsInRange],
+  );
+
+  const avgMinutesPerDay = dashboardUniqueDays > 0 ? dashboardTotals.total / dashboardUniqueDays : 0;
+
+  const periodComparison = useMemo(() => {
+    const fromDate = new Date(dashboardFrom);
+    const toDate = new Date(dashboardTo);
+    const periodMs = toDate.getTime() - fromDate.getTime();
+    const prevTo = new Date(fromDate.getTime() - 86400000);
+    const prevFrom = new Date(prevTo.getTime() - periodMs);
+    const prevFromStr = format(prevFrom, "yyyy-MM-dd");
+    const prevToStr = format(prevTo, "yyyy-MM-dd");
+    const prevShifts = shifts.filter((s) => withinRangeYMD(buildShiftDateKey(s), prevFromStr, prevToStr));
+    const prevTotal = prevShifts.reduce((acc, s) => acc + (getShiftDurationMinutes(s) ?? 0), 0);
+    const delta = dashboardTotals.total - prevTotal;
+    const percent = prevTotal > 0 ? Math.round((delta / prevTotal) * 100) : 0;
+    return { prevTotal, delta, percent };
+  }, [dashboardFrom, dashboardTo, dashboardTotals.total, shifts]);
+
+  const showComparison = periodComparison.prevTotal > 0 && periodComparison.delta !== 0;
+
+  const pieData = useMemo(
+    () =>
+      [
+        { name: "Travail", value: dashboardTotals.work, fill: WORK_COLOR },
+        { name: "Trajet", value: dashboardTotals.travel, fill: TRAVEL_COLOR },
+      ].filter((d) => d.value > 0),
+    [dashboardTotals],
+  );
+
   const dashboardHistogram = useMemo(() => {
-    const inRange = shifts.filter((shift) => withinRangeYMD(buildShiftDateKey(shift), dashboardFrom, dashboardTo));
-    const buckets = new Map<string, number>();
-    inRange.forEach((shift) => {
-      const dateKey = buildShiftDateKey(shift);
+    const buckets = new Map<string, { work: number; travel: number }>();
+    dashboardShiftsInRange.forEach((shift) => {
+      const key = buildShiftDateKey(shift);
       const minutes = getShiftDurationMinutes(shift) ?? 0;
-      buckets.set(dateKey, (buckets.get(dateKey) ?? 0) + minutes);
+      const bucket = buckets.get(key) ?? { work: 0, travel: 0 };
+      if (shift.is_travel) bucket.travel += minutes;
+      else bucket.work += minutes;
+      buckets.set(key, bucket);
     });
     return Array.from(buckets.entries())
-      .map(([dateKey, minutes]) => ({
+      .map(([dateKey, { work, travel }]) => ({
         date: dateKey,
         label: format(new Date(dateKey), "dd/MM"),
-        hours: Number((minutes / 60).toFixed(2)),
+        work: Number((work / 60).toFixed(2)),
+        travel: Number((travel / 60).toFixed(2)),
       }))
       .sort((a, b) => (a.date < b.date ? -1 : 1));
-  }, [dashboardFrom, dashboardTo, shifts]);
+  }, [dashboardShiftsInRange]);
+
+  const topLocations = useMemo(() => {
+    const map = new Map<string, number>();
+    dashboardShiftsInRange.forEach((s) => {
+      const loc = s.location || "Non précisé";
+      map.set(loc, (map.get(loc) ?? 0) + (getShiftDurationMinutes(s) ?? 0));
+    });
+    const sorted = Array.from(map.entries())
+      .map(([name, minutes]) => ({ name, minutes }))
+      .sort((a, b) => b.minutes - a.minutes);
+    const max = sorted[0]?.minutes ?? 0;
+    return sorted.map((item) => ({ ...item, percent: max > 0 ? (item.minutes / max) * 100 : 0 }));
+  }, [dashboardShiftsInRange]);
+
   const formatLongDate = useMemo(
-    () => new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+    () => new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric", month: "short" }),
     [],
   );
 
-  if (!isCoach) {
-    if (typeof window === "undefined") {
-      return null;
-    }
-    return <Redirect to="/" />;
-  }
-
-  const capabilityMessage = capabilitiesError
-    ? summarizeApiError(capabilitiesError, "Impossible de vérifier le module de pointage.").message
-    : capabilities?.mode === "supabase" && !capabilities.timesheet.available
-      ? "Pointage heures indisponible (tables manquantes côté D1)."
-      : null;
-  const shiftsErrorMessage = shiftsError
-    ? summarizeApiError(shiftsError, "Impossible de charger les shifts.").message
-    : null;
-  const locationsErrorMessage = locationsError
-    ? summarizeApiError(locationsError, "Impossible de charger les lieux.").message
-    : null;
-
-  const isSaving = createShift.isPending || updateShift.isPending;
-  const isManagingLocations = createLocation.isPending || deleteLocation.isPending;
-
+  // ─── Form helpers ──
   const durationLabel = useMemo(() => {
     if (!startTime || !endTime) return null;
     const startIso = new Date(`${date}T${startTime}`);
     const endIso = new Date(`${date}T${endTime}`);
     if (Number.isNaN(startIso.getTime()) || Number.isNaN(endIso.getTime())) return null;
     const diffMinutes = (endIso.getTime() - startIso.getTime()) / 60000;
-    if (diffMinutes <= 0) return null;
-    return formatMinutes(diffMinutes);
+    return diffMinutes > 0 ? formatMinutes(diffMinutes) : null;
   }, [date, startTime, endTime]);
+
+  const isSaving = createShift.isPending || updateShift.isPending;
+  const isManagingLocations = createLocation.isPending || deleteLocation.isPending;
+
+  // ─── Event handlers ──
+  const handlePeriodChange = (period: DashboardPeriod) => {
+    setDashboardPeriod(period);
+    if (period !== "custom") {
+      const [from, to] = computePeriodDates(period);
+      setDashboardFrom(from);
+      setDashboardTo(to);
+    }
+  };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -291,7 +389,6 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
       toast({ title: "Utilisateur manquant" });
       return;
     }
-
     if (editingShiftId) {
       updateShift.mutate({
         id: editingShiftId,
@@ -302,17 +399,16 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
         location: location.trim() || null,
         is_travel: isTravel,
       });
-      return;
+    } else {
+      createShift.mutate({
+        coach_id: userId,
+        shift_date: date,
+        start_time: startTime,
+        end_time: endTime || null,
+        location: location.trim() || null,
+        is_travel: isTravel,
+      });
     }
-
-    createShift.mutate({
-      coach_id: userId,
-      shift_date: date,
-      start_time: startTime,
-      end_time: endTime || null,
-      location: location.trim() || null,
-      is_travel: isTravel,
-    });
   };
 
   const openNewShift = () => {
@@ -336,6 +432,14 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
     setEditingShiftId(null);
   };
 
+  const handleAddLocation = () => {
+    const trimmed = newLocationName.trim();
+    if (!trimmed) return;
+    createLocation.mutate({ name: trimmed });
+    setNewLocationName("");
+  };
+
+  // ─── Effects ──
   React.useEffect(() => {
     if (activeTab === "DASHBOARD") {
       setIsSheetOpen(false);
@@ -350,22 +454,35 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
     }
   }, [defaultLocation, editingShiftId, isSheetOpen, location, locations]);
 
-  const handleAddLocation = () => {
-    const trimmed = newLocationName.trim();
-    if (!trimmed) return;
-    createLocation.mutate({ name: trimmed });
-    setNewLocationName("");
-  };
+  // ─── Auth guard ──
+  if (!isCoach) {
+    if (typeof window === "undefined") return null;
+    return <Redirect to="/" />;
+  }
 
+  const capabilityMessage = capabilitiesError
+    ? summarizeApiError(capabilitiesError, "Impossible de vérifier le module de pointage.").message
+    : capabilities?.mode === "supabase" && !capabilities.timesheet.available
+      ? "Pointage heures indisponible (tables manquantes côté D1)."
+      : null;
+  const shiftsErrorMessage = shiftsError
+    ? summarizeApiError(shiftsError, "Impossible de charger les shifts.").message
+    : null;
+  const locationsErrorMessage = locationsError
+    ? summarizeApiError(locationsError, "Impossible de charger les lieux.").message
+    : null;
+
+  // ─── Render ──
   return (
     <SafeArea top bottom className="min-h-screen bg-background">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 pb-24 pt-4 text-foreground">
+        {/* Header */}
         <div className="flex items-center justify-between gap-3">
-          <div className="text-xs font-black tracking-[0.2px]">ADMINISTRATIF</div>
+          <h1 className="text-lg font-display font-bold uppercase italic">Administratif</h1>
           <div className="flex items-center gap-1 rounded-full border border-border bg-card p-1 text-xs font-extrabold">
             <button
               type="button"
-              className={`rounded-full px-3 py-2 ${activeTab === "POINTAGE" ? "bg-primary text-primary-foreground" : "text-foreground"}`}
+              className={`rounded-full px-3 py-2 transition-colors ${activeTab === "POINTAGE" ? "bg-primary text-primary-foreground" : "text-foreground"}`}
               aria-current={activeTab === "POINTAGE" ? "page" : undefined}
               onClick={() => setActiveTab("POINTAGE")}
             >
@@ -373,7 +490,7 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
             </button>
             <button
               type="button"
-              className={`rounded-full px-3 py-2 ${activeTab === "DASHBOARD" ? "bg-primary text-primary-foreground" : "text-foreground"}`}
+              className={`rounded-full px-3 py-2 transition-colors ${activeTab === "DASHBOARD" ? "bg-primary text-primary-foreground" : "text-foreground"}`}
               aria-current={activeTab === "DASHBOARD" ? "page" : undefined}
               onClick={() => setActiveTab("DASHBOARD")}
             >
@@ -382,39 +499,86 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
           </div>
         </div>
 
+        {/* Error banners */}
         {capabilityMessage ? (
-          <div className="rounded-2xl border border-dashed border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+          <div className="rounded-xl border border-dashed border-border bg-card px-4 py-3 text-sm text-muted-foreground">
             {capabilityMessage}
           </div>
         ) : null}
         {shiftsErrorMessage ? (
-          <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <div className="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             {shiftsErrorMessage}
           </div>
         ) : null}
         {locationsErrorMessage ? (
-          <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <div className="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             {locationsErrorMessage}
           </div>
         ) : null}
 
+        {/* ═══════════════════ POINTAGE TAB ═══════════════════ */}
         {activeTab === "POINTAGE" ? (
-          <React.Fragment>
-            <div className="rounded-2xl border border-border bg-card px-4 py-3 shadow-[0_1px_6px_rgba(0,0,0,0.04)]">
-              <div className="text-xs text-muted-foreground">Heures aujourd'hui</div>
-              <div className="mt-1 text-2xl font-black text-foreground">{formatMinutes(todayMinutes)}</div>
-            </div>
+          <motion.div
+            key="pointage"
+            initial="hidden"
+            animate="visible"
+            variants={stagger}
+            className="flex flex-col gap-4"
+          >
+            {/* Today's Hours Hero */}
+            <motion.div variants={cardReveal} className="rounded-xl border bg-card p-4">
+              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                <Clock className="h-3.5 w-3.5" />
+                <span>Heures aujourd'hui</span>
+              </div>
+              <div className="mt-1 text-3xl font-bold tabular-nums text-foreground">
+                {formatMinutes(todayMinutes)}
+              </div>
+              {ongoingCount > 0 ? (
+                <div className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary animate-pulse motion-reduce:animate-none" />
+                  {ongoingCount} shift{ongoingCount > 1 ? "s" : ""} en cours
+                </div>
+              ) : null}
+            </motion.div>
 
-            <div className="rounded-2xl border border-border bg-card px-4 py-3 shadow-[0_1px_6px_rgba(0,0,0,0.04)]">
+            {/* Week / Month Summary */}
+            <motion.div variants={cardReveal} className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border bg-muted/30 p-3">
+                <span className="text-[11px] text-muted-foreground">Semaine</span>
+                <div className="text-lg font-bold tabular-nums">
+                  {formatMinutes(weekMonthTotals.week.totalMinutes)}
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  {formatMinutes(weekMonthTotals.week.workMinutes)} trav. · {formatMinutes(weekMonthTotals.week.travelMinutes)} trajet
+                </div>
+              </div>
+              <div className="rounded-xl border bg-muted/30 p-3">
+                <span className="text-[11px] text-muted-foreground">Mois</span>
+                <div className="text-lg font-bold tabular-nums">
+                  {formatMinutes(weekMonthTotals.month.totalMinutes)}
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  {formatMinutes(weekMonthTotals.month.workMinutes)} trav. · {formatMinutes(weekMonthTotals.month.travelMinutes)} trajet
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Locations Panel */}
+            <motion.div variants={cardReveal} className="rounded-xl border bg-card p-4">
               <div className="flex items-center justify-between gap-2">
-                <div className="text-sm font-black text-foreground">Lieux</div>
+                <div className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+                  <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                  Lieux
+                </div>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setIsLocationPanelOpen((value) => !value)}
+                  className="h-8 text-xs"
+                  onClick={() => setIsLocationPanelOpen((v) => !v)}
                 >
-                  Gérer les lieux
+                  Gérer
                 </Button>
               </div>
               {isLocationPanelOpen ? (
@@ -424,7 +588,7 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
                       locations.map((item) => (
                         <div
                           key={item.id}
-                          className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-semibold text-muted-foreground"
+                          className="flex items-center gap-2 rounded-full border border-border bg-muted/30 px-3 py-1 text-xs font-semibold text-foreground"
                         >
                           <span>{item.name}</span>
                           <button
@@ -447,11 +611,12 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
                       value={newLocationName}
                       onChange={(event) => setNewLocationName(event.target.value)}
                       placeholder="Nouveau lieu"
-                      className="min-w-[160px] flex-1"
+                      className="min-w-[160px] flex-1 h-9"
                     />
                     <Button
                       type="button"
                       size="sm"
+                      className="h-9"
                       onClick={handleAddLocation}
                       disabled={!newLocationName.trim() || isManagingLocations}
                     >
@@ -460,14 +625,18 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
                   </div>
                 </div>
               ) : null}
-            </div>
+            </motion.div>
 
-            <TimesheetShiftList
-              groups={grouped}
-              onEdit={openEditShift}
-              onDelete={(id) => deleteShift.mutate({ id })}
-            />
+            {/* Shift List */}
+            <motion.div variants={cardReveal}>
+              <TimesheetShiftList
+                groups={grouped}
+                onEdit={openEditShift}
+                onDelete={(id) => deleteShift.mutate({ id })}
+              />
+            </motion.div>
 
+            {/* FAB */}
             <button
               type="button"
               className="fixed bottom-4 right-4 z-fab flex h-14 w-14 items-center justify-center rounded-full bg-destructive text-2xl font-black text-white shadow-[0_8px_20px_rgba(220,38,38,0.25)]"
@@ -476,90 +645,242 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
             >
               +
             </button>
-          </React.Fragment>
-        ) : (
-          <React.Fragment>
-            <div className="rounded-2xl border border-dashed border-border bg-card px-4 py-4 shadow-[0_1px_6px_rgba(0,0,0,0.04)]">
-              <div className="text-base font-black text-foreground">Dashboard KPI</div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <div className="min-w-[180px] flex-1 space-y-2">
-                  <Label htmlFor="dashboard-from">Du</Label>
-                  <Input
-                    id="dashboard-from"
-                    type="date"
-                    value={dashboardFrom}
-                    onChange={(event: React.ChangeEvent<HTMLInputElement>) => setDashboardFrom(event.target.value)}
-                  />
-                </div>
-                <div className="min-w-[180px] flex-1 space-y-2">
-                  <Label htmlFor="dashboard-to">Au</Label>
-                  <Input
-                    id="dashboard-to"
-                    type="date"
-                    value={dashboardTo}
-                    onChange={(event: React.ChangeEvent<HTMLInputElement>) => setDashboardTo(event.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="mt-3 text-xs text-muted-foreground">
-                Période sélectionnée : {formatLongDate.format(new Date(dashboardFrom))} →{" "}
-                {formatLongDate.format(new Date(dashboardTo))}
-              </div>
-            </div>
+          </motion.div>
+        ) : null}
 
-            <div className="rounded-2xl border border-border bg-card px-4 py-4 shadow-[0_1px_6px_rgba(0,0,0,0.04)]">
-              <div className="mb-3 text-sm font-black text-foreground">Heures par jour</div>
-              {dashboardHistogram.length ? (
-                <div className="h-56 w-full">
+        {/* ═══════════════════ DASHBOARD TAB ═══════════════════ */}
+        {activeTab === "DASHBOARD" ? (
+          <motion.div
+            key="dashboard"
+            initial="hidden"
+            animate="visible"
+            variants={stagger}
+            className="flex flex-col gap-4"
+          >
+            {/* Period Selector */}
+            <motion.div variants={cardReveal} className="rounded-xl border bg-card p-4">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-3">
+                Période
+              </h2>
+              <ToggleGroup
+                type="single"
+                size="sm"
+                variant="outline"
+                value={dashboardPeriod}
+                onValueChange={(v) => {
+                  if (v) handlePeriodChange(v as DashboardPeriod);
+                }}
+                className="flex flex-wrap gap-1"
+              >
+                {(Object.keys(PERIOD_LABELS) as DashboardPeriod[]).map((key) => (
+                  <ToggleGroupItem key={key} value={key} className="h-8 px-3 text-xs" aria-label={PERIOD_LABELS[key]}>
+                    {PERIOD_LABELS[key]}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+              {dashboardPeriod === "custom" ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <div className="min-w-[140px] flex-1 space-y-1">
+                    <Label htmlFor="db-from" className="text-[11px]">
+                      Du
+                    </Label>
+                    <Input
+                      id="db-from"
+                      type="date"
+                      value={dashboardFrom}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDashboardFrom(e.target.value)}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                  <div className="min-w-[140px] flex-1 space-y-1">
+                    <Label htmlFor="db-to" className="text-[11px]">
+                      Au
+                    </Label>
+                    <Input
+                      id="db-to"
+                      type="date"
+                      value={dashboardTo}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDashboardTo(e.target.value)}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-2 text-[11px] text-muted-foreground">
+                  {formatLongDate.format(new Date(dashboardFrom))} → {formatLongDate.format(new Date(dashboardTo))}
+                </div>
+              )}
+            </motion.div>
+
+            {/* Hero KPI */}
+            <motion.div variants={cardReveal} className="rounded-xl border bg-card p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <span className="text-[11px] text-muted-foreground">Total période</span>
+                  <div className="text-4xl font-bold tabular-nums">{formatMinutes(dashboardTotals.total)}</div>
+                </div>
+                {showComparison ? (
+                  <div
+                    className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${
+                      periodComparison.delta > 0 ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {periodComparison.delta > 0 ? (
+                      <TrendingUp className="h-3 w-3" />
+                    ) : (
+                      <TrendingDown className="h-3 w-3" />
+                    )}
+                    {periodComparison.delta > 0 ? "+" : ""}
+                    {periodComparison.percent}%
+                  </div>
+                ) : null}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                {dashboardTotals.count} shift{dashboardTotals.count !== 1 ? "s" : ""}
+                {dashboardUniqueDays > 0 ? ` · Moy. ${formatMinutes(avgMinutesPerDay)}/jour` : ""}
+                {showComparison
+                  ? ` · vs ${formatMinutes(periodComparison.prevTotal)} période préc.`
+                  : ""}
+              </div>
+            </motion.div>
+
+            {/* Work / Travel Cards */}
+            <motion.div variants={cardReveal} className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border p-3">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Briefcase className="h-3.5 w-3.5 text-primary" />
+                  <span className="text-[11px] text-muted-foreground">Travail</span>
+                </div>
+                <div className="text-xl font-bold tabular-nums">{formatMinutes(dashboardTotals.work)}</div>
+                <div className="text-[11px] text-muted-foreground">
+                  {dashboardTotals.total > 0
+                    ? `${Math.round((dashboardTotals.work / dashboardTotals.total) * 100)}%`
+                    : "–"}
+                </div>
+              </div>
+              <div className="rounded-xl border p-3">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Car className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-[11px] text-muted-foreground">Trajet</span>
+                </div>
+                <div className="text-xl font-bold tabular-nums">{formatMinutes(dashboardTotals.travel)}</div>
+                <div className="text-[11px] text-muted-foreground">
+                  {dashboardTotals.total > 0
+                    ? `${Math.round((dashboardTotals.travel / dashboardTotals.total) * 100)}%`
+                    : "–"}
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Donut Chart — Work vs Travel */}
+            {pieData.length > 0 ? (
+              <motion.div variants={cardReveal} className="rounded-xl border bg-card p-4">
+                <h3 className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-3">
+                  Répartition
+                </h3>
+                <div className="flex items-center gap-6">
+                  <div className="relative shrink-0">
+                    <PieChart width={140} height={140}>
+                      <Pie
+                        data={pieData}
+                        cx={70}
+                        cy={70}
+                        innerRadius={42}
+                        outerRadius={65}
+                        paddingAngle={3}
+                        dataKey="value"
+                        strokeWidth={0}
+                      >
+                        {pieData.map((entry) => (
+                          <Cell key={entry.name} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <span className="text-sm font-bold tabular-nums">{formatMinutes(dashboardTotals.total)}</span>
+                    </div>
+                  </div>
+                  <div className="flex-1 space-y-3">
+                    {pieData.map((entry) => (
+                      <div key={entry.name} className="flex items-center gap-2">
+                        <span className="h-3 w-3 rounded-sm shrink-0" style={{ backgroundColor: entry.fill }} />
+                        <span className="text-sm text-foreground">{entry.name}</span>
+                        <span className="ml-auto text-sm font-semibold tabular-nums">
+                          {formatMinutes(entry.value)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            ) : null}
+
+            {/* Stacked Bar Chart — Hours per Day */}
+            <motion.div variants={cardReveal} className="rounded-xl border bg-card p-4">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-3">
+                Heures par jour
+              </h3>
+              {dashboardHistogram.length > 0 ? (
+                <div className="h-52 w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={dashboardHistogram} margin={{ top: 8, right: 12, left: -10, bottom: 8 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="label" tickLine={false} axisLine={false} />
-                      <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `${value}h`} />
-                      <Tooltip formatter={(value: number) => `${value} h`} labelFormatter={(label) => `Jour ${label}`} />
-                      <Bar dataKey="hours" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+                    <BarChart data={dashboardHistogram} margin={{ top: 4, right: 8, left: -16, bottom: 4 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                      <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                      <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}h`} />
+                      <Tooltip
+                        formatter={(value: number, name: string) => [
+                          `${value.toFixed(1)}h`,
+                          name === "work" ? "Travail" : "Trajet",
+                        ]}
+                        labelFormatter={(label) => `${label}`}
+                        contentStyle={{
+                          borderRadius: 8,
+                          border: "1px solid hsl(var(--border))",
+                          fontSize: 12,
+                        }}
+                      />
+                      <Bar dataKey="work" name="Travail" stackId="hours" fill={WORK_COLOR} />
+                      <Bar dataKey="travel" name="Trajet" stackId="hours" fill={TRAVEL_COLOR} radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <div className="text-sm text-muted-foreground">Aucune donnée sur la période.</div>
+                <p className="py-6 text-center text-sm text-muted-foreground">Aucune donnée sur la période.</p>
               )}
-            </div>
+            </motion.div>
 
-            <div className="rounded-2xl border border-border bg-card px-4 py-4 shadow-[0_1px_6px_rgba(0,0,0,0.04)]">
-              <div className="mb-3 text-sm font-black text-foreground">Résumé période</div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {[
-                  { label: "Total", value: formatMinutes(dashboardTotals.total), hint: "Travail + trajet" },
-                  { label: "Shifts", value: dashboardTotals.count.toString(), hint: "Nombre sur la période" },
-                  { label: "Travail", value: formatMinutes(dashboardTotals.work), hint: "Heures de travail" },
-                  { label: "Trajet", value: formatMinutes(dashboardTotals.travel), hint: "Heures de trajet" },
-                ].map((card) => (
-                  <div
-                    key={card.label}
-                    className="rounded-2xl border border-dashed border-border bg-card p-3 shadow-[0_1px_6px_rgba(0,0,0,0.04)]"
-                  >
-                    <div className="text-xs text-muted-foreground">{card.label}</div>
-                    <div className="text-lg font-black text-foreground">{card.value}</div>
-                    <div className="text-xs text-muted-foreground">{card.hint}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-card px-4 py-4 shadow-[0_1px_6px_rgba(0,0,0,0.04)]">
-              <div className="mb-2 text-sm font-black text-foreground">Graphiques (à venir)</div>
-              <div className="text-sm text-muted-foreground">
-                • Bar chart : heures par jour (période)
-                <br />• Donut : % trajet vs travail
-                <br />• Top lieux : heures cumulées
-                <br />• Variations : période vs période-1
-              </div>
-            </div>
-          </React.Fragment>
-        )}
+            {/* Top Locations */}
+            {topLocations.length > 0 ? (
+              <motion.div variants={cardReveal} className="rounded-xl border bg-card p-4">
+                <h3 className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-3">
+                  Top lieux
+                </h3>
+                <div className="space-y-3">
+                  {topLocations.map((loc) => (
+                    <div key={loc.name}>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-1.5 text-sm">
+                          <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span>{loc.name}</span>
+                        </div>
+                        <span className="text-sm font-semibold tabular-nums">{formatMinutes(loc.minutes)}</span>
+                      </div>
+                      <div className="h-2 w-full rounded-full bg-muted">
+                        <div
+                          className="h-2 rounded-full bg-primary transition-all duration-500"
+                          style={{ width: `${loc.percent}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            ) : null}
+          </motion.div>
+        ) : null}
       </div>
 
+      {/* Shift Form Bottom Sheet */}
       {activeTab === "POINTAGE" ? (
         <TimesheetShiftForm
           isOpen={isSheetOpen}
