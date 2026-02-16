@@ -548,25 +548,24 @@ export default function Profile() {
         </Collapsible>
       ) : null}
 
-      <div className="space-y-2">
-        <Button
-          variant="outline"
-          onClick={handleCheckUpdate}
-          disabled={isCheckingUpdate}
-          className="w-full gap-2"
-        >
-          <Download className={["h-4 w-4", isCheckingUpdate ? "animate-bounce" : ""].join(" ")} />
-          {isCheckingUpdate ? "Recherche en cours..." : "Rechercher des mises à jour"}
-        </Button>
-        <p className="text-xs text-center text-muted-foreground">
-          Version du {new Date(__BUILD_TIMESTAMP__).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-        </p>
-      </div>
-
-      <Button variant="ghost" onClick={logout} className="w-full gap-2 text-muted-foreground">
+      <Button variant="destructive" onClick={logout} className="w-full gap-2">
         <LogOut className="h-4 w-4" />
         Se déconnecter
       </Button>
+
+      <div className="space-y-1 pt-2">
+        <button
+          onClick={handleCheckUpdate}
+          disabled={isCheckingUpdate}
+          className="w-full flex items-center justify-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors py-2"
+        >
+          <Download className={["h-3 w-3", isCheckingUpdate ? "animate-bounce" : ""].join(" ")} />
+          {isCheckingUpdate ? "Recherche en cours..." : "Rechercher des mises à jour"}
+        </button>
+        <p className="text-[10px] text-center text-muted-foreground/60">
+          Version du {new Date(__BUILD_TIMESTAMP__).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+        </p>
+      </div>
     </motion.div>
   );
 }
