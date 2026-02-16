@@ -53,6 +53,8 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §29 Refonte builder séances natation coach | ✅ Fait | 2026-02-15 |
 | §31 UX fixes flux musculation: double start, redesign library, dock, notes | ✅ Fait | 2026-02-15 |
 | §32 Fix: items natation dupliqués à chaque édition (FK + error handling) | ✅ Fait | 2026-02-15 |
+| §33 Feature: intensité Progressif (Prog) dans échelle natation | ✅ Fait | 2026-02-15 |
+| §34 Feature: dossiers/sous-dossiers + archive persistante catalogue nage | ✅ Fait | 2026-02-15 |
 
 ---
 
@@ -3438,3 +3440,156 @@ Retours utilisateur sur le flux musculation athlete :
 ### Limites / dette
 
 - L'ecran step 0 de WorkoutRunner est toujours present dans le code (cas de reprise d'une seance a step 0), mais n'est plus atteint dans le flux normal.
+
+---
+
+## 2026-02-15 — Feature: intensité Progressif (Prog) dans échelle natation (§33)
+
+**Branche** : `main`
+
+### Contexte — Pourquoi ce patch
+
+L'échelle d'intensité natation (V0 à Max) manquait d'une option "Progressif" pour les exercices en montée progressive d'intensité. Les coachs utilisaient des contournements textuels.
+
+### Changements réalisés
+
+- Ajout de l'intensité "Prog" (Progressif) avec icône flèche montante (TrendingUp) dans toute la chaîne
+- Couleur dédiée : orange/ambre (variables CSS `--intensity-prog` et `--intensity-prog-bg`)
+- Support dans les 7 composants concernés : IntensityDots, IntensityDotsSelector, SwimExerciseForm, SwimSessionBuilder, SwimSessionConsultation, SwimCatalog
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/index.css` | Ajout variables CSS `--intensity-prog`, `--intensity-prog-bg` (light + dark) |
+| `src/components/swim/IntensityDots.tsx` | Ajout Prog dans scale, tone, label, rendu spécial |
+| `src/components/swim/IntensityDotsSelector.tsx` | Ajout Prog avec icône TrendingUp |
+| `src/components/coach/swim/SwimSessionBuilder.tsx` | Ajout Prog dans scale, tone maps, normalize |
+| `src/components/coach/swim/SwimExerciseForm.tsx` | Ajout Prog dans intensityTextTone et intensityRingTone |
+| `src/components/swim/SwimSessionConsultation.tsx` | Ajout Prog dans tone maps et normalizeIntensity |
+| `src/pages/coach/SwimCatalog.tsx` | Ajout Prog dans intensityScale et normalizeIntensityValue |
+
+### Tests
+
+- [x] `npm run build` — succès
+- [x] `npx tsc --noEmit` — pas de nouvelle erreur
+
+### Décisions prises
+
+1. Couleur orange/ambre pour Prog — visuellement distincte de V0-Max qui va du vert au rouge
+2. Icône TrendingUp — communique immédiatement l'idée de montée progressive
+
+---
+
+## 2026-02-15 — Feature: dossiers/sous-dossiers + archive persistante catalogue nage (§34)
+
+**Branche** : `main`
+
+### Contexte — Pourquoi ce patch
+
+Le catalogue natation coach n'avait aucune organisation en dossiers. L'archivage était stocké en localStorage (non persistant entre appareils, pas de restauration possible). Les coachs avec beaucoup de séances ne pouvaient pas les organiser.
+
+### Changements réalisés
+
+1. **Migration BDD** : ajout colonnes `folder TEXT` et `is_archived BOOLEAN` sur `swim_sessions_catalog` avec indexes
+2. **Types TypeScript** : ajout `folder` et `is_archived` sur `SwimSessionTemplate`, `SwimSessionInput`, `RawSwimCatalog`
+3. **API swim.ts** : 3 nouvelles fonctions (`archiveSwimSession`, `moveSwimSession`, `migrateLocalStorageArchive`) + mapping des nouvelles colonnes
+4. **SessionListView** : props `onMove` (bouton FolderInput) et `archiveMode` (restauration)
+5. **SwimCatalog refonte UI** : navigation breadcrumb, chips dossiers avec compteurs, section archive, dialogs création dossier et déplacement, migration one-shot localStorage → BDD
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `supabase/migrations/00021_swim_catalog_folders_archive.sql` | NOUVEAU — migration |
+| `src/lib/api/types.ts` | Ajout `folder`, `is_archived` à SwimSessionTemplate |
+| `src/lib/types.ts` | Ajout `folder` à SwimSessionInput et RawSwimCatalog |
+| `src/lib/api/swim.ts` | 3 fonctions + mapping colonnes |
+| `src/lib/api/index.ts` | Export nouvelles fonctions |
+| `src/lib/api.ts` | Stubs dans objet api |
+| `src/components/coach/shared/SessionListView.tsx` | Props onMove, archiveMode |
+| `src/components/coach/swim/SwimSessionBuilder.tsx` | Ajout `folder` à SwimSessionDraft |
+| `src/pages/coach/SwimCatalog.tsx` | Refonte majeure UI |
+
+### Tests
+
+- [x] `npm run build` — succès
+- [x] `npx tsc --noEmit` — pas de nouvelle erreur (hors stories pré-existantes)
+- [x] Migration appliquée sur Supabase
+- [ ] Test manuel : créer un dossier, naviguer dedans
+- [ ] Test manuel : créer une séance dans un dossier
+- [ ] Test manuel : déplacer une séance vers un autre dossier
+- [ ] Test manuel : archiver une séance → apparaît dans Archives
+- [ ] Test manuel : restaurer une séance depuis les archives
+
+### Décisions prises
+
+1. **Dossiers implicites** (pas de table séparée) — les dossiers sont dérivés des valeurs `folder` distinctes dans les séances. Simplifie le modèle et évite les dossiers vides.
+2. **Chemin séparé par `/`** — permet sous-dossiers (ex: "Endurance/Aérobie") avec navigation breadcrumb.
+3. **Migration one-shot localStorage** — les IDs archivés en localStorage sont migrés vers la colonne `is_archived` au premier chargement, puis la clé localStorage est supprimée.
+4. **Archive en BDD** remplace localStorage — persistant entre appareils, restauration possible.
+
+### Limites / dette
+
+- Pas de drag & drop pour déplacer les séances entre dossiers (uniquement via dialog)
+- Pas de renommage de dossier (il faut déplacer les séances individuellement)
+
+## 2026-02-16 — Feature: dossiers musculation séances et exercices (§32)
+
+**Branche** : `main`
+
+### Contexte — Pourquoi ce patch
+
+Le catalogue musculation coach n'avait aucune organisation en dossiers. Avec le nombre croissant de séances et exercices, il était nécessaire de pouvoir les ranger dans des dossiers.
+
+### Changements réalisés
+
+1. **Migration BDD** : table `strength_folders` (id, name, type, sort_order) + FK `folder_id` sur `strength_sessions` et `dim_exercices` avec ON DELETE SET NULL + RLS
+2. **Types TypeScript** : interface `StrengthFolder`, ajout `folder_id` à `Exercise` et `StrengthSessionTemplate`
+3. **API strength.ts** : 5 nouvelles fonctions (getStrengthFolders, createStrengthFolder, renameStrengthFolder, deleteStrengthFolder, moveToFolder) + folder_id dans mappers et CRUD sessions
+4. **FolderSection** : composant collapsible avec chevron, renommage inline, popover menu (Rename/Delete)
+5. **MoveToFolderPopover** : popover listant les dossiers, highlight du dossier courant, option "Aucun dossier"
+6. **SessionListView** : ajout prop `renderExtraActions` pour actions additionnelles par session
+7. **StrengthSessionBuilder** : ajout sélecteur de dossier dans les métadonnées
+8. **StrengthCatalog** : intégration complète — queries dossiers, mutations CRUD, groupage unfiled + folders pour séances ET exercices, boutons "Dossier" dans les en-têtes
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `supabase/migrations/00021_strength_folders.sql` | NOUVEAU — migration |
+| `src/lib/api/types.ts` | Ajout StrengthFolder, folder_id |
+| `src/lib/api/strength.ts` | 5 fonctions + folder_id dans CRUD |
+| `src/lib/api/client.ts` | folder_id dans mappers exercice |
+| `src/lib/api/index.ts` | Re-exports |
+| `src/lib/api.ts` | Façade API |
+| `src/components/coach/strength/FolderSection.tsx` | NOUVEAU — composant dossier |
+| `src/components/coach/strength/MoveToFolderPopover.tsx` | NOUVEAU — popover déplacement |
+| `src/components/coach/shared/SessionListView.tsx` | Ajout renderExtraActions |
+| `src/components/coach/strength/StrengthSessionBuilder.tsx` | Sélecteur dossier |
+| `src/pages/coach/StrengthCatalog.tsx` | Intégration complète |
+| `docs/plans/2026-02-15-strength-folders-design.md` | NOUVEAU — design doc |
+| `docs/plans/2026-02-15-strength-folders-plan.md` | NOUVEAU — plan implémentation |
+
+### Tests
+
+- [x] `npm run build` — succès
+- [x] Migration appliquée sur Supabase
+- [ ] Test manuel : créer un dossier séance + exercice
+- [ ] Test manuel : déplacer séance/exercice dans un dossier
+- [ ] Test manuel : renommer un dossier
+- [ ] Test manuel : supprimer un dossier (items reviennent en "non-classé")
+
+### Décisions prises
+
+1. **Table dédiée `strength_folders`** avec discriminant `type` (session/exercise) — une seule table, deux espaces de noms séparés
+2. **1 niveau de profondeur** — pas de sous-dossiers, YAGNI
+3. **Items non-classés affichés en premier** — les séances/exercices sans dossier apparaissent en haut, les dossiers en dessous
+4. **ON DELETE SET NULL** — supprimer un dossier remet les items en "non-classé" plutôt que de les supprimer
+5. **`renderExtraActions` render prop** — extensibilité de SessionListView sans modifier sa structure
+
+### Limites / dette
+
+- Pas de drag & drop entre dossiers (déplacement via popover uniquement)
+- Création de dossier via `prompt()` natif (pas de dialog custom)
+- Pas de tri personnalisé des dossiers (sort_order existe en BDD mais pas utilisé dans l'UI)
