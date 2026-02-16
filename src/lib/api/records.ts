@@ -168,12 +168,29 @@ export async function createClubRecordSwimmer(payload: {
   is_active?: boolean;
 }): Promise<ClubRecordSwimmer | null> {
   if (!canUseSupabase()) return null;
+
+  // Check for existing swimmer with same IUF
+  const iuf = payload.iuf?.trim() || null;
+  if (iuf) {
+    const { data: existing, error: checkErr } = await supabase
+      .from("club_record_swimmers")
+      .select("id, display_name, source_type")
+      .eq("iuf", iuf)
+      .limit(1);
+    if (checkErr) throw new Error(checkErr.message);
+    if (existing && existing.length > 0) {
+      const e = existing[0];
+      const label = e.source_type === "user" ? "inscrit" : "déjà ajouté";
+      throw new Error(`Un nageur avec cet IUF existe déjà : ${e.display_name} (${label})`);
+    }
+  }
+
   const { data, error } = await supabase
     .from("club_record_swimmers")
     .insert({
       source_type: "manual",
       display_name: payload.display_name,
-      iuf: payload.iuf ?? null,
+      iuf,
       sex: payload.sex ?? null,
       birthdate: payload.birthdate ?? null,
       is_active: payload.is_active !== false,
@@ -194,8 +211,29 @@ export async function updateClubRecordSwimmer(
   },
 ): Promise<ClubRecordSwimmer | null> {
   if (!canUseSupabase()) return null;
+
+  // Check for duplicate IUF (exclude self)
+  let normalizedIuf: string | null | undefined;
+  if (payload.iuf !== undefined) {
+    normalizedIuf = typeof payload.iuf === "string" ? payload.iuf.trim() || null : null;
+    if (normalizedIuf) {
+      const { data: existing, error: checkErr } = await supabase
+        .from("club_record_swimmers")
+        .select("id, display_name, source_type")
+        .eq("iuf", normalizedIuf)
+        .neq("id", id)
+        .limit(1);
+      if (checkErr) throw new Error(checkErr.message);
+      if (existing && existing.length > 0) {
+        const e = existing[0];
+        const label = e.source_type === "user" ? "inscrit" : "déjà ajouté";
+        throw new Error(`Un nageur avec cet IUF existe déjà : ${e.display_name} (${label})`);
+      }
+    }
+  }
+
   const updatePayload: Record<string, unknown> = {};
-  if (payload.iuf !== undefined) updatePayload.iuf = payload.iuf;
+  if (payload.iuf !== undefined) updatePayload.iuf = normalizedIuf ?? null;
   if (payload.is_active !== undefined) updatePayload.is_active = payload.is_active;
   if (payload.sex !== undefined) updatePayload.sex = payload.sex;
   if (payload.birthdate !== undefined) updatePayload.birthdate = payload.birthdate;

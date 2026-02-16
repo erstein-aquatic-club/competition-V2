@@ -60,6 +60,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §36 Redesign: RecordsAdmin mobile first (cards, SwimmerCard DRY) | ✅ Fait | 2026-02-16 |
 | §37 Redesign: RecordsClub mobile first (cards, scroll pills, no tables) | ✅ Fait | 2026-02-16 |
 | §38 Redesign: Profil + Hall of Fame (mobile first, hero banner, podium) | ✅ Fait | 2026-02-16 |
+| §39 Redesign: Records personnels mobile first (flex cards, no grids) | ✅ Fait | 2026-02-16 |
 
 ---
 
@@ -3909,3 +3910,84 @@ Les vues Profil et Hall of Fame avaient un design plat et utilitaire. Le Profil 
 
 - Le skeleton de chargement du Profil utilise encore l'ancien pattern CardHeader (cosmétique, non bloquant)
 - Le Podium n'a pas d'animation staggered (les colonnes apparaissent ensemble) — pourrait être ajouté en follow-up
+
+---
+
+## 2026-02-16 — Redesign Records personnels mobile first (§39)
+
+**Branche** : `main`
+
+### Contexte — Pourquoi ce patch
+
+La page "Records" utilisait des grids CSS 4 colonnes (`grid-cols-[minmax(0,1fr)_3.75rem_3.75rem_2.25rem]`) pour les records natation et l'historique performances FFN. Sur mobile (320-375px), les colonnes étaient serrées (~140px pour le nom d'épreuve) et les Cards avaient `overflow-x-auto` en prévision de dépassement.
+
+### Changements réalisés
+
+1. **Records natation (training + comp)** — Grid 4 colonnes → layout flex card :
+   - Ligne 1 : nom épreuve (truncate) + temps (mono, primary, bold) + bouton édition
+   - Ligne 2 : points (comp) + date + notes/compétition (truncate)
+2. **Historique performances FFN** — Grid 4 colonnes → layout flex card identique :
+   - Ligne 1 : event_code + temps
+   - Ligne 2 : points + date + nom compétition
+3. **Suppression grid headers** — Plus besoin d'en-têtes "Épreuve / Temps / Date / Pts" (les cards sont auto-documentées)
+4. **Suppression `overflow-x-auto`** — Plus nécessaire sur aucune Card (3 occurrences)
+5. **Suppression constantes `SwimColsTraining` / `SwimColsComp`** — Plus utilisées
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/pages/Records.tsx` | Remplacement grids → flex cards pour swim records + performances (1383→1339 lignes) |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — Aucune erreur
+- [x] `npm run build` — Build production OK
+
+### Décisions prises
+
+1. **Flex 2 lignes vs grid 1 ligne** — Donne plus d'espace au nom d'épreuve (pleine largeur) tout en gardant le temps visible. Le surcoût vertical est minimal (+4px par record)
+2. **Suppression column headers** — Les labels "Épreuve / Temps / Date" étaient redondants avec le contenu (les temps sont en mono bold primary, les dates en muted, les points suivis de "pts")
+3. **Temps en `text-primary font-bold`** — Cohérent avec le redesign RecordsClub (§37) où le temps est le hero data point
+
+### Limites / dette
+
+- Le formulaire d'ajout/édition de record natation utilise encore `grid sm:grid-cols-2` — fonctionnel mais pourrait être simplifié
+- La section 1RM musculation n'a pas été modifiée (layout flex déjà adapté au mobile)
+
+## 2026-02-16 — Déduplication IUF profil ↔ nageur manuel (§40)
+
+**Contexte** : Quand un athlète entrait un IUF dans sa page profil qui correspondait à un nageur ajouté manuellement dans RecordsAdmin, deux entrées `club_record_swimmers` coexistaient avec le même IUF, créant des doublons potentiels dans les records club.
+
+### Changements
+
+1. **Migration DB** (`supabase/migrations/00022_iuf_unique_constraint.sql`) :
+   - Nettoyage des doublons existants (entrées `manual` supprimées si un `user` existe avec le même IUF)
+   - Index unique partiel `idx_club_record_swimmers_iuf_unique` sur `iuf` WHERE NOT NULL
+
+2. **API `updateProfile()`** (`src/lib/api/users.ts`) :
+   - Détecte et supprime les entrées `source_type='manual'` avec le même IUF avant sauvegarde du profil
+
+3. **API `createClubRecordSwimmer()`** (`src/lib/api/records.ts`) :
+   - Vérifie qu'aucun nageur n'existe déjà avec le même IUF avant insertion
+   - Erreur explicite : "Un nageur avec cet IUF existe déjà : Nom (inscrit/déjà ajouté)"
+
+4. **API `updateClubRecordSwimmer()`** (`src/lib/api/records.ts`) :
+   - Même vérification lors de la modification d'IUF (exclut l'entrée en cours de modification)
+
+5. **UI RecordsAdmin** (`src/pages/RecordsAdmin.tsx`) :
+   - Les messages d'erreur de l'API sont maintenant affichés dans les toasts (au lieu de messages génériques)
+
+### Fichiers modifiés
+
+- `supabase/migrations/00022_iuf_unique_constraint.sql` (nouveau)
+- `src/lib/api/users.ts`
+- `src/lib/api/records.ts`
+- `src/pages/RecordsAdmin.tsx`
+
+### Décisions
+
+- Fusion automatique sans validation coach (simplicité)
+- Profil utilisateur prioritaire sur entrée manuelle
+- Double protection : contrainte DB + vérification applicative
+- Erreurs Supabase propagées proprement (pas de silent failures)

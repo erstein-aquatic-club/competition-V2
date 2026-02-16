@@ -61,6 +61,26 @@ export async function updateProfile(payload: {
   if (!canUseSupabase()) return { status: "skipped" };
   const userId = payload.userId;
   if (!userId) return { status: "skipped" };
+
+  // If the user is setting an IUF, check for and remove any manual duplicate
+  const newIuf = payload.profile.ffn_iuf?.trim() || null;
+  if (newIuf) {
+    const { data: manualDupes, error: dupeErr } = await supabase
+      .from("club_record_swimmers")
+      .select("id")
+      .eq("iuf", newIuf)
+      .eq("source_type", "manual");
+    if (dupeErr) throw new Error(dupeErr.message);
+    if (manualDupes && manualDupes.length > 0) {
+      const ids = manualDupes.map((d: any) => d.id);
+      const { error: delErr } = await supabase
+        .from("club_record_swimmers")
+        .delete()
+        .in("id", ids);
+      if (delErr) throw new Error(delErr.message);
+    }
+  }
+
   const { error } = await supabase.from("user_profiles").upsert(
     {
       user_id: userId,

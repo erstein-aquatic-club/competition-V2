@@ -259,8 +259,8 @@ export default function RecordsAdmin() {
       setShowAddForm(false);
       void load();
     },
-    onError: () => {
-      toast({ title: "Impossible d'ajouter le nageur", variant: "destructive" });
+    onError: (err: any) => {
+      toast({ title: err?.message || "Impossible d'ajouter le nageur", variant: "destructive" });
     },
   });
 
@@ -271,8 +271,8 @@ export default function RecordsAdmin() {
       void load();
       toast({ title: "Sauvegardé" });
     },
-    onError: () => {
-      toast({ title: "Mise à jour impossible", variant: "destructive" });
+    onError: (err: any) => {
+      toast({ title: err?.message || "Mise à jour impossible", variant: "destructive" });
     },
   });
 
