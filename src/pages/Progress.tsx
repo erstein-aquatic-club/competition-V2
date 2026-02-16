@@ -193,6 +193,8 @@ export default function Progress() {
 
   const strengthRangeFrom = startOfDay(subDays(new Date(), strengthPeriodDays)).toISOString();
   const strengthRangeTo = endOfDay(new Date()).toISOString();
+  const strengthPrevFrom = startOfDay(subDays(new Date(), strengthPeriodDays * 2)).toISOString();
+  const strengthPrevTo = startOfDay(subDays(new Date(), strengthPeriodDays)).toISOString();
 
   const { data: strengthHistorySummary, isLoading: isStrengthSummaryLoading } = useQuery({
     queryKey: ["strength_history_summary", athleteKey, "progress", strengthPeriodDays, strengthRangeFrom, strengthRangeTo],
@@ -221,10 +223,25 @@ export default function Progress() {
     enabled: !!athleteName,
   });
 
+  const { data: strengthPrevAggregate } = useQuery({
+    queryKey: ["strength_history_aggregate_prev", athleteKey, "progress", strengthPeriodDays, strengthPrevFrom, strengthPrevTo],
+    queryFn: () =>
+      api.getStrengthHistoryAggregate(athleteName!, {
+        athleteId,
+        period: "day",
+        limit: 200,
+        order: "asc",
+        from: strengthPrevFrom,
+        to: strengthPrevTo,
+      }),
+    enabled: !!athleteName,
+  });
+
   const isStrengthLoading = isStrengthSummaryLoading || isStrengthAggregateLoading;
   const strengthRunsPeriod = strengthHistorySummary?.runs ?? [];
   const exerciseSummary = strengthHistorySummary?.exercise_summary ?? [];
   const strengthAggregatePeriods = strengthAggregate?.periods ?? [];
+  const strengthPrevPeriods = strengthPrevAggregate?.periods ?? [];
 
   // ─── Swim Data Processing ──────────────────────────────────────────────────
 
@@ -403,12 +420,10 @@ export default function Progress() {
 
   const strengthTonnageTrend = (() => {
     if (!strengthAggregatePeriods.length) return null;
-    const half = Math.floor(strengthAggregatePeriods.length / 2);
-    if (half === 0) return null;
-    const firstHalf = strengthAggregatePeriods.slice(0, half).reduce((acc, i) => acc + (i.tonnage ?? 0), 0);
-    const secondHalf = strengthAggregatePeriods.slice(half).reduce((acc, i) => acc + (i.tonnage ?? 0), 0);
-    if (firstHalf === 0) return null;
-    return ((secondHalf - firstHalf) / firstHalf) * 100;
+    const currentTotal = strengthAggregatePeriods.reduce((acc, i) => acc + (i.tonnage ?? 0), 0);
+    const prevTotal = strengthPrevPeriods.reduce((acc, i) => acc + (i.tonnage ?? 0), 0);
+    if (prevTotal === 0) return null;
+    return ((currentTotal - prevTotal) / prevTotal) * 100;
   })();
 
   const topExerciseVolume = exerciseVolumeData.slice(0, 8);
@@ -584,7 +599,7 @@ export default function Progress() {
             unit="kg"
             label={`tonnage sur ${strengthPeriodDays} jours`}
             trend={strengthTonnageTrend}
-            trendLabel="2e moitié vs 1re"
+            trendLabel="vs période préc."
           />
 
           {/* Mini metrics pills */}
