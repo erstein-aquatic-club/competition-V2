@@ -25,6 +25,7 @@ Ce document décrit les fonctionnalités à implémenter. Il sert de référence
 | 13 | Redesign Profil + Hall of Fame (mobile first) | Moyenne | Moyenne | Fait |
 | 14 | Finalisation dashboard pointage heures coach | Moyenne | Moyenne | Fait |
 | 15 | Redesign page Progression (Apple Health style) | Moyenne | Moyenne | Fait |
+| 16 | Audit UI/UX — header Strength + login mobile + fixes | Moyenne | Faible | Fait |
 
 ---
 

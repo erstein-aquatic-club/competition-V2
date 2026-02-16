@@ -475,7 +475,7 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
   // ─── Render ──
   return (
     <SafeArea top bottom className="min-h-screen bg-background">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 pb-24 pt-4 text-foreground">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 pt-4 text-foreground">
         {/* Header */}
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-lg font-display font-bold uppercase italic">Administratif</h1>

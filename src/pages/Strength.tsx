@@ -634,27 +634,20 @@ export default function Strength() {
         )
       ) : (
         <>
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-display font-bold uppercase italic text-primary">Musculation</h1>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label="Informations sur le calcul du 1RM"
-                onClick={() => { window.location.hash = "#/records?tab=1rm"; }}
-                className="text-muted-foreground"
-              >
-                <Dumbbell className="mr-2 h-4 w-4" /> Info 1RM
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
+          <div className="sticky top-0 z-overlay -mx-4 backdrop-blur bg-background/80 border-b border-border">
+            <div className="px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Dumbbell className="h-4 w-4 text-foreground" />
+                <h1 className="text-lg font-display font-bold uppercase italic tracking-tight">Séance</h1>
+              </div>
+              <button
+                type="button"
                 onClick={() => setScreenMode("settings")}
-                className="rounded-full border border-muted/50 text-muted-foreground"
+                className="inline-flex items-center justify-center rounded-2xl border border-border bg-background p-2 transition hover:bg-muted"
                 aria-label="Paramètres"
               >
                 <SlidersHorizontal className="h-4 w-4" />
-              </Button>
+              </button>
             </div>
           </div>
 
@@ -697,20 +690,16 @@ export default function Strength() {
 
               {screenMode === "settings" && (
                 <div className="space-y-6">
-                  <div className="flex flex-wrap items-center gap-4">
-                    <Button
-                      variant="ghost"
-                      size="sm"
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
                       onClick={() => setScreenMode("list")}
-                      className="gap-2"
+                      className="inline-flex items-center justify-center rounded-2xl border border-border bg-background p-2 transition hover:bg-muted"
+                      aria-label="Retour"
                     >
                       <ChevronLeft className="h-4 w-4" />
-                      Retour
-                    </Button>
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Préférences</p>
-                      <h2 className="text-2xl font-display font-bold uppercase text-primary">Paramètres</h2>
-                    </div>
+                    </button>
+                    <h2 className="text-lg font-display font-bold uppercase italic tracking-tight">Paramètres</h2>
                   </div>
 
                   <Card className="border border-muted/60 shadow-sm">

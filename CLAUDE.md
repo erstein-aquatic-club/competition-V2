@@ -86,6 +86,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 13 | Redesign Profil + Hall of Fame (mobile first) | Moyenne | Fait (§38) |
 | 14 | Finalisation dashboard pointage heures coach | Moyenne | Fait (§39) |
 | 15 | Redesign page Progression (Apple Health style) | Moyenne | Fait (§44) |
+| 16 | Audit UI/UX — header Strength + login mobile + fixes | Moyenne | Fait (§45) |
 
 Détail complet dans `docs/ROADMAP.md`.
 

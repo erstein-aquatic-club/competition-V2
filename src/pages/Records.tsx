@@ -591,13 +591,13 @@ export default function Records() {
   return (
     <div className="min-h-[100dvh]">
       <div className="mx-auto max-w-lg">
-        <div className="sticky top-0 z-20 backdrop-blur bg-background/80 border-b border-border">
+        <div className="sticky top-0 z-overlay backdrop-blur bg-background/80 border-b border-border">
           <div className="px-4 py-3">
             <h1 className="text-lg font-display font-bold uppercase italic tracking-tight">Mes Records</h1>
           </div>
         </div>
 
-        <div className="px-3 pt-3 pb-24">
+        <div className="px-3 pt-3">
           <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as "swim" | "1rm")}>
             <TabsList className="w-full rounded-2xl bg-muted/50 border border-border p-1 flex">
               <TabsTrigger

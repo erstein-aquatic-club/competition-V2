@@ -239,6 +239,25 @@
   }
 }
 
+/* Login mobile: dark theme scoped via CSS variables override */
+@media (max-width: 1023px) {
+  .login-dark-mobile {
+    --background: 0 0% 4%;
+    --foreground: 0 0% 95%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 95%;
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 55%;
+    --input: 0 0% 18%;
+    --border: 0 0% 20%;
+    --ring: 356 85% 55%;
+    --secondary: 0 0% 14%;
+    --secondary-foreground: 0 0% 95%;
+  }
+}
+
 /* Hide scrollbar while keeping scroll behavior */
 .no-scrollbar {
   -ms-overflow-style: none;

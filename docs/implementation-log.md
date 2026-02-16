@@ -28,6 +28,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §4 Records club | ✅ Fait | 2026-02-08 |
 | §5 Dette UI/UX | ✅ Fait | 2026-02-08 |
 | §39 Finalisation dashboard pointage heures | ✅ Fait | 2026-02-16 |
+| §45 Audit UI/UX — header Strength + login mobile + fixes | ✅ Fait | 2026-02-16 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
 | §7 Records admin + FFN full history + stroke KPI | ✅ Fait | 2026-02-12 |
 | §8 4 bugfixes (IUF Coach, RecordsClub, Reprendre, 1RM 404) | ✅ Fait | 2026-02-12 |
@@ -4227,3 +4228,58 @@ Suite au fix de la RPC `get_hall_of_fame()`, la section natation fonctionnait ma
 ### Limites / dette
 
 - Aucune
+
+---
+
+## 2026-02-16 — §45 Audit UI/UX — Header Strength + Login mobile + Fixes z-index/padding
+
+**Branche** : `main`
+**Chantier ROADMAP** : Audit UI/UX transversal
+
+### Contexte — Pourquoi ce patch
+
+Audit général UI/UX pour améliorer la cohérence entre les pages, corriger les problèmes de z-index et padding, et rendre le login mobile plus attrayant visuellement. Le header de la page Séance (Strength) dénotait par rapport aux pages redesignées (Records, Dashboard). Le login mobile était basique (logo + formulaire sur fond blanc).
+
+### Changements réalisés
+
+1. **Strength header compact sticky** — Remplacé le header `text-3xl` rouge non-sticky par un header compact sticky (`text-lg`, backdrop-blur, `z-overlay`, icône Dumbbell + bouton settings arrondi). Pattern aligné avec Records.tsx. Idem pour l'écran Settings.
+
+2. **Login mobile redesign** — Refonte complète du conteneur mobile (< lg) :
+   - Background sombre avec gradient `from-gray-900 via-gray-950 to-black` et accents rouges radiaux
+   - Logo agrandi (h-24 w-24) avec halo rouge (`shadow-[0_0_40px_rgba(227,6,19,0.3)]`) et ring accent
+   - Titre bi-colore "SUIVI NATATION" (blanc + rouge EAC) et sous-titre "Erstein Aquatic Club"
+   - Formulaire auto-adapté au thème sombre via CSS variable override (`login-dark-mobile` class)
+   - Ligne décorative rouge diagonale et texture de bruit subtile en arrière-plan
+   - Version desktop inchangée
+
+3. **Fix z-index Records** — Changé `z-20` en `z-overlay` sur le sticky header Records (conforme à l'échelle z-index du projet).
+
+4. **Fix double padding** — Retiré `pb-24` de Records et Administratif (AppLayout fournit déjà `pb-20`).
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/pages/Strength.tsx` | Header compact sticky + settings header |
+| `src/pages/Login.tsx` | Redesign mobile complet (dark theme créatif) |
+| `src/index.css` | Ajout classe `login-dark-mobile` (CSS variables override) |
+| `src/pages/Records.tsx` | Fix `z-20` → `z-overlay`, retrait `pb-24` |
+| `src/pages/Administratif.tsx` | Retrait `pb-24` |
+
+### Tests
+
+- [x] `npm run build` — Build réussi, aucune erreur TypeScript
+- [x] `npm test` — Seul échec pré-existant (`TimesheetHelpers.test.ts`)
+- [x] Vérification : login desktop inchangé (layout split hero + form)
+- [x] Vérification : Strength header sticky avec backdrop-blur
+- [x] Vérification : Records z-index corrigé
+
+### Décisions prises
+
+1. **CSS variable scoping** — Plutôt que dupliquer le JSX du formulaire pour mobile/desktop, une classe `login-dark-mobile` avec `@media (max-width: 1023px)` override les CSS variables du thème. Les composants shadcn s'adaptent automatiquement sans aucune modification.
+2. **Suppression bouton "Info 1RM"** — Redondant avec le tab Historique et la page Records. Le header Strength reste minimal (titre + settings).
+3. **Pattern sticky unifié** — Le pattern `sticky top-0 z-overlay -mx-4 backdrop-blur bg-background/80 border-b` est maintenant cohérent entre Records et Strength.
+
+### Limites / dette
+
+- Dashboard et Progress utilisent des patterns header légèrement différents (custom fixed vs sticky). Acceptable car ces pages ont des besoins spécifiques (calendrier collé en haut pour Dashboard).
