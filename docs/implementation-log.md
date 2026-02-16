@@ -56,6 +56,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §33 Feature: intensité Progressif (Prog) dans échelle natation | ✅ Fait | 2026-02-15 |
 | §34 Feature: dossiers/sous-dossiers + archive persistante catalogue nage | ✅ Fait | 2026-02-15 |
 | §35 Redesign: dashboard coach (mobile first, KPI unifié, cards nageurs) | ✅ Fait | 2026-02-16 |
+| §36 Redesign: RecordsAdmin mobile first (cards, SwimmerCard DRY) | ✅ Fait | 2026-02-16 |
 
 ---
 
@@ -3700,3 +3701,47 @@ Les nageurs pouvaient ajouter des notes techniques (ressentis, temps, tempo, cou
 
 - L'édition se fait champ par champ dans chaque entrée de l'historique — pas de modification batch sur une journée entière
 - Pas de confirmation avant suppression d'une entrée
+
+---
+
+## 2026-02-16 — Redesign RecordsAdmin mobile first (§36)
+
+**Branche** : `main`
+
+### Contexte — Pourquoi ce patch
+
+La page "Administration des records" (`RecordsAdmin.tsx`) utilisait 3 composants `<Table>` HTML (8+8+6 colonnes) avec des inputs/selects/switches inline dans les cellules. Complètement inexploitable sur mobile : scroll horizontal obligatoire, impossible de toucher les contrôles, texte tronqué.
+
+### Changements réalisés
+
+1. **Extraction composant `SwimmerCard`** — Un seul composant card pour les nageurs actifs et inactifs (élimine ~90 lignes de code dupliqué entre les 2 tables)
+2. **Remplacement des 3 Tables par des cards** :
+   - Nageurs actifs : cards avec 3 rangées (nom+source+toggle, IUF+sexe+année, dernier import+bouton)
+   - Nageurs inactifs : même `SwimmerCard` avec toggle pour réactiver
+   - Logs d'import : cards compactes avec metadata en `flex-wrap`
+3. **Formulaire "Ajouter un nageur" collapsible** — Bouton "Ajouter" toggle un formulaire, évite d'occuper de l'espace permanent
+4. **Header responsive** — `flex flex-wrap` pour les boutons d'action (Importer tout, Recalculer, Paramètres)
+5. **Indicateurs visuels** — Bordure amber pour données incomplètes, texte amber pour imports anciens, opacité réduite pour inactifs
+6. **Titre simplifié** — "Records club" au lieu de "Administration des records"
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/pages/RecordsAdmin.tsx` | Refonte complète : 3 Tables → cards, extraction SwimmerCard, formulaire collapsible (717→679 lignes) |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — Aucune erreur dans RecordsAdmin.tsx
+- [x] `npm run build` — Build production OK (10.69s)
+
+### Décisions prises
+
+1. **SwimmerCard unique** — Un seul composant pour actif/inactif au lieu de 2 blocs Table dupliqués. Le toggle active/désactive est dans la card, le bouton import n'apparaît que si `onImport` est fourni
+2. **Formulaire collapsible** — Le formulaire d'ajout est masqué par défaut, accessible via bouton "+". Réduit le bruit visuel sur une page déjà dense
+3. **Cards au lieu de Tables** — Les inputs/selects dans des cellules de table sont inaccessibles sur mobile. Les cards permettent un layout vertical naturel avec des zones tactiles suffisantes
+
+### Limites / dette
+
+- Pas de recherche/filtre sur la liste des nageurs — acceptable tant que le nombre reste <50
+- Le formulaire d'ajout n'a pas de validation inline (les champs IUF/sexe/année sont optionnels côté BDD)

@@ -99,7 +99,7 @@ Tous les feature flags sont activés.
 | Import toutes performances | ✅ | Edge Function `ffn-performances` | Import historique complet depuis FFN |
 | Records club (consultation) | ✅ | `RecordsClub.tsx` | UI avec filtres + indicateur dernière MAJ, alimentée par import |
 | Import records club (FFN) | ✅ | `RecordsAdmin.tsx`, Edge Function `import-club-records` | Import bulk + recalcul records club |
-| Gestion nageurs records | ✅ | `RecordsAdmin.tsx` | Ajout/édition/activation swimmers |
+| Gestion nageurs records | ✅ | `RecordsAdmin.tsx` | Ajout/édition/activation swimmers, card-based mobile first (§36) |
 | Hall of Fame | ✅ | `HallOfFame.tsx` | Top 5 nage + muscu |
 | Gestion coach imports perfs | ✅ | `RecordsAdmin.tsx` | Import individuel par nageur + historique des imports |
 
