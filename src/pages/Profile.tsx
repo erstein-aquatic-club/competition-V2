@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,7 +16,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { useToast } from "@/hooks/use-toast";
 import type { UserProfile as ProfileData, GroupSummary } from "@/lib/api";
 import { Link } from "wouter";
-import { Edit2, LogOut, RefreshCw, Save, AlertCircle } from "lucide-react";
+import { ChevronRight, Edit2, LogOut, RefreshCw, Save, AlertCircle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -361,13 +362,6 @@ export default function Profile() {
             </div>
           </div>
         </CardContent>
-
-        <CardFooter className="flex justify-end">
-          <Button variant="outline" onClick={logout} className="gap-2">
-            <LogOut className="h-4 w-4" />
-            Se déconnecter
-          </Button>
-        </CardFooter>
       </Card>
 
       <Sheet open={isEditSheetOpen} onOpenChange={setIsEditSheetOpen}>
@@ -468,8 +462,8 @@ export default function Profile() {
       {showRecords ? (
         <Card>
           <CardHeader>
-            <CardTitle>FFN</CardTitle>
-            <CardDescription>Importer vos records compétition depuis Extranat.</CardDescription>
+            <CardTitle>FFN & Records</CardTitle>
+            <CardDescription>Gérez vos records de natation et l'import FFN.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="text-sm text-muted-foreground">
@@ -485,66 +479,66 @@ export default function Profile() {
             </Button>
             {!String(profile?.ffn_iuf ?? "").trim() ? (
               <div className="text-xs text-muted-foreground">
-                Ajoutez votre IUF FFN dans le profil (bouton crayon) pour activer l’import.
+                Ajoutez votre IUF FFN dans le profil (bouton crayon) pour activer l'import.
               </div>
             ) : null}
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {canUpdatePassword ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Mot de passe</CardTitle>
-            <CardDescription>Modifiez votre mot de passe.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleUpdatePassword} className="space-y-3">
-              <div className="grid gap-2">
-                <Label>Nouveau mot de passe</Label>
-                <Input
-                  type="password"
-                  {...passwordForm.register("password")}
-                  placeholder="••••••••"
-                />
-                {passwordForm.formState.errors.password && (
-                  <p className="text-xs text-destructive" role="alert" aria-live="assertive">{passwordForm.formState.errors.password.message}</p>
-                )}
-              </div>
-              <div className="grid gap-2">
-                <Label>Confirmer</Label>
-                <Input
-                  type="password"
-                  {...passwordForm.register("confirmPassword")}
-                  placeholder="••••••••"
-                />
-                {passwordForm.formState.errors.confirmPassword && (
-                  <p className="text-xs text-destructive" role="alert" aria-live="assertive">{passwordForm.formState.errors.confirmPassword.message}</p>
-                )}
-              </div>
-              <Button type="submit" className="w-full" disabled={updatePassword.isPending}>
-                Mettre à jour le mot de passe
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {showRecords ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Records</CardTitle>
-            <CardDescription>Consultez vos records de natation et musculation.</CardDescription>
-          </CardHeader>
-          <CardContent>
             <Link href="/records">
-              <Button asChild>
-                <a>Voir mes records</a>
+              <Button variant="outline" className="w-full">
+                Voir mes records
               </Button>
             </Link>
           </CardContent>
         </Card>
       ) : null}
+
+      {canUpdatePassword ? (
+        <Collapsible className="group">
+          <CollapsibleTrigger asChild>
+            <button className="flex items-center gap-2 w-full text-left py-3 px-1 text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">
+              <ChevronRight className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-90" />
+              Sécurité
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <Card>
+              <CardContent className="pt-4">
+                <form onSubmit={handleUpdatePassword} className="space-y-3">
+                  <div className="grid gap-2">
+                    <Label>Nouveau mot de passe</Label>
+                    <Input
+                      type="password"
+                      {...passwordForm.register("password")}
+                      placeholder="••••••••"
+                    />
+                    {passwordForm.formState.errors.password && (
+                      <p className="text-xs text-destructive" role="alert" aria-live="assertive">{passwordForm.formState.errors.password.message}</p>
+                    )}
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Confirmer</Label>
+                    <Input
+                      type="password"
+                      {...passwordForm.register("confirmPassword")}
+                      placeholder="••••••••"
+                    />
+                    {passwordForm.formState.errors.confirmPassword && (
+                      <p className="text-xs text-destructive" role="alert" aria-live="assertive">{passwordForm.formState.errors.confirmPassword.message}</p>
+                    )}
+                  </div>
+                  <Button type="submit" className="w-full" disabled={updatePassword.isPending}>
+                    Mettre à jour le mot de passe
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </CollapsibleContent>
+        </Collapsible>
+      ) : null}
+
+      <Button variant="ghost" onClick={logout} className="w-full gap-2 text-muted-foreground">
+        <LogOut className="h-4 w-4" />
+        Se déconnecter
+      </Button>
     </motion.div>
   );
 }
