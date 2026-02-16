@@ -538,11 +538,6 @@ export default function Records() {
     closeSwimEditor();
   };
 
-  const togglePoolPill = () => {
-    setPoolLen((p) => (p === 25 ? 50 : 25));
-    closeSwimEditor();
-  };
-
   const openOneRmEdit = (exerciseId: number, current?: number | null) => {
     setEditingExerciseId(exerciseId);
     setEditingOneRmValue(current != null && Number(current) > 0 ? String(current) : "");
@@ -568,21 +563,11 @@ export default function Records() {
   if (!showRecords) {
     return (
       <div className="min-h-[100dvh]">
-        <div className="mx-auto max-w-lg">
-          <div className="sticky top-0 z-20 scroll-mt-16 backdrop-blur bg-background/80 border-b border-border">
-            <div className="px-4 pt-4 pb-3">
-              <div className="text-xl font-semibold tracking-tight">Records</div>
-              <div className="mt-0.5 text-sm text-muted-foreground">Natation &amp; 1RM musculation</div>
-            </div>
-          </div>
-
-          <div className="px-4 pt-4 pb-10">
-            <Card className="rounded-2xl">
-              <CardContent className="pt-6 text-sm text-muted-foreground">
-                Cette page est réservée aux nageurs.
-              </CardContent>
-            </Card>
-          </div>
+        <div className="mx-auto max-w-lg px-4 pt-16 pb-10 text-center">
+          <Waves className="h-10 w-10 mx-auto text-muted-foreground/30" />
+          <p className="mt-3 text-sm text-muted-foreground">
+            Cette page est réservée aux nageurs.
+          </p>
         </div>
       </div>
     );
@@ -590,13 +575,15 @@ export default function Records() {
 
   if (mainError) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 text-center">
-        <AlertCircle className="h-12 w-12 text-destructive mb-4" />
-        <h3 className="font-semibold">Impossible de charger les données</h3>
-        <p className="text-sm text-muted-foreground mt-2">{(mainError as Error).message}</p>
-        <Button onClick={() => refetchAll()} className="mt-4">
-          Réessayer
-        </Button>
+      <div className="min-h-[100dvh]">
+        <div className="mx-auto max-w-lg px-4 pt-16 pb-10 text-center">
+          <AlertCircle className="h-10 w-10 mx-auto text-destructive/60" />
+          <p className="mt-3 text-sm font-semibold">Impossible de charger les données</p>
+          <p className="mt-1 text-xs text-muted-foreground">{(mainError as Error).message}</p>
+          <Button onClick={refetchAll} size="sm" className="mt-4 rounded-2xl">
+            Réessayer
+          </Button>
+        </div>
       </div>
     );
   }
@@ -604,21 +591,20 @@ export default function Records() {
   return (
     <div className="min-h-[100dvh]">
       <div className="mx-auto max-w-lg">
-        <div className="sticky top-0 z-20 scroll-mt-16 backdrop-blur bg-background/80 border-b border-border">
-          <div className="px-4 pt-4 pb-3">
-            <div className="text-xl font-semibold tracking-tight">Records</div>
-            <div className="mt-0.5 text-sm text-muted-foreground">Natation &amp; 1RM musculation</div>
+        <div className="sticky top-0 z-20 backdrop-blur bg-background/80 border-b border-border">
+          <div className="px-4 py-3">
+            <h1 className="text-lg font-display font-bold uppercase italic tracking-tight">Mes Records</h1>
           </div>
         </div>
 
-        <div className="px-2 sm:px-4 pt-3">
+        <div className="px-3 pt-3 pb-24">
           <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as "swim" | "1rm")}>
-            <TabsList className="w-full rounded-3xl bg-muted/60 border border-border shadow-sm p-1.5 flex">
+            <TabsList className="w-full rounded-2xl bg-muted/50 border border-border p-1 flex">
               <TabsTrigger
                 value="swim"
                 aria-label="Records de natation"
-                className="flex-1 rounded-2xl px-4 py-2.5 text-sm font-semibold uppercase tracking-wide gap-2
-                  data-[state=active]:bg-background data-[state=active]:text-foreground
+                className="flex-1 rounded-xl px-3 py-2 text-sm font-bold uppercase tracking-wide gap-1.5
+                  data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm
                   data-[state=inactive]:text-muted-foreground"
               >
                 <Waves className="h-4 w-4" />
@@ -627,8 +613,8 @@ export default function Records() {
               <TabsTrigger
                 value="1rm"
                 aria-label="Records de musculation"
-                className="flex-1 rounded-2xl px-4 py-2.5 text-sm font-semibold uppercase tracking-wide gap-2
-                  data-[state=active]:bg-background data-[state=active]:text-foreground
+                className="flex-1 rounded-xl px-3 py-2 text-sm font-bold uppercase tracking-wide gap-1.5
+                  data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm
                   data-[state=inactive]:text-muted-foreground"
               >
                 <Dumbbell className="h-4 w-4" />
@@ -637,53 +623,92 @@ export default function Records() {
             </TabsList>
 
             {mainTab === "swim" ? (
-              <div className="mt-3">
-                {/* 2e rangée (plus subtile que les tabs du haut) */}
-                <div className="w-full rounded-2xl bg-muted/25 border border-border/60 p-1 flex">
-                  <button
-                    type="button"
-                    onClick={() => setModeSafe("training")}
-                    className={cx(
-                      "flex-1 rounded-2xl px-3 py-2 text-sm max-[360px]:text-xs font-semibold transition inline-flex items-center justify-center gap-2 whitespace-nowrap",
-                      swimMode === "training"
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                    aria-pressed={swimMode === "training"}
-                  >
-                    <Trophy className="h-4 w-4 max-[360px]:hidden" />
-                    Entraînement
-                  </button>
+              <div className="mt-2.5 space-y-2">
+                {/* Mode toggle */}
+                <div className="flex rounded-xl bg-muted/20 border border-border/50 p-0.5">
+                  {(["training", "comp", "history"] as const).map((mode) => {
+                    const label = mode === "training" ? "Entraîn." : mode === "comp" ? "Compétition" : "Historique";
+                    const Icon = mode === "training" ? Trophy : mode === "comp" ? Waves : Clock;
+                    return (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setModeSafe(mode)}
+                        className={cx(
+                          "flex-1 rounded-lg px-2 py-1.5 text-xs max-[360px]:text-[10px] font-bold transition inline-flex items-center justify-center gap-1 whitespace-nowrap",
+                          swimMode === mode
+                            ? "bg-background text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                        aria-pressed={swimMode === mode}
+                      >
+                        <Icon className="h-3.5 w-3.5 max-[360px]:hidden" />
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setModeSafe("comp")}
-                    className={cx(
-                      "flex-1 rounded-2xl px-3 py-2 text-sm max-[360px]:text-xs font-semibold transition inline-flex items-center justify-center gap-2 whitespace-nowrap",
-                      swimMode === "comp"
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                    aria-pressed={swimMode === "comp"}
-                  >
-                    <Waves className="h-4 w-4 max-[360px]:hidden" />
-                    Compétition
-                  </button>
+                {/* Controls row: unified pool toggle + contextual action */}
+                <div className="flex items-center justify-between">
+                  <div className="inline-flex rounded-xl border border-border bg-muted/30 p-0.5">
+                    {([25, 50] as const).map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => {
+                          if (swimMode === "history") {
+                            setHistPoolLen(v);
+                          } else {
+                            setPoolLen(v);
+                            closeSwimEditor();
+                          }
+                        }}
+                        className={cx(
+                          "px-3 py-1 text-xs font-bold rounded-lg tabular-nums transition",
+                          (swimMode === "history" ? histPoolLen : poolLen) === v
+                            ? "bg-background text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {v}m
+                      </button>
+                    ))}
+                  </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setModeSafe("history")}
-                    className={cx(
-                      "flex-1 rounded-2xl px-3 py-2 text-sm max-[360px]:text-xs font-semibold transition inline-flex items-center justify-center gap-2 whitespace-nowrap",
-                      swimMode === "history"
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
+                  <div className="flex items-center gap-2">
+                    {swimMode === "training" && (
+                      <Button type="button" size="sm" onClick={openAddSwim} className="rounded-xl text-xs h-8 gap-1">
+                        Ajouter
+                      </Button>
                     )}
-                    aria-pressed={swimMode === "history"}
-                  >
-                    <Clock className="h-4 w-4 max-[360px]:hidden" />
-                    Historique
-                  </button>
+                    {swimMode === "comp" && (
+                      <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">
+                        Données FFN
+                      </span>
+                    )}
+                    {swimMode === "history" && (
+                      <motion.div
+                        variants={successBounce}
+                        animate={importSuccess ? "visible" : "hidden"}
+                      >
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => importPerformances.mutate()}
+                          disabled={importPerformances.isPending || !userIuf}
+                          className="rounded-xl text-xs h-8 gap-1"
+                        >
+                          {importPerformances.isPending ? (
+                            <RefreshCw className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Download className="h-3 w-3" />
+                          )}
+                          {importPerformances.isPending ? "Import..." : "Importer FFN"}
+                        </Button>
+                      </motion.div>
+                    )}
+                  </div>
                 </div>
               </div>
             ) : null}
@@ -691,46 +716,82 @@ export default function Records() {
             <TabsContent value="swim" className="mt-0">
               {swimMode !== "history" ? (
               <>
-              <div className="mt-5 mb-2 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="h-9 w-9 rounded-2xl bg-muted/50 border border-border flex items-center justify-center">
-                    {swimMode === "training" ? (
-                      <Trophy className="h-5 w-5" />
-                    ) : (
-                      <Waves className="h-5 w-5" />
-                    )}
-                  </div>
-                  <div className="text-sm font-semibold">
-                    {swimMode === "training" ? "Records entraînement" : "Records compétition"}{" "}
-                  </div>
-                </div>
+              <div className="mt-3">
 
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={togglePoolPill}
-                    className="inline-flex items-center gap-2 whitespace-nowrap rounded-2xl bg-muted/25 border border-border/60 px-3 py-2 text-sm font-semibold active:scale-[0.99] transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    aria-label="Changer le bassin"
-                    title="Appuie pour basculer 25m / 50m"
-                  >
-                    <span className="inline-flex items-center justify-center h-6 w-6 rounded-xl bg-background/60 border border-border">
-                      <Waves className="h-4 w-4" />
-                    </span>
-                    <span className="tabular-nums">{poolLen}m</span>
-                  </button>
-
-                  {swimMode !== "comp" ? (
-                    <Button type="button" size="sm" onClick={openAddSwim} className="rounded-2xl">
-                      Ajouter
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-
-              {swimMode === "comp" ? (
-                <div className="-mt-1 mb-2 text-xs text-muted-foreground">
-                  Records fédération (lecture seule).
-                </div>
+              {/* Add form (training, above list) */}
+              {swimMode === "training" && swimEditorOpenFor === "add" ? (
+                <motion.div variants={fadeIn} initial="hidden" animate="visible" className="mb-3">
+                  <form onSubmit={handleSwimSubmit}>
+                    <Card className="rounded-2xl">
+                      <CardContent className="p-3 space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="col-span-2">
+                            <Label className="text-xs mb-1.5 block">Épreuve</Label>
+                            <Input
+                              value={swimForm.event_name}
+                              onChange={(e) => setSwimForm({ ...swimForm, event_name: e.target.value })}
+                              placeholder="Ex: 100 NL, 200 Dos"
+                              className="h-9 rounded-lg"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs mb-1.5 block">Bassin</Label>
+                            <Select
+                              value={swimForm.pool_length}
+                              onValueChange={(value) => setSwimForm({ ...swimForm, pool_length: value })}
+                            >
+                              <SelectTrigger className="h-9 rounded-lg">
+                                <SelectValue placeholder="—" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="25">25m</SelectItem>
+                                <SelectItem value="50">50m</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-xs mb-1.5 block">Temps</Label>
+                            <Input
+                              value={swimForm.time_seconds}
+                              inputMode="decimal"
+                              placeholder="1:02.34"
+                              onChange={(e) => setSwimForm({ ...swimForm, time_seconds: e.target.value })}
+                              className="h-9 rounded-lg"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs mb-1.5 block">Date</Label>
+                            <Input
+                              type="date"
+                              value={swimForm.record_date}
+                              onChange={(e) => setSwimForm({ ...swimForm, record_date: e.target.value })}
+                              className="h-9 rounded-lg"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs mb-1.5 block">Notes</Label>
+                            <Input
+                              value={swimForm.notes}
+                              onChange={(e) => setSwimForm({ ...swimForm, notes: e.target.value })}
+                              placeholder="Optionnel"
+                              className="h-9 rounded-lg"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <Button type="button" size="sm" variant="outline" onClick={closeSwimEditor} className="rounded-xl h-8 text-xs gap-1">
+                            <X className="h-3 w-3" />
+                            Annuler
+                          </Button>
+                          <Button type="submit" size="sm" disabled={upsertSwimRecord.isPending} className="rounded-xl h-8 text-xs gap-1">
+                            <Check className="h-3 w-3" />
+                            Ajouter
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </form>
+                </motion.div>
               ) : null}
 
               <Card className="w-full min-w-0 rounded-2xl">
@@ -746,8 +807,16 @@ export default function Records() {
                       Impossible de charger les records natation.
                     </div>
                   ) : filteredSwimRecords.length === 0 ? (
-                    <div className="px-4 py-6 text-sm text-muted-foreground">
-                      Aucun record en bassin {poolLen}m.
+                    <div className="py-8 text-center">
+                      <Waves className="h-8 w-8 mx-auto text-muted-foreground/30" />
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Aucun record en {poolLen}m
+                      </p>
+                      {swimMode === "training" && (
+                        <Button type="button" size="sm" variant="outline" onClick={openAddSwim} className="mt-3 rounded-xl text-xs h-8">
+                          Ajouter un record
+                        </Button>
+                      )}
                     </div>
                   ) : (
                     <motion.div
@@ -886,150 +955,30 @@ export default function Records() {
                 </CardContent>
               </Card>
 
-              {swimMode === "training" && swimEditorOpenFor === "add" ? (
-                <div className="px-4 mt-4">
-                  <form onSubmit={handleSwimSubmit}>
-                    <div className="rounded-2xl border border-border p-4 space-y-4">
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div className="grid gap-2">
-                          <Label>Épreuve</Label>
-                          <Input
-                            value={swimForm.event_name}
-                            onChange={(e) => setSwimForm({ ...swimForm, event_name: e.target.value })}
-                            placeholder="Ex: 100 NL, 200 Dos"
-                            className="rounded-xl"
-                          />
-                        </div>
-
-                        <div className="grid gap-2">
-                          <Label>Bassin (m)</Label>
-                          <Select
-                            value={swimForm.pool_length}
-                            onValueChange={(value) => setSwimForm({ ...swimForm, pool_length: value })}
-                          >
-                            <SelectTrigger className="rounded-xl">
-                              <SelectValue placeholder="Choisir" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="25">25</SelectItem>
-                              <SelectItem value="50">50</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="grid gap-2">
-                          <Label>Temps</Label>
-                          <Input
-                            value={swimForm.time_seconds}
-                            inputMode="decimal"
-                            placeholder="1:02.34"
-                            onChange={(e) => setSwimForm({ ...swimForm, time_seconds: e.target.value })}
-                            className="rounded-xl"
-                          />
-                        </div>
-
-                        <div className="grid gap-2">
-                          <Label>Date</Label>
-                          <Input
-                            type="date"
-                            value={swimForm.record_date}
-                            onChange={(e) => setSwimForm({ ...swimForm, record_date: e.target.value })}
-                            className="rounded-xl"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid gap-2">
-                        <Label>Notes</Label>
-                        <Textarea
-                          value={swimForm.notes}
-                          onChange={(e) => setSwimForm({ ...swimForm, notes: e.target.value })}
-                          rows={3}
-                          className="rounded-xl"
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-end gap-2">
-                        <Button type="button" variant="outline" onClick={closeSwimEditor} className="rounded-2xl">
-                          Annuler
-                        </Button>
-                        <Button type="submit" disabled={upsertSwimRecord.isPending} className="rounded-2xl">
-                          Ajouter
-                        </Button>
-                      </div>
-                    </div>
-                  </form>
-                </div>
-              ) : null}
+              </div>
               </>
               ) : null}
 
               {/* ===== HISTORY TAB CONTENT ===== */}
               {swimMode === "history" ? (
-                <div className="mt-4 space-y-4">
-                  {/* Import button + pool toggle */}
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <div className="h-9 w-9 rounded-2xl bg-muted/50 border border-border flex items-center justify-center">
-                        <Clock className="h-5 w-5" />
-                      </div>
-                      <div className="text-sm font-semibold">Historique FFN</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setHistPoolLen((p) => (p === 25 ? 50 : 25))}
-                        className="inline-flex items-center gap-2 whitespace-nowrap rounded-2xl bg-muted/25 border border-border/60 px-3 py-2 text-sm font-semibold active:scale-[0.99] transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                        aria-label="Changer le bassin"
-                      >
-                        <span className="inline-flex items-center justify-center h-6 w-6 rounded-xl bg-background/60 border border-border">
-                          <Waves className="h-4 w-4" />
-                        </span>
-                        <span className="tabular-nums">{histPoolLen}m</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Profile loading error */}
+                <div className="mt-3 space-y-3">
+                  {/* Alerts */}
                   {profileQuery.isError ? (
-                    <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
-                      Impossible de charger votre profil. Vérifiez votre connexion et rechargez la page.
+                    <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
+                      Impossible de charger votre profil.
                     </div>
                   ) : null}
 
-                  {/* Missing IUF warning */}
                   {!profileQuery.isError && !userIuf && !profileQuery.isLoading ? (
-                    <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-4 text-sm text-yellow-700 dark:text-yellow-400">
-                      <p className="font-semibold mb-1">IUF FFN non renseigné</p>
+                    <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-3 text-xs text-yellow-700 dark:text-yellow-400">
+                      <p className="font-semibold mb-0.5">IUF FFN non renseigné</p>
                       <p>
-                        Pour importer vos performances depuis la FFN, renseignez votre numéro IUF dans{" "}
-                        <a href="/#/profile" className="underline underline-offset-2 font-medium hover:text-foreground">
-                          votre profil
-                        </a>.
+                        Renseignez votre numéro IUF dans{" "}
+                        <a href="/#/profile" className="underline font-medium hover:text-foreground">votre profil</a>
+                        {" "}pour importer vos performances.
                       </p>
                     </div>
                   ) : null}
-
-                  {/* Import button */}
-                  <motion.div
-                    variants={successBounce}
-                    animate={importSuccess ? "visible" : "hidden"}
-                    className="w-full"
-                  >
-                    <Button
-                      type="button"
-                      onClick={() => importPerformances.mutate()}
-                      disabled={importPerformances.isPending || !userIuf}
-                      className="w-full rounded-2xl gap-2"
-                    >
-                      {importPerformances.isPending ? (
-                        <RefreshCw className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Download className="h-4 w-4" />
-                      )}
-                      {importPerformances.isPending ? "Import en cours..." : "Importer mes performances FFN"}
-                    </Button>
-                  </motion.div>
 
                   {/* Event-grouped performance cards */}
                   {perfLoading ? (
@@ -1197,19 +1146,11 @@ export default function Records() {
                 </div>
               ) : null}
 
-              <div className="h-10" />
+              <div className="h-6" />
             </TabsContent>
 
             <TabsContent value="1rm" className="mt-0">
-              <div className="mt-5 mb-2 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="h-9 w-9 rounded-2xl bg-muted/50 border border-border flex items-center justify-center">
-                    <Dumbbell className="h-5 w-5" />
-                  </div>
-                  <div className="text-sm font-semibold">1RM musculation</div>
-                </div>
-              </div>
-
+              <div className="mt-3">
               <Card className="w-full min-w-0 rounded-2xl">
                 <CardContent className="p-0">
                   {oneRmLoading || exercisesLoading ? (
@@ -1395,12 +1336,11 @@ export default function Records() {
                 </CardContent>
               </Card>
 
-              <div className="h-10" />
+              </div>
+              <div className="h-6" />
             </TabsContent>
           </Tabs>
         </div>
-
-        <div className="pb-10" />
       </div>
     </div>
   );

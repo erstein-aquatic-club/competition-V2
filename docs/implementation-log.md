@@ -4024,3 +4024,44 @@ L'onglet "Historique" de la page Records personnels affichait les performances F
 ### Limites / dette
 
 - Pas de filtre textuel (chercher une épreuve par nom) — acceptable car le nombre d'épreuves par nageur est limité (~10-20)
+
+## 2026-02-16 — Redesign complet Records personnels mobile (§42)
+
+### Contexte — Pourquoi ce patch
+
+La page Records avait accumulé des patches incrémentaux (§39, §41) qui amélioraient des sections individuelles mais laissaient une UX fragmentée : 3 niveaux de navigation (main tabs → sub-mode → section header avec pool toggle), des headers de section redondants avec les tabs, un pool toggle caché dans un coin, et le formulaire d'ajout en bas de la liste (hors écran).
+
+### Changements réalisés
+
+1. **Header compact** : "Mes Records" en font-display Oswald (italic uppercase), suppression du sous-titre redondant
+2. **Navigation aplatie** : suppression des 3 section headers (icon box + titre) pour entraînement, compétition et historique — l'info est déjà dans les sub-mode tabs
+3. **Pool toggle unifié** : un seul segmented control 25m/50m visible dans une controls row, contextuel (pilote `poolLen` en training/comp, `histPoolLen` en historique). Remplace les 2 toggles séparés
+4. **Controls row** : pool toggle à gauche + action contextuelle à droite (Ajouter / "Données FFN" / Importer FFN selon le mode)
+5. **Formulaire d'ajout au-dessus de la liste** : grille compacte 2 colonnes, apparaît en haut avec animation fadeIn (plus besoin de scroller)
+6. **Formulaire Notes en Input** : remplace Textarea par Input dans l'ajout (notes courtes)
+7. **Empty states améliorés** : icône centrée + texte + CTA "Ajouter un record"
+8. **Tabs principales compactes** : rounded-xl, shadow-sm, font-bold
+9. **Sub-mode tabs compactes** : texte xs, gap-1, rounded-lg
+10. **Alertes IUF compactes** : padding réduit, texte xs
+11. **Suppression de `togglePoolPill`** : fonction plus nécessaire (inline)
+12. **Spacers réduits** : h-6 au lieu de h-10, pb-24 intégré dans le wrapper
+
+### Fichiers modifiés
+
+- `src/pages/Records.tsx` — refonte complète de la section render
+
+### Tests
+
+- `npx tsc --noEmit` : OK
+- `npm run build` : OK
+
+### Décisions prises
+
+- Pool toggle comme segmented control (toujours les 2 options visibles) plutôt qu'un bouton toggle
+- Import FFN compact dans la controls row (pas un bouton full-width séparé)
+- Section headers supprimés entièrement (pas juste réduits) — les tabs/modes suffisent
+- Notes en Input simple dans le formulaire d'ajout (Textarea conservé dans l'édition inline)
+
+### Limites / dette
+
+- Le formulaire d'édition inline (swim records) garde l'ancien design (Textarea pour notes) — cohérent car il offre plus d'espace que le formulaire d'ajout compact

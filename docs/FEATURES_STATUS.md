@@ -94,7 +94,7 @@ Tous les feature flags sont activés.
 
 | Fonctionnalité | Statut | Fichiers | Notes |
 |----------------|--------|----------|-------|
-| Records personnels (CRUD) | ✅ | `Records.tsx` | Flex card layout mobile first, saisie manuelle + toggle 25m/50m (§39) |
+| Records personnels (CRUD) | ✅ | `Records.tsx` | Redesign complet mobile first : nav aplatie, pool toggle unifié 25/50, formulaire compact, empty states (§42) |
 | Sync FFN (records perso) | ✅ | Edge Function `ffn-sync` | Scrape Extranat, meilleur temps par épreuve |
 | Import toutes performances | ✅ | Edge Function `ffn-performances` | Import historique complet depuis FFN |
 | Historique performances | ✅ | `Records.tsx` | Cartes dépliables par épreuve, graphique intégré, best time Trophy (§41) |
