@@ -1184,76 +1184,85 @@ export default function Records() {
                           const isEditingNote = editingNoteExerciseId === ex.id;
 
                           return (
-                            <motion.div key={ex.id} className="px-3 sm:px-4 py-3 motion-reduce:animate-none" variants={listItem}>
-                              <div className="flex items-start justify-between gap-4">
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-1.5">
-                                    <div className="text-sm font-semibold truncate">{ex.nom_exercice}</div>
+                            <motion.div key={ex.id} className="px-3 py-2.5 motion-reduce:animate-none" variants={listItem}>
+                              {/* Line 1: Exercise name + weight + edit */}
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-sm font-semibold truncate">{ex.nom_exercice}</span>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <span className={cx(
+                                    "font-mono font-bold tabular-nums text-sm",
+                                    recordWeight > 0 ? "text-primary" : "text-muted-foreground"
+                                  )}>
+                                    {displayWeight}
+                                  </span>
+                                  {!isEditing && (
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        if (isEditingNote) {
-                                          setEditingNoteExerciseId(null);
-                                          setNoteDraft("");
-                                        } else {
-                                          setEditingNoteExerciseId(ex.id);
-                                          setNoteDraft(exerciseNote ?? "");
-                                        }
-                                      }}
-                                      className={cx(
-                                        "inline-flex items-center justify-center h-6 w-6 rounded-lg shrink-0",
-                                        exerciseNote
-                                          ? "text-primary hover:text-primary/80"
-                                          : "text-muted-foreground/50 hover:text-muted-foreground",
-                                      )}
-                                      aria-label="Notes"
-                                      title={exerciseNote ? "Modifier la note" : "Ajouter une note"}
+                                      onClick={() => openOneRmEdit(ex.id, record?.weight ?? null)}
+                                      className="inline-flex items-center justify-center h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/60 transition"
+                                      aria-label={`Modifier ${ex.nom_exercice}`}
                                     >
-                                      <StickyNote className="h-3.5 w-3.5" />
+                                      <Edit2 className="h-3.5 w-3.5" />
                                     </button>
-                                  </div>
-                                  <div className="mt-0.5 text-xs text-muted-foreground tabular-nums">
-                                    {formatDateShort(recordDate)}
-                                  </div>
-                                  {exerciseNote && !isEditingNote ? (
-                                    <div className="mt-1 text-xs italic text-muted-foreground truncate max-w-[200px]">{exerciseNote}</div>
-                                  ) : null}
-                                </div>
-
-                                <div className="text-right shrink-0 flex items-start gap-1">
-                                  <div>
-                                    <div className="text-base font-semibold tabular-nums whitespace-nowrap font-mono">
-                                      {displayWeight}
-                                    </div>
-
-                                    {!isEditing ? (
-                                      <div className="flex items-center justify-end gap-1 mt-1">
-                                        {recordWeight > 0 ? (
-                                          <button
-                                            type="button"
-                                            onClick={() => setExpandedExerciseId(isExpanded ? null : ex.id)}
-                                            className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground"
-                                            aria-label="Table des pourcentages"
-                                            title="Table des pourcentages"
-                                          >
-                                            <ChevronDown className={cx("h-3.5 w-3.5 transition-transform", isExpanded && "rotate-180")} />
-                                            %
-                                          </button>
-                                        ) : null}
-                                        <button
-                                          type="button"
-                                          onClick={() => openOneRmEdit(ex.id, record?.weight ?? null)}
-                                          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                                        >
-                                          <Edit2 className="h-3.5 w-3.5" />
-                                          Modifier
-                                        </button>
-                                      </div>
-                                    ) : null}
-                                  </div>
+                                  )}
                                 </div>
                               </div>
 
+                              {/* Line 2: Date + note + % toggle */}
+                              <div className="flex items-center justify-between mt-0.5">
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground min-w-0">
+                                  <span className="tabular-nums shrink-0">{formatDateShort(recordDate)}</span>
+                                  {exerciseNote && !isEditingNote ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingNoteExerciseId(ex.id);
+                                        setNoteDraft(exerciseNote ?? "");
+                                      }}
+                                      className="truncate italic hover:text-foreground transition text-left"
+                                      title="Modifier la note"
+                                    >
+                                      {exerciseNote}
+                                    </button>
+                                  ) : null}
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (isEditingNote) {
+                                        setEditingNoteExerciseId(null);
+                                        setNoteDraft("");
+                                      } else {
+                                        setEditingNoteExerciseId(ex.id);
+                                        setNoteDraft(exerciseNote ?? "");
+                                      }
+                                    }}
+                                    className={cx(
+                                      "inline-flex items-center justify-center h-7 w-7 rounded-lg transition",
+                                      exerciseNote
+                                        ? "text-primary hover:text-primary/80"
+                                        : "text-muted-foreground/40 hover:text-muted-foreground",
+                                    )}
+                                    aria-label={exerciseNote ? "Modifier la note" : "Ajouter une note"}
+                                  >
+                                    <StickyNote className="h-3.5 w-3.5" />
+                                  </button>
+                                  {recordWeight > 0 && !isEditing ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setExpandedExerciseId(isExpanded ? null : ex.id)}
+                                      className="inline-flex items-center gap-0.5 h-7 px-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground transition"
+                                      aria-label="Table des pourcentages"
+                                    >
+                                      <ChevronDown className={cx("h-3.5 w-3.5 transition-transform", isExpanded && "rotate-180")} />
+                                      <span className="text-[10px] font-bold">%</span>
+                                    </button>
+                                  ) : null}
+                                </div>
+                              </div>
+
+                              {/* Inline 1RM edit */}
                               {isEditing ? (
                                 <div className="mt-3">
                                   <InlineEditBar
@@ -1267,56 +1276,54 @@ export default function Records() {
                                 </div>
                               ) : null}
 
+                              {/* Inline note edit */}
                               {isEditingNote ? (
                                 <div className="mt-3">
-                                  <div className="w-full">
-                                    <Textarea
+                                  <div className="flex items-start gap-2">
+                                    <Input
                                       value={noteDraft}
                                       onChange={(e) => setNoteDraft(e.target.value)}
-                                      placeholder="Ex: Machine n°3, cran 5, poignée large..."
-                                      rows={2}
-                                      className="rounded-xl text-sm"
+                                      placeholder="Machine n°3, cran 5..."
+                                      className="h-9 rounded-lg text-sm flex-1"
                                       autoFocus
                                     />
-                                    <div className="flex items-center justify-end gap-2 mt-2">
-                                      <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => { setEditingNoteExerciseId(null); setNoteDraft(""); }}
-                                        className="rounded-xl h-9 w-9 p-0"
-                                        aria-label="Annuler"
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        size="sm"
-                                        onClick={() => {
-                                          const trimmed = noteDraft.trim() || null;
-                                          updateExerciseNote.mutate({ exercise_id: ex.id, notes: trimmed });
-                                          setEditingNoteExerciseId(null);
-                                          setNoteDraft("");
-                                        }}
-                                        disabled={updateExerciseNote.isPending}
-                                        className="rounded-xl h-9 w-9 p-0"
-                                        aria-label="Enregistrer la note"
-                                      >
-                                        <Check className="h-4 w-4" />
-                                      </Button>
-                                    </div>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      onClick={() => {
+                                        const trimmed = noteDraft.trim() || null;
+                                        updateExerciseNote.mutate({ exercise_id: ex.id, notes: trimmed });
+                                        setEditingNoteExerciseId(null);
+                                        setNoteDraft("");
+                                      }}
+                                      disabled={updateExerciseNote.isPending}
+                                      className="rounded-lg h-9 w-9 p-0 shrink-0"
+                                      aria-label="Enregistrer"
+                                    >
+                                      <Check className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => { setEditingNoteExerciseId(null); setNoteDraft(""); }}
+                                      className="rounded-lg h-9 w-9 p-0 shrink-0"
+                                      aria-label="Annuler"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
                                   </div>
                                 </div>
                               ) : null}
 
+                              {/* Percentage table */}
                               {isExpanded && recordWeight > 0 ? (
                                 <div className="mt-3 rounded-xl bg-muted/30 border border-border p-3">
-                                  <div className="text-xs font-semibold text-muted-foreground mb-2">Table des pourcentages</div>
                                   <div className="grid grid-cols-5 gap-2 text-center text-xs">
                                     {[50, 60, 70, 80, 90].map((pct) => (
-                                      <div key={pct}>
-                                        <div className="text-muted-foreground">{pct}%</div>
-                                        <div className="font-semibold tabular-nums">{Math.round(recordWeight * pct / 10) / 10} kg</div>
+                                      <div key={pct} className="space-y-0.5">
+                                        <div className="text-[10px] text-muted-foreground font-medium">{pct}%</div>
+                                        <div className="font-bold tabular-nums font-mono">{Math.round(recordWeight * pct / 10) / 10}</div>
                                       </div>
                                     ))}
                                   </div>

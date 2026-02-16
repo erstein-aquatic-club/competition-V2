@@ -4065,3 +4065,36 @@ La page Records avait accumulé des patches incrémentaux (§39, §41) qui amél
 ### Limites / dette
 
 - Le formulaire d'édition inline (swim records) garde l'ancien design (Textarea pour notes) — cohérent car il offre plus d'espace que le formulaire d'ajout compact
+
+## 2026-02-16 — Redesign section musculation 1RM (§43)
+
+### Contexte — Pourquoi ce patch
+
+La section musculation (onglet "Muscu" des Records personnels) manquait de clarté : le layout ne suivait pas le même pattern que les records nage, les poids sans 1RM avaient la même couleur que les poids enregistrés, et les notes étaient éditées dans un Textarea vertical peu ergonomique sur mobile.
+
+### Changements réalisés
+
+1. **Pattern de ligne unifié avec la nage** : Ligne 1 = nom exercice (gauche) + poids mono bold primary (droite) + icône Edit2. Ligne 2 = date + note cliquable italic (gauche) + icône StickyNote + chevron % (droite)
+2. **Poids sans 1RM en `text-muted-foreground`** : distinction visuelle claire entre "1RM enregistré" (primary bold) et "pas encore de 1RM" (muted)
+3. **Édition de note horizontale** : remplacement du Textarea vertical par un Input inline avec boutons Check/X en ligne
+4. **Table de pourcentages compacte** : font-mono bold, labels en 10px, suppression du suffixe "kg" pour gagner de la place
+5. **Icône StickyNote** : ajoutée pour signaler visuellement la présence d'une note
+
+### Fichiers modifiés
+
+- `src/pages/Records.tsx` — section rendu musculation
+
+### Tests
+
+- `npx tsc --noEmit` : OK
+- `npm run build` : OK
+
+### Décisions prises
+
+- Alignement sur le même pattern 2 lignes que les records nage (cohérence visuelle)
+- Input au lieu de Textarea pour les notes 1RM (notes courtes, une seule ligne)
+- Muted color pour "— kg" quand pas de 1RM (vs primary pour les valeurs réelles)
+
+### Limites / dette
+
+- Les notes 1RM sont limitées à une ligne (Input). Si des notes plus longues sont nécessaires, il faudra un dialogue dédié
