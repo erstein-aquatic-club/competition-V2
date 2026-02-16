@@ -4146,3 +4146,47 @@ La page Progression (780 lignes) était surchargée : 6+ graphiques par onglet e
 
 - Tendance muscu approximative (première/seconde moitié de la période)
 - Pas d'animation de transition entre onglets natation/musculation
+
+---
+
+## 2026-02-16 — Fix Hall of Fame vide (aucune donnée affichée)
+
+**Branche** : `main`
+**Chantier ROADMAP** : Bug fix
+
+### Contexte — Pourquoi ce patch
+
+Le Hall of Fame n'affichait aucune donnée. Diagnostic systématique :
+
+1. La RPC `get_hall_of_fame()` retournait un **JSONB objet** (`{swim_distance: [...], ...}`)
+2. Le client faisait `Array.isArray(rpcData)` → `false` car c'est un objet, pas un tableau
+3. Résultat : `hallOfFame = []` → toutes les catégories vides
+4. En plus, la RPC retournait `athlete` (ID utilisateur en string) au lieu de `athlete_name` (nom affichable)
+
+### Changements réalisés
+
+- Réécriture de la RPC `get_hall_of_fame()` :
+  - `RETURNS JSONB` → `RETURNS TABLE(athlete_name, total_distance, avg_performance, avg_engagement)` pour que Supabase retourne un tableau
+  - Ajout d'un `LEFT JOIN users` pour résoudre `athlete_id` → `display_name`
+  - `COALESCE(u.display_name, d.athlete_name, 'Inconnu')` pour les sessions sans user lié
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `supabase/migrations/00023_fix_hall_of_fame_rpc.sql` | Nouvelle migration — DROP + CREATE de la RPC |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — Aucune erreur nouvelle (pré-existantes stories OK)
+- [x] `SELECT * FROM get_hall_of_fame()` — Retourne `[{athlete_name: "François WAGNER", total_distance: 2000, ...}]`
+- [x] Aucune modification côté client nécessaire — le code existant attendait déjà ce format
+
+### Décisions prises
+
+1. **Fix côté RPC uniquement** — Le code client mappait déjà correctement `athlete_name`, `total_distance`, `avg_performance`, `avg_engagement`. Seul le format de retour de la RPC était incorrect.
+2. **Préservation du calcul performance/2** — Le champ `performance` en base est sur 0-10, divisé par 2 dans la RPC pour obtenir 0-5 (comme l'ancienne version).
+
+### Limites / dette
+
+- La section "Musculation" du Hall of Fame retourne toujours `strength: []` côté client (pas de parsing des données strength depuis la RPC). Les données existent en base mais ne sont pas exploitées.
