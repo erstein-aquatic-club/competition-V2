@@ -277,12 +277,14 @@ export default function RecordsClub() {
   return (
     <div className="space-y-3">
       {/* Header */}
-      <div className="sticky top-0 z-overlay -mx-4 backdrop-blur bg-background/80 border-b border-border">
-        <div className="px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Trophy className="h-4 w-4 text-foreground" />
+      <div className="sticky top-0 z-overlay -mx-4 backdrop-blur-md bg-background/90 border-b border-primary/15">
+        <div className="px-4 py-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center justify-center h-7 w-7 rounded-lg bg-primary text-primary-foreground">
+              <Trophy className="h-3.5 w-3.5" />
+            </div>
             <div>
-              <h1 className="text-lg font-display font-bold uppercase italic tracking-tight">Records du club</h1>
+              <h1 className="text-lg font-display font-bold uppercase italic tracking-tight text-primary">Records du club</h1>
               {lastImportLogs &&
                 lastImportLogs.length > 0 &&
                 lastImportLogs[0].status === "success" && (
@@ -300,6 +302,7 @@ export default function RecordsClub() {
             size="sm"
             onClick={handleExportPdf}
             disabled={exporting}
+            className="border-primary/20 text-primary hover:bg-primary/5"
           >
             <Download className="h-4 w-4 mr-1" />
             {exporting ? "..." : "PDF"}

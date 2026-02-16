@@ -634,19 +634,21 @@ export default function Strength() {
         )
       ) : (
         <>
-          <div className="sticky top-0 z-overlay -mx-4 backdrop-blur bg-background/80 border-b border-border">
-            <div className="px-4 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Dumbbell className="h-4 w-4 text-foreground" />
-                <h1 className="text-lg font-display font-bold uppercase italic tracking-tight">Séance</h1>
+          <div className="sticky top-0 z-overlay -mx-4 backdrop-blur-md bg-background/90 border-b border-primary/15">
+            <div className="px-4 py-2.5 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="flex items-center justify-center h-7 w-7 rounded-lg bg-primary text-primary-foreground">
+                  <Dumbbell className="h-3.5 w-3.5" />
+                </div>
+                <h1 className="text-lg font-display font-bold uppercase italic tracking-tight text-primary">Séance</h1>
               </div>
               <button
                 type="button"
                 onClick={() => setScreenMode("settings")}
-                className="inline-flex items-center justify-center rounded-2xl border border-border bg-background p-2 transition hover:bg-muted"
+                className="inline-flex items-center justify-center rounded-xl border border-primary/20 bg-primary/5 p-2 transition hover:bg-primary/10"
                 aria-label="Paramètres"
               >
-                <SlidersHorizontal className="h-4 w-4" />
+                <SlidersHorizontal className="h-4 w-4 text-primary" />
               </button>
             </div>
           </div>

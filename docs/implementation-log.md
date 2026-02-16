@@ -4307,11 +4307,14 @@ Suite à l'audit UI/UX (§45), deux retours :
    - Logo avec `ring-4 ring-white shadow-lg` (au lieu du halo rouge et ring-primary/30)
    - Les composants shadcn reviennent au thème clair par défaut (plus besoin d'override CSS variables)
 
-2. **Progress header sticky compact** — Remplacé `text-3xl text-primary` statique par le pattern sticky (`sticky top-0 z-overlay backdrop-blur bg-background/80 border-b`) avec icône `BarChart3`.
-
-3. **HallOfFame header sticky compact** — Remplacé `text-3xl text-primary` + bouton `Button variant="outline"` pleine largeur par header sticky avec icône `Medal` et bouton `size="sm"` "Records club".
-
-4. **RecordsClub header sticky compact** — Remplacé le header inline (Trophy `h-5 text-primary` + `text-xl text-primary`) par le pattern sticky unifié. Conservé le sous-titre MAJ et le bouton PDF dans le header.
+2. **Headers "EAC Branded" — design créatif unifié** sur 6 pages :
+   - **Pattern** : icône dans un badge rouge solide (`h-7 w-7 rounded-lg bg-primary text-primary-foreground`), titre en `text-primary`, bordure inférieure `border-primary/15`, `backdrop-blur-md bg-background/90`
+   - **Strength** — Badge Dumbbell rouge + "Séance" en primary + bouton settings stylisé (`border-primary/20 bg-primary/5`)
+   - **Progress** — Badge BarChart3 rouge + "Progression" en primary
+   - **HallOfFame** — Badge Medal rouge + "Hall of Fame" en primary + bouton "Records club" stylisé
+   - **RecordsClub** — Badge Trophy rouge + "Records du club" en primary + bouton PDF stylisé + sous-titre MAJ
+   - **Records** — Badge Trophy rouge + "Mes Records" en primary (ajout icône manquante)
+   - **Notifications** — Converti de `text-3xl` inline à sticky compact : badge MessageSquare rouge + "Messagerie" en primary + badge non-lus
 
 ### Fichiers modifiés
 
@@ -4319,23 +4322,27 @@ Suite à l'audit UI/UX (§45), deux retours :
 |---------|--------|
 | `src/pages/Login.tsx` | Fond clair + bande rouge EAC, suppression login-dark-mobile |
 | `src/index.css` | Suppression bloc CSS `login-dark-mobile` (17 lignes) |
-| `src/pages/Progress.tsx` | Header sticky compact (import BarChart3) |
-| `src/pages/HallOfFame.tsx` | Header sticky compact (import Medal) |
-| `src/pages/RecordsClub.tsx` | Header sticky compact |
+| `src/pages/Strength.tsx` | Header EAC branded (badge rouge, titre primary, bouton settings stylisé) |
+| `src/pages/Progress.tsx` | Header EAC branded (badge rouge, titre primary) |
+| `src/pages/HallOfFame.tsx` | Header EAC branded (badge rouge, titre primary, bouton Records club) |
+| `src/pages/RecordsClub.tsx` | Header EAC branded (badge rouge, titre primary, bouton PDF) |
+| `src/pages/Records.tsx` | Header EAC branded (ajout badge Trophy rouge, titre primary) |
+| `src/pages/Notifications.tsx` | Header EAC branded sticky (converti de inline à sticky compact) |
 
 ### Tests
 
 - [x] `npm run build` — Build réussi, aucune erreur TypeScript
 - [x] Vérification : login desktop inchangé (layout split hero + form)
 - [x] Vérification : login mobile fond clair avec bande rouge en haut
-- [x] Vérification : Progress, HallOfFame, RecordsClub ont le sticky header compact
+- [x] Vérification : tous les 6 headers ont le pattern EAC branded cohérent
 
 ### Décisions prises
 
 1. **Thème clair login mobile** — Le fond noir ne s'intégrait pas dans l'app qui est entièrement en thème clair. La bande rouge EAC en haut suffit à donner de la personnalité sans créer de dissonance.
-2. **Pattern sticky unifié** — `sticky top-0 z-overlay -mx-4 backdrop-blur bg-background/80 border-b border-border` est maintenant cohérent sur Strength, Records, Progress, HallOfFame et RecordsClub.
-3. **Pages non modifiées** — Dashboard (fixed custom avec stats km), Profile (hero banner intentionnel), Administratif (pill toggle tabs, déjà compact).
+2. **Pattern "EAC Branded"** — Icône dans badge `bg-primary` (rouge solide, icône blanche) + titre `text-primary` + bordure `border-primary/15` + `backdrop-blur-md bg-background/90`. Plus distinctif et identitaire que le pattern gris précédent.
+3. **Boutons d'action harmonisés** — Les boutons dans les headers (settings, PDF, Records club) utilisent `border-primary/20 text-primary hover:bg-primary/5` pour s'intégrer au thème rouge.
+4. **Pages non modifiées** — Dashboard (fixed custom avec stats km), Profile (hero banner intentionnel), Administratif (pill toggle tabs, déjà compact).
 
 ### Limites / dette
 
-- Aucune dette identifiée. Tous les headers sont maintenant cohérents sauf Dashboard (justifié) et Profile (design intentionnel).
+- Aucune dette identifiée. Tous les headers de navigation sont maintenant cohérents avec l'identité EAC (sauf Dashboard et Profile, justifiés par leur design spécifique).

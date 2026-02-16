@@ -591,9 +591,12 @@ export default function Records() {
   return (
     <div className="min-h-[100dvh]">
       <div className="mx-auto max-w-lg">
-        <div className="sticky top-0 z-overlay backdrop-blur bg-background/80 border-b border-border">
-          <div className="px-4 py-3">
-            <h1 className="text-lg font-display font-bold uppercase italic tracking-tight">Mes Records</h1>
+        <div className="sticky top-0 z-overlay backdrop-blur-md bg-background/90 border-b border-primary/15">
+          <div className="px-4 py-2.5 flex items-center gap-2.5">
+            <div className="flex items-center justify-center h-7 w-7 rounded-lg bg-primary text-primary-foreground">
+              <Trophy className="h-3.5 w-3.5" />
+            </div>
+            <h1 className="text-lg font-display font-bold uppercase italic tracking-tight text-primary">Mes Records</h1>
           </div>
         </div>
 
