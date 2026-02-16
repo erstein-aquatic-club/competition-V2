@@ -1051,23 +1051,22 @@ export default function StrengthCatalog() {
       {deleteSessionDialog}
       {deleteExerciseDialog}
 
-      {/* GIF enlarge dialog */}
-      <Dialog open={!!enlargedGif} onOpenChange={(open) => { if (!open) setEnlargedGif(null); }}>
-        <DialogContent className="sm:max-w-md p-2">
-          <div className="flex flex-col items-center gap-2">
-            {enlargedGif && (
-              <>
-                <img
-                  src={enlargedGif.url}
-                  alt={enlargedGif.name}
-                  className="w-full max-h-[70vh] object-contain rounded-lg"
-                />
-                <p className="text-sm font-medium text-center">{enlargedGif.name}</p>
-              </>
-            )}
+      {/* GIF enlarge overlay */}
+      {enlargedGif && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
+          onClick={() => setEnlargedGif(null)}
+        >
+          <div className="relative max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={enlargedGif.url}
+              alt={enlargedGif.name}
+              className="w-full max-h-[80vh] object-contain rounded-2xl"
+            />
+            <p className="mt-2 text-sm font-medium text-center text-white">{enlargedGif.name}</p>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
