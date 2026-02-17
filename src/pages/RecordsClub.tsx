@@ -166,9 +166,9 @@ function SegmentedControl({
 // ── Main Component ──
 
 export default function RecordsClub() {
-  const [pool, setPool] = useState("25");
+  const [pool, setPool] = useState("50");
   const [sex, setSex] = useState("M");
-  const [ageFilter, setAgeFilter] = useState("ALL");
+  const [ageFilter, setAgeFilter] = useState("17");
   const [expandedEvent, setExpandedEvent] = useState<string | null>(null);
   const [expandedAgeKey, setExpandedAgeKey] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
