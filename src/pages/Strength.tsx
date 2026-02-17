@@ -3,14 +3,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, StrengthCycleType, StrengthSessionTemplate, StrengthSessionItem, Exercise, Assignment } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronLeft, Dumbbell, SlidersHorizontal, Info, AlertCircle } from "lucide-react";
+import { Dumbbell, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
 import { WorkoutRunner, resolveNextStep } from "@/components/strength/WorkoutRunner";
 import { SessionList } from "@/components/strength/SessionList";
 import { SessionDetailPreview } from "@/components/strength/SessionDetailPreview";
@@ -166,8 +162,6 @@ export default function Strength() {
     setCycleType,
     clearActiveRunState,
   } = useStrengthState({ athleteKey: historyAthleteKey });
-
-  const { poolMode, largeText } = preferences;
 
   const cycleOptions: Array<{ value: StrengthCycleType; label: string }> = [
     { value: "endurance", label: "Endurance" },
@@ -480,37 +474,29 @@ export default function Strength() {
   if (isLoading) {
     return (
       <div className="space-y-4 md:space-y-6">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-8 w-32" />
-          <Skeleton className="h-10 w-10 rounded-full" />
+        {/* Header skeleton */}
+        <div className="flex items-center gap-2.5">
+          <Skeleton className="h-7 w-7 rounded-lg" />
+          <Skeleton className="h-6 w-24" />
         </div>
-        <div className="flex gap-2">
-          <Skeleton className="h-10 w-32" />
-          <Skeleton className="h-10 w-32" />
-        </div>
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          <Skeleton className="h-9 w-28 rounded-full" />
-          <Skeleton className="h-9 w-32 rounded-full" />
-          <Skeleton className="h-9 w-24 rounded-full" />
-        </div>
+        {/* Tabs skeleton */}
         <Skeleton className="h-10 w-full rounded-lg" />
-        <div className="space-y-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Card key={`skeleton-${i}`} className="overflow-hidden">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-5 w-48" />
-                    <Skeleton className="h-4 w-32" />
-                  </div>
-                  <Skeleton className="h-6 w-20 rounded-full" />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4" />
-              </CardContent>
-            </Card>
+        {/* Cycle selector skeleton */}
+        <div className="grid grid-cols-3 gap-2 pt-4">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-[60px] rounded-2xl" />
+          ))}
+        </div>
+        {/* Session cards skeleton */}
+        <div className="space-y-2.5">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={`skeleton-${i}`} className="flex items-center gap-3.5 rounded-2xl bg-card p-3.5 shadow-sm">
+              <Skeleton className="h-12 w-12 rounded-xl" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-3/5" />
+                <Skeleton className="h-3 w-2/5" />
+              </div>
+            </div>
           ))}
         </div>
       </div>
@@ -531,13 +517,7 @@ export default function Strength() {
   }
 
   return (
-    <div
-      className={cn(
-        "space-y-4 md:space-y-6",
-        poolMode && "dark bg-background text-foreground contrast-125",
-        largeText && "text-lg leading-relaxed [&_.text-xs]:text-sm [&_.text-sm]:text-base",
-      )}
-    >
+    <div className="space-y-4 md:space-y-6">
       {screenMode === "focus" && activeSession ? (
         exercises ? (
           <div className="animate-in fade-in motion-reduce:animate-none">
@@ -635,21 +615,13 @@ export default function Strength() {
       ) : (
         <>
           <div className="sticky top-0 z-overlay -mx-4 backdrop-blur-md bg-background/90 border-b border-primary/15">
-            <div className="px-4 py-2.5 flex items-center justify-between">
+            <div className="px-4 py-2.5 flex items-center">
               <div className="flex items-center gap-2.5">
                 <div className="flex items-center justify-center h-7 w-7 rounded-lg bg-primary text-primary-foreground">
                   <Dumbbell className="h-3.5 w-3.5" />
                 </div>
                 <h1 className="text-lg font-display font-bold uppercase italic tracking-tight text-primary">Séance</h1>
               </div>
-              <button
-                type="button"
-                onClick={() => setScreenMode("settings")}
-                className="inline-flex items-center justify-center rounded-xl border border-primary/20 bg-primary/5 p-2 transition hover:bg-primary/10"
-                aria-label="Paramètres"
-              >
-                <SlidersHorizontal className="h-4 w-4 text-primary" />
-              </button>
             </div>
           </div>
 
@@ -688,75 +660,6 @@ export default function Strength() {
                     setScreenMode("focus");
                   }}
                 />
-              )}
-
-              {screenMode === "settings" && (
-                <div className="space-y-6">
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setScreenMode("list")}
-                      className="inline-flex items-center justify-center rounded-2xl border border-border bg-background p-2 transition hover:bg-muted"
-                      aria-label="Retour"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </button>
-                    <h2 className="text-lg font-display font-bold uppercase italic tracking-tight">Paramètres</h2>
-                  </div>
-
-                  <Card className="border border-muted/60 shadow-sm">
-                    <CardHeader>
-                      <CardTitle className="text-lg uppercase">Lisibilité & contrastes</CardTitle>
-                      <CardDescription>
-                        Ajuste l'écran pour rester lisible en bassin comme en extérieur.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted/30 p-4">
-                        <div className="space-y-1">
-                          <p className="text-sm font-semibold uppercase">Mode piscine</p>
-                          <p className="text-sm text-muted-foreground">
-                            Contraste renforcé et lisibilité optimisée.
-                          </p>
-                        </div>
-                        <Switch
-                          checked={poolMode}
-                          onCheckedChange={(value) =>
-                            setPreferences((prev) => ({ ...prev, poolMode: value }))
-                          }
-                        />
-                      </div>
-                      <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted/30 p-4">
-                        <div className="space-y-1">
-                          <p className="text-sm font-semibold uppercase">Texte grand</p>
-                          <p className="text-sm text-muted-foreground">
-                            Police plus large pour lire pendant l'effort.
-                          </p>
-                        </div>
-                        <Switch
-                          checked={largeText}
-                          onCheckedChange={(value) =>
-                            setPreferences((prev) => ({ ...prev, largeText: value }))
-                          }
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border border-muted/60 shadow-sm">
-                    <CardContent className="space-y-3 pt-6">
-                      <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                        <Info className="h-4 w-4" />
-                        <span>Les préférences sont enregistrées sur cet appareil.</span>
-                      </div>
-                      <div className="flex flex-wrap gap-2 text-xs font-semibold uppercase text-muted-foreground">
-                        {poolMode && <Badge variant="secondary">Mode piscine activé</Badge>}
-                        {largeText && <Badge variant="secondary">Texte grand activé</Badge>}
-                        {!poolMode && !largeText && <Badge variant="outline">Réglages par défaut</Badge>}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
               )}
 
               {screenMode === "reader" && activeSession && exercises && (
