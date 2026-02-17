@@ -1,6 +1,6 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Waves, Power, Check, Circle, UserX, FileText, UserCheck, Minus, Plus, Sun, Moon } from "lucide-react";
+import { X, Waves, Power, Check, Circle, UserX, FileText, UserCheck, Minus, Plus, Sun, Moon, ChevronDown } from "lucide-react";
 import { useLocation } from "wouter";
 import { BottomActionBar, type SaveState } from "@/components/shared/BottomActionBar";
 import { slideInFromBottom, staggerChildren, listItem } from "@/lib/animations";
@@ -286,6 +286,7 @@ export function FeedbackDrawer({
   getSessionStatus,
 }: FeedbackDrawerProps) {
   const [, setLocation] = useLocation();
+  const [unexpectedExpanded, setUnexpectedExpanded] = useState(false);
 
   const activeSession = useMemo(() => {
     if (!activeSessionId) return null;
@@ -366,15 +367,24 @@ export function FeedbackDrawer({
                 </div>
 
                 {/* Liste séances (compacte) */}
-                <div className="mt-4 grid gap-2">
-                  {sessionsForSelectedDay.map((s) => {
+                {(() => {
+                  const expectedSessions: PlannedSession[] = [];
+                  const unexpectedSessions: PlannedSession[] = [];
+                  for (const s of sessionsForSelectedDay) {
+                    const st = getSessionStatus(s, selectedDate);
+                    if (st.status === "not_expected") {
+                      unexpectedSessions.push(s);
+                    } else {
+                      expectedSessions.push(s);
+                    }
+                  }
+
+                  const renderSessionCard = (s: PlannedSession) => {
                     const st = getSessionStatus(s, selectedDate);
                     const hasLog = Boolean(logsBySessionId[s.id]);
-
                     const isAbsentOverride = st.status === "absent";
                     const isNotExpected = st.status === "not_expected";
                     const isAbsentLike = isAbsentOverride || isNotExpected;
-
                     const needsAction = st.expected && !hasLog && !isAbsentOverride;
 
                     const bg = hasLog
@@ -468,8 +478,44 @@ export function FeedbackDrawer({
                         </div>
                       </button>
                     );
-                  })}
-                </div>
+                  };
+
+                  return (
+                    <>
+                      <div className="mt-4 grid gap-2">
+                        {expectedSessions.map(renderSessionCard)}
+                      </div>
+
+                      {unexpectedSessions.length > 0 && (
+                        <div className="mt-3">
+                          <button
+                            type="button"
+                            onClick={() => setUnexpectedExpanded((v) => !v)}
+                            className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted transition"
+                          >
+                            <ChevronDown className={cn("h-4 w-4 transition-transform", unexpectedExpanded && "rotate-180")} />
+                            Autres séances ({unexpectedSessions.length})
+                          </button>
+                          <AnimatePresence>
+                            {unexpectedExpanded && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="overflow-hidden"
+                              >
+                                <div className="mt-1 grid gap-2">
+                                  {unexpectedSessions.map(renderSessionCard)}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
 
                 {/* Détail séance + ressenti */}
                 <AnimatePresence>
