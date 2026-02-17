@@ -1,6 +1,6 @@
 # Roadmap de Développement
 
-*Dernière mise à jour : 2026-02-16 (§46 Harmonisation headers + Login mobile thème clair)*
+*Dernière mise à jour : 2026-02-17 (§47 Redesign RecordsClub épuré mobile)*
 
 Ce document décrit les fonctionnalités à implémenter. Il sert de référence pour reprendre le développement dans une future conversation.
 
@@ -27,6 +27,7 @@ Ce document décrit les fonctionnalités à implémenter. Il sert de référence
 | 15 | Redesign page Progression (Apple Health style) | Moyenne | Moyenne | Fait |
 | 16 | Audit UI/UX — header Strength + login mobile + fixes | Moyenne | Faible | Fait |
 | 17 | Harmonisation headers + Login mobile thème clair | Moyenne | Faible | Fait |
+| 18 | Redesign RecordsClub épuré mobile (filtres, sections, drill-down) | Moyenne | Faible | Fait |
 
 ---
 

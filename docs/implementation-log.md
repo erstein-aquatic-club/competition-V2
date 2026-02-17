@@ -63,6 +63,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §37 Redesign: RecordsClub mobile first (cards, scroll pills, no tables) | ✅ Fait | 2026-02-16 |
 | §38 Redesign: Profil + Hall of Fame (mobile first, hero banner, podium) | ✅ Fait | 2026-02-16 |
 | §39 Redesign: Records personnels mobile first (flex cards, no grids) | ✅ Fait | 2026-02-16 |
+| §47 Redesign: RecordsClub épuré (filtres 3→1, sections nage, drill-down) | ✅ Fait | 2026-02-17 |
 
 ---
 
@@ -4346,3 +4347,53 @@ Suite à l'audit UI/UX (§45), deux retours :
 ### Limites / dette
 
 - Aucune dette identifiée. Tous les headers de navigation sont maintenant cohérents avec l'identité EAC (sauf Dashboard et Profile, justifiés par leur design spécifique).
+
+---
+
+## 2026-02-17 — Redesign RecordsClub épuré mobile (§47)
+
+**Branche** : `main`
+
+### Contexte — Pourquoi ce patch
+
+La page Records du Club était trop chargée sur mobile : 3 lignes de filtres (Pool, Sex, 11 pills âge, 6 pills nage), puis en mode "tous les âges" jusqu'à 180 lignes (18 épreuves × 10 catégories d'âge). Navigation confuse, trop d'information visible simultanément.
+
+### Changements réalisés
+
+1. **Filtres 3 lignes → 1 ligne** — Les 11 pills d'âge remplacées par un `<Select>` dropdown compact. Les 6 pills de nage supprimées (remplacées par un groupement naturel par section).
+
+2. **Sections par type de nage** — Les épreuves sont groupées sous des section headers : "Nage Libre", "Dos", "Brasse", "Papillon", "4 Nages" avec accent rouge à gauche + ligne séparatrice. Plus besoin de filtre de nage.
+
+3. **1 carte par épreuve** — En mode "tous les âges", chaque épreuve montre uniquement le meilleur record (temps le plus rapide toutes catégories). De ~180 lignes à ~18 cartes.
+
+4. **Navigation progressive en 3 niveaux** :
+   - Niveau 1 : Liste des épreuves (1 carte = meilleur record)
+   - Niveau 2 : Tap épreuve → détail par tranche d'âge (age breakdown)
+   - Niveau 3 : Tap tranche d'âge → classement complet (inline ranking avec border-l accent)
+
+5. **Défauts par défaut** — Bassin 50m et ≥17 ans sélectionnés à l'ouverture.
+
+6. **Reset auto expansion** — Changer un filtre ferme automatiquement les panneaux ouverts.
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/pages/RecordsClub.tsx` | Réécriture complète : PillStrip→Select, stroke pills→sections, EventGroup→EventCard+AgeBreakdown+InlineRanking (664→841 lignes) |
+
+### Tests
+
+- [x] `npm run build` — Build réussi
+- [x] `npx tsc --noEmit` — 0 erreur nouvelle (36 pré-existantes dans stories)
+- [x] Tests Vitest — aucune régression
+
+### Décisions prises
+
+1. **Select dropdown vs pills** — Un dropdown est plus compact (1 seul élément vs 11 pills en scroll horizontal) et offre une meilleure ergonomie sur mobile (picker natif sur certains navigateurs).
+2. **Sections nage naturelles** — Grouper les épreuves par type de nage est plus intuitif que d'avoir un filtre de nage séparé. L'utilisateur voit toutes les épreuves organisées logiquement.
+3. **Best record per event** — En mode "tous les âges", montrer uniquement le meilleur record réduit drastiquement la densité visuelle (18 cartes vs 180 lignes). Le détail est accessible en 1 tap.
+4. **Ranking inline avec border-l** — Le classement par âge utilise un `border-l-2 border-primary/20` et un `ml-7` pour créer une hiérarchie visuelle claire sans quitter le contexte de la carte.
+
+### Limites / dette
+
+- Pas d'animation sur l'expand/collapse (pourrait être ajouté avec framer-motion AnimatePresence si souhaité).

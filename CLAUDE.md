@@ -47,7 +47,7 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 | `src/pages/coach/SwimCatalog.tsx` | Catalogue séances nage (coach) | ~1300 lignes |
 | `src/pages/coach/StrengthCatalog.tsx` | Builder muscu (coach) | ~1150 lignes |
 | `src/pages/Records.tsx` | Records personnels + FFN sync | ~920 lignes |
-| `src/pages/RecordsClub.tsx` | Records club (UI prête, données vides) | ~240 lignes |
+| `src/pages/RecordsClub.tsx` | Records club (sections nage, drill-down progressif) | ~840 lignes |
 | `src/pages/RecordsAdmin.tsx` | Admin records + gestion nageurs | ~300 lignes |
 | `src/pages/Login.tsx` | Login + inscription | ~340 lignes |
 
@@ -88,6 +88,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 15 | Redesign page Progression (Apple Health style) | Moyenne | Fait (§44) |
 | 16 | Audit UI/UX — header Strength + login mobile + fixes | Moyenne | Fait (§45) |
 | 17 | Harmonisation headers + Login mobile thème clair | Moyenne | Fait (§46) |
+| 18 | Redesign RecordsClub épuré mobile | Moyenne | Fait (§47) |
 
 Détail complet dans `docs/ROADMAP.md`.
 
