@@ -591,18 +591,16 @@ export default function Dashboard() {
     <div className="min-h-screen bg-muted">
       {/* Mobile: persistent header */}
       <div className="sm:hidden fixed top-0 left-0 right-0 z-overlay border-b border-primary/15 bg-background/90 backdrop-blur-md">
-        <div className="mx-auto max-w-6xl px-3 py-2.5 flex items-center justify-between">
+        <div className="px-4 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="flex items-center justify-center h-7 w-7 rounded-lg bg-primary text-primary-foreground">
               <Waves className="h-3.5 w-3.5" />
             </div>
-            <div className="flex flex-col">
-              <div className="text-sm font-display font-bold uppercase italic tracking-tight text-primary">Suivi</div>
-              <div className="text-[11px] text-muted-foreground">{globalKm} km</div>
-            </div>
+            <h1 className="text-lg font-display font-bold uppercase italic tracking-tight text-primary">Suivi</h1>
           </div>
 
           <div className="flex items-center gap-2">
+            <span className="text-xs font-mono font-semibold text-muted-foreground tabular-nums">{globalKm} km</span>
             <button
               type="button"
               onClick={() => setInfoOpen(true)}
@@ -630,13 +628,11 @@ export default function Dashboard() {
             <div className="flex items-center justify-center h-7 w-7 rounded-lg bg-primary text-primary-foreground">
               <Waves className="h-3.5 w-3.5" />
             </div>
-            <div className="flex flex-col">
-              <div className="text-sm font-display font-bold uppercase italic tracking-tight text-primary">Suivi</div>
-              <div className="text-[11px] text-muted-foreground">{globalKm} km</div>
-            </div>
+            <h1 className="text-lg font-display font-bold uppercase italic tracking-tight text-primary">Suivi</h1>
           </div>
 
           <div className="flex items-center gap-2">
+            <span className="text-xs font-mono font-semibold text-muted-foreground tabular-nums">{globalKm} km</span>
             <button
               type="button"
               onClick={() => setInfoOpen(true)}
