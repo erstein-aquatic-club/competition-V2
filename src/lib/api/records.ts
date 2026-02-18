@@ -17,9 +17,10 @@ import type {
 } from './types';
 import { localStorageGet, localStorageSave } from './localStorage';
 
-export async function getHallOfFame() {
+export async function getHallOfFame(fromDate?: string | null) {
   if (canUseSupabase()) {
-    const { data: rpcData, error: rpcError } = await supabase.rpc("get_hall_of_fame");
+    const rpcParams = fromDate ? { from_date: fromDate } : {};
+    const { data: rpcData, error: rpcError } = await supabase.rpc("get_hall_of_fame", rpcParams);
     if (!rpcError && rpcData) {
       const hallOfFame = Array.isArray(rpcData) ? rpcData : [];
       const swimDistance = [...hallOfFame]
@@ -45,7 +46,8 @@ export async function getHallOfFame() {
         .slice(0, 5);
       // Strength stats via SECURITY DEFINER RPC (bypasses RLS for club-wide aggregates)
       let strengthStats: any[] = [];
-      const { data: strengthRpc, error: strengthErr } = await supabase.rpc("get_hall_of_fame_strength");
+      const strengthParams = fromDate ? { from_date: fromDate } : {};
+      const { data: strengthRpc, error: strengthErr } = await supabase.rpc("get_hall_of_fame_strength", strengthParams);
       if (!strengthErr && strengthRpc) {
         strengthStats = (Array.isArray(strengthRpc) ? strengthRpc : []).map((row: any) => ({
           athlete_name: row.athlete_name ?? "Inconnu",
@@ -66,8 +68,14 @@ export async function getHallOfFame() {
   }
 
   await delay(300);
-  const sessions = (localStorageGet(STORAGE_KEYS.SESSIONS) || []) as Session[];
-  const runs = (localStorageGet(STORAGE_KEYS.STRENGTH_RUNS) || []) as any[];
+  const allSessions = (localStorageGet(STORAGE_KEYS.SESSIONS) || []) as Session[];
+  const allRuns = (localStorageGet(STORAGE_KEYS.STRENGTH_RUNS) || []) as any[];
+  const sessions = fromDate
+    ? allSessions.filter((s: Session) => (s as any).session_date >= fromDate || (s as any).date >= fromDate)
+    : allSessions;
+  const runs = fromDate
+    ? allRuns.filter((r: any) => (r.started_at ?? r.date ?? "") >= fromDate)
+    : allRuns;
 
   // Swim Stats
   const map = new Map();

@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Trophy, Dumbbell, Waves, Heart, AlertCircle, Medal } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { HallOfFameValue } from "@/pages/hallOfFame/HallOfFameValue";
 import { Podium } from "@/pages/hallOfFame/Podium";
 import type { PodiumEntry } from "@/pages/hallOfFame/Podium";
@@ -15,12 +17,28 @@ import {
   toRelativeScore,
 } from "@/pages/hallOfFame/valueUtils";
 import { Link } from "wouter";
+import { subDays, format } from "date-fns";
 import type { HallOfFameData, HallOfFameSwimDistance, HallOfFameSwimPerformance, HallOfFameSwimEngagement, HallOfFameStrength } from "@/lib/types";
 
+const PERIOD_OPTIONS = [
+  { value: "7", label: "7j" },
+  { value: "30", label: "30j" },
+  { value: "90", label: "3 mois" },
+  { value: "365", label: "1 an" },
+  { value: "all", label: "Tout" },
+] as const;
+
 export default function HallOfFame() {
+  const [periodDays, setPeriodDays] = useState<string>("30");
+
+  const fromDate = useMemo(() => {
+    if (periodDays === "all") return null;
+    return format(subDays(new Date(), Number(periodDays)), "yyyy-MM-dd");
+  }, [periodDays]);
+
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["hall-of-fame"],
-    queryFn: () => api.getHallOfFame()
+    queryKey: ["hall-of-fame", fromDate],
+    queryFn: () => api.getHallOfFame(fromDate),
   });
 
   const rawSwimDistance = (data as HallOfFameData | undefined)?.distance ?? [];
@@ -148,6 +166,24 @@ export default function HallOfFame() {
             <Button variant="outline" size="sm" className="border-primary/20 text-primary hover:bg-primary/5">Records club</Button>
           </Link>
         </div>
+      </div>
+
+      {/* Period selector */}
+      <div className="flex justify-end">
+        <ToggleGroup
+          type="single"
+          size="sm"
+          variant="outline"
+          value={periodDays}
+          onValueChange={(v) => v && setPeriodDays(v)}
+          className="gap-1"
+        >
+          {PERIOD_OPTIONS.map((opt) => (
+            <ToggleGroupItem key={opt.value} value={opt.value} className="h-8 px-3 text-xs">
+              {opt.label}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
       </div>
 
       <Tabs defaultValue="swim" className="w-full">

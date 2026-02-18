@@ -361,7 +361,7 @@ export const api = {
   // ══════════════════════════════════════════════════════════════════
   // DELEGATION STUBS — Records
   // ══════════════════════════════════════════════════════════════════
-  async getHallOfFame() { return _getHallOfFame(); },
+  async getHallOfFame(fromDate?: string | null) { return _getHallOfFame(fromDate); },
   async getClubRecords(filters: Parameters<typeof _getClubRecords>[0]) { return _getClubRecords(filters); },
   async getClubRecordSwimmers() { return _getClubRecordSwimmers(); },
   async createClubRecordSwimmer(payload: Parameters<typeof _createClubRecordSwimmer>[0]) { return _createClubRecordSwimmer(payload); },

@@ -318,6 +318,7 @@ export default function Strength() {
       queryClient.invalidateQueries({ queryKey: ["assignments", user] });
       queryClient.invalidateQueries({ queryKey: ["assignments", user, "strength"] });
       queryClient.invalidateQueries({ queryKey: ["1rm", user, userId] });
+      queryClient.invalidateQueries({ queryKey: ["hall-of-fame"] });
       setActiveAssignment(null);
       setActiveRunId(null);
       setActiveSession(null);

@@ -166,6 +166,7 @@ export default function Dashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["hall-of-fame"] });
       toast({ title: "Séance supprimée", description: "La saisie a été supprimée." });
       setSaveState("saved");
       setTimeout(() => setSaveState("idle"), 2000);
@@ -201,6 +202,7 @@ export default function Dashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
       queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["hall-of-fame"] });
       toast({ title: "Séance enregistrée", description: "Vos données ont été synchronisées." });
       setSaveState("saved");
       setTimeout(() => setSaveState("idle"), 2000);
@@ -244,6 +246,7 @@ export default function Dashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["hall-of-fame"] });
       toast({ title: "Séance mise à jour", description: "Votre saisie a été mise à jour." });
       setSaveState("saved");
       setTimeout(() => setSaveState("idle"), 2000);
