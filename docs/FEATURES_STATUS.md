@@ -1,6 +1,6 @@
 # État des fonctionnalités
 
-*Dernière mise à jour : 2026-02-17 (§47 Redesign RecordsClub épuré mobile)*
+*Dernière mise à jour : 2026-02-18 (§49 Parser texte séance natation)*
 
 ## Légende
 
@@ -66,6 +66,7 @@ Tous les feature flags sont activés.
 | Récupération entre exercices | ✅ | `SwimExerciseForm.tsx`, `SwimSessionConsultation.tsx` | Départ (temps de départ) OU Repos (pause), affiché côté nageur |
 | Catalogue | ✅ | `SwimCatalog.tsx` | Dossiers/sous-dossiers, archivage BDD, restauration, déplacement |
 | Intensité Progressif | ✅ | `IntensityDots.tsx`, `IntensityDotsSelector.tsx` | Intensité "Prog" avec icône TrendingUp, couleur orange |
+| Conversion texte → blocs | ✅ | `swimTextParser.ts`, `SwimSessionBuilder.tsx` | Parser déterministe, 50 tests, format coach structuré (§49) |
 | Assignation | ✅ | `CoachAssignScreen.tsx` | Nage + muscu |
 
 ### Musculation — Nageur

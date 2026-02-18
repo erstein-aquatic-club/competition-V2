@@ -4510,3 +4510,70 @@ Même problème pour les stats musculation : la requête directe côté client s
 ### Limites / dette
 
 - Aucune limite identifiée. Les deux fonctions SECURITY DEFINER sont en lecture seule (SELECT) et ne retournent que des agrégats.
+
+---
+
+## 2026-02-18 — Parser texte → blocs pour le swim session builder
+
+**Branche** : `main`
+**Chantier ROADMAP** : §20 — Parser texte séance natation
+
+### Contexte — Pourquoi ce patch
+
+Le coach peut saisir du texte libre dans le mode "Texte" du swim session builder, mais le bouton "Convertir en séance" était un placeholder (toast "bientôt disponible"). Ce patch implémente la conversion déterministe qui transforme le texte brut en `SwimBlock[]` exploitable par le builder de blocs existant.
+
+### Changements réalisés
+
+1. **Nouveau module `src/lib/swimTextParser.ts`** (~400 lignes)
+   - Pipeline en 4 phases : normalisation → classification de lignes → assemblage en blocs → parsing d'exercices
+   - Extraction de `normalizeIntensityValue()` et `normalizeEquipmentValue()` (dé-duplication de 3 fichiers)
+   - Types exportés `SwimBlock` et `SwimExercise`
+   - Gestion des tokens : reps×distance, nages, types nage, intensités (V0-V3/Max/Prog/EZ/souple), repos, départs, équipements, modalités
+   - Sous-détails Form A (sous-exercices `#150 Cr`) et Form B (annotations `#1 : NAC V0`)
+   - Protection des tokens D2B/DP/CB/R2N contre le parsing en stroke "dos"
+   - Normalisation Unicode des accents pour le matching regex
+   - Détection intensité progressive via `↗`
+
+2. **Tests `src/lib/__tests__/swimTextParser.test.ts`** (50 tests)
+   - `classifyLine()` : 7 groupes de tests
+   - `parseTimeNotation()` : 5 cas
+   - `parseRestToken()` : 6 cas (repos + départs)
+   - `parseExerciseTokens()` : 12 cas couvrant tous les types de tokens
+   - `normalizeIntensityValue()` / `normalizeEquipmentValue()` : 10 cas
+   - `parseSwimText()` intégration : 10 tests avec les exemples réels
+
+3. **Wiring du bouton "Convertir en séance"** dans `SwimSessionBuilder.tsx`
+   - Import du parser, appel `parseSwimText(rawText)`, switch en mode blocs, toast avec nombre de blocs
+
+4. **Dé-duplication des normaliseurs** dans 3 fichiers existants
+   - `SwimSessionBuilder.tsx`, `SwimCatalog.tsx`, `SwimExerciseForm.tsx` importent depuis `swimTextParser.ts`
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/lib/swimTextParser.ts` | Nouveau — module parser + normaliseurs extraits |
+| `src/lib/__tests__/swimTextParser.test.ts` | Nouveau — 50 tests unitaires + intégration |
+| `src/components/coach/swim/SwimSessionBuilder.tsx` | Modifié — import parser, wiring bouton, suppression normalizeIntensityValue local |
+| `src/pages/coach/SwimCatalog.tsx` | Modifié — import normaliseurs depuis swimTextParser |
+| `src/components/coach/swim/SwimExerciseForm.tsx` | Modifié — import normalizeIntensityValue depuis swimTextParser |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — 0 erreur nouvelle (pre-existing stories.tsx only)
+- [x] `npm test` — 111 pass, 8 fail (tous pré-existants)
+- [x] `npm run build` — build propre
+- [x] 50 nouveaux tests passent (classifyLine, parseExerciseTokens, parseRestToken, parseSwimText intégration)
+
+### Décisions prises
+
+1. **Parser déterministe vs LLM** — Conversion 100% déterministe basée sur regex, pas d'appel IA. Fiable, rapide, testable.
+2. **Normalisation accents** — `stripAccents()` via NFD pour que les regex `\b` fonctionnent avec `spé`, `Éduc`, etc.
+3. **Extraction des normaliseurs** — Dé-duplication de `normalizeIntensityValue` (3 copies) et `normalizeEquipmentValue` (1 copie) dans le module parser partagé.
+4. **EZ → V0** — Ajouté au legacyIntensityMap du parser (cohérent avec le format texte coach).
+
+### Limites / dette
+
+- Les formats de texte très libres (phrases complètes, descriptions narratives) ne sont pas parsés — seul le format structuré des 6 exemples est supporté.
+- Les annotations `B1 :` / `S1 :` sont capturées en description mais pas interprétées structurellement.
+- Le parser ne valide pas la cohérence des distances (sous-détails Form A vs distance parent).

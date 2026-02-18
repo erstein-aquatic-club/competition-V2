@@ -33,27 +33,8 @@ import { useBeforeUnload } from "@/hooks/use-before-unload";
 import { useAuth } from "@/lib/auth";
 import { formatSwimSessionDefaultTitle } from "@/lib/date";
 import { calculateSwimTotalDistance } from "@/lib/swimSessionUtils";
-
-interface SwimExercise {
-  repetitions: number | null;
-  distance: number | null;
-  rest: number | null;
-  restType: "departure" | "rest";
-  stroke: string;
-  strokeType: string;
-  intensity: string;
-  modalities: string;
-  equipment: string[];
-}
-
-interface SwimBlock {
-  title: string;
-  repetitions: number | null;
-  description: string;
-  modalities: string;
-  equipment: string[];
-  exercises: SwimExercise[];
-}
+import { normalizeIntensityValue, normalizeEquipmentValue } from "@/lib/swimTextParser";
+import type { SwimBlock, SwimExercise } from "@/lib/swimTextParser";
 
 interface SwimSessionDraft {
   id: number | null;
@@ -63,49 +44,6 @@ interface SwimSessionDraft {
   folder: string | null;
   blocks: SwimBlock[];
 }
-
-const normalizeEquipmentValue = (value: string) => {
-  const trimmed = value.trim().toLowerCase();
-  if (!trimmed) return trimmed;
-  if (trimmed.startsWith("plaquette")) return "plaquettes";
-  if (trimmed.startsWith("palm")) return "palmes";
-  if (trimmed.startsWith("tuba")) return "tuba";
-  if (trimmed.startsWith("pull")) return "pull";
-  if (trimmed.startsWith("elas")) return "elastique";
-  return trimmed;
-};
-
-const legacyIntensityMap: Record<string, string> = {
-  souple: "V0",
-  facile: "V0",
-  relache: "V0",
-  "relâché": "V0",
-};
-
-const intensityScale = ["V0", "V1", "V2", "V3", "Max", "Prog"] as const;
-
-const normalizeIntensityValue = (value?: string | null) => {
-  if (!value) return "V0";
-  const trimmed = value.trim();
-  if (!trimmed) return "V0";
-  const lower = trimmed.toLowerCase();
-  if (lower === "prog" || lower === "progressif") return "Prog";
-  if (legacyIntensityMap[lower]) {
-    return legacyIntensityMap[lower];
-  }
-  const upper = trimmed.toUpperCase();
-  if (upper === "MAX") return "Max";
-  if (upper.startsWith("V")) {
-    const levelValue = Number.parseInt(upper.slice(1), 10);
-    if (Number.isFinite(levelValue) && levelValue >= 4) {
-      return "Max";
-    }
-    if (intensityScale.includes(upper as (typeof intensityScale)[number])) {
-      return upper;
-    }
-  }
-  return trimmed;
-};
 
 const buildItemsFromBlocks = (blocks: SwimBlock[]): SwimSessionItem[] => {
   let orderIndex = 0;

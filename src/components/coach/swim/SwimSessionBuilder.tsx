@@ -20,28 +20,9 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { intensityTone } from "@/components/swim/IntensityDots";
 import { calculateSwimTotalDistance } from "@/lib/swimSessionUtils";
+import { normalizeIntensityValue, parseSwimText } from "@/lib/swimTextParser";
+import type { SwimBlock, SwimExercise } from "@/lib/swimTextParser";
 import type { SwimSessionItem } from "@/lib/api";
-
-interface SwimExercise {
-  repetitions: number | null;
-  distance: number | null;
-  rest: number | null;
-  restType: "departure" | "rest";
-  stroke: string;
-  strokeType: string;
-  intensity: string;
-  modalities: string;
-  equipment: string[];
-}
-
-interface SwimBlock {
-  title: string;
-  repetitions: number | null;
-  description: string;
-  modalities: string;
-  equipment: string[];
-  exercises: SwimExercise[];
-}
 
 interface SwimSessionDraft {
   id: number | null;
@@ -89,38 +70,6 @@ const intensityRingTone: Record<string, string> = {
   V3: "ring-intensity-4/30",
   Max: "ring-intensity-5/30",
   Prog: "ring-intensity-prog/30",
-};
-
-const legacyIntensityMap: Record<string, string> = {
-  souple: "V0",
-  facile: "V0",
-  relache: "V0",
-  "relâché": "V0",
-};
-
-const intensityScale = ["V0", "V1", "V2", "V3", "Max", "Prog"] as const;
-
-const normalizeIntensityValue = (value?: string | null) => {
-  if (!value) return "V0";
-  const trimmed = value.trim();
-  if (!trimmed) return "V0";
-  const lower = trimmed.toLowerCase();
-  if (lower === "prog" || lower === "progressif") return "Prog";
-  if (legacyIntensityMap[lower]) {
-    return legacyIntensityMap[lower];
-  }
-  const upper = trimmed.toUpperCase();
-  if (upper === "MAX") return "Max";
-  if (upper.startsWith("V")) {
-    const levelValue = Number.parseInt(upper.slice(1), 10);
-    if (Number.isFinite(levelValue) && levelValue >= 4) {
-      return "Max";
-    }
-    if (intensityScale.includes(upper as (typeof intensityScale)[number])) {
-      return upper;
-    }
-  }
-  return trimmed;
 };
 
 const formatIntensityLabel = (value: string) => (value === "Max" ? "MAX" : value);
@@ -371,10 +320,19 @@ export function SwimSessionBuilder({
             <button
               type="button"
               onClick={() => {
-                toast({
-                  title: "Conversion IA",
-                  description: "Cette fonctionnalité sera bientôt disponible.",
-                });
+                if (!rawText.trim()) return;
+                const blocks = parseSwimText(rawText);
+                if (blocks.length === 0) {
+                  toast({
+                    title: "Aucun bloc reconnu",
+                    description: "Vérifiez le format du texte.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                onSessionChange({ ...session, blocks });
+                setEditorMode("blocks");
+                toast({ title: `${blocks.length} bloc(s) importé(s)` });
               }}
               className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
             >
@@ -382,7 +340,7 @@ export function SwimSessionBuilder({
               Convertir en séance
             </button>
             <p className="text-center text-[11px] text-muted-foreground">
-              La conversion automatique analysera votre texte et créera les blocs correspondants.
+              La conversion analysera votre texte et créera les blocs correspondants.
             </p>
           </div>
         ) : (

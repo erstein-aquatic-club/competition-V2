@@ -7,18 +7,8 @@ import { cn } from "@/lib/utils";
 import { getEquipmentIconUrl } from "@/components/swim/EquipmentPill";
 import { intensityTone } from "@/components/swim/IntensityDots";
 import { IntensityDotsSelector } from "@/components/swim/IntensityDotsSelector";
-
-interface SwimExercise {
-  repetitions: number | null;
-  distance: number | null;
-  rest: number | null;
-  restType: "departure" | "rest";
-  stroke: string;
-  strokeType: string;
-  intensity: string;
-  modalities: string;
-  equipment: string[];
-}
+import { normalizeIntensityValue } from "@/lib/swimTextParser";
+import type { SwimExercise } from "@/lib/swimTextParser";
 
 interface SwimExerciseFormProps {
   exercise: SwimExercise;
@@ -64,38 +54,6 @@ const strokeTypeOptions = [
   { value: "educ", label: "Educ" },
   { value: "jambes", label: "Jambes" },
 ];
-
-const legacyIntensityMap: Record<string, string> = {
-  souple: "V0",
-  facile: "V0",
-  relache: "V0",
-  "relâché": "V0",
-};
-
-const intensityScale = ["V0", "V1", "V2", "V3", "Max", "Prog"] as const;
-
-const normalizeIntensityValue = (value?: string | null) => {
-  if (!value) return "V0";
-  const trimmed = value.trim();
-  if (!trimmed) return "V0";
-  const lower = trimmed.toLowerCase();
-  if (lower === "prog" || lower === "progressif") return "Prog";
-  if (legacyIntensityMap[lower]) {
-    return legacyIntensityMap[lower];
-  }
-  const upper = trimmed.toUpperCase();
-  if (upper === "MAX") return "Max";
-  if (upper.startsWith("V")) {
-    const levelValue = Number.parseInt(upper.slice(1), 10);
-    if (Number.isFinite(levelValue) && levelValue >= 4) {
-      return "Max";
-    }
-    if (intensityScale.includes(upper as (typeof intensityScale)[number])) {
-      return upper;
-    }
-  }
-  return trimmed;
-};
 
 const formatIntensityLabel = (value: string) => (value === "Max" ? "MAX" : value);
 

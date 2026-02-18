@@ -38,6 +38,7 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 | `src/lib/api/timesheet.ts` | Pointage heures CRUD | ~180 lignes |
 | `src/lib/api/swim.ts` | Catalogue nage, sessions | ~160 lignes |
 | `src/lib/api/swim-logs.ts` | Notes techniques exercices natation | ~90 lignes |
+| `src/lib/swimTextParser.ts` | Parser texte → SwimBlock[], normaliseurs partagés | ~400 lignes |
 | `src/lib/auth.ts` | Gestion auth, session, rôles | ~240 lignes |
 | `src/lib/supabase.ts` | Client Supabase | ~70 lignes |
 | `src/lib/features.ts` | Feature flags | 5 lignes |
@@ -89,6 +90,8 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 16 | Audit UI/UX — header Strength + login mobile + fixes | Moyenne | Fait (§45) |
 | 17 | Harmonisation headers + Login mobile thème clair | Moyenne | Fait (§46) |
 | 18 | Redesign RecordsClub épuré mobile | Moyenne | Fait (§47) |
+| 19 | Audit performances + optimisation PWA (Workbox) | Haute | Fait (§48) |
+| 20 | Parser texte → blocs séance natation | Moyenne | Fait (§49) |
 | 19 | Audit performances + optimisation PWA (Workbox) | Haute | Fait (§48) |
 
 Détail complet dans `docs/ROADMAP.md`.
