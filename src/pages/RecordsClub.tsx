@@ -18,7 +18,6 @@ import {
   Trophy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { exportRecordsPdf } from "@/lib/export-records-pdf";
 
 // ── Constants ──
 
@@ -288,6 +287,7 @@ export default function RecordsClub() {
     setExporting(true);
     try {
       const allRecords = await api.getClubRecords({});
+      const { exportRecordsPdf } = await import("@/lib/export-records-pdf");
       await exportRecordsPdf(allRecords);
     } catch {
       // Silently fail
