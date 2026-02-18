@@ -28,13 +28,7 @@ export function UpdateNotification() {
     // Update stored timestamp
     localStorage.setItem('app_build_timestamp', currentBuild);
 
-    // Listen for service worker updates
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        // New service worker has taken control
-        setUpdateAvailable(true);
-      });
-    }
+    // vite-plugin-pwa handles SW controller changes via registerSW({ immediate: true })
   }, []);
 
   const handleReload = () => {
