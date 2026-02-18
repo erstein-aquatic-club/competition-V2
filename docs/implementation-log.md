@@ -4467,3 +4467,46 @@ Audit complet des performances révélant une charge initiale de ~333K gzip (mod
 
 - Le main bundle (`index.js`) a légèrement augmenté (~344K → ~388K) car certains composants Radix UI autrefois dans vendor-ui sont maintenant inline dans le bundle principal. Le gain net reste largement positif grâce à la suppression des modulepreloads inutiles.
 - Les icons PWA sont toutes en PNG — une optimisation WebP/AVIF serait possible mais marginale.
+
+## §49 — 2026-02-18 — Fix Hall of Fame : podiums ne montrent que l'athlète connecté
+
+### Contexte
+
+Les podiums du Hall of Fame n'affichaient que les performances de l'athlète connecté au lieu de tous les nageurs du club.
+
+### Cause racine
+
+Les politiques RLS (Row Level Security) sur `dim_sessions` et `strength_set_logs` restreignent la lecture aux propres données de chaque athlète (`athlete_id = app_user_id()`). La fonction RPC `get_hall_of_fame()` était en mode `SECURITY INVOKER` (défaut), donc les agrégats GROUP BY ne voyaient que les lignes de l'utilisateur courant.
+
+Même problème pour les stats musculation : la requête directe côté client sur `strength_set_logs` était aussi filtrée par RLS.
+
+### Changements
+
+**Migration SQL (`00024_fix_hall_of_fame_rls.sql`)** :
+1. `get_hall_of_fame()` recréée en `SECURITY DEFINER` avec `SET search_path = public` — les agrégats nage traversent le RLS
+2. Nouvelle fonction `get_hall_of_fame_strength()` en `SECURITY DEFINER` — agrège tonnage, reps, sets, max weight par athlète côté serveur
+
+**Code client (`src/lib/api/records.ts`)** :
+- Remplacé la requête directe `strength_set_logs` + agrégation JS par un appel RPC `get_hall_of_fame_strength()` — plus simple, plus performant, et cohérent avec l'approche nage
+
+### Fichiers modifiés
+
+- `supabase/migrations/00024_fix_hall_of_fame_rls.sql` (nouveau)
+- `src/lib/api/records.ts` (simplifié le bloc strength)
+
+### Tests
+
+- [x] `npx tsc --noEmit` — 0 erreur nouvelle
+- [x] `npx vitest run` — aucune régression
+- [x] RPC `get_hall_of_fame()` retourne 2 athlètes (vérifié en SQL direct)
+- [x] RPC `get_hall_of_fame_strength()` retourne les stats club-wide (vérifié en SQL direct)
+- [x] Security advisors Supabase — aucun nouveau warning (search_path fixé)
+
+### Décisions prises
+
+1. **SECURITY DEFINER vs RLS policy modification** — SECURITY DEFINER est préféré car les fonctions ne retournent que des agrégats (SUM, AVG, COUNT) sans exposer les lignes individuelles. Modifier les politiques RLS pour donner accès en lecture à tous les athlètes exposerait les détails des sessions individuelles.
+2. **RPC serveur vs agrégation client** — L'agrégation muscu est déplacée côté PostgreSQL (comme pour la nage) : une seule requête au lieu de 3, pas de transfert de données brutes.
+
+### Limites / dette
+
+- Aucune limite identifiée. Les deux fonctions SECURITY DEFINER sont en lecture seule (SELECT) et ne retournent que des agrégats.

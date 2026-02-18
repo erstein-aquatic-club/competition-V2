@@ -43,45 +43,16 @@ export async function getHallOfFame() {
         }))
         .sort((a, b) => b.avg_engagement - a.avg_engagement)
         .slice(0, 5);
-      // Strength stats: query strength_set_logs joined with runs and users
+      // Strength stats via SECURITY DEFINER RPC (bypasses RLS for club-wide aggregates)
       let strengthStats: any[] = [];
-      const { data: strengthData } = await supabase
-        .from("strength_set_logs")
-        .select("reps, weight, run_id, strength_session_runs!inner(athlete_id)");
-      if (strengthData && strengthData.length > 0) {
-        // Collect athlete IDs
-        const athleteIds = new Set<number>();
-        for (const row of strengthData as any[]) {
-          const aid = row.strength_session_runs?.athlete_id;
-          if (aid != null) athleteIds.add(aid);
-        }
-        // Fetch display names
-        const { data: usersData } = await supabase
-          .from("users")
-          .select("id, display_name")
-          .in("id", [...athleteIds]);
-        const nameMap = new Map((usersData ?? []).map((u: any) => [u.id, u.display_name]));
-
-        // Aggregate per athlete
-        const sMap = new Map<number, { volume: number; reps: number; sets: number; maxWeight: number }>();
-        for (const row of strengthData as any[]) {
-          const aid = row.strength_session_runs?.athlete_id;
-          if (aid == null) continue;
-          const reps = Number(row.reps ?? 0);
-          const weight = Number(row.weight ?? 0);
-          if (!sMap.has(aid)) sMap.set(aid, { volume: 0, reps: 0, sets: 0, maxWeight: 0 });
-          const entry = sMap.get(aid)!;
-          entry.volume += reps * weight;
-          entry.reps += reps;
-          entry.sets += 1;
-          if (weight > entry.maxWeight) entry.maxWeight = weight;
-        }
-        strengthStats = [...sMap.entries()].map(([aid, stats]) => ({
-          athlete_name: nameMap.get(aid) ?? "Inconnu",
-          total_volume: stats.volume,
-          total_reps: stats.reps,
-          total_sets: stats.sets,
-          max_weight: stats.maxWeight,
+      const { data: strengthRpc, error: strengthErr } = await supabase.rpc("get_hall_of_fame_strength");
+      if (!strengthErr && strengthRpc) {
+        strengthStats = (Array.isArray(strengthRpc) ? strengthRpc : []).map((row: any) => ({
+          athlete_name: row.athlete_name ?? "Inconnu",
+          total_volume: Number(row.total_volume ?? 0),
+          total_reps: Number(row.total_reps ?? 0),
+          total_sets: Number(row.total_sets ?? 0),
+          max_weight: Number(row.max_weight ?? 0),
         }));
       }
 
