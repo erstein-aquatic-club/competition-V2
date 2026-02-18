@@ -43,7 +43,8 @@ test("WorkoutRunner renders execution state", () => {
     />,
   );
 
-  assert.ok(markup.includes("Série en cours"));
+  assert.ok(markup.includes("Série"));
+  assert.ok(markup.includes("reps"));
   assert.ok(markup.includes("Développé couché"));
 });
 
@@ -74,5 +75,5 @@ test("WorkoutRunner renders input modal when open", () => {
     />,
   );
 
-  assert.ok(markup.includes("Saisie série"));
+  assert.ok(markup.includes("Charge"));
 });

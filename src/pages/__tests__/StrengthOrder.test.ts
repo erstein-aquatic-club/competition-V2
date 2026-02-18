@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { orderStrengthItems } from "@/pages/Strength";
+import { orderStrengthItems } from "@/components/strength/utils";
 
 test("orderStrengthItems respects DIM order_index when provided", () => {
   const items = [

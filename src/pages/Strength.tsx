@@ -103,7 +103,23 @@ const resolveStrengthItems = (
     };
   });
 
-const createInProgressRun = ({
+export const resetStrengthRunState = (setters: {
+  setActiveSession: (v: null) => void;
+  setActiveAssignment: (v: null) => void;
+  setActiveRunId: (v: null) => void;
+  setActiveRunLogs: (v: null) => void;
+  setActiveRunnerStep: (v: number) => void;
+  setScreenMode: (v: "list") => void;
+}) => {
+  setters.setActiveSession(null);
+  setters.setActiveAssignment(null);
+  setters.setActiveRunId(null);
+  setters.setActiveRunLogs(null);
+  setters.setActiveRunnerStep(0);
+  setters.setScreenMode("list");
+};
+
+export const createInProgressRun = ({
   runId,
   assignmentId,
   startedAt,
@@ -120,7 +136,7 @@ const createInProgressRun = ({
   logs: [],
 });
 
-const buildInProgressRunCache = (run: ReturnType<typeof createInProgressRun> | null) => ({
+export const buildInProgressRunCache = (run: ReturnType<typeof createInProgressRun> | null) => ({
   runs: run ? [run] : [],
   pagination: { limit: 1, offset: 0, total: run ? 1 : 0 },
   exercise_summary: [],

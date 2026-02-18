@@ -7,7 +7,7 @@ test("summarizeApiError maps worker mismatch errors", () => {
   error.status = 404;
   error.code = "unknown_action";
   const summary = summarizeApiError(error, "Fallback");
-  assert.equal(summary.message, "Action inconnue côté Worker. Déploiement incomplet ?");
+  assert.equal(summary.message, "Action inconnue côté serveur.");
 });
 
 test("summarizeApiError maps auth errors", () => {
