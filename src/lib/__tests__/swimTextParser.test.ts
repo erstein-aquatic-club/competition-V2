@@ -280,22 +280,26 @@ describe("parseSwimText", () => {
     assert.ok(blocks.length >= 1, `Expected at least 1 block, got ${blocks.length}`);
 
     const b = blocks[0];
-    // 400 with sub-details #150 Cr + #50 D → 2 sub-exercises
-    // + 300 Cr pull + 200 with sub-details #25 Educ + #25 V1 → 2 sub-exercises
-    assert.ok(b.exercises.length >= 4, `Expected at least 4 exercises, got ${b.exercises.length}`);
+    // 400 kept as parent with sub-details as modalities
+    // + 300 Cr pull + 200 kept as parent with sub-details as modalities
+    assert.ok(b.exercises.length >= 3, `Expected at least 3 exercises, got ${b.exercises.length}`);
 
-    // First sub-exercise: 150 Cr
-    assert.equal(b.exercises[0].distance, 150);
+    // 400 crawl with sub-detail annotations
+    assert.equal(b.exercises[0].distance, 400);
     assert.equal(b.exercises[0].stroke, "crawl");
-
-    // Second sub-exercise: 50 D (dos)
-    assert.equal(b.exercises[1].distance, 50);
-    assert.equal(b.exercises[1].stroke, "dos");
+    assert.ok(b.exercises[0].modalities.includes("150 Cr"), "should have 150 Cr in modalities");
+    assert.ok(b.exercises[0].modalities.includes("50 D"), "should have 50 D in modalities");
 
     // 300 Cr pull
-    assert.equal(b.exercises[2].distance, 300);
+    assert.equal(b.exercises[1].distance, 300);
+    assert.equal(b.exercises[1].stroke, "crawl");
+    assert.ok(b.exercises[1].equipment.includes("pull"));
+
+    // 200 Cr with sub-detail annotations
+    assert.equal(b.exercises[2].distance, 200);
     assert.equal(b.exercises[2].stroke, "crawl");
-    assert.ok(b.exercises[2].equipment.includes("pull"));
+    assert.ok(b.exercises[2].modalities.includes("25 Educ"), "should have 25 Educ in modalities");
+    assert.ok(b.exercises[2].modalities.includes("25 V1"), "should have 25 V1 in modalities");
   });
 
   test("Example 2: multiple blocks with xN, rest, continuation", () => {
@@ -452,13 +456,12 @@ x3
 #25 VAcc
 #25 D2B`;
     const blocks = parseSwimText(text);
-    const subExercises = blocks[0].exercises;
-    // #25 D2B — D2B should not become stroke=dos
-    const d2bEx = subExercises.find((e) => e.distance === 25 && e.modalities.includes("D2B"));
-    // If D2B was captured in modalities, stroke should not be "dos"
-    if (d2bEx) {
-      assert.notEqual(d2bEx.stroke, "dos");
-    }
+    // Parent 1*50 NC is kept, sub-details become modalities
+    assert.equal(blocks[0].exercises.length, 1);
+    assert.equal(blocks[0].exercises[0].distance, 50);
+    assert.ok(blocks[0].exercises[0].modalities.includes("25 D2B"));
+    // D2B should not make the parent stroke "dos"
+    assert.notEqual(blocks[0].exercises[0].stroke, "dos");
   });
 
   test("slash-separated content in parens", () => {

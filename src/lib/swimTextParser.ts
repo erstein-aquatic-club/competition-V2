@@ -526,8 +526,24 @@ function assembleBlock(raw: RawBlock, blockIndex: number): SwimBlock {
   };
 
   let pendingExercise: ExerciseTokens | null = null;
+  let pendingSubDetailsA: string[] = [];
   const descParts: string[] = [];
   const blockModParts: string[] = [];
+
+  /** Flush pending exercise (with collected Form A sub-details as modalities) */
+  const flushPending = () => {
+    if (pendingExercise) {
+      if (pendingSubDetailsA.length > 0) {
+        const subText = pendingSubDetailsA.join(" / ");
+        pendingExercise.modalities = pendingExercise.modalities
+          ? `${pendingExercise.modalities} / ${subText}`
+          : subText;
+      }
+      block.exercises.push(tokensToExercise(pendingExercise));
+    }
+    pendingExercise = null;
+    pendingSubDetailsA = [];
+  };
 
   for (let i = 0; i < raw.lines.length; i++) {
     const line = raw.lines[i];
@@ -567,10 +583,7 @@ function assembleBlock(raw: RawBlock, blockIndex: number): SwimBlock {
       }
 
       case "exercise": {
-        // Flush pending exercise
-        if (pendingExercise) {
-          block.exercises.push(tokensToExercise(pendingExercise));
-        }
+        flushPending();
         pendingExercise = parseExerciseTokens(line.trimmed);
         break;
       }
@@ -578,25 +591,9 @@ function assembleBlock(raw: RawBlock, blockIndex: number): SwimBlock {
       case "sub_detail": {
         const detail = parseSubDetail(line.trimmed);
         if (detail.form === "A" && pendingExercise) {
-          // Form A: sub-exercises replace parent
-          const subExercise = tokensToExercise(detail.tokens);
-          subExercise.distance = detail.distance;
-          // Inherit stroke from parent if not specified in sub-detail
-          if (detail.tokens.stroke === "crawl" && pendingExercise.stroke !== "crawl") {
-            subExercise.stroke = pendingExercise.stroke;
-          }
-          // Inherit rest from parent if sub doesn't have its own
-          if (!subExercise.rest && pendingExercise.rest) {
-            subExercise.rest = pendingExercise.rest;
-            subExercise.restType = pendingExercise.restType;
-          }
-          // Inherit equipment from parent
-          if (subExercise.equipment.length === 0 && pendingExercise.equipment.length > 0) {
-            subExercise.equipment = [...pendingExercise.equipment];
-          }
-          block.exercises.push(subExercise);
-          // Mark parent as consumed (will be replaced by sub-exercises)
-          pendingExercise = null;
+          // Form A: keep parent exercise, collect sub-detail as modality annotation
+          const content = line.trimmed.replace(/^#\s*/, "");
+          pendingSubDetailsA.push(content);
         } else if (detail.form === "B" && pendingExercise) {
           // Form B: annotations added to parent's modalities
           const existing = pendingExercise.modalities;
@@ -616,11 +613,7 @@ function assembleBlock(raw: RawBlock, blockIndex: number): SwimBlock {
       }
 
       case "continuation": {
-        // Flush pending
-        if (pendingExercise) {
-          block.exercises.push(tokensToExercise(pendingExercise));
-          pendingExercise = null;
-        }
+        flushPending();
         // + 200 EZ or + 3*400
         const contContent = line.trimmed.replace(/^\+\s*/, "").trim();
         if (/^\d/.test(contContent)) {
@@ -652,9 +645,7 @@ function assembleBlock(raw: RawBlock, blockIndex: number): SwimBlock {
   }
 
   // Flush last pending exercise
-  if (pendingExercise) {
-    block.exercises.push(tokensToExercise(pendingExercise));
-  }
+  flushPending();
 
   // Assemble block-level fields
   if (descParts.length > 0) {

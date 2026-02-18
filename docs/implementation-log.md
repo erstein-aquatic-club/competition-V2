@@ -29,6 +29,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §5 Dette UI/UX | ✅ Fait | 2026-02-08 |
 | §39 Finalisation dashboard pointage heures | ✅ Fait | 2026-02-16 |
 | §51 Hall of Fame refresh + sélecteur période | ✅ Fait | 2026-02-18 |
+| §52 Fix parser natation — Form A sub-details | ✅ Fait | 2026-02-18 |
 | §45 Audit UI/UX — header Strength + login mobile + fixes | ✅ Fait | 2026-02-16 |
 | §46 Harmonisation headers + Login mobile thème clair | ✅ Fait | 2026-02-16 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
@@ -66,6 +67,97 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §39 Redesign: Records personnels mobile first (flex cards, no grids) | ✅ Fait | 2026-02-16 |
 | §47 Redesign: RecordsClub épuré (filtres 3→1, sections nage, drill-down) | ✅ Fait | 2026-02-17 |
 | §50 Fix: 8 pre-existing test failures (122/122 pass) | ✅ Fait | 2026-02-18 |
+
+---
+
+## 2026-02-18 — Fix: parser natation — exercices parents perdus par sous-détails Form A (§52)
+
+**Branche** : `main`
+**Chantier ROADMAP** : §20 — Parser texte → blocs séance natation (correctif)
+
+### Contexte — Pourquoi ce patch
+
+Lors du parsing d'une séance contenant des exercices suivis de sous-détails Form A (`#distance nage`), les exercices parents étaient **consommés et remplacés** par les sous-exercices. Exemple :
+
+```
+400
+#150 Cr
+#50 D
+```
+
+Résultat avant : `[150 Cr, 50 D]` — le 400 crawl disparaissait.
+Résultat attendu : `[400 crawl (modalities: "150 Cr / 50 D")]`
+
+Même problème pour `200 Cr` suivi de `#25 Educ / #25 V1`.
+
+### Bug identifié
+
+Dans `assembleBlock()`, le case `sub_detail` Form A avec `pendingExercise` :
+1. Créait un sub-exercise à partir du sous-détail
+2. Ajoutait le sub-exercise au bloc
+3. Mettait `pendingExercise = null` → l'exercice parent était perdu
+
+### Changements réalisés
+
+1. **`src/lib/swimTextParser.ts`** — Refactoring de la gestion Form A :
+   - Ajout variable `pendingSubDetailsA: string[]` pour accumuler les sous-détails
+   - Création d'un helper `flushPending()` qui :
+     - Fusionne les sous-détails accumulés dans `pendingExercise.modalities` (format `"150 Cr / 50 D"`)
+     - Pousse l'exercice parent dans le bloc
+     - Réinitialise `pendingExercise` et `pendingSubDetailsA`
+   - Remplacement de tous les points de flush (exercise, continuation, fin de bloc) par `flushPending()`
+   - Le case Form A + pendingExercise collecte maintenant le texte brut (`line.trimmed.replace(/^#\s*/, "")`) au lieu de créer des sub-exercises
+
+2. **`src/lib/__tests__/swimTextParser.test.ts`** — Mise à jour des tests :
+   - Test "Example 1" : vérifie que `400 crawl` avec modalities `"150 Cr / 50 D"` est émis (au lieu de 2 sub-exercises)
+   - Test "Example 1" : vérifie que `200 crawl` avec modalities `"25 Educ / 25 V1"` est émis
+   - Test "D2B not parsed as dos" : vérifie que le parent `1*50 NC` est conservé avec modalities `"25 D2B"`
+
+### Ce qui fonctionne (vérifié, aucune régression)
+
+| Fonctionnalité parser | Statut | Test(s) |
+|----------------------|--------|---------|
+| Classification de lignes (7 types) | ✅ | 7 tests classifyLine |
+| Parsing temps (secondes, min'sec) | ✅ | 5 tests parseTimeNotation |
+| Parsing repos/départs (r:, @, d:) | ✅ | 6 tests parseRestToken |
+| Reps × distance (3*100, 4x50) | ✅ | 12 tests parseExerciseTokens |
+| Distance seule (400, 200 Cr) | ✅ | **corrigé** — exercice parent préservé |
+| Nages (Cr, D, Br, Pap, 4N, spé, NL) | ✅ | tests parseExerciseTokens |
+| Types nage (Educ, jbes, NC) | ✅ | tests parseExerciseTokens |
+| Intensités (V0-V3, Max, Prog, EZ) | ✅ | 6 tests normalizeIntensityValue |
+| Équipements (plaq, tuba, pull, palmes) | ✅ | 4 tests normalizeEquipmentValue + intégration |
+| Modalités (W, DP, CB, D2B, ampli, respi) | ✅ | tests intégration |
+| Protection tokens (D2B, DP, CB ≠ dos) | ✅ | 2 tests explicites |
+| Sous-détails Form A (`#150 Cr`) | ✅ | **corrigé** — modalities du parent |
+| Sous-détails Form B (`#1 : NAC V0`) | ✅ | test "4*100 with Form B sub-details" |
+| Continuations (`+ 200 EZ`) | ✅ | test "continuation: + 200 EZ" |
+| Block reps (`x2 (...)`, `x3`) | ✅ | test "Example 2" |
+| Parenthèses contenu (`800 (100 Cr / 100 D)`) | ✅ | test "slash-separated content in parens" |
+| Intensité progressive (`V1↗`) | ✅ | test "Example 6" |
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/lib/swimTextParser.ts` | Modifié — Form A sub-details gardent parent, helper flushPending() |
+| `src/lib/__tests__/swimTextParser.test.ts` | Modifié — 3 tests mis à jour (Example 1, D2B) |
+
+### Tests
+
+- [x] `npm test` — 122/122 pass, 0 fail
+- [x] `npx tsx --test swimTextParser.test.ts` — 50/50 pass
+- [x] `npx tsc --noEmit` — 0 erreur nouvelle (pre-existing @types/mdx only)
+
+### Décisions prises
+
+1. **Garder le parent, annoter en modalities** — Les sous-détails Form A décrivent la structure interne d'un exercice (pattern 150 Cr / 50 D à répéter), pas un remplacement. Le parent est l'exercice principal avec sa distance totale.
+2. **Format modalities : slash-séparé** — `"150 Cr / 50 D"` cohérent avec le format existant des parenthèses `(100 Cr / 100 D pull)`.
+3. **Helper `flushPending()` centralisé** — Élimine la duplication du code de flush dans 3 endroits (exercise, continuation, fin de bloc).
+
+### Limites / dette
+
+- Le parser ne valide toujours pas la cohérence des distances (sous-détails vs parent).
+- Si un cas d'usage nécessitait de vrais sub-exercises (remplacer le parent), il faudrait une heuristique (ex: somme des sous-détails === distance parent).
 
 ---
 
