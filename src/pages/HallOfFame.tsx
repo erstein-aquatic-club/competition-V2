@@ -25,14 +25,12 @@ const PERIOD_OPTIONS = [
   { value: "30", label: "30j" },
   { value: "90", label: "3 mois" },
   { value: "365", label: "1 an" },
-  { value: "all", label: "Tout" },
 ] as const;
 
 export default function HallOfFame() {
   const [periodDays, setPeriodDays] = useState<string>("30");
 
   const fromDate = useMemo(() => {
-    if (periodDays === "all") return null;
     return format(subDays(new Date(), Number(periodDays)), "yyyy-MM-dd");
   }, [periodDays]);
 
