@@ -89,6 +89,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 16 | Audit UI/UX — header Strength + login mobile + fixes | Moyenne | Fait (§45) |
 | 17 | Harmonisation headers + Login mobile thème clair | Moyenne | Fait (§46) |
 | 18 | Redesign RecordsClub épuré mobile | Moyenne | Fait (§47) |
+| 19 | Audit performances + optimisation PWA (Workbox) | Haute | Fait (§48) |
 
 Détail complet dans `docs/ROADMAP.md`.
 

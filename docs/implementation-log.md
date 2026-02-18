@@ -4397,3 +4397,73 @@ La page Records du Club était trop chargée sur mobile : 3 lignes de filtres (P
 ### Limites / dette
 
 - Pas d'animation sur l'expand/collapse (pourrait être ajouté avec framer-motion AnimatePresence si souhaité).
+
+---
+
+## §48 — 2026-02-18 — Audit performances + optimisation PWA (Workbox)
+
+### Contexte
+
+Audit complet des performances révélant une charge initiale de ~333K gzip (modulepreloads) — trop lourd pour du mobile. Causes identifiées : RecordsClub embarquait jsPDF statiquement (440K), recharts était modulepreloaded sur toutes les pages (117K gzip), et le service worker artisanal ne cachait que 7 fichiers.
+
+### Changements
+
+1. **Suppression dead code** — `src/components/ui/chart.tsx` (367 lignes) importait `* as RechartsPrimitive from "recharts"` sans être utilisé par aucun fichier.
+
+2. **Lazy-load PDF export dans RecordsClub** — L'import statique `import { exportRecordsPdf }` a été converti en `await import("@/lib/export-records-pdf")` dynamique au clic du bouton export. Résultat : RecordsClub chunk passe de 440K à 14K (-97%).
+
+3. **Optimisation manualChunks** — Retiré `vendor-charts` (recharts), `vendor-date` (date-fns), et `vendor-ui` (4 composants Radix) de la config manualChunks dans vite.config.ts. Ces librairies sont maintenant auto-split par Vite en chunks lazy qui ne chargent que quand les routes qui les utilisent sont visitées. Modulepreloads réduits de 5 à 3.
+
+4. **Migration vite-plugin-pwa (Workbox)** — Remplacement du service worker artisanal (`public/sw.js`, 85 lignes, 7 fichiers cachés) par `vite-plugin-pwa` v1.2.0 avec Workbox generateSW :
+   - **Precaching** : 102 entries (tous les assets buildés) précachées automatiquement
+   - **Runtime caching** : CacheFirst pour Google Fonts, NetworkFirst pour Supabase API/auth
+   - **Auto-update** : `registerType: 'autoUpdate'` avec `registerSW({ immediate: true })`
+   - Manifest migré de fichier statique vers config Vite (génère `manifest.webmanifest`)
+
+5. **Simplification UpdateNotification** — Suppression du listener `controllerchange` manuel (vite-plugin-pwa gère les mises à jour du SW).
+
+6. **dns-prefetch Supabase** — Ajout de `<link rel="dns-prefetch">` et `<link rel="preconnect">` pour le domaine Supabase API (~200ms de latence DNS économisée).
+
+### Résultats mesurés
+
+| Métrique | Avant | Après | Amélioration |
+|----------|-------|-------|--------------|
+| Modulepreloads (gzip) | ~333K (5 chunks) | ~206K (3 chunks) | **-38%** |
+| RecordsClub chunk | 440K (144K gzip) | 14K (4K gzip) | **-97%** |
+| App shell precaching | 7 fichiers hardcodés | 102 entries auto | **Complet** |
+| Runtime API caching | Aucun | NetworkFirst Supabase | **Nouveau** |
+| Font caching | Aucun | CacheFirst Google Fonts | **Nouveau** |
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/components/ui/chart.tsx` | Supprimé (dead code) |
+| `src/pages/RecordsClub.tsx` | Import PDF statique → dynamique |
+| `vite.config.ts` | manualChunks optimisé + VitePWA plugin ajouté |
+| `public/sw.js` | Supprimé (remplacé par Workbox) |
+| `public/manifest.json` | Supprimé (migré dans vite.config.ts) |
+| `src/main.tsx` | Registration SW manuelle → `registerSW()` |
+| `src/vite-env-pwa.d.ts` | Nouveau (types vite-plugin-pwa) |
+| `src/components/shared/UpdateNotification.tsx` | Suppression listener controllerchange |
+| `index.html` | Suppression lien manifest statique + ajout dns-prefetch |
+
+### Tests
+
+- [x] `npm run build` — Build réussi (8.82s), PWA 102 entries precachées
+- [x] `npx tsc --noEmit` — 0 erreur nouvelle (pré-existantes dans stories)
+- [x] Tests Vitest — aucune régression (erreurs pré-existantes TimesheetHelpers, Strength*)
+- [x] dist/index.html — 3 modulepreloads (vendor-react, vendor-query, vendor-supabase)
+- [x] dist/sw.js + dist/manifest.webmanifest générés par Workbox
+
+### Décisions prises
+
+1. **vite-plugin-pwa vs Workbox direct** — Le plugin Vite offre une intégration transparente (auto-precache des assets buildés, injection manifest, registration SW) sans configuration Workbox manuelle.
+2. **registerType: 'autoUpdate'** — L'auto-update est préféré au prompt utilisateur pour cette app (pas de formulaires longs à risque de perte de données).
+3. **Garder framer-motion** — Déjà correctement lazy-loaded dans un chunk partagé (54K gzip). Le remplacer toucherait 11 fichiers pour un gain marginal.
+4. **Garder recharts** — On corrige uniquement son chargement (lazy au lieu de preloaded), pas la librairie elle-même.
+
+### Limites / dette
+
+- Le main bundle (`index.js`) a légèrement augmenté (~344K → ~388K) car certains composants Radix UI autrefois dans vendor-ui sont maintenant inline dans le bundle principal. Le gain net reste largement positif grâce à la suppression des modulepreloads inutiles.
+- Les icons PWA sont toutes en PNG — une optimisation WebP/AVIF serait possible mais marginale.

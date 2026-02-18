@@ -1,6 +1,6 @@
 # Roadmap de Développement
 
-*Dernière mise à jour : 2026-02-17 (§47 Redesign RecordsClub épuré mobile)*
+*Dernière mise à jour : 2026-02-18 (§48 Audit performances + optimisation PWA Workbox)*
 
 Ce document décrit les fonctionnalités à implémenter. Il sert de référence pour reprendre le développement dans une future conversation.
 
@@ -28,6 +28,7 @@ Ce document décrit les fonctionnalités à implémenter. Il sert de référence
 | 16 | Audit UI/UX — header Strength + login mobile + fixes | Moyenne | Faible | Fait |
 | 17 | Harmonisation headers + Login mobile thème clair | Moyenne | Faible | Fait |
 | 18 | Redesign RecordsClub épuré mobile (filtres, sections, drill-down) | Moyenne | Faible | Fait |
+| 19 | Audit performances + optimisation PWA (Workbox) | Haute | Moyenne | Fait |
 
 ---
 

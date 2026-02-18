@@ -166,6 +166,10 @@ Tous les feature flags sont activés.
 |----------------|--------|----------|-------|
 | ARIA live regions | ✅ | `WorkoutRunner.tsx`, `BottomActionBar.tsx` | Annonces pour les changements dynamiques (timers, sauvegarde) |
 | PWA install prompt | ✅ | `InstallPrompt.tsx`, `App.tsx` | Banner iOS-optimized avec guide d'installation |
+| Service Worker (Workbox) | ✅ | `vite.config.ts` (vite-plugin-pwa) | Workbox generateSW, 102 entries precachées, auto-update (§48) |
+| Runtime caching API | ✅ | `vite.config.ts` | NetworkFirst Supabase, CacheFirst Google Fonts (§48) |
+| Bundle optimization | ✅ | `vite.config.ts`, `RecordsClub.tsx` | Modulepreloads réduits de 5→3, lazy-load PDF export (§48) |
+| DNS prefetch | ✅ | `index.html` | dns-prefetch + preconnect Supabase (~200ms saved) (§48) |
 | Navigation clavier (Dashboard) | ✅ | `Dashboard.tsx` | Flèches (calendrier), Enter/Espace (ouvrir jour), Escape (fermer) |
 | Navigation clavier (Strength) | ✅ | `Strength.tsx` | Flèches (liste séances), Enter (ouvrir), Escape (retour liste) |
 | Focus trap (modals/drawers) | ✅ | Composants Radix UI | Natif dans Dialog/Sheet |
