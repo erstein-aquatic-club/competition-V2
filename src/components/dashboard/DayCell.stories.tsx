@@ -54,7 +54,7 @@ export const RestDay: Story = {
     isToday: false,
     isSelected: false,
     isFocused: false,
-    status: { completed: 0, total: 0 },
+    status: { completed: 0, total: 0, slots: [] },
     onClick: () => {},
     onKeyDown: () => {},
   },
@@ -68,7 +68,7 @@ export const NoSessionsCompleted: Story = {
     isToday: false,
     isSelected: false,
     isFocused: false,
-    status: { completed: 0, total: 2 },
+    status: { completed: 0, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: false, absent: false }, { slotKey: "PM" as const, expected: true, completed: false, absent: false }] },
     onClick: () => {},
     onKeyDown: () => {},
   },
@@ -82,7 +82,7 @@ export const PartiallyCompleted: Story = {
     isToday: false,
     isSelected: false,
     isFocused: false,
-    status: { completed: 1, total: 2 },
+    status: { completed: 1, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: true, absent: false }, { slotKey: "PM" as const, expected: true, completed: false, absent: false }] },
     onClick: () => {},
     onKeyDown: () => {},
   },
@@ -96,7 +96,7 @@ export const FullyCompleted: Story = {
     isToday: false,
     isSelected: false,
     isFocused: false,
-    status: { completed: 2, total: 2 },
+    status: { completed: 2, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: true, absent: false }, { slotKey: "PM" as const, expected: true, completed: true, absent: false }] },
     onClick: () => {},
     onKeyDown: () => {},
   },
@@ -110,7 +110,7 @@ export const Today: Story = {
     isToday: true,
     isSelected: false,
     isFocused: false,
-    status: { completed: 0, total: 0 },
+    status: { completed: 0, total: 0, slots: [] },
     onClick: () => {},
     onKeyDown: () => {},
   },
@@ -124,7 +124,7 @@ export const TodayWithSessions: Story = {
     isToday: true,
     isSelected: false,
     isFocused: false,
-    status: { completed: 1, total: 2 },
+    status: { completed: 1, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: true, absent: false }, { slotKey: "PM" as const, expected: true, completed: false, absent: false }] },
     onClick: () => {},
     onKeyDown: () => {},
   },
@@ -138,7 +138,7 @@ export const Selected: Story = {
     isToday: false,
     isSelected: true,
     isFocused: false,
-    status: { completed: 1, total: 2 },
+    status: { completed: 1, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: true, absent: false }, { slotKey: "PM" as const, expected: true, completed: false, absent: false }] },
     onClick: () => {},
     onKeyDown: () => {},
   },
@@ -152,7 +152,7 @@ export const Focused: Story = {
     isToday: false,
     isSelected: false,
     isFocused: true,
-    status: { completed: 1, total: 2 },
+    status: { completed: 1, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: true, absent: false }, { slotKey: "PM" as const, expected: true, completed: false, absent: false }] },
     onClick: () => {},
     onKeyDown: () => {},
   },
@@ -166,7 +166,7 @@ export const OutOfMonth: Story = {
     isToday: false,
     isSelected: false,
     isFocused: false,
-    status: { completed: 1, total: 2 },
+    status: { completed: 1, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: true, absent: false }, { slotKey: "PM" as const, expected: true, completed: false, absent: false }] },
     onClick: () => {},
     onKeyDown: () => {},
   },
@@ -174,6 +174,16 @@ export const OutOfMonth: Story = {
 
 // All states comparison
 export const AllStates: Story = {
+  args: {
+    date: new Date(2026, 1, 1),
+    inMonth: true,
+    isToday: false,
+    isSelected: false,
+    isFocused: false,
+    status: { completed: 0, total: 0, slots: [] },
+    onClick: () => {},
+    onKeyDown: () => {},
+  },
   render: () => (
     <div className="grid grid-cols-3 gap-4 p-4">
       <div className="space-y-2">
@@ -185,7 +195,7 @@ export const AllStates: Story = {
             isToday={false}
             isSelected={false}
             isFocused={false}
-            status={{ completed: 0, total: 0 }}
+            status={{ completed: 0, total: 0, slots: [] }}
             onClick={() => {}}
             onKeyDown={() => {}}
           />
@@ -201,7 +211,7 @@ export const AllStates: Story = {
             isToday={false}
             isSelected={false}
             isFocused={false}
-            status={{ completed: 0, total: 2 }}
+            status={{ completed: 0, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: false, absent: false }, { slotKey: "PM" as const, expected: true, completed: false, absent: false }] }}
             onClick={() => {}}
             onKeyDown={() => {}}
           />
@@ -217,7 +227,7 @@ export const AllStates: Story = {
             isToday={false}
             isSelected={false}
             isFocused={false}
-            status={{ completed: 1, total: 2 }}
+            status={{ completed: 1, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: true, absent: false }, { slotKey: "PM" as const, expected: true, completed: false, absent: false }] }}
             onClick={() => {}}
             onKeyDown={() => {}}
           />
@@ -233,7 +243,7 @@ export const AllStates: Story = {
             isToday={false}
             isSelected={false}
             isFocused={false}
-            status={{ completed: 2, total: 2 }}
+            status={{ completed: 2, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: true, absent: false }, { slotKey: "PM" as const, expected: true, completed: true, absent: false }] }}
             onClick={() => {}}
             onKeyDown={() => {}}
           />
@@ -249,7 +259,7 @@ export const AllStates: Story = {
             isToday={true}
             isSelected={false}
             isFocused={false}
-            status={{ completed: 1, total: 2 }}
+            status={{ completed: 1, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: true, absent: false }, { slotKey: "PM" as const, expected: true, completed: false, absent: false }] }}
             onClick={() => {}}
             onKeyDown={() => {}}
           />
@@ -265,7 +275,7 @@ export const AllStates: Story = {
             isToday={false}
             isSelected={true}
             isFocused={false}
-            status={{ completed: 1, total: 2 }}
+            status={{ completed: 1, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: true, absent: false }, { slotKey: "PM" as const, expected: true, completed: false, absent: false }] }}
             onClick={() => {}}
             onKeyDown={() => {}}
           />
@@ -281,7 +291,7 @@ export const AllStates: Story = {
             isToday={false}
             isSelected={false}
             isFocused={false}
-            status={{ completed: 1, total: 2 }}
+            status={{ completed: 1, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: true, absent: false }, { slotKey: "PM" as const, expected: true, completed: false, absent: false }] }}
             onClick={() => {}}
             onKeyDown={() => {}}
           />
@@ -297,7 +307,7 @@ export const AllStates: Story = {
             isToday={false}
             isSelected={false}
             isFocused={true}
-            status={{ completed: 1, total: 2 }}
+            status={{ completed: 1, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: true, absent: false }, { slotKey: "PM" as const, expected: true, completed: false, absent: false }] }}
             onClick={() => {}}
             onKeyDown={() => {}}
           />
@@ -313,7 +323,7 @@ export const AllStates: Story = {
             isToday={true}
             isSelected={false}
             isFocused={false}
-            status={{ completed: 2, total: 2 }}
+            status={{ completed: 2, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: true, absent: false }, { slotKey: "PM" as const, expected: true, completed: true, absent: false }] }}
             onClick={() => {}}
             onKeyDown={() => {}}
           />
@@ -325,16 +335,26 @@ export const AllStates: Story = {
 
 // Calendar grid simulation
 export const CalendarGrid: Story = {
+  args: {
+    date: new Date(2026, 1, 1),
+    inMonth: true,
+    isToday: false,
+    isSelected: false,
+    isFocused: false,
+    status: { completed: 0, total: 0, slots: [] },
+    onClick: () => {},
+    onKeyDown: () => {},
+  },
   render: () => {
     const days = Array.from({ length: 7 }, (_, i) => i + 1);
     const statuses = [
-      { completed: 0, total: 0 }, // Rest
-      { completed: 0, total: 2 }, // Not started
-      { completed: 1, total: 2 }, // Partial
-      { completed: 2, total: 2 }, // Complete
-      { completed: 1, total: 2 }, // Partial
-      { completed: 0, total: 0 }, // Rest
-      { completed: 2, total: 2 }, // Complete
+      { completed: 0, total: 0, slots: [] }, // Rest
+      { completed: 0, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: false, absent: false }, { slotKey: "PM" as const, expected: true, completed: false, absent: false }] }, // Not started
+      { completed: 1, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: true, absent: false }, { slotKey: "PM" as const, expected: true, completed: false, absent: false }] }, // Partial
+      { completed: 2, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: true, absent: false }, { slotKey: "PM" as const, expected: true, completed: true, absent: false }] }, // Complete
+      { completed: 1, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: true, absent: false }, { slotKey: "PM" as const, expected: true, completed: false, absent: false }] }, // Partial
+      { completed: 0, total: 0, slots: [] }, // Rest
+      { completed: 2, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: true, absent: false }, { slotKey: "PM" as const, expected: true, completed: true, absent: false }] }, // Complete
     ];
 
     return (

@@ -39,7 +39,7 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   args: {
     monthCursor: new Date(2026, 1, 1), // February 2026
-    selectedDayStatus: { completed: 0, total: 0 },
+    selectedDayStatus: { completed: 0, total: 0, slots: [] },
     onPrevMonth: () => {},
     onNextMonth: () => {},
     onJumpToday: () => {},
@@ -50,7 +50,7 @@ export const Default: Story = {
 export const NoSessions: Story = {
   args: {
     monthCursor: new Date(2026, 1, 14),
-    selectedDayStatus: { completed: 0, total: 0 },
+    selectedDayStatus: { completed: 0, total: 0, slots: [] },
     onPrevMonth: () => {},
     onNextMonth: () => {},
     onJumpToday: () => {},
@@ -61,7 +61,7 @@ export const NoSessions: Story = {
 export const PartiallyCompleted: Story = {
   args: {
     monthCursor: new Date(2026, 1, 14),
-    selectedDayStatus: { completed: 1, total: 2 },
+    selectedDayStatus: { completed: 1, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: true, absent: false }, { slotKey: "PM" as const, expected: true, completed: false, absent: false }] },
     onPrevMonth: () => {},
     onNextMonth: () => {},
     onJumpToday: () => {},
@@ -72,7 +72,7 @@ export const PartiallyCompleted: Story = {
 export const AllCompleted: Story = {
   args: {
     monthCursor: new Date(2026, 1, 14),
-    selectedDayStatus: { completed: 2, total: 2 },
+    selectedDayStatus: { completed: 2, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: true, absent: false }, { slotKey: "PM" as const, expected: true, completed: true, absent: false }] },
     onPrevMonth: () => {},
     onNextMonth: () => {},
     onJumpToday: () => {},
@@ -83,7 +83,7 @@ export const AllCompleted: Story = {
 export const January: Story = {
   args: {
     monthCursor: new Date(2026, 0, 1),
-    selectedDayStatus: { completed: 1, total: 2 },
+    selectedDayStatus: { completed: 1, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: true, absent: false }, { slotKey: "PM" as const, expected: true, completed: false, absent: false }] },
     onPrevMonth: () => {},
     onNextMonth: () => {},
     onJumpToday: () => {},
@@ -93,7 +93,7 @@ export const January: Story = {
 export const December: Story = {
   args: {
     monthCursor: new Date(2025, 11, 1),
-    selectedDayStatus: { completed: 2, total: 2 },
+    selectedDayStatus: { completed: 2, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: true, absent: false }, { slotKey: "PM" as const, expected: true, completed: true, absent: false }] },
     onPrevMonth: () => {},
     onNextMonth: () => {},
     onJumpToday: () => {},
@@ -102,11 +102,19 @@ export const December: Story = {
 
 // Interactive demo
 export const Interactive: Story = {
+  args: {
+    monthCursor: new Date(),
+    selectedDayStatus: { completed: 1, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: true, absent: false }, { slotKey: "PM" as const, expected: true, completed: false, absent: false }] },
+    onPrevMonth: () => {},
+    onNextMonth: () => {},
+    onJumpToday: () => {},
+  },
   render: () => {
     const [monthCursor, setMonthCursor] = React.useState(new Date());
     const [selectedDay, setSelectedDay] = React.useState({
       completed: 1,
       total: 2,
+      slots: [{ slotKey: "AM" as const, expected: true, completed: true, absent: false }, { slotKey: "PM" as const, expected: true, completed: false, absent: false }],
     });
 
     const handlePrevMonth = () => {
@@ -123,11 +131,11 @@ export const Interactive: Story = {
 
     const cycleDayStatus = () => {
       if (selectedDay.total === 0) {
-        setSelectedDay({ completed: 1, total: 2 });
+        setSelectedDay({ completed: 1, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: true, absent: false }, { slotKey: "PM" as const, expected: true, completed: false, absent: false }] });
       } else if (selectedDay.completed < selectedDay.total) {
-        setSelectedDay({ completed: selectedDay.completed + 1, total: selectedDay.total });
+        setSelectedDay({ completed: selectedDay.completed + 1, total: selectedDay.total, slots: selectedDay.slots.map((s, i) => i < selectedDay.completed + 1 ? { ...s, completed: true } : s) });
       } else {
-        setSelectedDay({ completed: 0, total: 0 });
+        setSelectedDay({ completed: 0, total: 0, slots: [] });
       }
     };
 
@@ -165,7 +173,7 @@ export const Interactive: Story = {
 export const MobileView: Story = {
   args: {
     monthCursor: new Date(2026, 1, 14),
-    selectedDayStatus: { completed: 1, total: 2 },
+    selectedDayStatus: { completed: 1, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: true, absent: false }, { slotKey: "PM" as const, expected: true, completed: false, absent: false }] },
     onPrevMonth: () => {},
     onNextMonth: () => {},
     onJumpToday: () => {},

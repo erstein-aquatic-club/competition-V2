@@ -167,6 +167,10 @@ export const CustomStyling: Story = {
 
 // Interactive demo with state cycling
 export const InteractiveDemo: Story = {
+  args: {
+    saveState: 'idle',
+    children: null,
+  },
   render: () => {
     const states: SaveState[] = ['idle', 'saving', 'saved', 'error'];
     const [currentState, setCurrentState] = React.useState<SaveState>('idle');

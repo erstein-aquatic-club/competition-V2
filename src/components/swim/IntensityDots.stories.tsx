@@ -79,6 +79,7 @@ export const SmallSize: Story = {
 
 // All intensity levels
 export const AllLevels: Story = {
+  args: { value: 'V0' },
   render: () => (
     <div className="space-y-4">
       {intensityScale.map((level) => (
@@ -99,6 +100,7 @@ export const AllLevels: Story = {
 
 // Size comparison
 export const SizeComparison: Story = {
+  args: { value: 'V3' },
   render: () => (
     <div className="space-y-6">
       <div>
@@ -115,6 +117,7 @@ export const SizeComparison: Story = {
 
 // In a card context
 export const InCard: Story = {
+  args: { value: 'V2' },
   render: () => (
     <div className="w-80 rounded-lg border bg-card p-4 shadow-sm">
       <div className="flex items-center justify-between mb-4">
@@ -134,6 +137,7 @@ export const InCard: Story = {
 
 // List of workouts with different intensities
 export const WorkoutList: Story = {
+  args: { value: 'V1' },
   render: () => (
     <div className="w-96 space-y-2">
       {[
@@ -160,6 +164,7 @@ export const WorkoutList: Story = {
 
 // Color progression showcase
 export const ColorProgression: Story = {
+  args: { value: 'V0' },
   render: () => (
     <div className="space-y-6">
       <div className="text-center mb-4">
