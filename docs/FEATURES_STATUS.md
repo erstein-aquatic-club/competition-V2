@@ -1,6 +1,6 @@
 # État des fonctionnalités
 
-*Dernière mise à jour : 2026-02-19 (§55 Swim Session Timeline)*
+*Dernière mise à jour : 2026-02-19 (§56 Groupes temporaires coach)*
 
 ## Légende
 
@@ -110,11 +110,19 @@ Tous les feature flags sont activés.
 
 | Fonctionnalité | Statut | Fichiers | Notes |
 |----------------|--------|----------|-------|
-| Liste threads | ✅ | `Notifications.tsx` | Par expéditeur/groupe |
-| Envoi message | ✅ | `CoachMessagesScreen.tsx` | Coach → nageur/groupe |
-| Réponse | ✅ | `Notifications.tsx` | Dans thread existant |
-| Indicateur non-lu | ✅ | `AppLayout.tsx` | Badge sur nav |
-| Mark as read | ✅ | `api.ts` | |
+| Email coach (mailto:) | ✅ | `CoachMessagesScreen.tsx` | Ouvre mailto: avec BCC, remplace l'ancienne messagerie in-app |
+
+### Groupes temporaires (stages)
+
+| Fonctionnalité | Statut | Fichiers | Notes |
+|----------------|--------|----------|-------|
+| Création groupe temporaire | ✅ | `CoachGroupsScreen.tsx`, `temporary-groups.ts` | Nom + sélection nageurs avec checkboxes par groupe permanent |
+| Sous-groupes hiérarchiques | ✅ | `CoachGroupsScreen.tsx`, `temporary-groups.ts` | Membres limités au parent, cascade désactivation |
+| Suspension automatique | ✅ | `client.ts`, `assignments.ts` | Nageur en stage ne voit que les assignations du temporaire |
+| Désactivation/réactivation | ✅ | `CoachGroupsScreen.tsx`, `temporary-groups.ts` | Guard: pas de doublon temporaire actif |
+| Suppression (si inactif) | ✅ | `CoachGroupsScreen.tsx`, `temporary-groups.ts` | Cascade sous-groupes |
+| Sélecteur enrichi assignation | ✅ | `CoachAssignScreen.tsx` | Temporaires en premier avec badge "Stage", sous-groupes indentés |
+| Gestion membres | ✅ | `CoachGroupsScreen.tsx` | Ajout/retrait avec confirmation |
 
 ### Pointage heures
 

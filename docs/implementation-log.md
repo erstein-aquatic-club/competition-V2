@@ -32,6 +32,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §52 Fix parser natation — Form A sub-details | ✅ Fait | 2026-02-18 |
 | §53 Calendrier coach (vue mensuelle assignations) | ✅ Fait | 2026-02-19 |
 | §55 Swim Session Timeline (visualisation séances natation) | ✅ Fait | 2026-02-19 |
+| §56 Groupes temporaires coach (stages) | ✅ Fait | 2026-02-19 |
 | §45 Audit UI/UX — header Strength + login mobile + fixes | ✅ Fait | 2026-02-16 |
 | §46 Harmonisation headers + Login mobile thème clair | ✅ Fait | 2026-02-16 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
@@ -4984,3 +4985,74 @@ L'affichage existant des séances de natation (`SwimSessionConsultation`) souffr
 - Pas de tests unitaires dédiés pour SwimSessionTimeline (testé via tsc + build + prototype HTML).
 - Le mode "Bord du bassin" (niveau 3) n'a pas de mécanisme de suivi du bloc courant (scroll auto vers le bloc en cours).
 - Les milestones 1000m sont calculés sur la distance cumulée, pas sur les items individuels.
+
+---
+
+## 2026-02-19 — §56 Groupes temporaires coach (stages)
+
+**Branche** : `main`
+**Chantier ROADMAP** : §24 — Groupes temporaires coach
+
+### Contexte — Pourquoi ce patch
+
+Le coach part en stage avec des nageurs issus de différents groupes permanents. Il a besoin de :
+1. Créer un groupe temporaire (ex: "Stage Vichy") avec des nageurs de différents groupes
+2. Assigner des séances à ce groupe pendant le stage
+3. Que les nageurs en stage ne voient PAS les assignations de leur groupe permanent d'origine
+4. Désactiver le groupe temporaire à la fin du stage (chaque nageur retrouve son groupe permanent)
+5. Créer des sous-groupes (ex: "Jeunes", "Confirmés") pour du travail différencié
+
+### Changements réalisés
+
+1. **Migration Supabase** — Extension de la table `groups` avec 4 colonnes : `is_temporary`, `parent_group_id` (self-FK pour sous-groupes), `is_active`, `created_by`. RLS policies pour que seuls les coachs/admins gèrent les groupes temporaires.
+
+2. **Schéma Drizzle** — Ajout des 4 colonnes dans `src/lib/schema.ts`.
+
+3. **Type GroupSummary étendu** — Ajout de `is_temporary`, `is_active`, `parent_group_id`. `getGroups()` trie les temporaires actifs en premier.
+
+4. **Logique de suspension** — `fetchUserGroupIdsWithContext()` remplace `fetchUserGroupIds()`. Fonction pure `partitionGroupIds()` sépare groupes permanents vs temporaires. Si un nageur est dans un temporaire actif, il ne voit que les assignations du temporaire (+ ses sous-groupes). 5 tests unitaires.
+
+5. **API CRUD groupes temporaires** — Nouveau module `src/lib/api/temporary-groups.ts` : create, detail, list, add/remove members, deactivate, reactivate, delete. Guards : pas de doublon temporaire actif par nageur, sous-groupes limités aux membres du parent.
+
+6. **UI Coach "Groupes"** — Nouveau composant `CoachGroupsScreen.tsx` (~580 lignes) : liste active/terminés, création via Sheet avec sélecteur de nageurs groupés, vue détail avec membres + sous-groupes (Collapsible), ajout/retrait membres, confirmations AlertDialog.
+
+7. **Sélecteur d'assignation enrichi** — `CoachAssignScreen.tsx` affiche les temporaires en premier avec badge "Stage", sous-groupes indentés, séparateur, puis groupes permanents.
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `supabase/migrations/00026_temporary_groups.sql` | Créé — migration colonnes + RLS |
+| `src/lib/schema.ts` | Modifié — colonnes Drizzle |
+| `src/lib/api/types.ts` | Modifié — GroupSummary étendu + 3 nouveaux types |
+| `src/lib/api/client.ts` | Modifié — partitionGroupIds + fetchUserGroupIdsWithContext |
+| `src/lib/api/assignments.ts` | Modifié — suspension logic dans getAssignments + getCoachAssignments |
+| `src/lib/api/users.ts` | Modifié — getGroups() tri temporaires actifs en premier |
+| `src/lib/api/temporary-groups.ts` | Créé — CRUD complet groupes temporaires |
+| `src/lib/api/index.ts` | Modifié — re-exports |
+| `src/lib/api.ts` | Modifié — delegation stubs |
+| `src/lib/api/__tests__/fetchUserGroupIds.test.ts` | Créé — 5 tests partitionGroupIds |
+| `src/pages/coach/CoachGroupsScreen.tsx` | Créé — UI gestion groupes temporaires |
+| `src/pages/coach/CoachAssignScreen.tsx` | Modifié — sélecteur groupes enrichi |
+| `src/pages/Coach.tsx` | Modifié — section "groups" + bouton quick action |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — 0 erreur TypeScript
+- [x] `npm test` — 121/121 tests passent (5 nouveaux pour partitionGroupIds)
+- [x] Migration appliquée via Supabase MCP (projet fscnobivsgornxdwqwlk)
+
+### Décisions prises
+
+1. **Approche A (extension table existante)** — Retenue parmi 3 options. Plus simple que créer une nouvelle table, les groupes temporaires sont des groupes normaux pour le système d'assignation.
+2. **Suspension automatique** — Un nageur dans un temporaire actif ne voit que les assignations du temporaire, pas de son groupe permanent.
+3. **Un seul temporaire actif par nageur** — Simplifie la logique. Guard à la création/ajout.
+4. **Sous-groupes hiérarchiques** — `parent_group_id` self-FK. Membres d'un sous-groupe doivent être dans le parent. Cascade de désactivation.
+5. **Historique conservé** — Les assignations du stage restent visibles après désactivation.
+6. **Suppression uniquement si inactif** — Protection contre perte de données.
+
+### Limites / dette
+
+- Pas de tests d'intégration pour le CRUD Supabase (seulement la fonction pure partitionGroupIds est testée).
+- Pas de pagination sur la liste des groupes temporaires (suffisant pour le volume actuel).
+- Le `created_by` n'est pas renseigné à la création (le RLS de groups n'a pas accès à `app_user_id()` côté insert facilement).

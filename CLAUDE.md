@@ -38,6 +38,7 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 | `src/lib/api/timesheet.ts` | Pointage heures CRUD | ~180 lignes |
 | `src/lib/api/swim.ts` | Catalogue nage, sessions | ~160 lignes |
 | `src/lib/api/swim-logs.ts` | Notes techniques exercices natation | ~90 lignes |
+| `src/lib/api/temporary-groups.ts` | CRUD groupes temporaires (stages) | ~300 lignes |
 | `src/lib/swimTextParser.ts` | Parser texte → SwimBlock[], normaliseurs partagés | ~400 lignes |
 | `src/lib/swimConsultationUtils.ts` | Helpers partagés consultation séance (BlockGroup, groupItemsByBlock) | ~197 lignes |
 | `src/components/swim/SwimSessionTimeline.tsx` | Timeline verticale colorée, rail intensité, toggle 3 niveaux | ~555 lignes |
@@ -55,6 +56,7 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 | `src/pages/Login.tsx` | Login + inscription | ~340 lignes |
 | `src/pages/coach/CoachCalendar.tsx` | Calendrier coach (vue mensuelle assignations) | ~266 lignes |
 | `src/hooks/useCoachCalendarState.ts` | Hook état calendrier coach (grille, query, slots) | ~187 lignes |
+| `src/pages/coach/CoachGroupsScreen.tsx` | UI gestion groupes temporaires (stages) | ~580 lignes |
 
 ## Edge Functions Supabase
 
@@ -99,6 +101,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 21 | Hall of Fame refresh temps réel + sélecteur période | Moyenne | Fait (§51) |
 | 22 | Calendrier coach (vue mensuelle assignations) | Moyenne | Fait (§53) |
 | 23 | Swim Session Timeline (refonte visualisation séances) | Moyenne | Fait (§55) |
+| 24 | Groupes temporaires coach (stages, sous-groupes) | Moyenne | Fait (§56) |
 
 Détail complet dans `docs/ROADMAP.md`.
 
