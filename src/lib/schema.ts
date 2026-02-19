@@ -99,6 +99,12 @@ export const groups = pgTable("groups", {
   id: serial("id").primaryKey(),
   name: text("name").unique().notNull(),
   description: text("description"),
+  isTemporary: boolean("is_temporary").notNull().default(false),
+  parentGroupId: integer("parent_group_id").references((): any => groups.id, {
+    onDelete: "cascade",
+  }),
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: integer("created_by").references(() => users.id),
 });
 
 export const dimGroupes = pgTable("dim_groupes", {
