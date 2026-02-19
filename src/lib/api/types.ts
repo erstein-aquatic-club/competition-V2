@@ -383,3 +383,32 @@ export interface CoachAssignment {
   targetType: "group" | "user";
   status: string;
 }
+
+export interface TemporaryGroupSummary {
+  id: number;
+  name: string;
+  is_active: boolean;
+  parent_group_id: number | null;
+  member_count: number;
+  subgroup_count: number;
+  created_at: string;
+  created_by: number;
+}
+
+export interface TemporaryGroupMember {
+  user_id: number;
+  display_name: string;
+  permanent_group_label: string | null;
+}
+
+export interface TemporaryGroupDetail {
+  id: number;
+  name: string;
+  is_active: boolean;
+  members: TemporaryGroupMember[];
+  subgroups: Array<{
+    id: number;
+    name: string;
+    members: Array<{ user_id: number; display_name: string }>;
+  }>;
+}
