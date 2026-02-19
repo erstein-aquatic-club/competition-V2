@@ -189,7 +189,7 @@ function ResetPassword() {
 }
 
 function AppRouter() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const isApproved = useAuth((s) => s.isApproved);
 
   if (!user) {
@@ -232,7 +232,7 @@ function AppRouter() {
         <Suspense fallback={<PageSkeleton />}>
           <Switch>
             <Route path="/reset-password" component={ResetPassword} />
-            <Route path="/" component={Dashboard} />
+            <Route path="/">{role === "coach" ? <Redirect to="/coach" /> : <Dashboard />}</Route>
             <Route path="/progress" component={Progress} />
             <Route path="/hall-of-fame" component={FEATURES.hallOfFame ? HallOfFame : ComingSoon} />
             <Route path="/coach" component={Coach} />
