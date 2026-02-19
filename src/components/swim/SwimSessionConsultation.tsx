@@ -4,7 +4,6 @@ import { Separator } from "@/components/ui/separator";
 import { EquipmentPill } from "@/components/swim/EquipmentPill";
 import {
   formatIntensityLabel,
-  IntensityDots,
   intensityScale,
   intensityTone,
 } from "@/components/swim/IntensityDots";
@@ -401,7 +400,6 @@ export function SwimSessionConsultation({
                               {formatIntensityLabel(normalizedIntensity)}
                             </span>
                           ) : null}
-                          {normalizedIntensity ? <IntensityDots value={normalizedIntensity} className="self-center" /> : null}
                         </div>
                       ) : null}
                     </div>
