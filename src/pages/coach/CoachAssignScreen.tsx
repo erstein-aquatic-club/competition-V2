@@ -3,6 +3,7 @@ import { Bell, ChevronDown } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -17,7 +18,7 @@ type CoachAssignScreenProps = {
   swimSessions?: Array<{ id: number; name: string }>;
   strengthSessions?: Array<{ id: number; title: string }>;
   athletes: Array<{ id: number | null; display_name: string; group_label?: string | null }>;
-  groups: Array<{ id: number | string; name: string }>;
+  groups: Array<{ id: number | string; name: string; is_temporary?: boolean; is_active?: boolean; parent_group_id?: number | null }>;
 };
 
 type AssignSlot = "morning" | "evening";
@@ -82,7 +83,7 @@ const CoachAssignScreen = ({
           const gid = toGroupId(group.id);
           return gid ? { ...group, gid } : null;
         })
-        .filter((g): g is { id: number | string; name: string; gid: number } => Boolean(g)),
+        .filter((g): g is { id: number | string; name: string; gid: number; is_temporary?: boolean; is_active?: boolean; parent_group_id?: number | null } => Boolean(g)),
     [groups],
   );
 
@@ -353,7 +354,56 @@ const CoachAssignScreen = ({
                     <PopoverContent className="w-[--radix-popover-trigger-width] p-2" align="start">
                       <div className="max-h-64 overflow-auto">
                         <div className="space-y-1">
-                          {groupsWithId.map((group) => {
+                          {/* Temporary groups first */}
+                          {groupsWithId.filter(g => g.is_temporary && !g.parent_group_id).map((group) => {
+                            const isChecked = selectedGroupIds.includes(group.gid);
+                            const subGroups = groupsWithId.filter(sg => sg.parent_group_id === group.gid);
+                            return (
+                              <div key={group.gid}>
+                                <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted">
+                                  <Checkbox
+                                    checked={isChecked}
+                                    onCheckedChange={(checked) => {
+                                      const isNowChecked = checked === true;
+                                      setSelectedGroupIds((prev) => {
+                                        if (isNowChecked) return prev.includes(group.gid) ? prev : [...prev, group.gid];
+                                        return prev.filter((id) => id !== group.gid);
+                                      });
+                                    }}
+                                  />
+                                  <span className="text-sm font-medium">{group.name}</span>
+                                  <Badge variant="secondary" className="text-[9px] ml-auto px-1.5 py-0">Stage</Badge>
+                                </label>
+                                {subGroups.map((sg) => {
+                                  const sgChecked = selectedGroupIds.includes(sg.gid);
+                                  return (
+                                    <label
+                                      key={sg.gid}
+                                      className="flex cursor-pointer items-center gap-2 rounded-md pl-7 pr-2 py-1.5 hover:bg-muted"
+                                    >
+                                      <Checkbox
+                                        checked={sgChecked}
+                                        onCheckedChange={(checked) => {
+                                          const isNowChecked = checked === true;
+                                          setSelectedGroupIds((prev) => {
+                                            if (isNowChecked) return prev.includes(sg.gid) ? prev : [...prev, sg.gid];
+                                            return prev.filter((id) => id !== sg.gid);
+                                          });
+                                        }}
+                                      />
+                                      <span className="text-sm text-muted-foreground">{sg.name}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })}
+                          {/* Separator if both types exist */}
+                          {groupsWithId.some(g => g.is_temporary) && groupsWithId.some(g => !g.is_temporary) ? (
+                            <div className="border-t my-1" />
+                          ) : null}
+                          {/* Permanent groups */}
+                          {groupsWithId.filter(g => !g.is_temporary).map((group) => {
                             const isChecked = selectedGroupIds.includes(group.gid);
                             return (
                               <label
