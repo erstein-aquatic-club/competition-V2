@@ -264,7 +264,11 @@ export async function getCoachAssignments(filters: {
   if (filters.groupId) {
     query = query.eq("target_group_id", filters.groupId);
   } else if (filters.userId) {
-    query = query.eq("target_user_id", filters.userId);
+    // Include both direct user assignments AND assignments targeting user's groups
+    const groupIds = await fetchUserGroupIds(filters.userId);
+    const orFilters: string[] = [`target_user_id.eq.${filters.userId}`];
+    groupIds.forEach((gid) => orFilters.push(`target_group_id.eq.${gid}`));
+    query = query.or(orFilters.join(","));
   } else {
     return [];
   }
