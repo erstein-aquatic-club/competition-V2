@@ -21,7 +21,7 @@ interface CoachCalendarProps {
 }
 
 function slotLabel(slot: string | null): string {
-  if (!slot) return "\u2014";
+  if (!slot) return "—";
   const norm = slot.toLowerCase();
   if (norm === "morning" || norm.includes("mat") || norm === "am") return "Matin";
   if (norm === "evening" || norm.includes("soir") || norm === "pm") return "Soir";
@@ -30,9 +30,9 @@ function slotLabel(slot: string | null): string {
 
 function statusLabel(status: string): string {
   switch (status) {
-    case "assigned": return "Assign\u00e9";
+    case "assigned": return "Assigné";
     case "in_progress": return "En cours";
-    case "completed": return "Termin\u00e9";
+    case "completed": return "Terminé";
     default: return status;
   }
 }
@@ -156,7 +156,7 @@ export default function CoachCalendar({ onBack, onAssign, athletes, groups }: Co
                 .map((a) => (
                   <SelectItem key={String(a.id)} value={String(a.id)}>
                     {a.display_name}
-                    {a.group_label ? ` \u00b7 ${a.group_label}` : ""}
+                    {a.group_label ? ` · ${a.group_label}` : ""}
                   </SelectItem>
                 ))}
             </SelectContent>
@@ -167,7 +167,7 @@ export default function CoachCalendar({ onBack, onAssign, athletes, groups }: Co
       {/* Calendar */}
       {!hasFilter ? (
         <div className="py-12 text-center text-sm text-muted-foreground">
-          S\u00e9lectionnez un groupe ou un nageur pour afficher le calendrier.
+          Sélectionnez un groupe ou un nageur pour afficher le calendrier.
         </div>
       ) : (
         <div className="rounded-2xl border bg-card shadow-sm">
@@ -204,7 +204,7 @@ export default function CoachCalendar({ onBack, onAssign, athletes, groups }: Co
               )}
             </SheetTitle>
             <SheetDescription className="sr-only">
-              D\u00e9tail des assignations pour cette journ\u00e9e
+              Détail des assignations pour cette journée
             </SheetDescription>
           </SheetHeader>
 
@@ -226,7 +226,7 @@ export default function CoachCalendar({ onBack, onAssign, athletes, groups }: Co
               onClick={() => onAssign(selectedISO)}
             >
               <CalendarPlus className="mr-2 h-4 w-4" />
-              Assigner une s\u00e9ance
+              Assigner une séance
             </Button>
           </div>
         </SheetContent>

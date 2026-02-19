@@ -100,14 +100,28 @@ export default function Profile() {
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 
-  const handleCheckUpdate = () => {
+  const handleCheckUpdate = async () => {
     setIsCheckingUpdate(true);
-    // Clear stored build timestamp so the app detects a "new" version on reload
     localStorage.removeItem("app_build_timestamp");
-    // Small delay for visual feedback, then hard reload
-    setTimeout(() => {
+    try {
+      // 1. Force SW to check for a new version
+      const reg = (window as any).__pwaRegistration as ServiceWorkerRegistration | undefined
+        ?? await navigator.serviceWorker?.getRegistration();
+      if (reg) {
+        await reg.update();
+        // Wait for new SW to install + activate (skipWaiting is enabled)
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+      // 2. Clear all Workbox caches so reload fetches fresh assets
+      if ("caches" in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((key) => caches.delete(key)));
+      }
+      // 3. Hard reload
       window.location.reload();
-    }, 600);
+    } catch {
+      window.location.reload();
+    }
   };
 
   // Profile edit form with React Hook Form + Zod
@@ -555,6 +569,7 @@ export default function Profile() {
 
       <div className="space-y-1 pt-2">
         <button
+          type="button"
           onClick={handleCheckUpdate}
           disabled={isCheckingUpdate}
           className="w-full flex items-center justify-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors py-2"
