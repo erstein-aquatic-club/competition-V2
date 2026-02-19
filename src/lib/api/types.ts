@@ -172,6 +172,9 @@ export interface GroupSummary {
   id: number;
   name: string;
   member_count?: number | null;
+  is_temporary?: boolean;
+  is_active?: boolean;
+  parent_group_id?: number | null;
 }
 
 export interface UpcomingBirthday {

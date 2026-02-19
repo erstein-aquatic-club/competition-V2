@@ -165,15 +165,31 @@ export async function getAthletes(): Promise<AthleteSummary[]> {
 
 export async function getGroups(): Promise<GroupSummary[]> {
   if (!canUseSupabase()) return [];
-  const { data, error } = await supabase.from("groups").select("id, name, description");
+  const { data, error } = await supabase
+    .from("groups")
+    .select("id, name, description, is_temporary, is_active, parent_group_id");
   if (error) throw new Error(error.message);
   return (data ?? [])
+    .filter((g: any) => {
+      // Show all permanent groups + active temporary groups
+      if (!g.is_temporary) return true;
+      return g.is_active === true;
+    })
     .map((group: any) => ({
       id: safeInt(group.id, 0),
       name: String(group.name ?? `Groupe ${group.id ?? ""}`).trim(),
       member_count: null,
+      is_temporary: group.is_temporary ?? false,
+      is_active: group.is_active ?? true,
+      parent_group_id: group.parent_group_id ?? null,
     }))
-    .filter((group: GroupSummary) => group.id > 0 && group.name);
+    .filter((g: GroupSummary) => g.id > 0 && g.name)
+    .sort((a, b) => {
+      // Temporary active groups first, then permanent
+      if (a.is_temporary && !b.is_temporary) return -1;
+      if (!a.is_temporary && b.is_temporary) return 1;
+      return a.name.localeCompare(b.name, "fr");
+    });
 }
 
 export async function getUpcomingBirthdays(options?: {
