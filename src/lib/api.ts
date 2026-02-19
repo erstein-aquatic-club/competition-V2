@@ -145,6 +145,17 @@ import {
 } from "./api/swim-logs";
 
 import {
+  getTemporaryGroups as _getTemporaryGroups,
+  getTemporaryGroupDetail as _getTemporaryGroupDetail,
+  createTemporaryGroup as _createTemporaryGroup,
+  addTemporaryGroupMembers as _addTemporaryGroupMembers,
+  removeTemporaryGroupMember as _removeTemporaryGroupMember,
+  deactivateTemporaryGroup as _deactivateTemporaryGroup,
+  reactivateTemporaryGroup as _reactivateTemporaryGroup,
+  deleteTemporaryGroup as _deleteTemporaryGroup,
+} from "./api/temporary-groups";
+
+import {
   getExercises as _getExercises,
   createExercise as _createExercise,
   updateExercise as _updateExercise,
@@ -461,6 +472,18 @@ export const api = {
   async createTimesheetShift(payload: Parameters<typeof _createTimesheetShift>[0]) { return _createTimesheetShift(payload); },
   async updateTimesheetShift(payload: Parameters<typeof _updateTimesheetShift>[0]) { return _updateTimesheetShift(payload); },
   async deleteTimesheetShift(payload: Parameters<typeof _deleteTimesheetShift>[0]) { return _deleteTimesheetShift(payload); },
+
+  // ══════════════════════════════════════════════════════════════════
+  // DELEGATION STUBS — Temporary Groups
+  // ══════════════════════════════════════════════════════════════════
+  async getTemporaryGroups() { return _getTemporaryGroups(); },
+  async getTemporaryGroupDetail(groupId: number) { return _getTemporaryGroupDetail(groupId); },
+  async createTemporaryGroup(data: Parameters<typeof _createTemporaryGroup>[0]) { return _createTemporaryGroup(data); },
+  async addTemporaryGroupMembers(groupId: number, userIds: number[]) { return _addTemporaryGroupMembers(groupId, userIds); },
+  async removeTemporaryGroupMember(groupId: number, userId: number) { return _removeTemporaryGroupMember(groupId, userId); },
+  async deactivateTemporaryGroup(groupId: number) { return _deactivateTemporaryGroup(groupId); },
+  async reactivateTemporaryGroup(groupId: number) { return _reactivateTemporaryGroup(groupId); },
+  async deleteTemporaryGroup(groupId: number) { return _deleteTemporaryGroup(groupId); },
 
   // ══════════════════════════════════════════════════════════════════
   // DELEGATION STUBS — Users

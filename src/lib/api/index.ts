@@ -171,6 +171,17 @@ export {
 } from './swim-logs';
 
 export {
+  getTemporaryGroups,
+  getTemporaryGroupDetail,
+  createTemporaryGroup,
+  addTemporaryGroupMembers,
+  removeTemporaryGroupMember,
+  deactivateTemporaryGroup,
+  reactivateTemporaryGroup,
+  deleteTemporaryGroup,
+} from './temporary-groups';
+
+export {
   getExercises,
   createExercise,
   updateExercise,
