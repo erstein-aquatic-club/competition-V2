@@ -252,3 +252,54 @@ export const fetchUserGroupIds = async (userId?: number | null): Promise<number[
   if (error || !data) return [];
   return data.map((m: { group_id: number }) => m.group_id).filter((id: number) => id > 0);
 };
+
+// --- Temporary-group aware group ID helpers ---
+
+type GroupMemberRow = {
+  group_id: number;
+  groups: { is_temporary: boolean; is_active: boolean; parent_group_id: number | null };
+};
+
+type GroupIdPartition = {
+  permanentGroupIds: number[];
+  temporaryGroupIds: number[];
+  hasActiveTemporary: boolean;
+};
+
+export const partitionGroupIds = (rows: GroupMemberRow[]): GroupIdPartition => {
+  const permanentGroupIds: number[] = [];
+  const temporarySet = new Set<number>();
+  let hasActiveTemporary = false;
+
+  for (const row of rows) {
+    const g = row.groups;
+    if (g.is_temporary) {
+      if (g.is_active) {
+        hasActiveTemporary = true;
+        temporarySet.add(row.group_id);
+        if (g.parent_group_id) {
+          temporarySet.add(g.parent_group_id);
+        }
+      }
+    } else {
+      permanentGroupIds.push(row.group_id);
+    }
+  }
+
+  return { permanentGroupIds, temporaryGroupIds: Array.from(temporarySet), hasActiveTemporary };
+};
+
+export const fetchUserGroupIdsWithContext = async (
+  userId?: number | null,
+): Promise<GroupIdPartition> => {
+  const empty: GroupIdPartition = { permanentGroupIds: [], temporaryGroupIds: [], hasActiveTemporary: false };
+  if (!userId || !canUseSupabase()) return empty;
+
+  const { data, error } = await supabase
+    .from("group_members")
+    .select("group_id, groups!inner(is_temporary, is_active, parent_group_id)")
+    .eq("user_id", userId);
+
+  if (error || !data) return empty;
+  return partitionGroupIds(data as unknown as GroupMemberRow[]);
+};

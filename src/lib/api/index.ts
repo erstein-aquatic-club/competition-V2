@@ -58,6 +58,8 @@ export {
   delay,
   parseRawPayload,
   fetchUserGroupIds,
+  partitionGroupIds,
+  fetchUserGroupIdsWithContext,
 } from './client';
 
 // Re-export localStorage utilities

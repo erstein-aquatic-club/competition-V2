@@ -9,6 +9,7 @@ import {
   safeOptionalInt,
   delay,
   fetchUserGroupIds,
+  fetchUserGroupIdsWithContext,
   STORAGE_KEYS,
 } from './client';
 import type { Assignment, CoachAssignment } from './types';
@@ -30,12 +31,14 @@ export async function getAssignments(
   options?: { assignmentType?: "swim" | "strength"; status?: string },
 ): Promise<Assignment[]> {
   if (canUseSupabase()) {
-    const groupIds = await fetchUserGroupIds(athleteId ?? null);
+    const { permanentGroupIds, temporaryGroupIds, hasActiveTemporary } =
+      await fetchUserGroupIdsWithContext(athleteId ?? null);
     const orFilters: string[] = [];
     if (athleteId !== null && athleteId !== undefined) {
       orFilters.push(`target_user_id.eq.${athleteId}`);
     }
-    groupIds.forEach((gid) => orFilters.push(`target_group_id.eq.${gid}`));
+    const visibleGroupIds = hasActiveTemporary ? temporaryGroupIds : permanentGroupIds;
+    visibleGroupIds.forEach((gid) => orFilters.push(`target_group_id.eq.${gid}`));
     if (!orFilters.length) return [];
 
     let query = supabase
@@ -265,9 +268,11 @@ export async function getCoachAssignments(filters: {
     query = query.eq("target_group_id", filters.groupId);
   } else if (filters.userId) {
     // Include both direct user assignments AND assignments targeting user's groups
-    const groupIds = await fetchUserGroupIds(filters.userId);
+    const { permanentGroupIds, temporaryGroupIds, hasActiveTemporary } =
+      await fetchUserGroupIdsWithContext(filters.userId);
     const orFilters: string[] = [`target_user_id.eq.${filters.userId}`];
-    groupIds.forEach((gid) => orFilters.push(`target_group_id.eq.${gid}`));
+    const visibleGroupIds = hasActiveTemporary ? temporaryGroupIds : permanentGroupIds;
+    visibleGroupIds.forEach((gid) => orFilters.push(`target_group_id.eq.${gid}`));
     query = query.or(orFilters.join(","));
   } else {
     return [];
