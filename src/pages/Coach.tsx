@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
@@ -285,6 +285,13 @@ export default function Coach() {
   const [, navigate] = useLocation();
   const [activeSection, setActiveSection] = useState<CoachSection>("home");
   const [kpiPeriod, setKpiPeriod] = useState<KpiLookbackPeriod>(7);
+
+  // Reset to home when nav icon is tapped while already on /coach
+  useEffect(() => {
+    const reset = () => setActiveSection("home");
+    window.addEventListener("nav:reset", reset);
+    return () => window.removeEventListener("nav:reset", reset);
+  }, []);
 
   const coachAccess = role === "coach" || role === "admin";
   const shouldLoadCatalogs = activeSection === "home" || activeSection === "calendar";
