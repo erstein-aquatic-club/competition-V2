@@ -10,11 +10,11 @@ type CoachSectionHeaderProps = {
 };
 
 const CoachSectionHeader = ({ title, description, onBack, actions }: CoachSectionHeaderProps) => (
-  <div className="flex flex-wrap items-start justify-between gap-4">
+  <div className="space-y-3">
     <div className="space-y-1">
       <Button variant="ghost" size="sm" className="-ml-2" onClick={onBack}>
         <ArrowLeft className="mr-2 h-4 w-4" />
-        Retour à l'accueil
+        Retour
       </Button>
       <h2 className="text-2xl font-display font-semibold uppercase italic text-primary">{title}</h2>
       {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}

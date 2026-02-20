@@ -856,8 +856,8 @@ const CoachGroupsScreen = ({
         description="Créez et gérez des groupes pour les stages, compétitions ou événements."
         onBack={onBack}
         actions={
-          <Button onClick={() => setShowCreate(true)}>
-            <Plus className="mr-2 h-4 w-4" />
+          <Button size="sm" onClick={() => setShowCreate(true)}>
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
             Créer un groupe
           </Button>
         }

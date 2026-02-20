@@ -147,11 +147,11 @@ const CoachHome = ({
       </div>
 
       {/* Quick Actions */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => onNavigate("assignments")}
-          className="flex items-center gap-1.5 rounded-full bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="flex items-center gap-1.5 rounded-full bg-primary text-primary-foreground px-3.5 py-2 text-sm font-semibold active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <Bell className="h-3.5 w-3.5" />
           Assigner
@@ -159,7 +159,7 @@ const CoachHome = ({
         <button
           type="button"
           onClick={() => onNavigate("messaging")}
-          className="flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-semibold active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-semibold active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <Mail className="h-3.5 w-3.5" />
           Email
@@ -167,7 +167,7 @@ const CoachHome = ({
         <button
           type="button"
           onClick={() => onNavigate("calendar")}
-          className="flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-semibold active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-semibold active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <CalendarDays className="h-3.5 w-3.5" />
           Calendrier
@@ -175,7 +175,7 @@ const CoachHome = ({
         <button
           type="button"
           onClick={() => onNavigate("groups")}
-          className="flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-semibold active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-semibold active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <UsersRound className="h-3.5 w-3.5" />
           Groupes
@@ -253,15 +253,15 @@ const CoachHome = ({
             {upcomingBirthdays.slice(0, 3).map((b) => (
               <div
                 key={b.id}
-                className="flex items-center justify-between rounded-lg border px-3 py-2"
+                className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2"
               >
-                <div>
-                  <span className="text-sm font-medium">{b.display_name}</span>
-                  <span className="text-xs text-muted-foreground ml-2">
+                <div className="min-w-0 flex-1">
+                  <span className="text-sm font-medium truncate block">{b.display_name}</span>
+                  <span className="text-[11px] text-muted-foreground">
                     {formatDate(b.next_birthday)}
                   </span>
                 </div>
-                <span className="text-xs font-bold text-primary">J-{b.days_until}</span>
+                <span className="text-xs font-bold text-primary shrink-0">J-{b.days_until}</span>
               </div>
             ))}
           </div>
@@ -486,9 +486,9 @@ export default function Coach() {
             description="Accédez aux séances et aux templates natation."
             onBack={() => setActiveSection("home")}
             actions={
-              <Button variant="outline" onClick={() => setActiveSection("assignments")}>
-                <Bell className="mr-2 h-4 w-4" />
-                Nouvelle assignation
+              <Button variant="outline" size="sm" onClick={() => setActiveSection("assignments")}>
+                <Bell className="mr-1.5 h-3.5 w-3.5" />
+                Assigner
               </Button>
             }
           />
@@ -505,9 +505,9 @@ export default function Coach() {
             description="Consultez et créez des séances musculation."
             onBack={() => setActiveSection("home")}
             actions={
-              <Button variant="outline" onClick={() => setActiveSection("assignments")}>
-                <Bell className="mr-2 h-4 w-4" />
-                Nouvelle assignation
+              <Button variant="outline" size="sm" onClick={() => setActiveSection("assignments")}>
+                <Bell className="mr-1.5 h-3.5 w-3.5" />
+                Assigner
               </Button>
             }
           />
@@ -536,7 +536,7 @@ export default function Coach() {
             onBack={() => setActiveSection("home")}
             actions={
               <Button variant="outline" size="sm" onClick={() => setActiveSection("messaging")}>
-                <Mail className="mr-2 h-4 w-4" />
+                <Mail className="mr-1.5 h-3.5 w-3.5" />
                 Email
               </Button>
             }
