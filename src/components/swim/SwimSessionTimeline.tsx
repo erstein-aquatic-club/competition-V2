@@ -212,40 +212,33 @@ export function SwimSessionTimeline({
               <Layers className="h-3.5 w-3.5" /> {blocks.length} blocs
             </span>
           </div>
-          {/* 3-level toggle — segmented so user sees all 3 options */}
-          <div className="flex items-center rounded-full border border-border bg-muted/50 p-0.5">
-            {([
-              { level: 0 as const, icon: Eye, label: "Détail" },
-              { level: 1 as const, icon: List, label: "Compact" },
-              { level: 2 as const, icon: Waves, label: "Bassin" },
-            ]).map(({ level, icon: Icon, label }) => (
-              <button
-                key={level}
-                type="button"
-                onClick={() => {
-                  setViewLevel(level);
-                  if (level === 2) {
-                    setCollapsedBlocks(new Set(blocks.map((b) => b.key)));
-                  } else if (level === 0) {
-                    setCollapsedBlocks(new Set());
-                  }
-                }}
-                className={cn(
-                  "flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition-all",
-                  viewLevel === level
-                    ? level === 2
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground",
-                )}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                <span className={cn(viewLevel !== level && "hidden sm:inline")}>
-                  {label}
-                </span>
-              </button>
-            ))}
-          </div>
+          {/* 3-level cycling pill */}
+          <button
+            type="button"
+            onClick={cycleViewLevel}
+            className={cn(
+              "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all",
+              viewLevel === 0 && "border-border bg-card text-muted-foreground",
+              viewLevel === 1 && "border-muted-foreground/30 bg-muted text-foreground",
+              viewLevel === 2 && "border-primary bg-primary text-primary-foreground",
+            )}
+          >
+            {viewLevel === 0 && (
+              <>
+                <Eye className="h-3.5 w-3.5" /> Détail
+              </>
+            )}
+            {viewLevel === 1 && (
+              <>
+                <List className="h-3.5 w-3.5" /> Compact
+              </>
+            )}
+            {viewLevel === 2 && (
+              <>
+                <Waves className="h-3.5 w-3.5" /> Bassin
+              </>
+            )}
+          </button>
         </div>
       )}
 
