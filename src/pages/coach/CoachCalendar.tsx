@@ -202,42 +202,58 @@ export default function CoachCalendar({ onBack, athletes, groups, swimSessions, 
           </SheetHeader>
 
           <div className="space-y-3">
-            {slotsForSelectedDay.map((slot) => (
-              <SlotRow
-                key={slot.key}
-                slot={slot}
-                swimSessions={swimSessions}
-                strengthSessions={strengthSessions}
-                onAssign={(sessionId) => {
-                  assignMutation.mutate({
-                    assignment_type: slot.type,
-                    session_id: sessionId,
-                    scheduled_date: selectedISO,
-                    scheduled_slot: slot.scheduledSlot ?? undefined,
-                    target_group_id: groupId,
-                    target_user_id: userId,
-                  });
-                }}
-                onDelete={(assignmentId) => {
-                  deleteMutation.mutate(assignmentId);
-                }}
-                onReplace={(oldAssignmentId, newSessionId) => {
-                  deleteMutation.mutate(oldAssignmentId, {
-                    onSuccess: () => {
+            {slotsForSelectedDay.map((slot) => {
+              const isGroupAssignment = slot.assignment?.targetType === "group";
+              const isUserMode = filterMode === "user";
+              return (
+                <SlotRow
+                  key={slot.key}
+                  slot={slot}
+                  swimSessions={swimSessions}
+                  strengthSessions={strengthSessions}
+                  isGroupAssignment={isGroupAssignment && isUserMode}
+                  onAssign={(sessionId) => {
+                    assignMutation.mutate({
+                      assignment_type: slot.type,
+                      session_id: sessionId,
+                      scheduled_date: selectedISO,
+                      scheduled_slot: slot.scheduledSlot ?? undefined,
+                      target_group_id: groupId,
+                      target_user_id: userId,
+                    });
+                  }}
+                  onDelete={(assignmentId) => {
+                    deleteMutation.mutate(assignmentId);
+                  }}
+                  onReplace={(oldAssignmentId, newSessionId) => {
+                    if (isGroupAssignment && isUserMode) {
+                      // Create user-level override without deleting the group assignment
                       assignMutation.mutate({
                         assignment_type: slot.type,
                         session_id: newSessionId,
                         scheduled_date: selectedISO,
                         scheduled_slot: slot.scheduledSlot ?? undefined,
-                        target_group_id: groupId,
                         target_user_id: userId,
                       });
-                    },
-                  });
-                }}
-                isPending={assignMutation.isPending || deleteMutation.isPending}
-              />
-            ))}
+                    } else {
+                      deleteMutation.mutate(oldAssignmentId, {
+                        onSuccess: () => {
+                          assignMutation.mutate({
+                            assignment_type: slot.type,
+                            session_id: newSessionId,
+                            scheduled_date: selectedISO,
+                            scheduled_slot: slot.scheduledSlot ?? undefined,
+                            target_group_id: groupId,
+                            target_user_id: userId,
+                          });
+                        },
+                      });
+                    }
+                  }}
+                  isPending={assignMutation.isPending || deleteMutation.isPending}
+                />
+              );
+            })}
           </div>
         </SheetContent>
       </Sheet>
@@ -249,6 +265,7 @@ function SlotRow({
   slot,
   swimSessions,
   strengthSessions,
+  isGroupAssignment,
   onAssign,
   onDelete,
   onReplace,
@@ -257,6 +274,7 @@ function SlotRow({
   slot: DaySlot;
   swimSessions?: Array<{ id: number; name: string }>;
   strengthSessions?: Array<{ id: number; title: string }>;
+  isGroupAssignment?: boolean;
   onAssign: (sessionId: number) => void;
   onDelete: (assignmentId: number) => void;
   onReplace: (oldAssignmentId: number, newSessionId: number) => void;
@@ -296,7 +314,14 @@ function SlotRow({
 
       {hasAssignment && !isChanging ? (
         <div className="flex items-center gap-2">
-          <p className="text-sm font-semibold truncate flex-1">{slot.assignment!.title}</p>
+          <p className="text-sm font-semibold truncate flex-1">
+            {slot.assignment!.title}
+            {isGroupAssignment && (
+              <span className="ml-1.5 text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full align-middle">
+                Groupe
+              </span>
+            )}
+          </p>
           <Button
             type="button"
             size="icon"
@@ -304,21 +329,23 @@ function SlotRow({
             className="h-7 w-7 shrink-0"
             disabled={isPending}
             onClick={() => setIsChanging(true)}
-            title="Changer"
+            title={isGroupAssignment ? "Personnaliser" : "Changer"}
           >
             <RefreshCw className="h-3.5 w-3.5" />
           </Button>
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
-            disabled={isPending}
-            onClick={() => onDelete(slot.assignment!.id)}
-            title="Supprimer"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+          {!isGroupAssignment && (
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
+              disabled={isPending}
+              onClick={() => onDelete(slot.assignment!.id)}
+              title="Supprimer"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
         </div>
       ) : (
         <Select
@@ -327,7 +354,7 @@ function SlotRow({
           disabled={isPending || catalog.length === 0}
         >
           <SelectTrigger className="h-9 text-xs">
-            <SelectValue placeholder={isChanging ? "Choisir le remplacement" : "Choisir une séance"} />
+            <SelectValue placeholder={isChanging ? (isGroupAssignment ? "Personnaliser pour ce nageur" : "Choisir le remplacement") : "Choisir une séance"} />
           </SelectTrigger>
           <SelectContent>
             {catalog.map((item) => (

@@ -152,12 +152,15 @@ export function useCoachCalendarState({ groupId, userId, enabled }: UseCoachCale
   const slotsForSelectedDay = useMemo((): DaySlot[] => {
     const dayAssignments = assignmentsForSelectedDay;
     return DAY_SLOTS.map((slot) => {
-      const match = dayAssignments.find((a) => {
+      const matches = dayAssignments.filter((a) => {
         if (slot.type !== a.type) return false;
         if (slot.type === "swim") return slotToSlotKey(a.scheduledSlot) === (slot.scheduledSlot === "morning" ? "AM" : "PM");
         return true; // strength: any strength assignment matches
       });
-      return { ...slot, assignment: match ?? null };
+      // Prefer user-level assignment over group-level (user override takes priority)
+      const userMatch = matches.find((a) => a.targetType === "user");
+      const groupMatch = matches.find((a) => a.targetType === "group");
+      return { ...slot, assignment: userMatch ?? groupMatch ?? null };
     });
   }, [assignmentsForSelectedDay]);
 
