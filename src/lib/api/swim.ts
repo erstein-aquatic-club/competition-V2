@@ -208,3 +208,65 @@ export async function migrateLocalStorageArchive(archivedIds: number[]) {
     .in("id", archivedIds);
   if (error) throw new Error(error.message);
 }
+
+/**
+ * Generate (or retrieve existing) share token for a swim session.
+ * Returns the UUID token string.
+ */
+export async function generateShareToken(catalogId: number): Promise<string> {
+  if (!canUseSupabase()) throw new Error("Supabase required for sharing");
+
+  // Check if token already exists
+  const { data: existing, error: fetchError } = await supabase
+    .from("swim_sessions_catalog")
+    .select("share_token")
+    .eq("id", catalogId)
+    .single();
+  if (fetchError) throw new Error(fetchError.message);
+  if (existing?.share_token) return existing.share_token as string;
+
+  // Generate new token via RPC
+  const { data, error } = await supabase.rpc("generate_swim_share_token", {
+    p_catalog_id: catalogId,
+  });
+  if (error) throw new Error(error.message);
+  return data as string;
+}
+
+/**
+ * Fetch a shared swim session by its public token.
+ * Works without authentication (uses anon key).
+ */
+export async function getSharedSession(
+  token: string,
+): Promise<{ name: string; description: string | null; items: SwimSessionItem[] } | null> {
+  // Use supabase directly (anon key, no auth needed)
+  const { data, error } = await supabase
+    .from("swim_sessions_catalog")
+    .select("name, description, swim_session_items(*)")
+    .eq("share_token", token)
+    .single();
+  if (error || !data) return null;
+
+  const items: SwimSessionItem[] = Array.isArray((data as any).swim_session_items)
+    ? (data as any).swim_session_items
+        .sort((a: any, b: any) => (a.ordre ?? 0) - (b.ordre ?? 0))
+        .map((item: any, index: number) => ({
+          id: safeOptionalInt(item.id) ?? undefined,
+          catalog_id: safeOptionalInt(item.catalog_id) ?? undefined,
+          ordre: safeOptionalInt(item.ordre) ?? index,
+          label: item.label ?? null,
+          distance: safeOptionalInt(item.distance) ?? null,
+          duration: safeOptionalInt(item.duration) ?? null,
+          intensity: item.intensity ?? null,
+          notes: item.notes ?? null,
+          raw_payload: parseRawPayload(item.raw_payload),
+        }))
+    : [];
+
+  return {
+    name: String(data.name || ""),
+    description: (data as any).description ?? null,
+    items,
+  };
+}

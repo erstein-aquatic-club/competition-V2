@@ -113,6 +113,8 @@ import {
   archiveSwimSession as _archiveSwimSession,
   moveSwimSession as _moveSwimSession,
   migrateLocalStorageArchive as _migrateLocalStorageArchive,
+  generateShareToken as _generateShareToken,
+  getSharedSession as _getSharedSession,
 } from "./api/swim";
 
 import {
@@ -439,6 +441,8 @@ export const api = {
   async archiveSwimSession(sessionId: number, archived: boolean) { return _archiveSwimSession(sessionId, archived); },
   async moveSwimSession(sessionId: number, folder: string | null) { return _moveSwimSession(sessionId, folder); },
   async migrateLocalStorageArchive(archivedIds: number[]) { return _migrateLocalStorageArchive(archivedIds); },
+  async generateShareToken(catalogId: number) { return _generateShareToken(catalogId); },
+  async getSharedSession(token: string) { return _getSharedSession(token); },
 
   // ══════════════════════════════════════════════════════════════════
   // DELEGATION STUBS — Assignments

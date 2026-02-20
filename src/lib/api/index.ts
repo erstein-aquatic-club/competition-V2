@@ -139,6 +139,8 @@ export {
   archiveSwimSession,
   moveSwimSession,
   migrateLocalStorageArchive,
+  generateShareToken,
+  getSharedSession,
 } from './swim';
 
 export {

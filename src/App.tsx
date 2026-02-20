@@ -57,6 +57,7 @@ const Records = lazyWithRetry(() => import("@/pages/Records"));
 const RecordsAdmin = lazyWithRetry(() => import("@/pages/RecordsAdmin"));
 const RecordsClub = lazyWithRetry(() => import("@/pages/RecordsClub"));
 const SwimSessionView = lazyWithRetry(() => import("@/pages/SwimSessionView"));
+const SharedSwimSession = lazyWithRetry(() => import("@/pages/SharedSwimSession"));
 const ComingSoon = lazyWithRetry(() => import("@/pages/ComingSoon"));
 const NotFound = lazyWithRetry(() => import("@/pages/not-found"));
 
@@ -199,6 +200,7 @@ function AppRouter() {
           <Switch>
             <Route path="/reset-password" component={ResetPassword} />
             <Route path="/login-debug" component={LoginDebug} />
+            <Route path="/s/:token" component={SharedSwimSession} />
             <Route path="/" component={Login} />
             <Route path="/:rest*" component={() => <Redirect to="/" />} />
           </Switch>
@@ -244,6 +246,7 @@ function AppRouter() {
             <Route path="/records-admin" component={RecordsAdmin} />
             <Route path="/records-club" component={RecordsClub} />
             <Route path="/swim-session" component={SwimSessionView} />
+            <Route path="/s/:token" component={SharedSwimSession} />
             <Route path="/profile" component={Profile} />
             <Route path="/coming-soon" component={ComingSoon} />
             <Route component={NotFound} />
