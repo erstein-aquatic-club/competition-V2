@@ -109,7 +109,7 @@ export default function SwimSessionView() {
   ) || [];
   const assignment = assignmentId
     ? swimAssignments.find((item) => item.id === assignmentId)
-    : swimAssignments[0];
+    : undefined;
 
   const sessionCatalogId = assignment?.session_id;
 
