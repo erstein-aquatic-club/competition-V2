@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
-import type { Session, SwimSessionItem } from "@/lib/api";
+import type { Session } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { useDashboardState } from "@/hooks/useDashboardState";
@@ -299,16 +299,6 @@ export default function Dashboard() {
     startTransition,
     getSessionStatus,
   } = state;
-
-  // Get swim session items for the active assignment (for technical notes)
-  const activeAssignmentItems = useMemo((): SwimSessionItem[] => {
-    if (!activeSessionId) return [];
-    const activeSession = sessionsForSelectedDay.find((s) => s.id === activeSessionId);
-    if (!activeSession?.assignmentId) return [];
-    const assignment = (assignments ?? []).find((a) => a.id === activeSession.assignmentId);
-    if (!assignment?.items) return [];
-    return (assignment.items as SwimSessionItem[]).filter((item) => item.label);
-  }, [activeSessionId, sessionsForSelectedDay, assignments]);
 
   const openDay = useCallback(
     (iso: string) => {
@@ -797,7 +787,6 @@ export default function Dashboard() {
           onSaveFeedback={saveFeedback}
           onDraftStateChange={setDraftState}
           getSessionStatus={getSessionStatus}
-          assignmentItems={activeAssignmentItems}
         />
       </div>
     </div>

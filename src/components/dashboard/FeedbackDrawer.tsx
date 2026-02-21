@@ -7,7 +7,7 @@ import { slideInFromBottom, staggerChildren, listItem } from "@/lib/animations";
 import { durationsSeconds } from "@/lib/design-tokens";
 import { StrokeDetailForm } from "./StrokeDetailForm";
 import { TechnicalNotesSection } from "./TechnicalNotesSection";
-import type { Session, SwimExerciseLogInput, SwimSessionItem } from "@/lib/api";
+import type { Session, SwimExerciseLogInput } from "@/lib/api";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -246,7 +246,6 @@ interface FeedbackDrawerProps {
   saveState: SaveState;
   isPending: boolean;
   logsBySessionId: Record<string, Session>;
-  assignmentItems?: SwimSessionItem[];
   onClose: () => void;
   onDayOffAll: () => void;
   onOpenSession: (sessionId: string) => void;
@@ -272,7 +271,6 @@ export function FeedbackDrawer({
   saveState,
   isPending,
   logsBySessionId,
-  assignmentItems,
   onClose,
   onDayOffAll,
   onOpenSession,
@@ -719,7 +717,7 @@ export function FeedbackDrawer({
                               {/* Notes techniques par exercice */}
                               <TechnicalNotesSection
                                 exerciseLogs={draftState.exerciseLogs}
-                                assignmentItems={assignmentItems}
+                                assignmentId={activeSession?.assignmentId}
                                 disabled={!canRate}
                                 onLogsChange={(exerciseLogs) => onDraftStateChange({ ...draftState, exerciseLogs })}
                               />
