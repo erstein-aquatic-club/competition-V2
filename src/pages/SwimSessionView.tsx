@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SwimSessionTimeline } from "@/components/swim/SwimSessionTimeline";
-import { ExerciseLogInline, detectRepetitions } from "@/components/swim/ExerciseLogInline";
+import { ExerciseLogInline } from "@/components/swim/ExerciseLogInline";
 import { api, Assignment, SwimSessionItem } from "@/lib/api";
 import type { SwimExerciseLog, SwimExerciseLogInput } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -213,13 +213,24 @@ export default function SwimSessionView() {
         slot,
       });
 
-      // Filter to only logs with actual data
+      // Collect logs from assignment mode or manual mode
       const allLogs: SwimExerciseLogInput[] = [];
-      for (const [, log] of logsMap) {
-        const hasSplits = (log.split_times ?? []).some((s) => s.time_seconds > 0);
-        const hasStrokes = (log.stroke_count ?? []).some((s) => s.count > 0);
-        const hasData = hasSplits || hasStrokes || log.tempo != null || (log.notes?.trim());
-        if (hasData) allLogs.push(log);
+
+      if (assignment) {
+        for (const [, log] of logsMap) {
+          const hasSplits = (log.split_times ?? []).some((s) => s.time_seconds > 0);
+          const hasStrokes = (log.stroke_count ?? []).some((s) => s.count > 0);
+          const hasData = hasSplits || hasStrokes || log.tempo != null || (log.notes?.trim());
+          if (hasData) allLogs.push(log);
+        }
+      } else {
+        for (const ex of manualExercises) {
+          const log = ex.log;
+          const hasSplits = (log.split_times ?? []).some((s) => s.time_seconds > 0);
+          const hasStrokes = (log.stroke_count ?? []).some((s) => s.count > 0);
+          const hasData = hasSplits || hasStrokes || log.tempo != null || (log.notes?.trim());
+          if (hasData) allLogs.push({ ...log, exercise_label: ex.label });
+        }
       }
 
       if (allLogs.length === 0) throw new Error("Aucune donnée à sauvegarder");
@@ -228,6 +239,7 @@ export default function SwimSessionView() {
     },
     onSuccess: () => {
       setDirty(false);
+      if (!assignment) setManualExercises([]);
       queryClient.invalidateQueries({ queryKey: ["swim-exercise-logs-by-catalog"] });
       queryClient.invalidateQueries({ queryKey: ["swim-exercise-logs-history"] });
       toast({ title: "Notes techniques sauvegardées" });
@@ -317,15 +329,17 @@ export default function SwimSessionView() {
         <CardContent className="space-y-4 p-5">
           <div className="space-y-1">
             <div className="text-lg font-semibold tracking-tight">
-              {assignment?.title ?? "Séance natation"}
+              {assignment?.title ?? "Détails techniques libres"}
             </div>
             {assignment?.description ? (
               <p className="text-sm text-muted-foreground">{assignment.description}</p>
+            ) : !assignment && !isLoading ? (
+              <p className="text-sm text-muted-foreground">Saisissez vos exercices et détails techniques manuellement.</p>
             ) : null}
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Badge variant="outline" className="text-xs">
-              {formatAssignedDate(assignment?.assigned_date)}
+              {assignment ? formatAssignedDate(assignment.assigned_date) : format(new Date(), "dd MMM", { locale: fr })}
             </Badge>
             {assignment ? (
               <Button
@@ -345,9 +359,11 @@ export default function SwimSessionView() {
           <Separator />
 
           {/* Instruction text */}
-          {assignment && !isLoading ? (
+          {!isLoading ? (
             <div className="rounded-xl bg-muted/50 px-3 py-2 text-xs text-muted-foreground leading-relaxed">
-              Tapez sur un exercice pour ajouter vos temps et détails techniques.
+              {assignment
+                ? "Tapez sur un exercice pour ajouter vos temps et détails techniques."
+                : "Ajoutez vos exercices manuellement et renseignez vos détails techniques."}
             </div>
           ) : null}
 
@@ -377,8 +393,87 @@ export default function SwimSessionView() {
               onLogChange={handleLogChange}
             />
           ) : (
-            <div className="rounded-2xl border border-dashed border-muted/70 bg-muted/30 p-6 text-sm text-muted-foreground">
-              Aucune séance de natation assignée pour le moment.
+            <div className="space-y-4">
+              {/* Add exercise form */}
+              <div className="flex items-end gap-2">
+                <div className="flex-1 space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Exercice</label>
+                  <input
+                    type="text"
+                    placeholder="ex: 6x50m crawl"
+                    value={manualLabel}
+                    onChange={(e) => setManualLabel(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") addManualExercise(); }}
+                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                  />
+                </div>
+                <div className="w-16 space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Reps</label>
+                  <input
+                    type="number"
+                    min={1}
+                    inputMode="numeric"
+                    value={manualReps}
+                    onChange={(e) => setManualReps(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                    className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  onClick={addManualExercise}
+                  disabled={!manualLabel.trim()}
+                  className="h-9 gap-1"
+                >
+                  <Plus className="h-4 w-4" />
+                  Ajouter
+                </Button>
+              </div>
+
+              {/* Manual exercises list */}
+              {manualExercises.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-muted/70 bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+                  Ajoutez un exercice ci-dessus pour commencer.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {manualExercises.map((ex) => {
+                    const isExpanded = manualExpandedId === ex.id;
+                    const fakeItem: SwimSessionItem = {
+                      label: ex.label,
+                      raw_payload: { exercise_repetitions: ex.reps },
+                    };
+                    return (
+                      <div key={ex.id} className="rounded-xl border border-border overflow-hidden">
+                        <div
+                          className="flex items-center justify-between px-3 py-2.5 cursor-pointer hover:bg-muted/40"
+                          onClick={() => setManualExpandedId(isExpanded ? null : ex.id)}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{ex.label}</span>
+                            <span className="text-xs text-muted-foreground">{ex.reps} rep{ex.reps > 1 ? "s" : ""}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); removeManualExercise(ex.id); }}
+                            className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                            aria-label="Supprimer"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                        {isExpanded && (
+                          <ExerciseLogInline
+                            item={fakeItem}
+                            log={ex.log}
+                            onChange={(log) => updateManualLog(ex.id, log)}
+                            onCollapse={() => setManualExpandedId(null)}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </CardContent>

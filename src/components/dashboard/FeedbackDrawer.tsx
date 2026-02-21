@@ -6,7 +6,6 @@ import { BottomActionBar, type SaveState } from "@/components/shared/BottomActio
 import { slideInFromBottom, staggerChildren, listItem } from "@/lib/animations";
 import { durationsSeconds } from "@/lib/design-tokens";
 import { StrokeDetailForm } from "./StrokeDetailForm";
-import { TechnicalNotesSection } from "./TechnicalNotesSection";
 import type { Session, SwimExerciseLogInput } from "@/lib/api";
 
 function cn(...classes: Array<string | false | null | undefined>) {
@@ -618,17 +617,19 @@ export function FeedbackDrawer({
                                     </div>
                                   )}
 
-                                  {activeSession.assignmentId ? (
-                                    <div className="mt-3">
-                                      <button
-                                        type="button"
-                                        onClick={() => setLocation(`/swim-session?assignmentId=${activeSession.assignmentId}`)}
-                                        className="w-full rounded-2xl border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted"
-                                      >
-                                        Ouvrir la fiche complète
-                                      </button>
-                                    </div>
-                                  ) : null}
+                                  <div className="mt-3">
+                                    <button
+                                      type="button"
+                                      onClick={() => setLocation(
+                                        activeSession.assignmentId
+                                          ? `/swim-session?assignmentId=${activeSession.assignmentId}`
+                                          : `/swim-session`
+                                      )}
+                                      className="w-full rounded-2xl border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted"
+                                    >
+                                      {activeSession.assignmentId ? "Ouvrir la fiche complète" : "Saisir mes détails techniques"}
+                                    </button>
+                                  </div>
                                 </motion.div>
                               )}
                             </AnimatePresence>
@@ -712,14 +713,6 @@ export function FeedbackDrawer({
                                 disabled={!canRate}
                                 onToggle={() => onDraftStateChange({ ...draftState, showStrokeDetail: !draftState.showStrokeDetail })}
                                 onChange={(strokes) => onDraftStateChange({ ...draftState, strokes })}
-                              />
-
-                              {/* Notes techniques par exercice */}
-                              <TechnicalNotesSection
-                                exerciseLogs={draftState.exerciseLogs}
-                                assignmentId={activeSession?.assignmentId}
-                                disabled={!canRate}
-                                onLogsChange={(exerciseLogs) => onDraftStateChange({ ...draftState, exerciseLogs })}
                               />
 
                             </div>
