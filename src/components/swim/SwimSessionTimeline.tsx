@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import type { SwimSessionItem } from "@/lib/api";
+import type { SwimSessionItem, SwimExerciseLogInput } from "@/lib/api";
+import { ExerciseLogInline } from "./ExerciseLogInline";
 import type { SwimPayloadFields } from "@/lib/types";
 import {
   type BlockGroup,
@@ -25,6 +26,14 @@ interface SwimSessionTimelineProps {
   items?: SwimSessionItem[];
   showHeader?: boolean;
   onExerciseSelect?: (detail: SwimExerciseDetail) => void;
+  /** Edit mode — per-exercise log data keyed by item id */
+  exerciseLogs?: Map<number, SwimExerciseLogInput>;
+  /** Currently expanded exercise item id */
+  expandedItemId?: number | null;
+  /** Toggle inline expansion for an exercise */
+  onToggleExpand?: (itemId: number) => void;
+  /** Called when inline log data changes */
+  onLogChange?: (itemId: number, log: SwimExerciseLogInput) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -120,6 +129,10 @@ export function SwimSessionTimeline({
   items = [],
   showHeader = true,
   onExerciseSelect,
+  exerciseLogs,
+  expandedItemId,
+  onToggleExpand,
+  onLogChange,
 }: SwimSessionTimelineProps) {
   const [viewLevel, setViewLevel] = useState<0 | 1 | 2>(0);
   const [collapsedBlocks, setCollapsedBlocks] = useState<Set<string>>(new Set());
@@ -362,159 +375,180 @@ export function SwimSessionTimeline({
                           ? (typeBadgeMap[strokeTypeLabel] ?? null)
                           : null;
 
+                        // Edit mode flags
+                        const isExpandable = Boolean(onToggleExpand && item.id != null);
+                        const isExpanded = isExpandable && expandedItemId === item.id;
+                        const hasLogData = item.id != null && exerciseLogs?.has(item.id);
+
+                        const handleClick = isExpandable
+                          ? () => onToggleExpand!(item.id!)
+                          : onExerciseSelect
+                            ? () => onExerciseSelect(buildDetail(item, itemIndex, block, blockIndex))
+                            : undefined;
+
+                        const isClickable = Boolean(handleClick);
+
                         const exerciseRow = (
                           <div
                             key={`${block.key}-${itemIndex}`}
                             className={cn(
-                              "py-2",
                               itemIndex > 0 && "border-t border-border/40",
-                              onExerciseSelect && "cursor-pointer active:bg-muted/50 rounded",
                             )}
-                            onClick={
-                              onExerciseSelect
-                                ? () =>
-                                    onExerciseSelect(
-                                      buildDetail(
-                                        item,
-                                        itemIndex,
-                                        block,
-                                        blockIndex,
-                                      ),
-                                    )
-                                : undefined
-                            }
-                            role={onExerciseSelect ? "button" : undefined}
-                            tabIndex={onExerciseSelect ? 0 : undefined}
-                            onKeyDown={
-                              onExerciseSelect
-                                ? (e) => {
-                                    if (
-                                      e.key === "Enter" ||
-                                      e.key === " "
-                                    ) {
-                                      e.preventDefault();
-                                      onExerciseSelect(
-                                        buildDetail(
-                                          item,
-                                          itemIndex,
-                                          block,
-                                          blockIndex,
-                                        ),
-                                      );
-                                    }
-                                  }
-                                : undefined
-                            }
                           >
-                            {/* Main exercise row */}
-                            <div className="flex items-center gap-1.5">
-                              {/* Distance label */}
-                              <span
-                                className={cn(
-                                  "font-display font-bold tabular-nums tracking-tight text-foreground",
-                                  isBassin
-                                    ? "min-w-[95px] text-xl"
-                                    : "min-w-[76px] text-lg",
-                                )}
-                              >
-                                {formatExerciseLabel(item)}
-                              </span>
-
-                              {/* Stroke badge */}
-                              {strokeBadge ? (
+                            {/* Clickable content wrapper */}
+                            <div
+                              className={cn(
+                                "py-2",
+                                isClickable && "cursor-pointer active:bg-muted/50 rounded",
+                              )}
+                              onClick={handleClick}
+                              role={isClickable ? "button" : undefined}
+                              tabIndex={isClickable ? 0 : undefined}
+                              onKeyDown={
+                                isClickable
+                                  ? (e) => {
+                                      if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        handleClick!();
+                                      }
+                                    }
+                                  : undefined
+                              }
+                            >
+                              {/* Main exercise row */}
+                              <div className="flex items-center gap-1.5">
+                                {/* Distance label */}
                                 <span
                                   className={cn(
-                                    "rounded-full font-display font-bold whitespace-nowrap leading-tight",
+                                    "font-display font-bold tabular-nums tracking-tight text-foreground",
                                     isBassin
-                                      ? "px-2.5 py-1 text-sm"
-                                      : "px-2 py-0.5 text-xs",
-                                    strokeBadge.className,
+                                      ? "min-w-[95px] text-xl"
+                                      : "min-w-[76px] text-lg",
                                   )}
                                 >
-                                  {strokeBadge.label}
+                                  {formatExerciseLabel(item)}
                                 </span>
+
+                                {/* Stroke badge */}
+                                {strokeBadge ? (
+                                  <span
+                                    className={cn(
+                                      "rounded-full font-display font-bold whitespace-nowrap leading-tight",
+                                      isBassin
+                                        ? "px-2.5 py-1 text-sm"
+                                        : "px-2 py-0.5 text-xs",
+                                      strokeBadge.className,
+                                    )}
+                                  >
+                                    {strokeBadge.label}
+                                  </span>
+                                ) : null}
+
+                                {/* Type badge (hidden in bassin) */}
+                                {!isBassin && typeBadge ? (
+                                  <span
+                                    className={cn(
+                                      "rounded-full px-1.5 py-0.5 text-[11px] font-semibold whitespace-nowrap leading-tight",
+                                      typeBadge.className,
+                                    )}
+                                  >
+                                    {typeBadge.label}
+                                  </span>
+                                ) : null}
+
+                                {/* Intensity text (hidden in bassin) */}
+                                {!isBassin && normalizedIntensity ? (
+                                  <span
+                                    className={cn(
+                                      "font-display text-sm font-bold whitespace-nowrap",
+                                      intensityTextMap[normalizedIntensity] ??
+                                        "text-foreground",
+                                    )}
+                                  >
+                                    {formatIntensityLabel(normalizedIntensity)}
+                                  </span>
+                                ) : null}
+
+                                {/* Log indicator badge */}
+                                {hasLogData ? (
+                                  <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary leading-tight">
+                                    ✓
+                                  </span>
+                                ) : null}
+
+                                {/* Spacer */}
+                                <span className="flex-1" />
+
+                                {/* Rest (hidden in bassin) */}
+                                {!isBassin && restSeconds > 0 ? (
+                                  <span className="ml-auto flex items-center gap-1 whitespace-nowrap text-sm font-medium text-muted-foreground">
+                                    <Clock className="h-3 w-3" />
+                                    {restType === "departure" ? "d:" : "r:"}
+                                    {formatRecoveryDisplay(restSeconds)}
+                                  </span>
+                                ) : null}
+                              </div>
+
+                              {/* Equipment row */}
+                              {equipmentList.length > 0 ? (
+                                <div className="flex flex-wrap gap-2 pb-0.5 pt-1.5">
+                                  {equipmentList.map((eq: string) => (
+                                    <EquipmentIconCompact
+                                      key={eq}
+                                      equipment={eq}
+                                      size={isBassin ? "md" : "sm"}
+                                    />
+                                  ))}
+                                </div>
                               ) : null}
 
-                              {/* Type badge (hidden in bassin) */}
-                              {!isBassin && typeBadge ? (
-                                <span
+                              {/* Modalities (only viewLevel 0) */}
+                              {viewLevel === 0 && modalitiesLines.length > 0 ? (
+                                <div
                                   className={cn(
-                                    "rounded-full px-1.5 py-0.5 text-[11px] font-semibold whitespace-nowrap leading-tight",
-                                    typeBadge.className,
+                                    "mt-1.5 rounded-md border-l-[3px] bg-muted/60 px-2.5 py-1.5 text-sm leading-relaxed text-muted-foreground",
+                                    (() => {
+                                      // Use the dominant intensity border color
+                                      const borderMap: Record<string, string> = {
+                                        V0: "border-intensity-1",
+                                        V1: "border-intensity-2",
+                                        V2: "border-intensity-3",
+                                        V3: "border-intensity-4",
+                                        Max: "border-intensity-5",
+                                        Prog: "border-intensity-prog",
+                                      };
+                                      return (
+                                        borderMap[dominant] ??
+                                        "border-muted-foreground/30"
+                                      );
+                                    })(),
                                   )}
                                 >
-                                  {typeBadge.label}
-                                </span>
-                              ) : null}
-
-                              {/* Intensity text (hidden in bassin) */}
-                              {!isBassin && normalizedIntensity ? (
-                                <span
-                                  className={cn(
-                                    "font-display text-sm font-bold whitespace-nowrap",
-                                    intensityTextMap[normalizedIntensity] ??
-                                      "text-foreground",
-                                  )}
-                                >
-                                  {formatIntensityLabel(normalizedIntensity)}
-                                </span>
-                              ) : null}
-
-                              {/* Spacer */}
-                              <span className="flex-1" />
-
-                              {/* Rest (hidden in bassin) */}
-                              {!isBassin && restSeconds > 0 ? (
-                                <span className="ml-auto flex items-center gap-1 whitespace-nowrap text-sm font-medium text-muted-foreground">
-                                  <Clock className="h-3 w-3" />
-                                  {restType === "departure" ? "d:" : "r:"}
-                                  {formatRecoveryDisplay(restSeconds)}
-                                </span>
+                                  {modalitiesLines.map((line, li) => (
+                                    <div key={`mod-${block.key}-${itemIndex}-${li}`}>
+                                      {line}
+                                    </div>
+                                  ))}
+                                </div>
                               ) : null}
                             </div>
 
-                            {/* Equipment row */}
-                            {equipmentList.length > 0 ? (
-                              <div className="flex flex-wrap gap-2 pb-0.5 pt-1.5">
-                                {equipmentList.map((eq: string) => (
-                                  <EquipmentIconCompact
-                                    key={eq}
-                                    equipment={eq}
-                                    size={isBassin ? "md" : "sm"}
-                                  />
-                                ))}
-                              </div>
-                            ) : null}
-
-                            {/* Modalities (only viewLevel 0) */}
-                            {viewLevel === 0 && modalitiesLines.length > 0 ? (
-                              <div
-                                className={cn(
-                                  "mt-1.5 rounded-md border-l-[3px] bg-muted/60 px-2.5 py-1.5 text-sm leading-relaxed text-muted-foreground",
-                                  (() => {
-                                    // Use the dominant intensity border color
-                                    const borderMap: Record<string, string> = {
-                                      V0: "border-intensity-1",
-                                      V1: "border-intensity-2",
-                                      V2: "border-intensity-3",
-                                      V3: "border-intensity-4",
-                                      Max: "border-intensity-5",
-                                      Prog: "border-intensity-prog",
-                                    };
-                                    return (
-                                      borderMap[dominant] ??
-                                      "border-muted-foreground/30"
-                                    );
-                                  })(),
-                                )}
-                              >
-                                {modalitiesLines.map((line, li) => (
-                                  <div key={`mod-${block.key}-${itemIndex}-${li}`}>
-                                    {line}
-                                  </div>
-                                ))}
-                              </div>
-                            ) : null}
+                            {/* Inline exercise log form (edit mode) */}
+                            {isExpanded && item.id != null && onLogChange && (
+                              <ExerciseLogInline
+                                item={item}
+                                log={exerciseLogs?.get(item.id) ?? {
+                                  exercise_label: item.label || `Exercice ${itemIndex + 1}`,
+                                  source_item_id: item.id,
+                                  split_times: [],
+                                  tempo: null,
+                                  stroke_count: [],
+                                  notes: null,
+                                }}
+                                onChange={(log) => onLogChange(item.id!, log)}
+                                onCollapse={() => onToggleExpand!(item.id!)}
+                              />
+                            )}
                           </div>
                         );
 
