@@ -120,6 +120,53 @@ export const formatRecoveryDisplay = (seconds?: number | null) => {
 };
 
 // ---------------------------------------------------------------------------
+// Swim time formatting — min:sec:centièmes
+// ---------------------------------------------------------------------------
+
+/**
+ * Format a time in seconds to the swim notation "m:ss:cc" or "ss:cc".
+ * Examples: 83.45 → "1:23:45", 32.05 → "32:05", 0 → ""
+ */
+export function formatSwimTime(seconds: number | null | undefined): string {
+  if (!seconds || !Number.isFinite(seconds) || seconds <= 0) return "";
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  const hundredths = Math.round((seconds % 1) * 100);
+  if (mins > 0) {
+    return `${mins}:${String(secs).padStart(2, "0")}:${String(hundredths).padStart(2, "0")}`;
+  }
+  return `${secs}:${String(hundredths).padStart(2, "0")}`;
+}
+
+/**
+ * Parse a swim time string to seconds.
+ * Accepts: "1:23:45" (min:sec:cc) → 83.45, "32:45" (sec:cc) → 32.45,
+ *          "32" → 32, also supports "." as separator for hundredths.
+ */
+export function parseSwimTime(input: string): number {
+  const trimmed = input.trim();
+  if (!trimmed) return 0;
+  // Split on ":" to get parts
+  const parts = trimmed.split(":");
+  if (parts.length === 3) {
+    // min:sec:hundredths
+    const min = parseInt(parts[0], 10) || 0;
+    const sec = parseInt(parts[1], 10) || 0;
+    const cc = parseInt(parts[2], 10) || 0;
+    return min * 60 + sec + cc / 100;
+  }
+  if (parts.length === 2) {
+    // sec:hundredths
+    const sec = parseInt(parts[0], 10) || 0;
+    const cc = parseInt(parts[1], 10) || 0;
+    return sec + cc / 100;
+  }
+  // Single number — try as seconds (could contain dot)
+  const n = parseFloat(trimmed);
+  return Number.isFinite(n) ? n : 0;
+}
+
+// ---------------------------------------------------------------------------
 // groupItemsByBlock — organises flat session items into block groups
 // ---------------------------------------------------------------------------
 export const groupItemsByBlock = (items: SwimSessionItem[] = []): BlockGroup[] => {

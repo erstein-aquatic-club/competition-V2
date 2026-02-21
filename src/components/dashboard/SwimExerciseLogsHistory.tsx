@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { SwimExerciseLog, SwimExerciseLogInput } from "@/lib/api";
 import { Timer, Activity, Hash, FileText, ChevronRight, Pencil, Check, X, Trash2, Plus } from "lucide-react";
+import { formatSwimTime, parseSwimTime } from "@/lib/swimConsultationUtils";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -18,14 +19,6 @@ function formatDate(iso: string) {
   } catch {
     return iso;
   }
-}
-
-function formatTime(seconds: number): string {
-  if (!seconds || !Number.isFinite(seconds)) return "\u2014";
-  if (seconds < 60) return `${seconds.toFixed(1)}s`;
-  const min = Math.floor(seconds / 60);
-  const sec = seconds % 60;
-  return `${min}:${sec < 10 ? "0" : ""}${sec.toFixed(1)}`;
 }
 
 interface SwimExerciseLogsHistoryProps {
@@ -134,6 +127,7 @@ function LogEntry({ log, onSave, onDelete, saving }: LogEntryProps) {
     split_times: log.split_times,
     stroke_count: log.stroke_count,
   });
+  const [splitTexts, setSplitTexts] = useState<string[]>([]);
 
   const startEdit = () => {
     setDraft({
@@ -142,6 +136,7 @@ function LogEntry({ log, onSave, onDelete, saving }: LogEntryProps) {
       split_times: [...log.split_times],
       stroke_count: [...log.stroke_count],
     });
+    setSplitTexts(log.split_times.map((s) => formatSwimTime(s.time_seconds)));
     setEditing(true);
   };
 
@@ -162,12 +157,20 @@ function LogEntry({ log, onSave, onDelete, saving }: LogEntryProps) {
       ...d,
       split_times: [...d.split_times, { rep: d.split_times.length + 1, time_seconds: 0 }],
     }));
+    setSplitTexts((prev) => [...prev, ""]);
   };
 
-  const updateSplit = (i: number, time_seconds: number) => {
+  const handleSplitTextChange = (i: number, text: string) => {
+    setSplitTexts((prev) => prev.map((t, j) => (j === i ? text : t)));
+  };
+
+  const handleSplitBlur = (i: number) => {
+    const parsed = parseSwimTime(splitTexts[i]);
+    const formatted = formatSwimTime(parsed);
+    setSplitTexts((prev) => prev.map((t, j) => (j === i ? formatted : t)));
     setDraft((d) => ({
       ...d,
-      split_times: d.split_times.map((s, j) => (j === i ? { ...s, time_seconds } : s)),
+      split_times: d.split_times.map((s, j) => (j === i ? { ...s, time_seconds: parsed } : s)),
     }));
   };
 
@@ -176,6 +179,7 @@ function LogEntry({ log, onSave, onDelete, saving }: LogEntryProps) {
       ...d,
       split_times: d.split_times.filter((_, j) => j !== i).map((s, j) => ({ ...s, rep: j + 1 })),
     }));
+    setSplitTexts((prev) => prev.filter((_, j) => j !== i));
   };
 
   const addStroke = () => {
@@ -273,13 +277,12 @@ function LogEntry({ log, onSave, onDelete, saving }: LogEntryProps) {
                 <div key={i} className="flex items-center gap-1">
                   <span className="text-[10px] text-muted-foreground w-4 text-right">{s.rep}</span>
                   <input
-                    type="number"
-                    inputMode="decimal"
-                    step="0.1"
-                    min={0}
-                    value={s.time_seconds || ""}
-                    onChange={(e) => updateSplit(i, Number(e.target.value) || 0)}
-                    placeholder="sec"
+                    type="text"
+                    inputMode="numeric"
+                    value={splitTexts[i] ?? ""}
+                    onChange={(e) => handleSplitTextChange(i, e.target.value)}
+                    onBlur={() => handleSplitBlur(i)}
+                    placeholder="ss:cc"
                     className="w-16 rounded-lg border border-border bg-background px-1.5 py-1 text-xs text-center outline-none focus:ring-2 focus:ring-foreground/10"
                   />
                   <button
@@ -375,7 +378,7 @@ function LogEntry({ log, onSave, onDelete, saving }: LogEntryProps) {
         {log.split_times.length > 0 && (
           <span className="inline-flex items-center gap-1">
             <Timer className="h-3 w-3" />
-            {log.split_times.map((s) => formatTime(s.time_seconds)).join(" / ")}
+            {log.split_times.map((s) => formatSwimTime(s.time_seconds) || "\u2014").join(" / ")}
           </span>
         )}
 

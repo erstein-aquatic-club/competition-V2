@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { ChevronUp, Activity, Timer, Hash, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatSwimTime, parseSwimTime } from "@/lib/swimConsultationUtils";
 import type { SwimSessionItem, SwimExerciseLogInput, SplitTimeEntry, StrokeCountEntry } from "@/lib/api/types";
 import type { SwimPayloadFields } from "@/lib/types";
 
@@ -53,6 +54,10 @@ export function ExerciseLogInline({ item, log, onChange, onCollapse }: ExerciseL
 
   const [splits, setSplits] = useState<SplitTimeEntry[]>(initSplits);
   const [strokes, setStrokes] = useState<StrokeCountEntry[]>(initStrokes);
+  // Local text state for time inputs (allows typing "1:23:45" freely)
+  const [splitTexts, setSplitTexts] = useState<string[]>(() =>
+    initSplits().map((s) => formatSwimTime(s.time_seconds)),
+  );
 
   const emit = useCallback(
     (patch: Partial<SwimExerciseLogInput>) => {
@@ -68,10 +73,16 @@ export function ExerciseLogInline({ item, log, onChange, onCollapse }: ExerciseL
     emit({ tempo: Number.isFinite(n) ? n : null });
   };
 
-  const handleSplitChange = (index: number, value: string) => {
-    const n = parseFloat(value);
+  const handleSplitTextChange = (index: number, text: string) => {
+    setSplitTexts((prev) => prev.map((t, i) => (i === index ? text : t)));
+  };
+
+  const handleSplitBlur = (index: number) => {
+    const parsed = parseSwimTime(splitTexts[index]);
+    const formatted = formatSwimTime(parsed);
+    setSplitTexts((prev) => prev.map((t, i) => (i === index ? formatted : t)));
     const next = splits.map((s, i) =>
-      i === index ? { ...s, time_seconds: Number.isFinite(n) ? n : 0 } : s,
+      i === index ? { ...s, time_seconds: parsed } : s,
     );
     setSplits(next);
     emit({ split_times: next });
@@ -145,12 +156,12 @@ export function ExerciseLogInline({ item, log, onChange, onCollapse }: ExerciseL
                 <td className="py-1 pr-2 text-xs font-medium text-muted-foreground">{s.rep}</td>
                 <td className="py-1 px-1">
                   <input
-                    type="number"
-                    step={0.1}
-                    inputMode="decimal"
-                    placeholder="sec"
-                    value={s.time_seconds || ""}
-                    onChange={(e) => handleSplitChange(i, e.target.value)}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="ss:cc"
+                    value={splitTexts[i] ?? ""}
+                    onChange={(e) => handleSplitTextChange(i, e.target.value)}
+                    onBlur={() => handleSplitBlur(i)}
                     className={cn(
                       "h-8 w-full rounded-md border border-input bg-background px-2 text-sm text-center",
                       "focus:outline-none focus:ring-1 focus:ring-ring",
