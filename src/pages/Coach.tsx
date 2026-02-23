@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CalendarDays, Download, Dumbbell, HeartPulse, Mail, Trophy, Users, UsersRound, Waves } from "lucide-react";
+import { CalendarDays, Download, Dumbbell, HeartPulse, Mail, Target, Trophy, Users, UsersRound, Waves } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,8 @@ import CoachSectionHeader from "./coach/CoachSectionHeader";
 import CoachMessagesScreen from "./coach/CoachMessagesScreen";
 import CoachCalendar from "./coach/CoachCalendar";
 import CoachGroupsScreen from "./coach/CoachGroupsScreen";
+import CoachCompetitionsScreen from "./coach/CoachCompetitionsScreen";
+import CoachObjectivesScreen from "./coach/CoachObjectivesScreen";
 import ComingSoon from "./ComingSoon";
 import { FEATURES } from "@/lib/features";
 import type { LocalStrengthRun } from "@/lib/types";
@@ -22,7 +24,7 @@ import type { LocalStrengthRun } from "@/lib/types";
 const StrengthCatalog = lazy(() => import("./coach/StrengthCatalog"));
 const SwimCatalog = lazy(() => import("./coach/SwimCatalog"));
 
-type CoachSection = "home" | "swim" | "strength" | "swimmers" | "messaging" | "calendar" | "groups";
+type CoachSection = "home" | "swim" | "strength" | "swimmers" | "messaging" | "calendar" | "groups" | "competitions" | "objectives";
 type KpiLookbackPeriod = 7 | 30 | 365;
 
 type CoachHomeProps = {
@@ -223,6 +225,24 @@ const CoachHome = ({
           <p className="text-sm font-bold">Records club</p>
           <p className="text-xs text-muted-foreground">Import & administration</p>
         </button>
+        <button
+          type="button"
+          onClick={() => onNavigate("competitions")}
+          className="rounded-xl border bg-card p-4 text-left shadow-sm active:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Trophy className="h-5 w-5 text-amber-500 mb-2" />
+          <p className="text-sm font-bold">Compétitions</p>
+          <p className="text-xs text-muted-foreground">Échéances & calendrier</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => onNavigate("objectives")}
+          className="rounded-xl border bg-card p-4 text-left shadow-sm active:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Target className="h-5 w-5 text-primary mb-2" />
+          <p className="text-sm font-bold">Objectifs</p>
+          <p className="text-xs text-muted-foreground">Temps cibles & objectifs</p>
+        </button>
       </div>
 
       {/* Records club shortcut */}
@@ -300,7 +320,8 @@ export default function Coach() {
     activeSection === "messaging" ||
     activeSection === "swimmers" ||
     activeSection === "calendar" ||
-    activeSection === "groups";
+    activeSection === "groups" ||
+    activeSection === "objectives";
   const shouldLoadGroups = activeSection === "messaging" || activeSection === "calendar" || activeSection === "groups";
   const shouldLoadBirthdays = activeSection === "home" || activeSection === "swimmers";
 
@@ -608,6 +629,20 @@ export default function Coach() {
           onBack={() => setActiveSection("home")}
           athletes={athletes}
           groups={groups}
+          athletesLoading={athletesLoading}
+        />
+      ) : null}
+
+      {activeSection === "competitions" ? (
+        <CoachCompetitionsScreen
+          onBack={() => setActiveSection("home")}
+        />
+      ) : null}
+
+      {activeSection === "objectives" ? (
+        <CoachObjectivesScreen
+          onBack={() => setActiveSection("home")}
+          athletes={athletes}
           athletesLoading={athletesLoading}
         />
       ) : null}
