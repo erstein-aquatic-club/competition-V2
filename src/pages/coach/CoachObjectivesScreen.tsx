@@ -64,11 +64,11 @@ function formatTime(seconds: number): string {
   const secs = seconds % 60;
   const wholeSecs = Math.floor(secs);
   const centisecs = Math.round((secs - wholeSecs) * 100);
-  return `${mins}:${String(wholeSecs).padStart(2, "0")}.${String(centisecs).padStart(2, "0")}`;
+  return `${mins}:${String(wholeSecs).padStart(2, "0")}:${String(centisecs).padStart(2, "0")}`;
 }
 
 function parseTime(display: string): number | null {
-  const match = display.match(/^(\d+):(\d{2})\.(\d{2})$/);
+  const match = display.match(/^(\d+):(\d{2})[.::](\d{2})$/);
   if (!match) return null;
   return parseInt(match[1]) * 60 + parseInt(match[2]) + parseInt(match[3]) / 100;
 }
@@ -224,7 +224,7 @@ const ObjectiveFormSheet = ({
       if (parsed === null) {
         toast({
           title: "Format invalide",
-          description: "Le temps doit etre au format m:ss.cc (ex: 1:05.30)",
+          description: "Le temps doit être au format m:ss:cc (ex: 1:05:30)",
           variant: "destructive",
         });
         return;
@@ -345,9 +345,9 @@ const ObjectiveFormSheet = ({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Temps cible (m:ss.cc)</Label>
+                  <Label>Temps cible (min:sec:centièmes)</Label>
                   <Input
-                    placeholder="Ex : 1:05.30"
+                    placeholder="Ex : 1:05:30"
                     value={targetTime}
                     onChange={(e) => setTargetTime(e.target.value)}
                   />

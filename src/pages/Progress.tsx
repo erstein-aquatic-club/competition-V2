@@ -162,7 +162,7 @@ function formatTargetTime(seconds: number): string {
   const secs = seconds % 60;
   const wholeSecs = Math.floor(secs);
   const centisecs = Math.round((secs - wholeSecs) * 100);
-  return `${mins}:${String(wholeSecs).padStart(2, "0")}.${String(centisecs).padStart(2, "0")}`;
+  return `${mins}:${String(wholeSecs).padStart(2, "0")}:${String(centisecs).padStart(2, "0")}`;
 }
 
 function daysUntil(dateStr: string): number {
