@@ -663,7 +663,7 @@ export default function Dashboard() {
 
       <div className="mx-auto max-w-6xl px-3 sm:px-4 pt-20 pb-5 sm:py-8">
         {/* Desktop header */}
-        <div className="invisible sm:visible flex items-center justify-between">
+        <div className="hidden sm:flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="flex items-center justify-center h-7 w-7 rounded-lg bg-primary text-primary-foreground">
               <Waves className="h-3.5 w-3.5" />

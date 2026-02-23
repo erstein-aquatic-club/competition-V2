@@ -42,8 +42,10 @@ export const DayCell = memo(function DayCell({
   const expectedSlots = slots.filter((s) => s.expected);
   const allAbsent = expectedSlots.length > 0 && expectedSlots.every((s) => s.absent);
   const allDone = total > 0 && status.completed === total && !allAbsent;
-  const bg = isRest ? "bg-muted/30" : allDone ? "bg-status-success/10" : "bg-card";
-  const border = "border-border";
+  const bg = hasCompetition
+    ? "bg-amber-50 dark:bg-amber-950/30"
+    : isRest ? "bg-muted/30" : allDone ? "bg-status-success/10" : "bg-card";
+  const border = hasCompetition ? "border-amber-200 dark:border-amber-900/40" : "border-border";
 
   const ring = isSelected ? "ring-2 ring-primary/30" : "";
   const todayRing = isToday && !isSelected ? "ring-2 ring-primary/50" : "";

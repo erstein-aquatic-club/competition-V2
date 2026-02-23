@@ -66,7 +66,7 @@ const CompetitionFormSheet = ({
   const [name, setName] = useState("");
   const [date, setDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [multiDay, setMultiDay] = useState(false);
+  const [multiDay, setMultiDay] = useState(true);
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -85,7 +85,7 @@ const CompetitionFormSheet = ({
         setName("");
         setDate("");
         setEndDate("");
-        setMultiDay(false);
+        setMultiDay(true);
         setLocation("");
         setDescription("");
       }
