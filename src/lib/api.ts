@@ -36,6 +36,10 @@ export type {
   SwimExerciseLogInput,
   StrengthFolder,
   CoachAssignment,
+  Competition,
+  CompetitionInput,
+  Objective,
+  ObjectiveInput,
 } from "./api/types";
 
 import type {
@@ -156,6 +160,21 @@ import {
   reactivateTemporaryGroup as _reactivateTemporaryGroup,
   deleteTemporaryGroup as _deleteTemporaryGroup,
 } from "./api/temporary-groups";
+
+import {
+  getCompetitions as _getCompetitions,
+  createCompetition as _createCompetition,
+  updateCompetition as _updateCompetition,
+  deleteCompetition as _deleteCompetition,
+} from './api/competitions';
+
+import {
+  getObjectives as _getObjectives,
+  getAthleteObjectives as _getAthleteObjectives,
+  createObjective as _createObjective,
+  updateObjective as _updateObjective,
+  deleteObjective as _deleteObjective,
+} from './api/objectives';
 
 import {
   getExercises as _getExercises,
@@ -533,6 +552,23 @@ export const api = {
   async deactivateTemporaryGroup(groupId: number) { return _deactivateTemporaryGroup(groupId); },
   async reactivateTemporaryGroup(groupId: number) { return _reactivateTemporaryGroup(groupId); },
   async deleteTemporaryGroup(groupId: number) { return _deleteTemporaryGroup(groupId); },
+
+  // ══════════════════════════════════════════════════════════════════
+  // DELEGATION STUBS — Competitions
+  // ══════════════════════════════════════════════════════════════════
+  async getCompetitions() { return _getCompetitions(); },
+  async createCompetition(input: Parameters<typeof _createCompetition>[0]) { return _createCompetition(input); },
+  async updateCompetition(id: string, input: Parameters<typeof _updateCompetition>[1]) { return _updateCompetition(id, input); },
+  async deleteCompetition(id: string) { return _deleteCompetition(id); },
+
+  // ══════════════════════════════════════════════════════════════════
+  // DELEGATION STUBS — Objectives
+  // ══════════════════════════════════════════════════════════════════
+  async getObjectives(athleteId?: string) { return _getObjectives(athleteId); },
+  async getAthleteObjectives() { return _getAthleteObjectives(); },
+  async createObjective(input: Parameters<typeof _createObjective>[0]) { return _createObjective(input); },
+  async updateObjective(id: string, input: Parameters<typeof _updateObjective>[1]) { return _updateObjective(id, input); },
+  async deleteObjective(id: string) { return _deleteObjective(id); },
 
   // ══════════════════════════════════════════════════════════════════
   // DELEGATION STUBS — Users

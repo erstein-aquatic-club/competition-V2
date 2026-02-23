@@ -412,3 +412,46 @@ export interface TemporaryGroupDetail {
     members: Array<{ user_id: number; display_name: string }>;
   }>;
 }
+
+export interface Competition {
+  id: string;
+  name: string;
+  date: string;
+  end_date?: string | null;
+  location?: string | null;
+  description?: string | null;
+  created_by?: string | null;
+  created_at?: string | null;
+}
+
+export interface CompetitionInput {
+  name: string;
+  date: string;
+  end_date?: string | null;
+  location?: string | null;
+  description?: string | null;
+}
+
+export interface Objective {
+  id: string;
+  athlete_id: string;
+  competition_id?: string | null;
+  event_code?: string | null;
+  pool_length?: number | null;
+  target_time_seconds?: number | null;
+  text?: string | null;
+  created_by?: string | null;
+  created_at?: string | null;
+  competition_name?: string | null;
+  competition_date?: string | null;
+  athlete_name?: string | null;
+}
+
+export interface ObjectiveInput {
+  athlete_id: string;
+  competition_id?: string | null;
+  event_code?: string | null;
+  pool_length?: number | null;
+  target_time_seconds?: number | null;
+  text?: string | null;
+}

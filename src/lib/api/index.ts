@@ -184,6 +184,21 @@ export {
 } from './temporary-groups';
 
 export {
+  getCompetitions,
+  createCompetition,
+  updateCompetition,
+  deleteCompetition,
+} from './competitions';
+
+export {
+  getObjectives,
+  getAthleteObjectives,
+  createObjective,
+  updateObjective,
+  deleteObjective,
+} from './objectives';
+
+export {
   getExercises,
   createExercise,
   updateExercise,
