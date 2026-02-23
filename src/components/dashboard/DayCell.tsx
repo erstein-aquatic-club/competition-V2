@@ -1,5 +1,5 @@
 import React, { memo } from "react";
-import { Moon } from "lucide-react";
+import { Moon, Trophy } from "lucide-react";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -20,6 +20,7 @@ interface DayCellProps {
   isFocused: boolean;
   status: { completed: number; total: number; slots: SlotStatus[] };
   strengthAssigned?: boolean;
+  hasCompetition?: boolean;
   onClick: () => void;
   onKeyDown: (e: React.KeyboardEvent) => void;
 }
@@ -32,6 +33,7 @@ export const DayCell = memo(function DayCell({
   isFocused,
   status,
   strengthAssigned,
+  hasCompetition,
   onClick,
   onKeyDown,
 }: DayCellProps) {
@@ -72,7 +74,11 @@ export const DayCell = memo(function DayCell({
       <div className="flex h-full flex-col justify-between">
         <div className="flex items-start justify-between">
           <div className="text-[12px] font-semibold text-foreground">{date.getDate()}</div>
-          <div className="h-[14px] w-[14px]" />
+          {hasCompetition ? (
+            <Trophy className="h-3 w-3 text-amber-500" />
+          ) : (
+            <div className="h-[14px] w-[14px]" />
+          )}
         </div>
 
         <div className="flex items-center justify-end gap-1">

@@ -31,7 +31,9 @@ import { getContrastTextColor } from "@/lib/design-tokens";
 import type { LocalStrengthRun, SetLogEntry } from "@/lib/types";
 import { motion } from "framer-motion";
 import { slideUp } from "@/lib/animations";
-import { ChevronDown, TrendingUp, TrendingDown, BarChart3 } from "lucide-react";
+import { ChevronDown, TrendingUp, TrendingDown, BarChart3, Target } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import type { Objective } from "@/lib/api/types";
 
 // ─── Helper Components ──────────────────────────────────────────────────────
 
@@ -146,6 +148,30 @@ function CollapsibleSection({ title, children }: { title: string; children: Reac
 
 const tooltipStyle = { borderRadius: "8px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" };
 
+// ─── Objective Helpers ──────────────────────────────────────────────────────
+
+function eventLabel(code: string): string {
+  const match = code.match(/^(\d+)(NL|DOS|BR|PAP|QN)$/);
+  if (!match) return code;
+  const names: Record<string, string> = { NL: "Nage Libre", DOS: "Dos", BR: "Brasse", PAP: "Papillon", QN: "4 Nages" };
+  return `${match[1]}m ${names[match[2]] || match[2]}`;
+}
+
+function formatTargetTime(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  const wholeSecs = Math.floor(secs);
+  const centisecs = Math.round((secs - wholeSecs) * 100);
+  return `${mins}:${String(wholeSecs).padStart(2, "0")}.${String(centisecs).padStart(2, "0")}`;
+}
+
+function daysUntil(dateStr: string): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(dateStr + "T00:00:00");
+  return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+}
+
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 export default function Progress() {
@@ -163,6 +189,11 @@ export default function Progress() {
   const [strengthPeriodDays, setStrengthPeriodDays] = useState(30);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
+
+  const { data: objectives = [] } = useQuery<Objective[]>({
+    queryKey: ["my-objectives"],
+    queryFn: () => api.getAthleteObjectives(),
+  });
 
   const { data: sessions, isLoading: isSwimLoading } = useQuery({
     queryKey: ["sessions", athleteKey],
@@ -447,6 +478,58 @@ export default function Progress() {
           <h1 className="text-lg font-display font-bold uppercase italic tracking-tight text-primary">Progression</h1>
         </div>
       </div>
+
+      {/* ── Mes objectifs ─────────────────────────────────────────────── */}
+      {objectives.length > 0 && (
+        <motion.div variants={slideUp} initial="hidden" animate="visible">
+          <Card className="border border-primary/15">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Target className="h-4 w-4 text-primary" />
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-primary">Mes objectifs</h2>
+              </div>
+              <div className="space-y-2">
+                {objectives.map((obj) => {
+                  const hasEvent = !!obj.event_code;
+                  const hasCompetition = !!obj.competition_name;
+                  const daysLeft = obj.competition_date ? daysUntil(obj.competition_date) : null;
+
+                  return (
+                    <div key={obj.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-muted/50 px-3 py-2 text-sm">
+                      {hasEvent && (
+                        <>
+                          <span className="font-medium">{eventLabel(obj.event_code!)}</span>
+                          {obj.pool_length && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                              {obj.pool_length}m
+                            </Badge>
+                          )}
+                          {obj.target_time_seconds != null && (
+                            <span className="font-mono text-xs text-muted-foreground">
+                              {formatTargetTime(obj.target_time_seconds)}
+                            </span>
+                          )}
+                        </>
+                      )}
+                      {!hasEvent && obj.text && (
+                        <span className="text-muted-foreground">{obj.text}</span>
+                      )}
+                      {hasCompetition && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-auto">
+                          {obj.competition_name}
+                          {daysLeft !== null && daysLeft > 0 && (
+                            <span className="ml-1 text-primary font-bold">J-{daysLeft}</span>
+                          )}
+                        </Badge>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       <Tabs defaultValue="swim" className="w-full">
         <TabsList className="grid w-full max-w-[280px] grid-cols-2">

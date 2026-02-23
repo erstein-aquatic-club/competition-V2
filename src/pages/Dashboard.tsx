@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
-import type { Session } from "@/lib/api";
+import type { Session, Competition } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { useDashboardState } from "@/hooks/useDashboardState";
@@ -20,6 +20,7 @@ import {
   Minus,
   Plus,
   AlertCircle,
+  Trophy,
 } from "lucide-react";
 import type { SaveState } from "@/components/shared/BottomActionBar";
 
@@ -150,6 +151,11 @@ export default function Dashboard() {
     queryKey: ["assignments", user],
     queryFn: () => api.getAssignments(user!, userId),
     enabled: !!user,
+  });
+
+  const { data: competitions = [] } = useQuery({
+    queryKey: ["competitions"],
+    queryFn: () => api.getCompetitions(),
   });
 
   const isLoading = sessionsLoading || assignmentsLoading;
@@ -299,6 +305,47 @@ export default function Dashboard() {
     startTransition,
     getSessionStatus,
   } = state;
+
+  // Competition dates for calendar markers
+  const competitionDates = useMemo(() => {
+    const dates = new Set<string>();
+    for (const c of competitions) {
+      if (!c.date) continue;
+      const start = c.date.slice(0, 10);
+      const end = c.end_date ? c.end_date.slice(0, 10) : start;
+      // Add all dates from start to end (inclusive)
+      let current = start;
+      while (current <= end) {
+        dates.add(current);
+        // Increment date by 1 day
+        const d = new Date(current + "T00:00:00");
+        d.setDate(d.getDate() + 1);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        current = `${y}-${m}-${day}`;
+      }
+    }
+    return dates;
+  }, [competitions]);
+
+  // Next upcoming competition
+  const nextCompetition = useMemo(() => {
+    const todayISO = toISODate(new Date());
+    const upcoming = competitions
+      .filter((c) => c.date && c.date.slice(0, 10) >= todayISO)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    return upcoming[0] ?? null;
+  }, [competitions]);
+
+  const daysUntilNextCompetition = useMemo(() => {
+    if (!nextCompetition) return null;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const target = new Date(nextCompetition.date.slice(0, 10) + "T00:00:00");
+    const diff = Math.round((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    return diff;
+  }, [nextCompetition]);
 
   const openDay = useCallback(
     (iso: string) => {
@@ -645,6 +692,27 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Next competition banner */}
+        {nextCompetition && daysUntilNextCompetition != null && (
+          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/30 dark:bg-amber-950/20 p-3">
+            <div className="flex items-center gap-3">
+              <Trophy className="h-5 w-5 text-amber-500 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="text-xs text-amber-600 dark:text-amber-400">Prochaine compétition</div>
+                <div className="font-semibold text-sm text-foreground truncate">{nextCompetition.name}</div>
+                {nextCompetition.location && (
+                  <div className="text-xs text-muted-foreground truncate">{nextCompetition.location}</div>
+                )}
+              </div>
+              <div className="shrink-0 rounded-lg bg-amber-100 dark:bg-amber-900/30 px-2.5 py-1">
+                <span className="font-bold text-sm text-amber-600 dark:text-amber-400">
+                  {daysUntilNextCompetition === 0 ? "Aujourd'hui" : `J-${daysUntilNextCompetition}`}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Calendar */}
         <div className="mt-4 rounded-3xl border border-border bg-card overflow-hidden">
           <CalendarHeader
@@ -659,6 +727,7 @@ export default function Dashboard() {
             monthCursor={monthCursor}
             gridDates={gridDates}
             completionByISO={completionByISO}
+            competitionDates={competitionDates}
             selectedISO={selectedISO}
             selectedDayIndex={selectedDayIndex}
             today={today}
