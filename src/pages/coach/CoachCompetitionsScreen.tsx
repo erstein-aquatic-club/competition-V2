@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { Competition, CompetitionInput } from "@/lib/api";
@@ -71,27 +71,25 @@ const CompetitionFormSheet = ({
   const [description, setDescription] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Reset form when opening
-  const handleOpenChange = (next: boolean) => {
-    if (next) {
-      if (competition) {
-        setName(competition.name);
-        setDate(competition.date);
-        setEndDate(competition.end_date ?? "");
-        setMultiDay(!!competition.end_date);
-        setLocation(competition.location ?? "");
-        setDescription(competition.description ?? "");
-      } else {
-        setName("");
-        setDate("");
-        setEndDate("");
-        setMultiDay(true);
-        setLocation("");
-        setDescription("");
-      }
+  // Sync form fields when sheet opens or competition changes
+  useEffect(() => {
+    if (!open) return;
+    if (competition) {
+      setName(competition.name);
+      setDate(competition.date);
+      setEndDate(competition.end_date ?? "");
+      setMultiDay(!!competition.end_date);
+      setLocation(competition.location ?? "");
+      setDescription(competition.description ?? "");
+    } else {
+      setName("");
+      setDate("");
+      setEndDate("");
+      setMultiDay(true);
+      setLocation("");
+      setDescription("");
     }
-    onOpenChange(next);
-  };
+  }, [open, competition]);
 
   const createMutation = useMutation({
     mutationFn: (input: CompetitionInput) => api.createCompetition(input),
@@ -182,7 +180,7 @@ const CompetitionFormSheet = ({
 
   return (
     <>
-      <Sheet open={open} onOpenChange={handleOpenChange}>
+      <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="right"
           className="w-full sm:max-w-md overflow-y-auto"
