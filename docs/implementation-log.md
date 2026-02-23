@@ -35,6 +35,8 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §56 Groupes temporaires coach (stages) | ✅ Fait | 2026-02-19 |
 | §57 Partage public séances natation (token UUID) | ✅ Fait | 2026-02-20 |
 | §58 Détails techniques inline timeline nageur | ✅ Fait | 2026-02-21 |
+| §59 Compétitions coach (calendrier échéances) | ✅ Fait | 2026-02-23 |
+| §60 Objectifs coach (temps cibles & texte par nageur) | ✅ Fait | 2026-02-23 |
 | §45 Audit UI/UX — header Strength + login mobile + fixes | ✅ Fait | 2026-02-16 |
 | §46 Harmonisation headers + Login mobile thème clair | ✅ Fait | 2026-02-16 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
@@ -5181,3 +5183,84 @@ Les coachs veulent envoyer un lien (WhatsApp, SMS) à des nageurs qui n'ont pas 
 - Pas de mécanisme de révocation de token (pourrait être ajouté via un bouton "Désactiver le lien").
 - Pas de compteur de vues sur les sessions partagées.
 - Le CTA ne pré-remplit pas le formulaire d'inscription avec un contexte (ex: "invité par coach X").
+
+---
+
+## 2026-02-23 — §59 Compétitions coach + §60 Objectifs coach
+
+**Branche** : `main`
+**Chantier ROADMAP** : §59 — Compétitions coach (calendrier échéances) + §60 — Objectifs coach (temps cibles & texte par nageur)
+
+### Contexte — Pourquoi ce patch
+
+Les coachs n'avaient aucun outil pour gérer les compétitions (échéances) ni les objectifs des nageurs. Les compétitions servent de jalons visibles par les nageurs sur leur calendrier principal avec un compte à rebours J-X. Les objectifs sont des temps cibles par épreuve et/ou du texte libre, optionnellement liés à une compétition, visibles par le nageur sur sa page Progression.
+
+### Changements réalisés
+
+**Backend (Supabase) :**
+- Table `competitions` (UUID PK, name, date, end_date, location, description, created_by, created_at) avec RLS (SELECT authenticated, ALL coach/admin)
+- Table `objectives` (UUID PK, athlete_id, competition_id FK nullable, event_code, pool_length, target_time_seconds, text, created_by, created_at) avec CHECK constraint, RLS (SELECT athlete_id + coach/admin, ALL coach/admin)
+- Index `idx_objectives_athlete_id` pour les lookups par nageur
+- RPC `get_auth_uid_for_user` pour mapper users.id (integer) → auth.users.id (UUID)
+
+**API (TypeScript) :**
+- Types : `Competition`, `CompetitionInput`, `Objective`, `ObjectiveInput` dans `types.ts`
+- Module `competitions.ts` : getCompetitions, createCompetition, updateCompetition, deleteCompetition
+- Module `objectives.ts` : getObjectives, getAthleteObjectives, createObjective, updateObjective, deleteObjective
+- Re-exports dans `index.ts` et façade dans `api.ts`
+
+**UI Coach :**
+- `CoachCompetitionsScreen.tsx` : liste chronologique, cards avec J-X badge, Sheet create/edit (nom, date, multi-jours, lieu, description), suppression avec AlertDialog
+- `CoachObjectivesScreen.tsx` : sélecteur nageur, liste objectifs (chrono/texte), Sheet create/edit avec ToggleGroup type (Chrono/Texte/Les deux), 17 épreuves FFN, format mm:ss.cc, lien compétition optionnel
+- Navigation : 2 nouvelles cartes dans la grille CoachHome (Compétitions + Objectifs), CoachSection étendu à 9 sections
+
+**UI Nageur :**
+- `Dashboard.tsx` : bannière "Prochaine compétition" avec J-X au-dessus du calendrier, marqueurs Trophy ambre dans DayCell
+- `CalendarGrid.tsx` : prop `competitionDates` passée aux cells
+- `DayCell.tsx` : affichage conditionnel Trophy icon si jour de compétition
+- `Progress.tsx` : section "Mes objectifs" avec épreuve FFN, temps cible, badge compétition J-X
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `supabase/migrations/create_competitions.sql` | Nouveau — migration table competitions |
+| `supabase/migrations/create_objectives.sql` | Nouveau — migration table objectives |
+| `supabase/migrations/00027_get_auth_uid_rpc.sql` | Nouveau — RPC mapping user ID → auth UUID |
+| `src/lib/api/types.ts` | Modifié — 4 interfaces ajoutées |
+| `src/lib/api/competitions.ts` | Nouveau — CRUD compétitions |
+| `src/lib/api/objectives.ts` | Nouveau — CRUD objectifs |
+| `src/lib/api/index.ts` | Modifié — re-exports |
+| `src/lib/api.ts` | Modifié — façade |
+| `src/pages/coach/CoachCompetitionsScreen.tsx` | Nouveau — écran coach compétitions |
+| `src/pages/coach/CoachObjectivesScreen.tsx` | Nouveau — écran coach objectifs |
+| `src/pages/Coach.tsx` | Modifié — 2 sections ajoutées, grille navigation étendue |
+| `src/pages/Dashboard.tsx` | Modifié — bannière compétition + query |
+| `src/components/dashboard/CalendarGrid.tsx` | Modifié — prop competitionDates |
+| `src/components/dashboard/DayCell.tsx` | Modifié — marqueur Trophy |
+| `src/pages/Progress.tsx` | Modifié — section "Mes objectifs" |
+| `CLAUDE.md` | Modifié — fichiers clés + chantiers |
+| `docs/ROADMAP.md` | Modifié — chantiers 27-28 |
+| `docs/FEATURES_STATUS.md` | Modifié — sections Compétitions + Objectifs |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — 0 erreurs
+- [x] Build vérifié
+- [ ] Test manuel : créer compétition coach, voir sur calendrier nageur
+- [ ] Test manuel : créer objectif coach, voir sur page Progression nageur
+
+### Décisions prises
+
+1. **Tables avec UUID PK** — Cohérent avec auth.users, pas de collision.
+2. **RPC pour mapping user ID → auth UUID** — Le coach identifie les nageurs par integer ID (table users), mais objectives utilise auth.users UUID. RPC SECURITY DEFINER plutôt qu'ajout de colonne.
+3. **Pas de comparaison automatique objectif vs performances FFN** — Demandé par l'utilisateur, garde les choses simples.
+4. **Deux onglets séparés** plutôt qu'un onglet unifié — Séparation claire des responsabilités.
+5. **CHECK constraint** sur objectives — Au moins target_time_seconds ou text doit être renseigné.
+
+### Limites / dette
+
+- Pas de gestion d'inscriptions/épreuves dans les compétitions (simple calendrier).
+- Pas d'objectifs de groupe (uniquement individuels).
+- Pas de saisie de résultats post-compétition.
+- Pas de comparaison automatique objectif vs performances FFN importées.

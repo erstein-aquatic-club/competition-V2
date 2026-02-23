@@ -1,6 +1,6 @@
 # État des fonctionnalités
 
-*Dernière mise à jour : 2026-02-20 (§57 Partage public séances natation)*
+*Dernière mise à jour : 2026-02-23 (§59 Compétitions coach + §60 Objectifs coach)*
 
 ## Légende
 
@@ -125,6 +125,22 @@ Tous les feature flags sont activés.
 | Suppression (si inactif) | ✅ | `CoachGroupsScreen.tsx`, `temporary-groups.ts` | Cascade sous-groupes |
 | Sélecteur enrichi assignation | ✅ | `CoachAssignScreen.tsx` | Temporaires en premier avec badge "Stage", sous-groupes indentés |
 | Gestion membres | ✅ | `CoachGroupsScreen.tsx` | Ajout/retrait avec confirmation |
+
+### Compétitions
+
+| Fonctionnalité | Statut | Fichiers | Notes |
+|----------------|--------|----------|-------|
+| CRUD compétitions coach | ✅ | `CoachCompetitionsScreen.tsx`, `competitions.ts` | Nom, date, lieu, multi-jours, description (§59) |
+| Marqueurs compétition calendrier nageur | ✅ | `Dashboard.tsx`, `DayCell.tsx`, `CalendarGrid.tsx` | Trophy icon ambre sur les jours de compétition |
+| Bannière prochaine compétition | ✅ | `Dashboard.tsx` | Card ambre avec J-X au-dessus du calendrier |
+
+### Objectifs
+
+| Fonctionnalité | Statut | Fichiers | Notes |
+|----------------|--------|----------|-------|
+| CRUD objectifs coach | ✅ | `CoachObjectivesScreen.tsx`, `objectives.ts` | Par nageur, chrono (épreuve FFN + temps) et/ou texte libre (§60) |
+| Lien compétition optionnel | ✅ | `CoachObjectivesScreen.tsx` | Objectif rattachable à une compétition |
+| Vue objectifs nageur (Progression) | ✅ | `Progress.tsx` | Section "Mes objectifs" avec épreuve, temps cible, badge compétition J-X |
 
 ### Pointage heures
 

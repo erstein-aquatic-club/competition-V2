@@ -1,6 +1,6 @@
 # Roadmap de Développement
 
-*Dernière mise à jour : 2026-02-21 (§58 Détails techniques inline timeline nageur)*
+*Dernière mise à jour : 2026-02-23 (§59 Compétitions coach + §60 Objectifs coach)*
 
 Ce document décrit les fonctionnalités à implémenter. Il sert de référence pour reprendre le développement dans une future conversation.
 
@@ -37,6 +37,8 @@ Ce document décrit les fonctionnalités à implémenter. Il sert de référence
 | 24 | Groupes temporaires coach (stages, sous-groupes) | Moyenne | Haute | Fait (§56) |
 | 25 | Partage public séances natation (token UUID) | Moyenne | Moyenne | Fait (§57) |
 | 26 | Détails techniques inline timeline nageur | Moyenne | Moyenne | Fait (§58) |
+| 27 | Compétitions coach (calendrier échéances) | Moyenne | Moyenne | Fait (§59) |
+| 28 | Objectifs coach (temps cibles & texte par nageur) | Moyenne | Moyenne | Fait (§60) |
 
 ---
 
