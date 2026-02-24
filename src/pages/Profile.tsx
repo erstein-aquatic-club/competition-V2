@@ -19,6 +19,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion } from "framer-motion";
 import { fadeIn } from "@/lib/animations";
+import SwimmerObjectivesView from "@/components/profile/SwimmerObjectivesView";
 
 declare const __BUILD_TIMESTAMP__: string;
 
@@ -265,14 +266,7 @@ export default function Profile() {
   }
 
   if (activeSection === "objectives") {
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" size="sm" className="-ml-2" onClick={() => setActiveSection("home")}>
-          ← Retour
-        </Button>
-        <p className="text-sm text-muted-foreground">Objectifs (à connecter)</p>
-      </div>
-    );
+    return <SwimmerObjectivesView onBack={() => setActiveSection("home")} />;
   }
 
   return (
