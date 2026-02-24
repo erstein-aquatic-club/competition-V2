@@ -40,7 +40,7 @@ const signupSchema = z.object({
   }, "Utilisez le sélecteur de date ou le format AAAA-MM-JJ"),
   sex: z.enum(["M", "F"], { required_error: "Sexe requis" }),
   groupId: z.string().min(1, "Groupe requis"),
-  phone: z.string().optional(),
+  phone: z.string().min(1, "Téléphone requis"),
   password: z.string()
     .min(8, "Minimum 8 caractères")
     .regex(/[A-Z]/, "Au moins une majuscule")
@@ -157,6 +157,7 @@ export default function Login() {
             birthdate: data.birthdate,
             group_id: Number(data.groupId),
             sex: data.sex,
+            phone: data.phone.trim(),
           },
         },
       });
@@ -519,7 +520,7 @@ export default function Login() {
 
                   {/* Phone */}
                   <div className="space-y-2">
-                    <Label htmlFor="signup-phone">Telephone (optionnel)</Label>
+                    <Label htmlFor="signup-phone">Téléphone *</Label>
                     <Input
                       id="signup-phone"
                       type="tel"
@@ -527,6 +528,11 @@ export default function Login() {
                       {...signupForm.register("phone")}
                       className="min-h-12"
                     />
+                    {signupForm.formState.errors.phone && (
+                      <p className="text-xs text-destructive" role="alert" aria-live="assertive">
+                        {signupForm.formState.errors.phone.message}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
