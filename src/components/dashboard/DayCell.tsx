@@ -44,10 +44,14 @@ export const DayCell = memo(function DayCell({
   const expectedSlots = slots.filter((s) => s.expected);
   const allAbsent = expectedSlots.length > 0 && expectedSlots.every((s) => s.absent);
   const allDone = total > 0 && status.completed === total && !allAbsent;
-  const bg = hasCompetition
+  const bg = hasAbsence
+    ? "bg-muted-foreground/15 dark:bg-muted-foreground/25"
+    : hasCompetition
     ? "bg-amber-50 dark:bg-amber-950/30"
     : isRest ? "bg-muted/30" : allDone ? "bg-status-success/10" : "bg-card";
-  const border = hasCompetition ? "border-amber-200 dark:border-amber-900/40" : "border-border";
+  const border = hasAbsence
+    ? "border-muted-foreground/20"
+    : hasCompetition ? "border-amber-200 dark:border-amber-900/40" : "border-border";
 
   const ring = isSelected ? "ring-2 ring-primary/30" : "";
   const todayRing = isToday && !isSelected ? "ring-2 ring-primary/50" : "";
@@ -77,14 +81,7 @@ export const DayCell = memo(function DayCell({
     >
       <div className="flex h-full flex-col justify-between">
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-0.5">
-            <div className="text-[12px] font-semibold text-foreground">{date.getDate()}</div>
-            {hasAbsence && (
-              <div className="h-3 w-3 rounded-full bg-muted-foreground/20 flex items-center justify-center">
-                <span className="text-[8px] font-bold text-muted-foreground">X</span>
-              </div>
-            )}
-          </div>
+          <div className={cn("text-[12px] font-semibold", hasAbsence ? "text-muted-foreground" : "text-foreground")}>{date.getDate()}</div>
           {hasCompetition ? (
             <Trophy className="h-3 w-3 text-amber-500" />
           ) : (
