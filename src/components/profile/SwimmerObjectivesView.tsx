@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { Objective, ObjectiveInput } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,10 @@ import {
   eventLabel,
   formatTime,
   parseTime,
+  STROKE_COLORS,
+  strokeFromCode,
+  findBestTime,
+  daysUntil,
 } from "@/lib/objectiveHelpers";
 
 type Props = { onBack: () => void };
@@ -69,6 +74,15 @@ export default function SwimmerObjectivesView({ onBack }: Props) {
     queryFn: () => api.getAthleteObjectives(),
     enabled: !!authUid,
   });
+
+  // Get swim records for progress gauge
+  const { userId } = useAuth();
+  const { data: swimRecordsData } = useQuery({
+    queryKey: ["swim-records", userId],
+    queryFn: () => api.getSwimRecords({ athleteId: userId }),
+    enabled: !!userId,
+  });
+  const swimRecords = swimRecordsData?.records ?? [];
 
   // Split into coach vs personal
   const coachObjectives = useMemo(
@@ -253,7 +267,12 @@ export default function SwimmerObjectivesView({ onBack }: Props) {
             Objectifs du coach
           </h3>
           {coachObjectives.map((obj) => (
-            <ObjectiveCardReadOnly key={obj.id} objective={obj} />
+            <ObjectiveCard
+              key={obj.id}
+              objective={obj}
+              isPersonal={false}
+              bestTime={obj.event_code ? findBestTime(swimRecords, obj.event_code, obj.pool_length) : null}
+            />
           ))}
         </div>
       )}
@@ -265,9 +284,11 @@ export default function SwimmerObjectivesView({ onBack }: Props) {
             Mes objectifs personnels
           </h3>
           {personalObjectives.map((obj) => (
-            <ObjectiveCardEditable
+            <ObjectiveCard
               key={obj.id}
               objective={obj}
+              isPersonal={true}
+              bestTime={obj.event_code ? findBestTime(swimRecords, obj.event_code, obj.pool_length) : null}
               onEdit={openEdit}
               onDelete={setDeleteTarget}
             />
@@ -414,117 +435,156 @@ export default function SwimmerObjectivesView({ onBack }: Props) {
   );
 }
 
-// ── Card: Read-only (coach objectives) ──
+// ── Unified Objective Card with visual gauge ──
 
-function ObjectiveCardReadOnly({ objective }: { objective: Objective }) {
+function ObjectiveCard({
+  objective,
+  isPersonal,
+  bestTime,
+  onEdit,
+  onDelete,
+}: {
+  objective: Objective;
+  isPersonal: boolean;
+  bestTime: number | null;
+  onEdit?: (obj: Objective) => void;
+  onDelete?: (obj: Objective) => void;
+}) {
   const hasChrono = !!objective.event_code;
   const hasText = !!objective.text;
+  const stroke = hasChrono ? strokeFromCode(objective.event_code!) : null;
+  const borderColor = stroke ? STROKE_COLORS[stroke] ?? "" : "";
+  const hasTarget = objective.target_time_seconds != null;
+  const hasCompetition = !!objective.competition_name;
+  const leftDays = objective.competition_date ? daysUntil(objective.competition_date) : null;
+
+  // Progress calculation: how close is current best to target
+  let progressPct: number | null = null;
+  if (hasTarget && bestTime != null && objective.target_time_seconds != null) {
+    const target = objective.target_time_seconds;
+    if (bestTime <= target) {
+      progressPct = 100;
+    } else {
+      const baseline = target * 1.2; // 20% slower as baseline
+      if (bestTime >= baseline) {
+        progressPct = 5; // minimum visible bar
+      } else {
+        progressPct = Math.round(((baseline - bestTime) / (baseline - target)) * 100);
+      }
+    }
+  }
+
   return (
-    <div className="rounded-xl border bg-card p-3 space-y-1.5">
+    <div
+      className={[
+        "rounded-xl border bg-card p-4 space-y-3",
+        hasChrono ? `border-l-4 ${borderColor}` : "",
+      ].join(" ")}
+    >
+      {/* Top row: event info + badges */}
       <div className="flex items-center gap-2 flex-wrap">
-        <Badge
-          variant="secondary"
-          className="text-[10px] px-1.5 py-0"
-        >
-          Coach
-        </Badge>
+        {!isPersonal && (
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+            Coach
+          </Badge>
+        )}
         {hasChrono && (
           <>
             <span className="text-sm font-semibold">
               {eventLabel(objective.event_code!)}
             </span>
             {objective.pool_length && (
-              <Badge
-                variant="secondary"
-                className="text-[10px] px-1.5 py-0"
-              >
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                 {objective.pool_length}m
-              </Badge>
-            )}
-            {objective.target_time_seconds != null && (
-              <Badge
-                variant="outline"
-                className="text-[10px] px-1.5 py-0 font-mono"
-              >
-                {formatTime(objective.target_time_seconds)}
               </Badge>
             )}
           </>
         )}
+        {isPersonal && onEdit && onDelete && (
+          <div className="ml-auto flex gap-1">
+            <button
+              type="button"
+              onClick={() => onEdit(objective)}
+              className="text-xs text-primary hover:underline"
+            >
+              Modifier
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(objective)}
+              className="text-muted-foreground hover:text-destructive p-0.5"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Chrono: large target time + progress bar */}
+      {hasChrono && hasTarget && (
+        <div className="space-y-2">
+          <div className="flex items-end justify-between">
+            {bestTime != null ? (
+              <div className="text-xs text-muted-foreground">
+                <span className="font-mono">{formatTime(bestTime)}</span>
+                <span className="ml-1">actuel</span>
+              </div>
+            ) : (
+              <div />
+            )}
+            <div className="text-right">
+              <div className="text-2xl font-mono font-bold tracking-tight text-primary">
+                {formatTime(objective.target_time_seconds!)}
+              </div>
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                objectif
+              </div>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          {progressPct != null && (
+            <div className="space-y-1">
+              <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className={[
+                    "h-full rounded-full transition-all duration-500",
+                    progressPct >= 100 ? "bg-emerald-500" : "bg-primary",
+                  ].join(" ")}
+                  style={{ width: `${Math.min(progressPct, 100)}%` }}
+                />
+              </div>
+              <div className="text-[10px] text-muted-foreground text-right">
+                {progressPct >= 100 ? "Objectif atteint !" : `${progressPct}%`}
+              </div>
+            </div>
+          )}
+
+          {/* No record fallback */}
+          {bestTime == null && (
+            <p className="text-[10px] text-muted-foreground italic">
+              Pas encore de temps enregistré pour cette épreuve
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Text objective */}
       {hasText && (
         <p className="text-sm text-muted-foreground">{objective.text}</p>
       )}
-      {objective.competition_name && (
+
+      {/* Competition countdown */}
+      {hasCompetition && (
         <Badge
           variant="outline"
           className="border-orange-300 text-orange-600 dark:text-orange-400 text-[10px] px-1.5 py-0"
         >
           {objective.competition_name}
+          {leftDays != null && leftDays > 0 && (
+            <span className="ml-1 font-bold">J-{leftDays}</span>
+          )}
         </Badge>
-      )}
-    </div>
-  );
-}
-
-// ── Card: Editable (personal objectives) ──
-
-function ObjectiveCardEditable({
-  objective,
-  onEdit,
-  onDelete,
-}: {
-  objective: Objective;
-  onEdit: (obj: Objective) => void;
-  onDelete: (obj: Objective) => void;
-}) {
-  const hasChrono = !!objective.event_code;
-  const hasText = !!objective.text;
-  return (
-    <div className="rounded-xl border bg-card p-3 space-y-1.5">
-      <div className="flex items-center gap-2 flex-wrap">
-        {hasChrono && (
-          <>
-            <span className="text-sm font-semibold">
-              {eventLabel(objective.event_code!)}
-            </span>
-            {objective.pool_length && (
-              <Badge
-                variant="secondary"
-                className="text-[10px] px-1.5 py-0"
-              >
-                {objective.pool_length}m
-              </Badge>
-            )}
-            {objective.target_time_seconds != null && (
-              <Badge
-                variant="outline"
-                className="text-[10px] px-1.5 py-0 font-mono"
-              >
-                {formatTime(objective.target_time_seconds)}
-              </Badge>
-            )}
-          </>
-        )}
-        <div className="ml-auto flex gap-1">
-          <button
-            type="button"
-            onClick={() => onEdit(objective)}
-            className="text-xs text-primary hover:underline"
-          >
-            Modifier
-          </button>
-          <button
-            type="button"
-            onClick={() => onDelete(objective)}
-            className="text-muted-foreground hover:text-destructive p-0.5"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </div>
-      {hasText && (
-        <p className="text-sm text-muted-foreground">{objective.text}</p>
       )}
     </div>
   );
