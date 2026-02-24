@@ -391,19 +391,38 @@ export default function Dashboard() {
   }, [nextCompetition]);
 
   const trainingDaysRemaining = useMemo(() => {
-    if (!nextCompetition || !assignments) return null;
+    if (!nextCompetition) return null;
     const todayISO = toISODate(new Date());
     const compDate = nextCompetition.date.slice(0, 10);
-    // Count unique dates from assignments between today and competition
-    const assignmentDates = new Set<string>();
-    for (const a of assignments) {
-      const d = (a.assigned_date || "").slice(0, 10);
-      if (d > todayISO && d <= compDate) {
-        assignmentDates.add(d);
+
+    // Collect days with assignments
+    const trainingDates = new Set<string>();
+    if (assignments) {
+      for (const a of assignments) {
+        const d = (a.assigned_date || "").slice(0, 10);
+        if (d > todayISO && d < compDate) trainingDates.add(d);
       }
     }
-    return assignmentDates.size;
-  }, [nextCompetition, assignments]);
+
+    // Add days where the swimmer has expected slots (presence defaults ON)
+    // Walk each day from tomorrow to the day before competition
+    const cursor = new Date(todayISO + "T00:00:00");
+    cursor.setDate(cursor.getDate() + 1); // start tomorrow
+    const compEnd = new Date(compDate + "T00:00:00");
+    while (cursor < compEnd) {
+      const iso = toISODate(cursor);
+      if (!absenceDates.has(iso)) {
+        const jsDay = cursor.getDay();
+        const weekday = (jsDay + 6) % 7; // Monday=0
+        const hasAM = Boolean(presenceDefaults?.[weekday]?.AM);
+        const hasPM = Boolean(presenceDefaults?.[weekday]?.PM);
+        if (hasAM || hasPM) trainingDates.add(iso);
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return trainingDates.size;
+  }, [nextCompetition, assignments, absenceDates, presenceDefaults]);
 
   const openDay = useCallback(
     (iso: string) => {
