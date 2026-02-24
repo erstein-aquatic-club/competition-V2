@@ -5,13 +5,14 @@ import { api } from "@/lib/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CalendarDays, Download, Dumbbell, HeartPulse, Mail, Target, Trophy, Users, UsersRound, Waves } from "lucide-react";
+import { CalendarDays, Download, Dumbbell, HeartPulse, Mail, MessageSquare, Target, Trophy, Users, UsersRound, Waves } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Badge } from "@/components/ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import CoachSectionHeader from "./coach/CoachSectionHeader";
 import CoachMessagesScreen from "./coach/CoachMessagesScreen";
+import CoachSmsScreen from "./coach/CoachSmsScreen";
 import CoachCalendar from "./coach/CoachCalendar";
 import CoachGroupsScreen from "./coach/CoachGroupsScreen";
 import CoachCompetitionsScreen from "./coach/CoachCompetitionsScreen";
@@ -24,7 +25,7 @@ import type { LocalStrengthRun } from "@/lib/types";
 const StrengthCatalog = lazy(() => import("./coach/StrengthCatalog"));
 const SwimCatalog = lazy(() => import("./coach/SwimCatalog"));
 
-type CoachSection = "home" | "swim" | "strength" | "swimmers" | "messaging" | "calendar" | "groups" | "competitions" | "objectives";
+type CoachSection = "home" | "swim" | "strength" | "swimmers" | "messaging" | "sms" | "calendar" | "groups" | "competitions" | "objectives";
 type KpiLookbackPeriod = 7 | 30 | 365;
 
 type CoachHomeProps = {
@@ -164,6 +165,14 @@ const CoachHome = ({
         >
           <Mail className="h-3.5 w-3.5" />
           Email
+        </button>
+        <button
+          type="button"
+          onClick={() => onNavigate("sms")}
+          className="flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-semibold active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          <MessageSquare className="h-3.5 w-3.5" />
+          SMS
         </button>
         <button
           type="button"
@@ -318,11 +327,12 @@ export default function Coach() {
   const shouldLoadAthletes =
     activeSection === "home" ||
     activeSection === "messaging" ||
+    activeSection === "sms" ||
     activeSection === "swimmers" ||
     activeSection === "calendar" ||
     activeSection === "groups" ||
     activeSection === "objectives";
-  const shouldLoadGroups = activeSection === "messaging" || activeSection === "calendar" || activeSection === "groups";
+  const shouldLoadGroups = activeSection === "messaging" || activeSection === "sms" || activeSection === "calendar" || activeSection === "groups";
   const shouldLoadBirthdays = activeSection === "home" || activeSection === "swimmers";
 
   // Queries
@@ -607,6 +617,15 @@ export default function Coach() {
 
       {activeSection === "messaging" ? (
         <CoachMessagesScreen
+          onBack={() => setActiveSection("home")}
+          athletes={athletes}
+          groups={groups}
+          athletesLoading={athletesLoading}
+        />
+      ) : null}
+
+      {activeSection === "sms" ? (
+        <CoachSmsScreen
           onBack={() => setActiveSection("home")}
           athletes={athletes}
           groups={groups}
