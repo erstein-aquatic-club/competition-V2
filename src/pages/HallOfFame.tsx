@@ -70,6 +70,7 @@ export default function HallOfFame() {
     name: item.athlete_name,
     value: formatHallOfFameValue(item.total_distance / 1000, { decimals: 1, suffix: "km" }),
     toneScore: toRelativeScore(item.total_distance, distanceRange),
+    avatarUrl: item.avatar_url,
   }));
   const distanceRest = swimDistance.slice(3);
 
@@ -77,6 +78,7 @@ export default function HallOfFame() {
     name: item.athlete_name,
     value: formatHallOfFameValue(item.avg_effort, { decimals: 1 }),
     toneScore: item.avg_effort,
+    avatarUrl: item.avatar_url,
   }));
   const performanceRest = swimPerformance.slice(3);
 
@@ -84,6 +86,7 @@ export default function HallOfFame() {
     name: item.athlete_name,
     value: formatHallOfFameValue(item.avg_engagement, { decimals: 1 }),
     toneScore: item.avg_engagement,
+    avatarUrl: item.avatar_url,
   }));
   const engagementRest = swimEngagement.slice(3);
 
@@ -91,6 +94,7 @@ export default function HallOfFame() {
     name: item.athlete_name,
     value: formatHallOfFameValue(Number(item.total_volume ?? 0), { suffix: "kg" }),
     toneScore: toRelativeScore(Number(item.total_volume ?? 0), tonnageRange),
+    avatarUrl: item.avatar_url,
   }));
   const tonnageRest = strengthTonnage.slice(3);
 
@@ -98,6 +102,7 @@ export default function HallOfFame() {
     name: item.athlete_name,
     value: formatHallOfFameValue(Number(item.total_reps ?? 0), { suffix: "reps" }),
     toneScore: toRelativeScore(Number(item.total_reps ?? 0), repsRange),
+    avatarUrl: item.avatar_url,
   }));
   const repsRest = strengthReps.slice(3);
 

@@ -327,16 +327,19 @@ export interface ImportClubRecordsResult {
 export interface HallOfFameSwimDistance {
   athlete_name: string;
   total_distance: number;
+  avatar_url?: string | null;
 }
 
 export interface HallOfFameSwimPerformance {
   athlete_name: string;
   avg_effort: number;
+  avatar_url?: string | null;
 }
 
 export interface HallOfFameSwimEngagement {
   athlete_name: string;
   avg_engagement: number;
+  avatar_url?: string | null;
 }
 
 export interface HallOfFameStrength {
@@ -345,6 +348,7 @@ export interface HallOfFameStrength {
   total_reps: number;
   total_sets: number;
   max_weight: number;
+  avatar_url?: string | null;
 }
 
 export interface HallOfFameData {

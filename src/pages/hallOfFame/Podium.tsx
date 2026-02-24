@@ -1,11 +1,13 @@
 import React from "react";
 import { Crown, Medal } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { HallOfFameValue } from "./HallOfFameValue";
 
 export type PodiumEntry = {
   name: string;
   value: string;
   toneScore: number | null;
+  avatarUrl?: string | null;
 };
 
 type PodiumProps = {
@@ -24,6 +26,11 @@ const RANK_STYLES = {
   3: { icon: Medal, color: "text-rank-bronze", bg: "bg-rank-bronze/10", border: "border-rank-bronze", pedestal: "from-rank-bronze/30" },
 } as const;
 
+function getAvatarSrc(entry: PodiumEntry): string {
+  if (entry.avatarUrl) return entry.avatarUrl;
+  return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(entry.name)}`;
+}
+
 function PodiumColumn({ entry, config }: { entry: PodiumEntry; config: typeof PODIUM_CONFIG[number] }) {
   const style = RANK_STYLES[config.rank as 1 | 2 | 3];
   const IconComponent = style.icon;
@@ -32,9 +39,10 @@ function PodiumColumn({ entry, config }: { entry: PodiumEntry; config: typeof PO
   return (
     <div className={`flex flex-col items-center gap-1 ${config.colOrder} flex-1`}>
       <IconComponent className={`h-5 w-5 ${style.color} ${config.rank === 1 ? "fill-rank-gold" : config.rank === 2 ? "fill-rank-silver" : "fill-rank-bronze"}`} />
-      <div className={`${config.avatarSize} rounded-full ${style.bg} border-2 ${style.border} flex items-center justify-center font-bold font-display`}>
-        {initials}
-      </div>
+      <Avatar className={`${config.avatarSize} border-2 ${style.border}`}>
+        <AvatarImage src={getAvatarSrc(entry)} alt={entry.name} />
+        <AvatarFallback className={`${style.bg} font-bold font-display`}>{initials}</AvatarFallback>
+      </Avatar>
       <div className="font-bold uppercase tracking-tight text-xs text-center truncate max-w-full px-1">{entry.name}</div>
       <HallOfFameValue value={entry.value} toneScore={entry.toneScore} />
       <div className={`${config.height} w-full rounded-t-xl bg-gradient-to-b ${style.pedestal} to-muted/50 border-t-2 ${style.border}`} />

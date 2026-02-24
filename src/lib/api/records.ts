@@ -27,6 +27,7 @@ export async function getHallOfFame(fromDate?: string | null) {
         .map((item: any) => ({
           athlete_name: item.athlete_name,
           total_distance: Number(item.total_distance ?? 0),
+          avatar_url: item.avatar_url ?? null,
         }))
         .sort((a, b) => b.total_distance - a.total_distance)
         .slice(0, 5);
@@ -34,6 +35,7 @@ export async function getHallOfFame(fromDate?: string | null) {
         .map((item: any) => ({
           athlete_name: item.athlete_name,
           avg_effort: Number(item.avg_performance ?? item.avg_engagement ?? 0),
+          avatar_url: item.avatar_url ?? null,
         }))
         .sort((a, b) => b.avg_effort - a.avg_effort)
         .slice(0, 5);
@@ -41,6 +43,7 @@ export async function getHallOfFame(fromDate?: string | null) {
         .map((item: any) => ({
           athlete_name: item.athlete_name,
           avg_engagement: Number(item.avg_engagement ?? 0),
+          avatar_url: item.avatar_url ?? null,
         }))
         .sort((a, b) => b.avg_engagement - a.avg_engagement)
         .slice(0, 5);
@@ -55,6 +58,7 @@ export async function getHallOfFame(fromDate?: string | null) {
           total_reps: Number(row.total_reps ?? 0),
           total_sets: Number(row.total_sets ?? 0),
           max_weight: Number(row.max_weight ?? 0),
+          avatar_url: row.avatar_url ?? null,
         }));
       }
 
