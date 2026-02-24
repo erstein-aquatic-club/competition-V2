@@ -51,14 +51,14 @@ const EVENT_CODE_TO_NAMES: Record<string, string[]> = {
   "50DOS": ["50 Dos"],
   "100DOS": ["100 Dos"],
   "200DOS": ["200 Dos"],
-  "50BR": ["50 Brasse"],
-  "100BR": ["100 Brasse"],
-  "200BR": ["200 Brasse"],
-  "50PAP": ["50 Papillon", "50 Pap"],
-  "100PAP": ["100 Papillon", "100 Pap"],
-  "200PAP": ["200 Papillon", "200 Pap"],
-  "200QN": ["200 4 Nages", "200 4N"],
-  "400QN": ["400 4 Nages", "400 4N"],
+  "50BR": ["50 Brasse", "50 Bra."],
+  "100BR": ["100 Brasse", "100 Bra."],
+  "200BR": ["200 Brasse", "200 Bra."],
+  "50PAP": ["50 Papillon", "50 Pap", "50 Pap."],
+  "100PAP": ["100 Papillon", "100 Pap", "100 Pap."],
+  "200PAP": ["200 Papillon", "200 Pap", "200 Pap."],
+  "200QN": ["200 4 Nages", "200 4N", "200 4 N."],
+  "400QN": ["400 4 Nages", "400 4N", "400 4 N."],
 };
 
 /** Stroke color class (border-left) keyed by stroke suffix. */
