@@ -1,6 +1,6 @@
 # État des fonctionnalités
 
-*Dernière mise à jour : 2026-02-23 (§59 Compétitions coach + §60 Objectifs coach)*
+*Dernière mise à jour : 2026-02-24 (§61 Interface objectifs nageur + refonte Profil hub)*
 
 ## Légende
 
@@ -141,6 +141,7 @@ Tous les feature flags sont activés.
 | CRUD objectifs coach | ✅ | `CoachObjectivesScreen.tsx`, `objectives.ts` | Par nageur, chrono (épreuve FFN + temps) et/ou texte libre (§60) |
 | Lien compétition optionnel | ✅ | `CoachObjectivesScreen.tsx` | Objectif rattachable à une compétition |
 | Vue objectifs nageur (Progression) | ✅ | `Progress.tsx` | Section "Mes objectifs" avec épreuve, temps cible, badge compétition J-X |
+| Objectifs nageur (lecture coach + CRUD perso) | ✅ | `SwimmerObjectivesView.tsx`, `Profile.tsx` | Hub Profil, objectifs coach RO + objectifs perso CRUD, bottom sheet form (§61) |
 
 ### Pointage heures
 
@@ -170,9 +171,10 @@ Tous les feature flags sont activés.
 
 | Fonctionnalité | Statut | Fichiers | Notes |
 |----------------|--------|----------|-------|
+| Hub Profil (grille navigation) | ✅ | `Profile.tsx` | State machine home/objectives, grille 2x2 (Mon profil, Sécurité, Records, Objectifs) (§61) |
 | Affichage infos | ✅ | `Profile.tsx` | Hero banner bg-accent, avatar ring, badge rôle (§38) |
 | Édition profil | ✅ | `Profile.tsx` | Sheet bottom mobile-friendly, formulaire complet (§38) |
-| Changement mot de passe | ✅ | `Profile.tsx` | Collapsible "Sécurité" fermé par défaut (§38) |
+| Changement mot de passe | ✅ | `Profile.tsx` | Bottom sheet dédié Sécurité (§61, was Collapsible §38) |
 | FFN & Records | ✅ | `Profile.tsx` | Card fusionnée sync FFN + lien records (§38) |
 
 ### UI/UX & Design System (Phase 6)

@@ -63,6 +63,8 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 | `src/pages/coach/CoachGroupsScreen.tsx` | UI gestion groupes temporaires (stages) | ~580 lignes |
 | `src/pages/coach/CoachCompetitionsScreen.tsx` | UI gestion compétitions coach | ~280 lignes |
 | `src/pages/coach/CoachObjectivesScreen.tsx` | UI gestion objectifs par nageur | ~710 lignes |
+| `src/lib/objectiveHelpers.ts` | Helpers partagés objectifs (FFN_EVENTS, formatTime) | ~40 lignes |
+| `src/components/profile/SwimmerObjectivesView.tsx` | Vue objectifs nageur (lecture coach + CRUD perso) | ~530 lignes |
 
 ## Edge Functions Supabase
 
@@ -112,6 +114,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 26 | Détails techniques inline timeline nageur | Moyenne | Fait (§58) |
 | 27 | Compétitions coach (calendrier échéances) | Moyenne | Fait (§59) |
 | 28 | Objectifs coach (temps cibles & texte par nageur) | Moyenne | Fait (§60) |
+| 29 | Interface objectifs nageur + refonte Profil hub | Moyenne | Fait (§61) |
 
 Détail complet dans `docs/ROADMAP.md`.
 

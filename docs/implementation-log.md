@@ -37,6 +37,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §58 Détails techniques inline timeline nageur | ✅ Fait | 2026-02-21 |
 | §59 Compétitions coach (calendrier échéances) | ✅ Fait | 2026-02-23 |
 | §60 Objectifs coach (temps cibles & texte par nageur) | ✅ Fait | 2026-02-23 |
+| §61 Interface objectifs nageur + refonte Profil hub | ✅ Fait | 2026-02-24 |
 | §45 Audit UI/UX — header Strength + login mobile + fixes | ✅ Fait | 2026-02-16 |
 | §46 Harmonisation headers + Login mobile thème clair | ✅ Fait | 2026-02-16 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
@@ -5264,3 +5265,54 @@ Les coachs n'avaient aucun outil pour gérer les compétitions (échéances) ni 
 - Pas d'objectifs de groupe (uniquement individuels).
 - Pas de saisie de résultats post-compétition.
 - Pas de comparaison automatique objectif vs performances FFN importées.
+
+---
+
+## 2026-02-24 — §61 Interface objectifs nageur + refonte Profil hub
+
+**Branche** : `main`
+**Chantier ROADMAP** : §61 — Interface objectifs nageur + refonte Profil hub
+
+### Contexte — Pourquoi ce patch
+
+La page Profil était un formulaire monolithique sans accès clair aux différentes fonctionnalités (records, objectifs, sécurité). Les nageurs ne pouvaient pas gérer leurs propres objectifs personnels ni consulter ceux fixés par le coach depuis un endroit dédié. Le champ texte libre `user_profiles.objectives` dans le formulaire d'édition profil était obsolète depuis l'introduction de la table structurée `objectives` (§60).
+
+### Changements réalisés
+
+1. **Helpers partagés objectifs** (`src/lib/objectiveHelpers.ts`) — Extraction des constantes et fonctions depuis CoachObjectivesScreen : `FFN_EVENTS`, `eventLabel`, `formatTime`, `parseTime`. Réutilisables côté coach et nageur.
+
+2. **Refactoring CoachObjectivesScreen** (`src/pages/coach/CoachObjectivesScreen.tsx`) — Imports depuis `objectiveHelpers.ts` au lieu de définitions locales. Aucun changement fonctionnel.
+
+3. **Refonte Profile en hub** (`src/pages/Profile.tsx`) — Transformation du formulaire monolithique en hub avec machine à états (`activeSection: "home" | "objectives"`). Grille de navigation 2x2 (Mon profil, Sécurité, Records, Objectifs). Mot de passe dans un bottom sheet dédié. Suppression du champ texte `objectives` du formulaire d'édition.
+
+4. **Vue objectifs nageur** (`src/components/profile/SwimmerObjectivesView.tsx`) — Interface complète : objectifs coach en lecture seule avec badge "Coach", objectifs personnels avec CRUD complet, bottom sheet pour création/édition (toggle type chrono/texte/les deux, sélecteur épreuve FFN, bassin, temps cible, texte libre), dialog de confirmation pour suppression.
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/lib/objectiveHelpers.ts` | Nouveau — helpers partagés (FFN_EVENTS, formatTime, parseTime) |
+| `src/pages/coach/CoachObjectivesScreen.tsx` | Modifié — imports depuis objectiveHelpers |
+| `src/pages/Profile.tsx` | Refactoré — hub avec state machine, grille navigation 2x2 |
+| `src/components/profile/SwimmerObjectivesView.tsx` | Nouveau — vue objectifs nageur (coach RO + perso CRUD) |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — 0 erreurs TypeScript
+- [x] Build vérifié
+- [ ] Test manuel : login nageur → Profil → grille 2x2 → Objectifs → voir objectifs coach
+- [ ] Test manuel : nageur → Objectifs → créer objectif perso chrono → modifier → supprimer
+
+### Décisions prises
+
+1. **Pattern state machine** (comme Coach.tsx) avec `activeSection: "home" | "objectives"` — Navigation interne sans routes supplémentaires.
+2. **Distinction coach vs perso** via comparaison `created_by` avec l'UID auth courant — Les objectifs du coach sont en lecture seule avec badge "Coach".
+3. **Bottom sheets pour tous les formulaires** — Cohérent avec le pattern d'édition profil existant.
+4. **Pas de lien compétition pour les objectifs nageur** — Réservé au coach, simplifie l'interface nageur.
+5. **Suppression du champ texte objectives du formulaire d'édition** — Remplacé par la table structurée `objectives`.
+
+### Limites / dette
+
+- La colonne `user_profiles.objectives` existe toujours en BDD mais n'est plus affichée ni éditée — à supprimer via migration ultérieure.
+- Pas de comparaison automatique entre objectifs perso et performances FFN importées.
+- Pas de notification au coach quand un nageur crée un objectif personnel.
