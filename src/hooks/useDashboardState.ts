@@ -373,7 +373,9 @@ export function useDashboardState({ sessions, assignments, userId, user }: UseDa
         },
       ];
 
-      const dayAssignments = assignmentsByIso.get(iso) ?? [];
+      const dayAssignments = (assignmentsByIso.get(iso) ?? [])
+        .slice()
+        .sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
       const usedSlots = new Set<SlotKey>();
 
       dayAssignments.forEach((a, idx: number) => {
