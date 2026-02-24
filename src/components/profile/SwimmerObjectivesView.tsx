@@ -73,6 +73,7 @@ export default function SwimmerObjectivesView({ onBack }: Props) {
     queryKey: ["athlete-objectives"],
     queryFn: () => api.getAthleteObjectives(),
     enabled: !!authUid,
+    refetchInterval: 30_000,
   });
 
   // Get swim records for progress gauge

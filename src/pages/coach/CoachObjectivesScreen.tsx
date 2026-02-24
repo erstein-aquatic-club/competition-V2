@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { Objective, ObjectiveInput, Competition } from "@/lib/api";
@@ -94,33 +94,31 @@ const ObjectiveFormSheet = ({
   const [competitionId, setCompetitionId] = useState<string>("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Reset form when opening
-  const handleOpenChange = (next: boolean) => {
-    if (next) {
-      if (objective) {
-        const hasChrono = !!objective.event_code;
-        const hasText = !!objective.text;
-        setObjType(hasChrono && hasText ? "both" : hasText ? "texte" : "chrono");
-        setEventCode(objective.event_code ?? "");
-        setPoolLength(String(objective.pool_length ?? 25));
-        setTargetTime(
-          objective.target_time_seconds != null
-            ? formatTime(objective.target_time_seconds)
-            : "",
-        );
-        setText(objective.text ?? "");
-        setCompetitionId(objective.competition_id ?? "");
-      } else {
-        setObjType("chrono");
-        setEventCode("");
-        setPoolLength("25");
-        setTargetTime("");
-        setText("");
-        setCompetitionId("");
-      }
+  // Pre-fill form when sheet opens
+  useEffect(() => {
+    if (!open) return;
+    if (objective) {
+      const hasChrono = !!objective.event_code;
+      const hasText = !!objective.text;
+      setObjType(hasChrono && hasText ? "both" : hasText ? "texte" : "chrono");
+      setEventCode(objective.event_code ?? "");
+      setPoolLength(String(objective.pool_length ?? 25));
+      setTargetTime(
+        objective.target_time_seconds != null
+          ? formatTime(objective.target_time_seconds)
+          : "",
+      );
+      setText(objective.text ?? "");
+      setCompetitionId(objective.competition_id ?? "");
+    } else {
+      setObjType("chrono");
+      setEventCode("");
+      setPoolLength("25");
+      setTargetTime("");
+      setText("");
+      setCompetitionId("");
     }
-    onOpenChange(next);
-  };
+  }, [open, objective]);
 
   const createMutation = useMutation({
     mutationFn: (input: ObjectiveInput) => api.createObjective(input),
@@ -235,7 +233,7 @@ const ObjectiveFormSheet = ({
 
   return (
     <>
-      <Sheet open={open} onOpenChange={handleOpenChange}>
+      <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="right"
           className="w-full sm:max-w-md overflow-y-auto"
