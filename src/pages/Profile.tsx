@@ -218,6 +218,7 @@ export default function Profile() {
     onSuccess: () => {
       setCropDialogSrc(null);
       queryClient.invalidateQueries({ queryKey: ["profile"] });
+      queryClient.invalidateQueries({ queryKey: ["hall-of-fame"] });
       toast({ title: "Photo de profil mise à jour" });
     },
     onError: (error: unknown) => {
@@ -257,6 +258,7 @@ export default function Profile() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
+      queryClient.invalidateQueries({ queryKey: ["hall-of-fame"] });
       toast({ title: "Photo supprimée" });
     },
     onError: (error: unknown) => {
