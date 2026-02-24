@@ -5458,3 +5458,31 @@ Les nageurs devaient coller manuellement une URL d'avatar dans un champ texte. O
 - Pas de crop/rotation côté client (l'image est simplement redimensionnée).
 - HEIC/HEIF listé comme accepté mais non garanti sur tous les navigateurs (Safari OK, Chrome partiel).
 - Pas de quota par utilisateur (un seul fichier par user, risque négligeable).
+
+---
+
+## 2026-02-24 — §64 Objectifs visuels + nettoyage Progression
+
+### Contexte — Pourquoi ce patch
+
+Les objectifs étaient affichés en double : dans la page Progression et dans le nouveau hub Profil > Objectifs (§61). Les cartes d'objectifs chronométriques étaient peu visuelles (simples badges inline).
+
+### Changements réalisés
+
+1. **Suppression objectifs de Progress.tsx** — Retrait de la query `getAthleteObjectives()`, des helpers locaux (`eventLabel`, `formatTargetTime`, `daysUntil`), et de la section JSX « Mes objectifs ». Le bandeau « Prochaine compétition » est conservé.
+2. **Helpers partagés enrichis** — Ajout dans `objectiveHelpers.ts` : mapping `EVENT_CODE_TO_NAMES` (event_code → event_name FFN), `STROKE_COLORS` (couleurs par nage), `strokeFromCode`, `findBestTime` (meilleur temps record pour une épreuve), `daysUntil`.
+3. **Redesign cartes objectifs** — Remplacement de `ObjectiveCardReadOnly` + `ObjectiveCardEditable` par un composant unifié `ObjectiveCard` avec : bordure gauche colorée par nage, temps cible en grand (2xl font-mono), barre de progression actuel→cible, countdown compétition J-X, badge Coach.
+
+### Fichiers modifiés
+
+| Fichier | Changement |
+|---------|-----------|
+| `src/pages/Progress.tsx` | Suppression objectifs (query, helpers, JSX), conservation compétition |
+| `src/lib/objectiveHelpers.ts` | Ajout EVENT_CODE_TO_NAMES, STROKE_COLORS, strokeFromCode, findBestTime, daysUntil |
+| `src/components/profile/SwimmerObjectivesView.tsx` | Query swim_records, composant ObjectiveCard unifié avec jauge |
+
+### Décisions prises
+
+- Jauge de progression basée sur 120% du temps cible comme baseline (20% plus lent). Si le record est pire, la barre montre un minimum de 5%. Si le record atteint l'objectif, 100% + couleur verte.
+- Mapping event_code → event_name par table statique (couvre tous les formats FFN connus).
+- Objectifs texte-only gardent le format simple sans jauge.
