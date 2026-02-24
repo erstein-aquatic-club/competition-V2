@@ -76,14 +76,18 @@ export default function SwimmerObjectivesView({ onBack }: Props) {
     refetchInterval: 30_000,
   });
 
-  // Get swim records for progress gauge
+  // Get swimmer performances (last 360 days) for progress gauge
   const { userId } = useAuth();
-  const { data: swimRecordsData } = useQuery({
-    queryKey: ["swim-records", userId],
-    queryFn: () => api.getSwimRecords({ athleteId: userId }),
+  const perfFromDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 360);
+    return d.toISOString().slice(0, 10);
+  }, []);
+  const { data: performances = [] } = useQuery({
+    queryKey: ["swimmer-performances-recent", userId],
+    queryFn: () => api.getSwimmerPerformances({ userId: userId!, fromDate: perfFromDate }),
     enabled: !!userId,
   });
-  const swimRecords = swimRecordsData?.records ?? [];
 
   // Split into coach vs personal
   const coachObjectives = useMemo(
@@ -272,7 +276,7 @@ export default function SwimmerObjectivesView({ onBack }: Props) {
               key={obj.id}
               objective={obj}
               isPersonal={false}
-              bestTime={obj.event_code ? findBestTime(swimRecords, obj.event_code, obj.pool_length) : null}
+              bestTime={obj.event_code ? findBestTime(performances, obj.event_code, obj.pool_length) : null}
             />
           ))}
         </div>
@@ -289,7 +293,7 @@ export default function SwimmerObjectivesView({ onBack }: Props) {
               key={obj.id}
               objective={obj}
               isPersonal={true}
-              bestTime={obj.event_code ? findBestTime(swimRecords, obj.event_code, obj.pool_length) : null}
+              bestTime={obj.event_code ? findBestTime(performances, obj.event_code, obj.pool_length) : null}
               onEdit={openEdit}
               onDelete={setDeleteTarget}
             />

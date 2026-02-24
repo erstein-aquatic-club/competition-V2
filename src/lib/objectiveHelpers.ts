@@ -77,29 +77,26 @@ export function strokeFromCode(code: string): string | null {
 }
 
 /**
- * Find the best (lowest) time_seconds from swim_records matching an objective.
- * Only considers records from the last 360 days so the gauge reflects the
- * current season, not all-time bests from years ago.
- * Returns null if no matching record exists.
+ * Find the best (lowest) time_seconds from swimmer_performances matching
+ * an objective event_code. Performances use the FFN event_code format
+ * (e.g. "50 NL", "100 Bra.") which is matched via EVENT_CODE_TO_NAMES.
+ * The caller should pre-filter to the last 360 days via the API query.
+ * Returns null if no matching performance exists.
  */
 export function findBestTime(
-  records: Array<{ event_name: string; pool_length?: number | null; time_seconds?: number | null; record_date?: string | null }>,
-  eventCode: string,
+  performances: Array<{ event_code: string; pool_length?: number | null; time_seconds?: number | null }>,
+  objectiveEventCode: string,
   poolLength?: number | null,
 ): number | null {
-  const names = EVENT_CODE_TO_NAMES[eventCode];
+  const names = EVENT_CODE_TO_NAMES[objectiveEventCode];
   if (!names) return null;
   const lowerNames = names.map((n) => n.toLowerCase());
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 360);
-  const cutoffStr = cutoff.toISOString().slice(0, 10);
   let best: number | null = null;
-  for (const r of records) {
-    if (r.time_seconds == null) continue;
-    if (!lowerNames.includes(r.event_name.toLowerCase())) continue;
-    if (poolLength != null && r.pool_length != null && r.pool_length !== poolLength) continue;
-    if (r.record_date != null && r.record_date < cutoffStr) continue;
-    if (best === null || r.time_seconds < best) best = r.time_seconds;
+  for (const p of performances) {
+    if (p.time_seconds == null) continue;
+    if (!lowerNames.includes(p.event_code.toLowerCase())) continue;
+    if (poolLength != null && p.pool_length != null && p.pool_length !== poolLength) continue;
+    if (best === null || p.time_seconds < best) best = p.time_seconds;
   }
   return best;
 }
