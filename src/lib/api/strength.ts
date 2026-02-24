@@ -15,6 +15,8 @@ import {
   normalizeExerciseType,
   estimateOneRm,
   STORAGE_KEYS,
+  BODYWEIGHT_SENTINEL,
+  isBodyweight,
 } from './client';
 import type {
   Exercise,
@@ -357,6 +359,8 @@ export async function logStrengthSet(payload: {
     athleteId?: number | string | null;
     athleteName?: string | null;
   }) => {
+    // Skip 1RM estimation for bodyweight sets
+    if (isBodyweight(payload.weight)) return null;
     const estimate = estimateOneRm(Number(payload.weight), Number(payload.reps));
     if (!estimate) return null;
     const athleteId = context?.athleteId ?? null;
@@ -778,12 +782,15 @@ export async function getStrengthHistory(
         last_performed_at: null,
       };
       const reps = Number(log.reps ?? 0) || 0;
-      const weight = Number(log.weight ?? 0) || 0;
+      const rawWeight = log.weight;
+      const weight = isBodyweight(rawWeight) ? 0 : (Number(rawWeight ?? 0) || 0);
       current.total_sets += 1;
       current.total_reps += reps;
       current.total_volume += reps * weight;
-      current.max_weight =
-        Math.max(current.max_weight ?? 0, weight) || current.max_weight;
+      if (!isBodyweight(rawWeight)) {
+        current.max_weight =
+          Math.max(current.max_weight ?? 0, weight) || current.max_weight;
+      }
       const completedAt =
         log.completed_at || run.completed_at || run.started_at || null;
       if (completedAt) {

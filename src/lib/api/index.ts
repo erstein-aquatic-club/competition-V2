@@ -60,6 +60,8 @@ export {
   fetchUserGroupIds,
   partitionGroupIds,
   fetchUserGroupIdsWithContext,
+  BODYWEIGHT_SENTINEL,
+  isBodyweight,
 } from './client';
 
 // Re-export localStorage utilities

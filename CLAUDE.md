@@ -119,6 +119,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 29 | Interface objectifs nageur + refonte Profil hub | Moyenne | Fait (§61) |
 | 30 | Compétitions : assignations, absences, compteur, SMS | Moyenne | Fait (§62) |
 | 31 | Upload photo de profil avec compression | Moyenne | Fait (§63) |
+| 32 | Traduction exercices FR + option Poids du corps | Faible | Fait (§64) |
 
 Détail complet dans `docs/ROADMAP.md`.
 

@@ -5486,3 +5486,49 @@ Les objectifs étaient affichés en double : dans la page Progression et dans le
 - Jauge de progression basée sur 120% du temps cible comme baseline (20% plus lent). Si le record est pire, la barre montre un minimum de 5%. Si le record atteint l'objectif, 100% + couleur verte.
 - Mapping event_code → event_name par table statique (couvre tous les formats FFN connus).
 - Objectifs texte-only gardent le format simple sans jauge.
+
+---
+
+## 2026-02-24 — §64 Traduction exercices FR + option Poids du corps
+
+**Branche** : `main`
+**Chantier ROADMAP** : §64 — Traduction exercices musculation + PDC
+
+### Contexte — Pourquoi ce patch
+
+Les exercices de musculation avaient des noms en anglais (Romanian DeadLift, Front Squat, Box Jump, etc.) ce qui posait problème pour les nageurs francophones. De plus, il manquait la possibilité de saisir "Poids du corps" (PDC) pour les exercices au poids du corps (tractions, dips, pompes...).
+
+### Changements réalisés
+
+1. **Migration SQL** — Renommage de 43 exercices en français dans `dim_exercices`. Les exercices déjà en français (Développé militaire, Abdos, etc.) et les termes internationaux courants (Dead Bug, Dips, L-Sit, Burpee, Hip Thrust) sont conservés.
+2. **Constante BODYWEIGHT_SENTINEL** — Valeur sentinelle `weight = -1` dans `client.ts` avec helper `isBodyweight()`. Distingue "poids du corps" de "pas encore renseigné" (null).
+3. **WorkoutRunner.tsx** — Bouton "PDC" dans les suggestions du drawer de saisie charge. Affiche "PDC" au lieu de "X kg" sur la carte charge et le toggle du drawer. Volume fin de séance exclut les sets PDC.
+4. **strength.ts** — Skip estimation 1RM quand weight=-1. Exclusion des sets PDC du calcul tonnage/volume et max_weight dans getStrengthHistory.
+5. **Progress.tsx** — Affiche "PDC" au lieu de "X kg" dans le tableau volume exercices.
+
+### Fichiers modifiés
+
+| Fichier | Changement |
+|---------|-----------|
+| `supabase/migrations/00029_rename_exercises_fr.sql` | Nouveau — Renommage 43 exercices en français |
+| `src/lib/api/client.ts` | Ajout BODYWEIGHT_SENTINEL et isBodyweight() |
+| `src/lib/api/strength.ts` | Import isBodyweight, skip 1RM pour PDC, exclusion tonnage |
+| `src/components/strength/WorkoutRunner.tsx` | Import isBodyweight, bouton PDC, affichage conditionnel |
+| `src/pages/Progress.tsx` | Import isBodyweight, affichage "PDC" dans tableau |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — OK
+- [x] Migration appliquée sur Supabase — 59 exercices tous en français vérifié
+- [ ] Test manuel : saisir une série PDC et vérifier affichage
+
+### Décisions prises
+
+- Valeur sentinelle `-1` plutôt que boolean supplémentaire en DB : évite une migration de schéma, compatible avec le type `doublePrecision` existant.
+- Termes internationaux conservés : Dead Bug, Dips, L-Sit, Burpee, Hip Thrust explosif — universellement reconnus dans le milieu sportif.
+- Bouton PDC toujours visible dans les suggestions (pas seulement quand targetWeight=0) car un exercice à % 1RM peut aussi être fait au poids du corps.
+
+### Limites / dette
+
+- Le bouton PDC est dans les suggestions du drawer, pas un toggle dédié. UX suffisante pour le besoin actuel.
+- Les sets PDC existants en DB ont weight=null (pas -1), donc l'historique pré-existant n'affiche pas "PDC" rétroactivement.

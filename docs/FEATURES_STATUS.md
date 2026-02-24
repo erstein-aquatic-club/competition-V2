@@ -78,7 +78,8 @@ Tous les feature flags sont activés.
 | Liste séances assignées | ✅ | `Strength.tsx` | Segmented control, cards compactes, auto-start, AlertDialog |
 | Preview séance | ✅ | `Strength.tsx` | Mode "reader", dock masqué, lancement unique |
 | Mode focus (WorkoutRunner) | ✅ | `WorkoutRunner.tsx` | Header compact, bouton "Passer", notes visibles, timer simplifié |
-| Saisie charge/reps | ✅ | `WorkoutRunner.tsx` | Auto-sauvegarde, volume formaté fr-FR |
+| Saisie charge/reps | ✅ | `WorkoutRunner.tsx` | Auto-sauvegarde, volume formaté fr-FR, option "Poids du corps" (PDC) (§64) |
+| Noms exercices français | ✅ | `dim_exercices` (DB) | 59 exercices traduits en français (§64) |
 | Historique | ✅ | `Strength.tsx` | Tab "Historique", 1RM, graphiques |
 | Fiche exercice avec GIF | 🔧 | `Strength.tsx` | Dépend des URLs dans `dim_exercices` |
 

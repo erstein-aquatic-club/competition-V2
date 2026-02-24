@@ -27,6 +27,7 @@ import {
 import { endOfDay, format, startOfDay, subDays } from "date-fns";
 import { useAuth } from "@/lib/auth";
 import { scoreToColor } from "@/lib/score";
+import { isBodyweight } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import { getContrastTextColor } from "@/lib/design-tokens";
 import type { LocalStrengthRun, SetLogEntry } from "@/lib/types";
@@ -781,7 +782,7 @@ export default function Progress() {
                         <TableRow key={entry.exerciseId}>
                           <TableCell className="font-medium text-sm">{entry.name}</TableCell>
                           <TableCell className="text-right font-mono text-sm">{entry.totalVolume.toLocaleString()} kg</TableCell>
-                          <TableCell className="text-right font-mono text-sm">{entry.maxWeight !== null ? `${entry.maxWeight} kg` : "-"}</TableCell>
+                          <TableCell className="text-right font-mono text-sm">{entry.maxWeight !== null ? (isBodyweight(entry.maxWeight) ? "PDC" : `${entry.maxWeight} kg`) : "-"}</TableCell>
                           <TableCell className="text-right text-xs text-muted-foreground">{formatExerciseDate(entry.lastPerformedAt)}</TableCell>
                         </TableRow>
                       ))

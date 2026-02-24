@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { colors } from "@/lib/design-tokens";
 import type { Exercise, StrengthSessionTemplate } from "@/lib/api";
+import { BODYWEIGHT_SENTINEL, isBodyweight } from "@/lib/api/client";
 import type { SetLogEntry, OneRmEntry, WorkoutFinishData, SetInputValues } from "@/lib/types";
 
 /** Emit a short beep + vibration when the rest timer ends */
@@ -427,7 +428,7 @@ export function WorkoutRunner({
       exercise_id: currentBlock.exercise_id,
       set_number: currentSetIndex,
       reps: currentSetInputs[currentSetIndex - 1]?.reps || currentBlock.reps,
-      weight: currentSetInputs[currentSetIndex - 1]?.weight || targetWeight,
+      weight: currentSetInputs[currentSetIndex - 1]?.weight ?? targetWeight,
     };
     setLogs((prev) => [...prev, newLog]);
     isLoggingRef.current = true;
@@ -477,7 +478,7 @@ export function WorkoutRunner({
   };
 
   const appendDraft = (value: string) => {
-    if (shouldReplace) {
+    if (shouldReplace || draftValue === String(BODYWEIGHT_SENTINEL)) {
       setShouldReplace(false);
       setDraftValue(value);
       return;
@@ -564,7 +565,7 @@ export function WorkoutRunner({
               <div className="bg-muted p-4 rounded-lg">
                 <div className="text-xs uppercase font-bold text-muted-foreground">Volume</div>
                 <div className="text-2xl font-mono font-bold">
-                  {logs.reduce((acc, l) => acc + (Number(l.weight) || 0) * (Number(l.reps) || 0), 0).toLocaleString("fr-FR")} kg
+                  {logs.reduce((acc, l) => acc + (isBodyweight(l.weight) ? 0 : (Number(l.weight) || 0) * (Number(l.reps) || 0)), 0).toLocaleString("fr-FR")} kg
                 </div>
               </div>
               <div className="bg-muted p-4 rounded-lg">
@@ -740,10 +741,16 @@ export function WorkoutRunner({
           >
             <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Charge</div>
             <div className="mt-1 flex items-baseline gap-0.5">
-              <span className="text-3xl font-bold tabular-nums tracking-tight">
-                {activeWeight || "—"}
-              </span>
-              <span className="text-sm font-medium text-muted-foreground">kg</span>
+              {isBodyweight(activeWeight) ? (
+                <span className="text-2xl font-bold tracking-tight">PDC</span>
+              ) : (
+                <>
+                  <span className="text-3xl font-bold tabular-nums tracking-tight">
+                    {activeWeight || "—"}
+                  </span>
+                  <span className="text-sm font-medium text-muted-foreground">kg</span>
+                </>
+              )}
             </div>
           </button>
           <button
@@ -998,10 +1005,18 @@ export function WorkoutRunner({
               >
                 <div className="text-xs font-semibold uppercase text-muted-foreground">Charge</div>
                 <div className="mt-1 text-2xl font-bold tabular-nums">
-                  {activeInput === "weight"
-                    ? draftValue || "—"
-                    : String(currentSetInputs[currentSetIndex - 1]?.weight ?? targetWeight ?? "—")}
-                  <span className="ml-1 text-base font-normal text-muted-foreground">kg</span>
+                  {(() => {
+                    const displayVal = activeInput === "weight"
+                      ? draftValue
+                      : String(currentSetInputs[currentSetIndex - 1]?.weight ?? targetWeight ?? "");
+                    if (displayVal === String(BODYWEIGHT_SENTINEL)) return "PDC";
+                    return (
+                      <>
+                        {displayVal || "—"}
+                        <span className="ml-1 text-base font-normal text-muted-foreground">kg</span>
+                      </>
+                    );
+                  })()}
                 </div>
               </button>
               <button
@@ -1025,11 +1040,19 @@ export function WorkoutRunner({
             </div>
 
             {/* Quick suggestions for weight */}
-            {activeInput === "weight" && targetWeight > 0 && (
+            {activeInput === "weight" && (
               <div className="mb-4">
                 <div className="text-xs font-semibold text-muted-foreground mb-2">Suggestions</div>
                 <div className="flex flex-wrap gap-2">
-                  {[
+                  <Button
+                    variant={draftValue === String(BODYWEIGHT_SENTINEL) ? "default" : "outline"}
+                    size="sm"
+                    className="rounded-full px-4 h-10 text-sm font-semibold"
+                    onClick={() => setDraftValue(String(BODYWEIGHT_SENTINEL))}
+                  >
+                    PDC
+                  </Button>
+                  {targetWeight > 0 && [
                     targetWeight - 10,
                     targetWeight - 5,
                     targetWeight,

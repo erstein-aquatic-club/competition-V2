@@ -23,6 +23,13 @@ export const canUseSupabase = () => supabaseConfig.hasSupabase && isNetworkAvail
 // Re-export supabase client for modules
 export { supabase };
 
+// --- Bodyweight sentinel ---
+
+/** Sentinel value stored in weight column to indicate bodyweight exercise (no external load). */
+export const BODYWEIGHT_SENTINEL = -1;
+/** Returns true when the weight value represents a bodyweight set. */
+export const isBodyweight = (w: number | null | undefined): boolean => w === BODYWEIGHT_SENTINEL;
+
 // --- Storage keys for local mock ---
 
 export const STORAGE_KEYS = {

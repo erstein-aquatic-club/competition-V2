@@ -1,6 +1,6 @@
 # Roadmap de Développement
 
-*Dernière mise à jour : 2026-02-24 (§62 Compétitions : assignations, absences, compteur, SMS)*
+*Dernière mise à jour : 2026-02-24 (§64 Traduction exercices FR + Poids du corps)*
 
 Ce document décrit les fonctionnalités à implémenter. Il sert de référence pour reprendre le développement dans une future conversation.
 
@@ -41,6 +41,8 @@ Ce document décrit les fonctionnalités à implémenter. Il sert de référence
 | 28 | Objectifs coach (temps cibles & texte par nageur) | Moyenne | Moyenne | Fait (§60) |
 | 29 | Interface objectifs nageur + refonte Profil hub | Moyenne | Moyenne | Fait (§61) |
 | 30 | Compétitions : assignations, absences, compteur, SMS | Moyenne | Haute | Fait (§62) |
+| 31 | Upload photo de profil avec compression | Moyenne | Faible | Fait (§63) |
+| 32 | Traduction exercices FR + option Poids du corps | Faible | Faible | Fait (§64) |
 
 ---
 
