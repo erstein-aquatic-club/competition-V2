@@ -76,17 +76,23 @@ export default function SwimmerObjectivesView({ onBack }: Props) {
     refetchInterval: 30_000,
   });
 
-  // Get swimmer performances (last 360 days) for progress gauge
-  const { userId } = useAuth();
+  // Get swimmer IUF from profile, then performances (last 360 days) for progress gauge
+  const { userId, user } = useAuth();
+  const { data: profile } = useQuery({
+    queryKey: ["my-profile"],
+    queryFn: () => api.getProfile({ displayName: user, userId }),
+    enabled: !!userId,
+  });
+  const iuf = profile?.ffn_iuf ?? null;
   const perfFromDate = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() - 360);
     return d.toISOString().slice(0, 10);
   }, []);
   const { data: performances = [] } = useQuery({
-    queryKey: ["swimmer-performances-recent", userId],
-    queryFn: () => api.getSwimmerPerformances({ userId: userId!, fromDate: perfFromDate }),
-    enabled: !!userId,
+    queryKey: ["swimmer-performances-recent", iuf],
+    queryFn: () => api.getSwimmerPerformances({ iuf: iuf!, fromDate: perfFromDate }),
+    enabled: !!iuf,
   });
 
   // Split into coach vs personal
