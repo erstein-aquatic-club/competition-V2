@@ -78,21 +78,27 @@ export function strokeFromCode(code: string): string | null {
 
 /**
  * Find the best (lowest) time_seconds from swim_records matching an objective.
+ * Only considers records from the last 360 days so the gauge reflects the
+ * current season, not all-time bests from years ago.
  * Returns null if no matching record exists.
  */
 export function findBestTime(
-  records: Array<{ event_name: string; pool_length?: number | null; time_seconds?: number | null }>,
+  records: Array<{ event_name: string; pool_length?: number | null; time_seconds?: number | null; record_date?: string | null }>,
   eventCode: string,
   poolLength?: number | null,
 ): number | null {
   const names = EVENT_CODE_TO_NAMES[eventCode];
   if (!names) return null;
   const lowerNames = names.map((n) => n.toLowerCase());
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 360);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
   let best: number | null = null;
   for (const r of records) {
     if (r.time_seconds == null) continue;
     if (!lowerNames.includes(r.event_name.toLowerCase())) continue;
     if (poolLength != null && r.pool_length != null && r.pool_length !== poolLength) continue;
+    if (r.record_date != null && r.record_date < cutoffStr) continue;
     if (best === null || r.time_seconds < best) best = r.time_seconds;
   }
   return best;
