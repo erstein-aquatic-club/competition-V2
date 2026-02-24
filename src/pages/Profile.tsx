@@ -2,8 +2,6 @@ import { useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,9 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
-import type { UserProfile as ProfileData, GroupSummary } from "@/lib/api";
-import { Link } from "wouter";
-import { ChevronRight, Edit2, LogOut, RefreshCw, Save, AlertCircle, Download } from "lucide-react";
+import { useLocation } from "wouter";
+import { Lock, Pen, Target, Trophy, LogOut, Save, AlertCircle, Download } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -40,16 +37,9 @@ export const getRoleLabel = (role: string | null) => {
   }
 };
 
-function formatBirthdate(value?: string | null) {
-  if (!value) return "-";
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString("fr-FR");
-}
-
 // Profile edit validation schema
 const profileEditSchema = z.object({
   group_id: z.string().optional(),
-  objectives: z.string().optional(),
   bio: z.string().optional(),
   avatar_url: z.string().url("URL invalide").optional().or(z.literal("")),
   birthdate: z.string().optional().refine(
@@ -92,12 +82,15 @@ export default function Profile() {
   const { user, userId, logout, role } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
 
   const showRecords = shouldShowRecords(role);
   const canUpdatePassword = role === "athlete" || role === "coach" || role === "admin";
   const roleLabel = getRoleLabel(role);
 
+  const [activeSection, setActiveSection] = useState<"home" | "objectives">("home");
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
+  const [isPasswordSheetOpen, setIsPasswordSheetOpen] = useState(false);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 
   const handleCheckUpdate = async () => {
@@ -129,7 +122,6 @@ export default function Profile() {
     resolver: zodResolver(profileEditSchema),
     defaultValues: {
       group_id: "",
-      objectives: "",
       bio: "",
       avatar_url: "",
       birthdate: "",
@@ -179,7 +171,6 @@ export default function Profile() {
         profile: {
           group_id: data.group_id ? Number(data.group_id) : null,
           birthdate: data.birthdate || null,
-          objectives: data.objectives,
           bio: data.bio,
           avatar_url: data.avatar_url,
           ffn_iuf: (data.ffn_iuf || "").trim() || null,
@@ -214,36 +205,9 @@ export default function Profile() {
     },
   });
 
-  const syncFfn = useMutation({
-    mutationFn: async () => {
-      const iuf = String(profile?.ffn_iuf ?? "").trim();
-      if (!iuf) throw new Error("IUF FFN manquant. Ajoutez-le dans votre profil.");
-      return api.syncFfnSwimRecords({
-        athleteId: userId ?? undefined,
-        athleteName: user ?? undefined,
-        iuf,
-      });
-    },
-    onSuccess: (data: { inserted: number; updated: number; skipped: number }) => {
-      queryClient.invalidateQueries({ queryKey: ["swim-records"] });
-      toast({
-        title: "Records FFN importés",
-        description: `${data?.inserted ?? 0} ajouté(s), ${data?.updated ?? 0} mis à jour, ${data?.skipped ?? 0} inchangé(s)`,
-      });
-    },
-    onError: (error: unknown) => {
-      toast({
-        title: "Import FFN impossible",
-        description: String((error as Error)?.message || error),
-        variant: "destructive",
-      });
-    },
-  });
-
   const startEdit = () => {
     profileForm.reset({
       group_id: profile?.group_id ? String(profile.group_id) : "",
-      objectives: profile?.objectives || "",
       bio: profile?.bio || "",
       avatar_url: profile?.avatar_url || "",
       birthdate: profile?.birthdate ? String(profile.birthdate).split("T")[0] : "",
@@ -268,43 +232,21 @@ export default function Profile() {
   if (profileLoading) {
     return (
       <div className="space-y-6">
-        <Skeleton className="h-10 w-32" />
-
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-4">
-              <Skeleton className="h-16 w-16 rounded-full" />
-              <div className="space-y-2">
-                <Skeleton className="h-6 w-32" />
-                <Skeleton className="h-4 w-24" />
-              </div>
+        <div className="rounded-xl bg-accent p-5">
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-20 w-20 rounded-full" />
+            <div className="space-y-2 flex-1">
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-4 w-24" />
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-5 w-24" />
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-5 w-20" />
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-5 w-28" />
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-5 w-32" />
-              </div>
-              <div className="col-span-2 space-y-2">
-                <Skeleton className="h-4 w-12" />
-                <Skeleton className="h-12 w-full" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Skeleton className="h-24 rounded-xl" />
+          <Skeleton className="h-24 rounded-xl" />
+          <Skeleton className="h-24 rounded-xl" />
+          <Skeleton className="h-24 rounded-xl" />
+        </div>
       </div>
     );
   }
@@ -322,6 +264,17 @@ export default function Profile() {
     );
   }
 
+  if (activeSection === "objectives") {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" className="-ml-2" onClick={() => setActiveSection("home")}>
+          ← Retour
+        </Button>
+        <p className="text-sm text-muted-foreground">Objectifs (à connecter)</p>
+      </div>
+    );
+  }
+
   return (
     <motion.div
       className="space-y-6"
@@ -329,7 +282,7 @@ export default function Profile() {
       initial="hidden"
       animate="visible"
     >
-      {/* Hero Banner */}
+      {/* Hero compact */}
       <div className="rounded-xl bg-accent text-accent-foreground p-5">
         <div className="flex items-center gap-4">
           <Avatar className="h-20 w-20 ring-2 ring-primary ring-offset-2 ring-offset-accent">
@@ -342,55 +295,64 @@ export default function Profile() {
               <Badge variant="secondary" className="text-xs">{roleLabel}</Badge>
               <span className="text-sm opacity-80">{groupLabel}</span>
             </div>
-            {showRecords && String(profile?.ffn_iuf ?? "").trim() && (
-              <p className="text-xs opacity-60 mt-1">IUF {profile?.ffn_iuf}</p>
+            {profile?.bio && (
+              <p className="text-xs opacity-70 mt-1.5 line-clamp-2">{profile.bio}</p>
             )}
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="shrink-0 text-accent-foreground hover:bg-accent-foreground/10"
-            onClick={startEdit}
-            aria-label="Modifier le profil"
-          >
-            <Edit2 className="h-4 w-4" />
-          </Button>
         </div>
       </div>
 
-      <Card>
-        <CardContent className="space-y-4 pt-6">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <Label className="text-xs text-muted-foreground uppercase">Groupe</Label>
-              <div className="font-medium">{groupLabel}</div>
-            </div>
+      {/* Navigation Grid 2x2 */}
+      <div className="grid grid-cols-2 gap-3">
+        <button type="button" onClick={startEdit}
+          className="rounded-xl border bg-card p-4 text-left shadow-sm active:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Pen className="h-5 w-5 text-primary mb-2" />
+          <p className="text-sm font-bold">Mon profil</p>
+          <p className="text-xs text-muted-foreground">Modifier mes infos</p>
+        </button>
+        {canUpdatePassword && (
+          <button type="button" onClick={() => setIsPasswordSheetOpen(true)}
+            className="rounded-xl border bg-card p-4 text-left shadow-sm active:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <Lock className="h-5 w-5 text-primary mb-2" />
+            <p className="text-sm font-bold">Sécurité</p>
+            <p className="text-xs text-muted-foreground">Mot de passe</p>
+          </button>
+        )}
+        {showRecords && (
+          <button type="button" onClick={() => navigate("/records")}
+            className="rounded-xl border bg-card p-4 text-left shadow-sm active:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <Trophy className="h-5 w-5 text-primary mb-2" />
+            <p className="text-sm font-bold">Records</p>
+            <p className="text-xs text-muted-foreground">Mes perfs personnelles</p>
+          </button>
+        )}
+        <button type="button" onClick={() => setActiveSection("objectives")}
+          className="rounded-xl border bg-card p-4 text-left shadow-sm active:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Target className="h-5 w-5 text-primary mb-2" />
+          <p className="text-sm font-bold">Objectifs</p>
+          <p className="text-xs text-muted-foreground">Mon plan</p>
+        </button>
+      </div>
 
-            <div>
-              <Label className="text-xs text-muted-foreground uppercase">Date de naissance</Label>
-              <div className="font-medium">{formatBirthdate(profile?.birthdate ?? null)}</div>
-            </div>
+      {/* Logout */}
+      <Button variant="destructive" onClick={logout} className="w-full gap-2">
+        <LogOut className="h-4 w-4" />
+        Se déconnecter
+      </Button>
 
-            {showRecords ? (
-              <div>
-                <Label className="text-xs text-muted-foreground uppercase">IUF FFN</Label>
-                <div className="font-medium">{String(profile?.ffn_iuf ?? "") || "Non renseigné"}</div>
-              </div>
-            ) : null}
+      {/* Version info */}
+      <div className="space-y-1 pt-2">
+        <button type="button" onClick={handleCheckUpdate} disabled={isCheckingUpdate}
+          className="w-full flex items-center justify-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors py-2">
+          <Download className={["h-3 w-3", isCheckingUpdate ? "animate-bounce" : ""].join(" ")} />
+          {isCheckingUpdate ? "Recherche en cours..." : "Rechercher des mises à jour"}
+        </button>
+        <p className="text-[10px] text-center text-muted-foreground/60">
+          Version du {new Date(__BUILD_TIMESTAMP__).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+        </p>
+      </div>
 
-            <div className={showRecords ? "" : "col-span-2"}>
-              <Label className="text-xs text-muted-foreground uppercase">Objectifs</Label>
-              <div className="font-medium">{profile?.objectives || "Aucun objectif défini."}</div>
-            </div>
-
-            <div className="col-span-2">
-              <Label className="text-xs text-muted-foreground uppercase">Bio</Label>
-              <div className="font-medium">{profile?.bio || "Non renseignée."}</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
+      {/* Edit profile bottom sheet */}
       <Sheet open={isEditSheetOpen} onOpenChange={setIsEditSheetOpen}>
         <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
           <SheetHeader>
@@ -436,14 +398,6 @@ export default function Profile() {
             ) : null}
 
             <div className="grid gap-2">
-              <Label>Objectifs</Label>
-              <Input {...profileForm.register("objectives")} />
-              {profileForm.formState.errors.objectives && (
-                <p className="text-xs text-destructive" role="alert" aria-live="assertive">{profileForm.formState.errors.objectives.message}</p>
-              )}
-            </div>
-
-            <div className="grid gap-2">
               <Label>Bio</Label>
               <Textarea {...profileForm.register("bio")} />
               {profileForm.formState.errors.bio && (
@@ -486,101 +440,34 @@ export default function Profile() {
         </SheetContent>
       </Sheet>
 
-      {showRecords ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>FFN & Records</CardTitle>
-            <CardDescription>Gérez vos records de natation et l'import FFN.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="text-sm text-muted-foreground">
-              IUF enregistré : <span className="font-medium text-foreground">{String(profile?.ffn_iuf ?? "") || "—"}</span>
+      {/* Password change bottom sheet */}
+      <Sheet open={isPasswordSheetOpen} onOpenChange={setIsPasswordSheetOpen}>
+        <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Changer le mot de passe</SheetTitle>
+            <SheetDescription>Votre mot de passe doit contenir au moins 8 caractères, une majuscule et un chiffre.</SheetDescription>
+          </SheetHeader>
+          <form onSubmit={handleUpdatePassword} className="space-y-3 mt-4">
+            <div className="grid gap-2">
+              <Label>Nouveau mot de passe</Label>
+              <Input type="password" {...passwordForm.register("password")} placeholder="••••••••" />
+              {passwordForm.formState.errors.password && (
+                <p className="text-xs text-destructive" role="alert" aria-live="assertive">{passwordForm.formState.errors.password.message}</p>
+              )}
             </div>
-            <Button
-              className="w-full gap-2"
-              onClick={() => syncFfn.mutate()}
-              disabled={syncFfn.isPending || !String(profile?.ffn_iuf ?? "").trim()}
-            >
-              <RefreshCw className={["h-4 w-4", syncFfn.isPending ? "animate-spin" : ""].join(" ")} />
-              {syncFfn.isPending ? "Import en cours..." : "Récupérer records depuis FFN"}
+            <div className="grid gap-2">
+              <Label>Confirmer</Label>
+              <Input type="password" {...passwordForm.register("confirmPassword")} placeholder="••••••••" />
+              {passwordForm.formState.errors.confirmPassword && (
+                <p className="text-xs text-destructive" role="alert" aria-live="assertive">{passwordForm.formState.errors.confirmPassword.message}</p>
+              )}
+            </div>
+            <Button type="submit" className="w-full" disabled={updatePassword.isPending}>
+              Mettre à jour le mot de passe
             </Button>
-            {!String(profile?.ffn_iuf ?? "").trim() ? (
-              <div className="text-xs text-muted-foreground">
-                Ajoutez votre IUF FFN dans le profil (bouton crayon) pour activer l'import.
-              </div>
-            ) : null}
-            <Link href="/records">
-              <Button variant="outline" className="w-full">
-                Voir mes records
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {canUpdatePassword ? (
-        <Collapsible className="group">
-          <CollapsibleTrigger asChild>
-            <button className="flex items-center gap-2 w-full text-left py-3 px-1 text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">
-              <ChevronRight className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-90" />
-              Sécurité
-            </button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <Card>
-              <CardContent className="pt-4">
-                <form onSubmit={handleUpdatePassword} className="space-y-3">
-                  <div className="grid gap-2">
-                    <Label>Nouveau mot de passe</Label>
-                    <Input
-                      type="password"
-                      {...passwordForm.register("password")}
-                      placeholder="••••••••"
-                    />
-                    {passwordForm.formState.errors.password && (
-                      <p className="text-xs text-destructive" role="alert" aria-live="assertive">{passwordForm.formState.errors.password.message}</p>
-                    )}
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Confirmer</Label>
-                    <Input
-                      type="password"
-                      {...passwordForm.register("confirmPassword")}
-                      placeholder="••••••••"
-                    />
-                    {passwordForm.formState.errors.confirmPassword && (
-                      <p className="text-xs text-destructive" role="alert" aria-live="assertive">{passwordForm.formState.errors.confirmPassword.message}</p>
-                    )}
-                  </div>
-                  <Button type="submit" className="w-full" disabled={updatePassword.isPending}>
-                    Mettre à jour le mot de passe
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          </CollapsibleContent>
-        </Collapsible>
-      ) : null}
-
-      <Button variant="destructive" onClick={logout} className="w-full gap-2">
-        <LogOut className="h-4 w-4" />
-        Se déconnecter
-      </Button>
-
-      <div className="space-y-1 pt-2">
-        <button
-          type="button"
-          onClick={handleCheckUpdate}
-          disabled={isCheckingUpdate}
-          className="w-full flex items-center justify-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors py-2"
-        >
-          <Download className={["h-3 w-3", isCheckingUpdate ? "animate-bounce" : ""].join(" ")} />
-          {isCheckingUpdate ? "Recherche en cours..." : "Rechercher des mises à jour"}
-        </button>
-        <p className="text-[10px] text-center text-muted-foreground/60">
-          Version du {new Date(__BUILD_TIMESTAMP__).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-        </p>
-      </div>
+          </form>
+        </SheetContent>
+      </Sheet>
     </motion.div>
   );
 }
