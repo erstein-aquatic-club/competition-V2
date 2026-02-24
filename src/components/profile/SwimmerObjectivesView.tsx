@@ -555,7 +555,9 @@ function ObjectiveCard({
                 />
               </div>
               <div className="text-[10px] text-muted-foreground text-right">
-                {progressPct >= 100 ? "Objectif atteint !" : `${progressPct}%`}
+                {progressPct >= 100
+                  ? "Objectif atteint !"
+                  : `+${(bestTime! - objective.target_time_seconds!).toFixed(1)}s`}
               </div>
             </div>
           )}
