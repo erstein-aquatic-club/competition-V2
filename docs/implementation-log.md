@@ -40,6 +40,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §61 Interface objectifs nageur + refonte Profil hub | ✅ Fait | 2026-02-24 |
 | §62 Compétitions : assignations, absences, compteur, SMS | ✅ Fait | 2026-02-24 |
 | §63 Upload photo de profil avec compression | ✅ Fait | 2026-02-24 |
+| §65 Écran SMS dédié coach dashboard | ✅ Fait | 2026-02-24 |
 | §45 Audit UI/UX — header Strength + login mobile + fixes | ✅ Fait | 2026-02-16 |
 | §46 Harmonisation headers + Login mobile thème clair | ✅ Fait | 2026-02-16 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
@@ -5532,3 +5533,54 @@ Les exercices de musculation avaient des noms en anglais (Romanian DeadLift, Fro
 
 - Le bouton PDC est dans les suggestions du drawer, pas un toggle dédié. UX suffisante pour le besoin actuel.
 - Les sets PDC existants en DB ont weight=null (pas -1), donc l'historique pré-existant n'affiche pas "PDC" rétroactivement.
+
+---
+
+## 2026-02-24 — §65 Écran SMS dédié coach dashboard
+
+**Branche** : `main`
+**Chantier ROADMAP** : §33 — Écran SMS généraliste coach
+
+### Contexte
+
+Le SMS existait uniquement sur les cartes de compétition (`CoachCompetitionsScreen.tsx`), limité aux nageurs assignés à une compétition. Le coach avait besoin d'un écran SMS généraliste pour contacter n'importe quel groupe ou nageur, accessible depuis le dashboard coach comme le bouton "Email" existant.
+
+### Changements réalisés
+
+1. **Créé `CoachSmsScreen.tsx`** — Nouvel écran SMS calqué sur `CoachMessagesScreen.tsx`
+   - Sélecteur groupe/nageur (Select avec sections "Groupes" et "Nageurs")
+   - Champ message optionnel (Textarea, pré-rempli dans le body SMS)
+   - Résolution des numéros via `user_profiles.phone` (query Supabase identique à `CoachCompetitionsScreen`)
+   - Affiche le nombre de numéros trouvés / manquants
+   - Bouton adaptatif : "Ouvrir dans l'app SMS" (mobile `sms:` URI) / "Copier les numéros" (desktop clipboard)
+
+2. **Modifié `Coach.tsx`** — Intégration du nouvel écran
+   - Ajout `"sms"` au type `CoachSection`
+   - Bouton pill "SMS" avec icône `MessageSquare` après le bouton "Email" dans Quick Actions
+   - Section conditionnelle `CoachSmsScreen` avec mêmes props que `CoachMessagesScreen`
+   - Ajout `"sms"` aux conditions `shouldLoadAthletes` et `shouldLoadGroups`
+
+### Fichiers modifiés
+
+| Fichier | Changement |
+|---------|-----------|
+| `src/pages/coach/CoachSmsScreen.tsx` | Nouveau — Écran SMS généraliste coach |
+| `src/pages/Coach.tsx` | Ajout section SMS, bouton pill, import, routing |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — OK (0 erreurs)
+- [x] `npm run build` — OK
+- [ ] Test manuel : Coach → bouton "SMS" → sélectionner groupe → vérifier ouverture SMS (mobile) ou clipboard (desktop)
+- [ ] Test manuel : sélectionner nageur sans téléphone → message d'erreur
+
+### Décisions prises
+
+- Réutilisation exacte du pattern `CoachMessagesScreen` (même layout Card, même sélecteur, même sticky button) pour cohérence UI.
+- Query `athlete-phones` partagée avec `CoachCompetitionsScreen` (même queryKey) → pas de double-fetch.
+- Bouton adaptatif mobile/desktop plutôt qu'un seul comportement : meilleure UX selon le device.
+
+### Limites / dette
+
+- Pas de persistance historique des SMS envoyés (même limitation que le SMS compétition existant).
+- Le champ message n'est pré-rempli que sur mobile (URI `sms:?body=`), sur desktop seuls les numéros sont copiés.

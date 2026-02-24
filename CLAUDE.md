@@ -67,6 +67,7 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 | `src/lib/objectiveHelpers.ts` | Helpers partagés objectifs (FFN_EVENTS, formatTime) | ~40 lignes |
 | `src/lib/imageUtils.ts` | Compression image Canvas (avatar upload, WebP/JPEG ≤200KB) | ~95 lignes |
 | `src/components/profile/SwimmerObjectivesView.tsx` | Vue objectifs nageur (lecture coach + CRUD perso) | ~530 lignes |
+| `src/pages/coach/CoachSmsScreen.tsx` | Écran SMS généraliste coach (groupe/nageur) | ~190 lignes |
 
 ## Edge Functions Supabase
 
@@ -120,6 +121,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 30 | Compétitions : assignations, absences, compteur, SMS | Moyenne | Fait (§62) |
 | 31 | Upload photo de profil avec compression | Moyenne | Fait (§63) |
 | 32 | Traduction exercices FR + option Poids du corps | Faible | Fait (§64) |
+| 33 | Écran SMS dédié coach dashboard | Moyenne | Fait (§65) |
 
 Détail complet dans `docs/ROADMAP.md`.
 

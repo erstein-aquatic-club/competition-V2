@@ -1,6 +1,6 @@
 # Roadmap de Développement
 
-*Dernière mise à jour : 2026-02-24 (§64 Traduction exercices FR + Poids du corps)*
+*Dernière mise à jour : 2026-02-24 (§65 Écran SMS dédié coach dashboard)*
 
 Ce document décrit les fonctionnalités à implémenter. Il sert de référence pour reprendre le développement dans une future conversation.
 
@@ -43,6 +43,7 @@ Ce document décrit les fonctionnalités à implémenter. Il sert de référence
 | 30 | Compétitions : assignations, absences, compteur, SMS | Moyenne | Haute | Fait (§62) |
 | 31 | Upload photo de profil avec compression | Moyenne | Faible | Fait (§63) |
 | 32 | Traduction exercices FR + option Poids du corps | Faible | Faible | Fait (§64) |
+| 33 | Écran SMS dédié coach dashboard | Moyenne | Faible | Fait (§65) |
 
 ---
 
