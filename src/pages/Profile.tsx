@@ -13,7 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Lock, Pen, Target, Trophy, LogOut, Save, AlertCircle, Download } from "lucide-react";
+import { Lock, Pen, Target, Trophy, LogOut, Save, AlertCircle, Download, Camera, Trash2 } from "lucide-react";
+import { compressImage, isAcceptedImageType } from "@/lib/imageUtils";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -42,7 +43,6 @@ export const getRoleLabel = (role: string | null) => {
 const profileEditSchema = z.object({
   group_id: z.string().optional(),
   bio: z.string().optional(),
-  avatar_url: z.string().url("URL invalide").optional().or(z.literal("")),
   birthdate: z.string().optional().refine(
     (val) => {
       if (!val) return true;
@@ -60,6 +60,7 @@ const profileEditSchema = z.object({
     },
     { message: "L'IUF FFN doit être un nombre" }
   ),
+  phone: z.string().optional(),
 });
 
 type ProfileEditForm = z.infer<typeof profileEditSchema>;
@@ -124,9 +125,9 @@ export default function Profile() {
     defaultValues: {
       group_id: "",
       bio: "",
-      avatar_url: "",
       birthdate: "",
       ffn_iuf: "",
+      phone: "",
     },
   });
 
@@ -168,13 +169,12 @@ export default function Profile() {
     mutationFn: (data: ProfileEditForm) =>
       api.updateProfile({
         userId,
-        // api.updateProfile est typé sans ffn_iuf : on cast pour garder le change minimal côté front
         profile: {
           group_id: data.group_id ? Number(data.group_id) : null,
           birthdate: data.birthdate || null,
           bio: data.bio,
-          avatar_url: data.avatar_url,
           ffn_iuf: (data.ffn_iuf || "").trim() || null,
+          phone: data.phone || null,
         },
       }),
     onSuccess: () => {
@@ -206,13 +206,56 @@ export default function Profile() {
     },
   });
 
+  const uploadAvatarMutation = useMutation({
+    mutationFn: async (file: File) => {
+      if (!userId) throw new Error("Utilisateur non identifié");
+      if (!isAcceptedImageType(file)) {
+        throw new Error("Format non supporté. Utilisez JPEG, PNG ou WebP.");
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        throw new Error("Fichier trop volumineux (max 10 Mo).");
+      }
+      const { blob, mimeType, extension } = await compressImage(file);
+      return api.uploadAvatar({ userId, blob, mimeType, extension });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      toast({ title: "Photo de profil mise à jour" });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: "Impossible de charger la photo",
+        description: String((error as Error)?.message || error),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteAvatarMutation = useMutation({
+    mutationFn: async () => {
+      if (!userId) throw new Error("Utilisateur non identifié");
+      return api.deleteAvatar(userId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      toast({ title: "Photo supprimée" });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: "Impossible de supprimer la photo",
+        description: String((error as Error)?.message || error),
+        variant: "destructive",
+      });
+    },
+  });
+
   const startEdit = () => {
     profileForm.reset({
       group_id: profile?.group_id ? String(profile.group_id) : "",
       bio: profile?.bio || "",
-      avatar_url: profile?.avatar_url || "",
       birthdate: profile?.birthdate ? String(profile.birthdate).split("T")[0] : "",
       ffn_iuf: profile?.ffn_iuf ? String(profile.ffn_iuf) : "",
+      phone: profile?.phone || "",
     });
     setIsEditSheetOpen(true);
   };
@@ -400,14 +443,50 @@ export default function Profile() {
             </div>
 
             <div className="grid gap-2">
-              <Label>Avatar (URL)</Label>
-              <Input
-                {...profileForm.register("avatar_url")}
-                placeholder="https://..."
+              <Label>Photo de profil</Label>
+              <div className="flex items-center gap-3">
+                <Avatar className="h-16 w-16 ring-2 ring-primary/20">
+                  <AvatarImage src={avatarSrc} alt="Avatar" />
+                  <AvatarFallback>{(user || "?").slice(0, 2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    disabled={uploadAvatarMutation.isPending}
+                    onClick={() => document.getElementById("avatar-upload")?.click()}
+                  >
+                    <Camera className="h-4 w-4" />
+                    {uploadAvatarMutation.isPending ? "Envoi..." : "Changer la photo"}
+                  </Button>
+                  {profile?.avatar_url && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="gap-2 text-destructive hover:text-destructive"
+                      disabled={deleteAvatarMutation.isPending}
+                      onClick={() => deleteAvatarMutation.mutate()}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Supprimer
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <input
+                id="avatar-upload"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,.heic,.heif"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) uploadAvatarMutation.mutate(file);
+                  e.target.value = "";
+                }}
               />
-              {profileForm.formState.errors.avatar_url && (
-                <p className="text-xs text-destructive" role="alert" aria-live="assertive">{profileForm.formState.errors.avatar_url.message}</p>
-              )}
             </div>
 
             <div className="grid gap-2">
@@ -419,6 +498,17 @@ export default function Profile() {
               {profileForm.formState.errors.birthdate && (
                 <p className="text-xs text-destructive" role="alert" aria-live="assertive">{profileForm.formState.errors.birthdate.message}</p>
               )}
+            </div>
+
+            {/* Phone */}
+            <div className="grid gap-2">
+              <Label htmlFor="edit-phone">Telephone</Label>
+              <Input
+                id="edit-phone"
+                type="tel"
+                placeholder="06 12 34 56 78"
+                {...profileForm.register("phone")}
+              />
             </div>
 
             <div className="flex gap-2">

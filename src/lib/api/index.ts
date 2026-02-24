@@ -103,6 +103,8 @@ export {
   approveUser,
   rejectUser,
   authPasswordUpdate,
+  uploadAvatar,
+  deleteAvatar,
 } from './users';
 
 export {
@@ -188,6 +190,9 @@ export {
   createCompetition,
   updateCompetition,
   deleteCompetition,
+  getCompetitionAssignments,
+  setCompetitionAssignments,
+  getMyCompetitionIds,
 } from './competitions';
 
 export {
@@ -197,6 +202,13 @@ export {
   updateObjective,
   deleteObjective,
 } from './objectives';
+
+export {
+  getPlannedAbsences,
+  getMyPlannedAbsences,
+  setPlannedAbsence,
+  removePlannedAbsence,
+} from './absences';
 
 export {
   getExercises,

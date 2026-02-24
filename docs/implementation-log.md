@@ -38,6 +38,8 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §59 Compétitions coach (calendrier échéances) | ✅ Fait | 2026-02-23 |
 | §60 Objectifs coach (temps cibles & texte par nageur) | ✅ Fait | 2026-02-23 |
 | §61 Interface objectifs nageur + refonte Profil hub | ✅ Fait | 2026-02-24 |
+| §62 Compétitions : assignations, absences, compteur, SMS | ✅ Fait | 2026-02-24 |
+| §63 Upload photo de profil avec compression | ✅ Fait | 2026-02-24 |
 | §45 Audit UI/UX — header Strength + login mobile + fixes | ✅ Fait | 2026-02-16 |
 | §46 Harmonisation headers + Login mobile thème clair | ✅ Fait | 2026-02-16 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
@@ -5316,3 +5318,143 @@ La page Profil était un formulaire monolithique sans accès clair aux différen
 - La colonne `user_profiles.objectives` existe toujours en BDD mais n'est plus affichée ni éditée — à supprimer via migration ultérieure.
 - Pas de comparaison automatique entre objectifs perso et performances FFN importées.
 - Pas de notification au coach quand un nageur crée un objectif personnel.
+
+---
+
+## 2026-02-24 — §62 Assignations compétitions, absences planifiées, compteur séances, SMS coach
+
+**Branche** : `main`
+**Chantier ROADMAP** : §62 — Compétitions : assignations, absences, compteur, SMS
+
+### Contexte — Pourquoi ce patch
+
+Les compétitions créées par le coach (§59) étaient visibles par tous les nageurs sans distinction. Les coachs avaient besoin de :
+1. **Assigner des compétitions** à des groupes ou nageurs individuels (multiselect avec pré-cochage par groupe)
+2. **Permettre aux nageurs de signaler des absences** planifiées (avec raison optionnelle), visibles par le coach sur son calendrier
+3. **Afficher un compteur de séances d'entraînement** restantes avant la prochaine compétition (tous les créneaux prévus, pas uniquement assignés)
+4. **Envoyer des SMS groupés** aux nageurs assignés via le schéma URI `sms:` (gratuit, utilise le forfait du coach)
+
+### Changements réalisés
+
+1. **Migration `competition_assignments`** — Table de jointure (`competition_id UUID FK`, `athlete_id INTEGER FK`), contrainte unique, RLS via `app_user_id()` et `app_user_role()` (coach : lecture/écriture, nageur : lecture de ses propres assignations).
+
+2. **Migration `planned_absences`** — Table (`user_id INTEGER FK`, `date DATE`, `reason TEXT`), contrainte unique (user_id, date), RLS via `app_user_id()` (nageur : CRUD propres, coach : lecture tous).
+
+3. **Migration `add_phone_to_user_profiles`** — Colonne `phone TEXT` ajoutée à `user_profiles` pour le numéro de téléphone.
+
+4. **Types + API assignations** (`src/lib/api/types.ts`, `src/lib/api/competitions.ts`) — Interfaces `CompetitionAssignment` et `PlannedAbsence`, fonctions `getCompetitionAssignments()`, `setCompetitionAssignments()` (delete-all + bulk insert), `getMyCompetitionIds()`.
+
+5. **API absences** (`src/lib/api/absences.ts`) — Nouveau module CRUD : `getPlannedAbsences()` (filtres userId/from/to), `getMyPlannedAbsences()`, `setPlannedAbsence()` (upsert via `app_user_id`), `removePlannedAbsence()`.
+
+6. **Champ téléphone** (`src/lib/api/users.ts`, `Login.tsx`, `Profile.tsx`) — Mapping phone dans `getProfile`/`updateProfile`, champ tel dans inscription et édition profil.
+
+7. **Formulaire coach multiselect** (`CoachCompetitionsScreen.tsx`) — Sélecteur de groupe avec pré-cochage de tous ses membres, checkboxes individuelles, sauvegarde assignations à la création/édition, compteur assignés sur les cartes compétition.
+
+8. **Dashboard nageur filtré** (`Dashboard.tsx`) — Compétitions filtrées par assignation (fallback : tout afficher si aucune assignation), absences planifiées avec mutations set/remove, toasts de confirmation.
+
+9. **Compteur séances** (`Dashboard.tsx`, `Progress.tsx`) — Calcul des jours d'entraînement uniques restants avant la prochaine compétition (tous les créneaux assignés), affiché "X séance(s) d'ici là" dans la bannière compétition.
+
+10. **SMS coach** (`CoachCompetitionsScreen.tsx`) — Bouton SMS par compétition, URI `sms:` avec numéros séparés par virgules sur mobile, fallback clipboard sur desktop avec toast.
+
+11. **Calendrier coach absences** (`useCoachCalendarState.ts`, `CoachCalendar.tsx`, `CalendarGrid.tsx`, `DayCell.tsx`) — Query absences par nageur sélectionné, marqueur "X" sur les jours d'absence, bannière rouge "Absence prévue" dans le détail du jour.
+
+12. **Drawer feedback absences** (`FeedbackDrawer.tsx`) — Bouton inline pour signaler une absence future (2 étapes : bouton → input raison + OK), carte "Marqué indisponible" avec option de retrait.
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/lib/api/types.ts` | Modifié — interfaces CompetitionAssignment, PlannedAbsence, phone dans UserProfile |
+| `src/lib/api/competitions.ts` | Modifié — getCompetitionAssignments, setCompetitionAssignments, getMyCompetitionIds |
+| `src/lib/api/absences.ts` | Nouveau — module CRUD absences planifiées |
+| `src/lib/api/index.ts` | Modifié — re-exports assignations + absences |
+| `src/lib/api.ts` | Modifié — façade pour nouvelles fonctions API |
+| `src/lib/api/users.ts` | Modifié — mapping phone dans getProfile/updateProfile |
+| `src/pages/coach/CoachCompetitionsScreen.tsx` | Modifié — multiselect nageurs, SMS, compteur assignés |
+| `src/pages/Dashboard.tsx` | Modifié — filtrage compétitions, absences, compteur séances |
+| `src/pages/Progress.tsx` | Modifié — carte compétition J-X avec compteur séances |
+| `src/pages/Login.tsx` | Modifié — champ téléphone à l'inscription |
+| `src/pages/Profile.tsx` | Modifié — champ téléphone dans l'édition profil |
+| `src/components/dashboard/FeedbackDrawer.tsx` | Modifié — bouton inline absence + carte indisponible |
+| `src/components/dashboard/CalendarGrid.tsx` | Modifié — prop absenceDates transmise aux DayCell |
+| `src/components/dashboard/DayCell.tsx` | Modifié — marqueur visuel "X" pour absences |
+| `src/hooks/useCoachCalendarState.ts` | Modifié — query absences, Set<string> absenceDates |
+| `src/pages/coach/CoachCalendar.tsx` | Modifié — absences dans CalendarGrid + bannière détail jour |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — 0 erreurs TypeScript
+- [x] Build vérifié
+- [ ] Test manuel : coach → Compétitions → créer compétition → sélectionner groupe → vérifier pré-cochage
+- [ ] Test manuel : coach → Compétitions → SMS → vérifier ouverture app SMS (mobile) ou clipboard (desktop)
+- [ ] Test manuel : nageur → Dashboard → vérifier que seules les compétitions assignées sont visibles
+- [ ] Test manuel : nageur → jour futur → marquer absent → vérifier marqueur X calendrier
+- [ ] Test manuel : coach → Calendrier → sélectionner nageur → vérifier marqueur X et bannière rouge
+- [ ] Test manuel : nageur → Dashboard → bannière compétition → vérifier compteur séances
+
+### Décisions prises
+
+1. **RLS via `app_user_id()`** (integer JWT claims) et non `auth.uid()` (UUID) — Cohérent avec les tables existantes (`users.id` est INTEGER).
+2. **Delete-all + bulk insert** pour `setCompetitionAssignments` — Plus simple qu'un diff/upsert, acceptable car le nombre d'assignés par compétition reste petit.
+3. **Fallback affichage** : si aucune assignation n'existe pour aucune compétition, toutes les compétitions restent visibles (backward-compatible).
+4. **URI `sms:`** pour les SMS — Gratuit (forfait coach), pas besoin d'API tierce. Fallback clipboard pour desktop.
+5. **Compteur séances = créneaux assignés uniques** avant la prochaine compétition — Pas spécifiquement lié à des assignations de séances.
+6. **Absence = date simple** sans granularité AM/PM — Suffisant en V1.
+
+### Limites / dette
+
+- Pas de notification push quand un nageur se marque absent.
+- Le compteur de séances ne prend pas en compte les jours fériés ou fermetures piscine.
+- Pas de possibilité pour le coach de marquer un nageur absent (uniquement self-service).
+- Le SMS est limité au forfait du coach (pas d'envoi automatique via API).
+
+---
+
+## 2026-02-24 — §63 Upload photo de profil avec compression
+
+**Branche** : `main`
+**Chantier ROADMAP** : §63 — Upload photo de profil
+
+### Contexte — Pourquoi ce patch
+
+Les nageurs devaient coller manuellement une URL d'avatar dans un champ texte. On remplace ce champ par un vrai bouton d'upload avec compression automatique côté client, stockage dans Supabase Storage, et preview en temps réel.
+
+### Changements réalisés
+
+1. **Migration Supabase** : Création du bucket `avatars` (public read, authenticated write) avec 4 RLS policies.
+2. **Utilitaire compression** (`src/lib/imageUtils.ts`) : Canvas API, redimension max 400x400, conversion WebP (fallback JPEG), qualité ajustée pour rester sous 200 KB.
+3. **API** : Fonctions `uploadAvatar()` et `deleteAvatar()` dans `users.ts` utilisant Supabase Storage + update `avatar_url` dans `user_profiles`.
+4. **UI Profile** : Remplacement du champ texte "Avatar (URL)" par un bouton "Changer la photo" avec preview circulaire et bouton "Supprimer". Le DiceBear fallback reste actif quand pas de photo.
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `supabase/migrations/00028_avatars_storage.sql` | Nouveau — bucket + RLS |
+| `src/lib/imageUtils.ts` | Nouveau — compression Canvas |
+| `src/lib/api/users.ts` | Modifié — uploadAvatar, deleteAvatar |
+| `src/lib/api/index.ts` | Modifié — re-exports |
+| `src/lib/api.ts` | Modifié — delegation stubs |
+| `src/pages/Profile.tsx` | Modifié — UI upload/delete/preview |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — 0 nouvelles erreurs
+- [x] `npm test` — 121/121 passent (0 échec)
+- [x] `npm run build` — à vérifier au déploiement
+- [ ] Test manuel : upload JPEG, PNG, grande image → compressée et affichée
+- [ ] Test manuel : supprimer photo → retour DiceBear
+
+### Décisions prises
+
+1. **Compression côté client** (Canvas API, pas de lib externe) — Zéro dépendance ajoutée, fonctionne dans tous les navigateurs modernes.
+2. **WebP avec fallback JPEG** — Meilleur ratio taille/qualité, JPEG pour Safari ancien.
+3. **Détection WebP lazy** — Évite `document.createElement` au chargement du module (crash en Node.js pour les tests).
+4. **Cache-bust `?t=timestamp`** sur l'URL publique — Force les navigateurs à recharger l'image après changement.
+5. **Upsert** dans Supabase Storage — Écrase l'ancienne photo sans avoir à la supprimer d'abord.
+
+### Limites / dette
+
+- Pas de crop/rotation côté client (l'image est simplement redimensionnée).
+- HEIC/HEIF listé comme accepté mais non garanti sur tous les navigateurs (Safari OK, Chrome partiel).
+- Pas de quota par utilisateur (un seul fichier par user, risque négligeable).

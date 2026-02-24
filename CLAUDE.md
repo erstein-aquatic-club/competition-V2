@@ -41,7 +41,8 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 | `src/pages/SharedSwimSession.tsx` | Page publique séance partagée (token UUID) | ~130 lignes |
 | `src/lib/api/swim-logs.ts` | Notes techniques exercices natation | ~90 lignes |
 | `src/lib/api/temporary-groups.ts` | CRUD groupes temporaires (stages) | ~300 lignes |
-| `src/lib/api/competitions.ts` | CRUD compétitions coach | ~60 lignes |
+| `src/lib/api/competitions.ts` | CRUD compétitions + assignations nageurs | ~105 lignes |
+| `src/lib/api/absences.ts` | CRUD absences planifiées nageur | ~90 lignes |
 | `src/lib/api/objectives.ts` | CRUD objectifs par nageur | ~90 lignes |
 | `src/lib/swimTextParser.ts` | Parser texte → SwimBlock[], normaliseurs partagés | ~400 lignes |
 | `src/lib/swimConsultationUtils.ts` | Helpers partagés consultation séance (BlockGroup, groupItemsByBlock) | ~197 lignes |
@@ -61,9 +62,10 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 | `src/pages/coach/CoachCalendar.tsx` | Calendrier coach (vue mensuelle assignations) | ~266 lignes |
 | `src/hooks/useCoachCalendarState.ts` | Hook état calendrier coach (grille, query, slots) | ~187 lignes |
 | `src/pages/coach/CoachGroupsScreen.tsx` | UI gestion groupes temporaires (stages) | ~580 lignes |
-| `src/pages/coach/CoachCompetitionsScreen.tsx` | UI gestion compétitions coach | ~280 lignes |
+| `src/pages/coach/CoachCompetitionsScreen.tsx` | UI compétitions coach + assignations + SMS | ~470 lignes |
 | `src/pages/coach/CoachObjectivesScreen.tsx` | UI gestion objectifs par nageur | ~710 lignes |
 | `src/lib/objectiveHelpers.ts` | Helpers partagés objectifs (FFN_EVENTS, formatTime) | ~40 lignes |
+| `src/lib/imageUtils.ts` | Compression image Canvas (avatar upload, WebP/JPEG ≤200KB) | ~95 lignes |
 | `src/components/profile/SwimmerObjectivesView.tsx` | Vue objectifs nageur (lecture coach + CRUD perso) | ~530 lignes |
 
 ## Edge Functions Supabase
@@ -115,6 +117,8 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 27 | Compétitions coach (calendrier échéances) | Moyenne | Fait (§59) |
 | 28 | Objectifs coach (temps cibles & texte par nageur) | Moyenne | Fait (§60) |
 | 29 | Interface objectifs nageur + refonte Profil hub | Moyenne | Fait (§61) |
+| 30 | Compétitions : assignations, absences, compteur, SMS | Moyenne | Fait (§62) |
+| 31 | Upload photo de profil avec compression | Moyenne | Fait (§63) |
 
 Détail complet dans `docs/ROADMAP.md`.
 

@@ -38,8 +38,10 @@ export type {
   CoachAssignment,
   Competition,
   CompetitionInput,
+  CompetitionAssignment,
   Objective,
   ObjectiveInput,
+  PlannedAbsence,
 } from "./api/types";
 
 import type {
@@ -81,6 +83,8 @@ import {
   approveUser as _approveUser,
   rejectUser as _rejectUser,
   authPasswordUpdate as _authPasswordUpdate,
+  uploadAvatar as _uploadAvatar,
+  deleteAvatar as _deleteAvatar,
 } from "./api/users";
 
 import {
@@ -166,6 +170,9 @@ import {
   createCompetition as _createCompetition,
   updateCompetition as _updateCompetition,
   deleteCompetition as _deleteCompetition,
+  getCompetitionAssignments as _getCompetitionAssignments,
+  setCompetitionAssignments as _setCompetitionAssignments,
+  getMyCompetitionIds as _getMyCompetitionIds,
 } from './api/competitions';
 
 import {
@@ -175,6 +182,13 @@ import {
   updateObjective as _updateObjective,
   deleteObjective as _deleteObjective,
 } from './api/objectives';
+
+import {
+  getPlannedAbsences as _getPlannedAbsences,
+  getMyPlannedAbsences as _getMyPlannedAbsences,
+  setPlannedAbsence as _setPlannedAbsence,
+  removePlannedAbsence as _removePlannedAbsence,
+} from './api/absences';
 
 import {
   getExercises as _getExercises,
@@ -560,6 +574,9 @@ export const api = {
   async createCompetition(input: Parameters<typeof _createCompetition>[0]) { return _createCompetition(input); },
   async updateCompetition(id: string, input: Parameters<typeof _updateCompetition>[1]) { return _updateCompetition(id, input); },
   async deleteCompetition(id: string) { return _deleteCompetition(id); },
+  async getCompetitionAssignments(competitionId: string) { return _getCompetitionAssignments(competitionId); },
+  async setCompetitionAssignments(competitionId: string, athleteIds: number[]) { return _setCompetitionAssignments(competitionId, athleteIds); },
+  async getMyCompetitionIds() { return _getMyCompetitionIds(); },
 
   // ══════════════════════════════════════════════════════════════════
   // DELEGATION STUBS — Objectives
@@ -569,6 +586,14 @@ export const api = {
   async createObjective(input: Parameters<typeof _createObjective>[0]) { return _createObjective(input); },
   async updateObjective(id: string, input: Parameters<typeof _updateObjective>[1]) { return _updateObjective(id, input); },
   async deleteObjective(id: string) { return _deleteObjective(id); },
+
+  // ══════════════════════════════════════════════════════════════════
+  // DELEGATION STUBS — Planned Absences
+  // ══════════════════════════════════════════════════════════════════
+  async getPlannedAbsences(options?: Parameters<typeof _getPlannedAbsences>[0]) { return _getPlannedAbsences(options); },
+  async getMyPlannedAbsences() { return _getMyPlannedAbsences(); },
+  async setPlannedAbsence(date: string, reason?: string | null) { return _setPlannedAbsence(date, reason); },
+  async removePlannedAbsence(date: string) { return _removePlannedAbsence(date); },
 
   // ══════════════════════════════════════════════════════════════════
   // DELEGATION STUBS — Users
@@ -586,4 +611,6 @@ export const api = {
   async approveUser(userId: number) { return _approveUser(userId); },
   async rejectUser(userId: number) { return _rejectUser(userId); },
   async authPasswordUpdate(payload: Parameters<typeof _authPasswordUpdate>[0]) { return _authPasswordUpdate(payload); },
+  async uploadAvatar(payload: Parameters<typeof _uploadAvatar>[0]) { return _uploadAvatar(payload); },
+  async deleteAvatar(userId: number) { return _deleteAvatar(userId); },
 };

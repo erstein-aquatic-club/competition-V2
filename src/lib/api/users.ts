@@ -43,6 +43,7 @@ export async function getProfile(options: {
     bio: data.bio ?? null,
     avatar_url: data.avatar_url ?? null,
     ffn_iuf: data.ffn_iuf ?? null,
+    phone: data.phone ?? null,
   };
 }
 
@@ -56,6 +57,7 @@ export async function updateProfile(payload: {
     bio?: string | null;
     avatar_url?: string | null;
     ffn_iuf?: string | null;
+    phone?: string | null;
   };
 }) {
   if (!canUseSupabase()) return { status: "skipped" };
@@ -325,4 +327,52 @@ export async function authPasswordUpdate(payload: {
   });
   if (error) throw new Error(error.message);
   return { status: "updated" };
+}
+
+export async function uploadAvatar(payload: {
+  userId: number;
+  blob: Blob;
+  mimeType: string;
+  extension: string;
+}): Promise<string> {
+  if (!canUseSupabase()) throw new Error("Supabase non disponible");
+
+  const filePath = `${payload.userId}.${payload.extension}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("avatars")
+    .upload(filePath, payload.blob, {
+      contentType: payload.mimeType,
+      upsert: true,
+    });
+  if (uploadError) throw new Error(uploadError.message);
+
+  const { data: urlData } = supabase.storage
+    .from("avatars")
+    .getPublicUrl(filePath);
+
+  const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+  const { error: profileError } = await supabase
+    .from("user_profiles")
+    .update({ avatar_url: publicUrl })
+    .eq("user_id", payload.userId);
+  if (profileError) throw new Error(profileError.message);
+
+  return publicUrl;
+}
+
+export async function deleteAvatar(userId: number): Promise<void> {
+  if (!canUseSupabase()) return;
+
+  const { error } = await supabase.storage
+    .from("avatars")
+    .remove([`${userId}.webp`, `${userId}.jpg`]);
+  if (error) throw new Error(error.message);
+
+  const { error: profileError } = await supabase
+    .from("user_profiles")
+    .update({ avatar_url: null })
+    .eq("user_id", userId);
+  if (profileError) throw new Error(profileError.message);
 }
