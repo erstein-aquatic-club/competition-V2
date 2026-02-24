@@ -116,6 +116,12 @@ const formatDate = (value?: string | null) => {
   return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString("fr-FR");
 };
 
+const formatYear = (value?: string | null) => {
+  if (!value) return "";
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? "" : String(d.getFullYear());
+};
+
 const formatLastUpdate = (value?: string | null) => {
   if (!value) return null;
   const d = new Date(value);
@@ -512,6 +518,11 @@ function EventCard({
                     {getAgeLabel(bestRecord.original_age ?? bestRecord.age)}a
                   </span>
                 )}
+                {formatYear(bestRecord.record_date) && (
+                  <span className="text-[10px] text-muted-foreground/60">
+                    ({formatYear(bestRecord.record_date)})
+                  </span>
+                )}
               </div>
             </div>
             {isExpanded ? (
@@ -618,9 +629,11 @@ function AgeBreakdown({
                   <span className="ml-1 opacity-70">({originalAgeLabel}a)</span>
                 )}
               </span>
-              <span className="text-[10px] text-muted-foreground shrink-0 hidden sm:inline">
-                {formatDate(record.record_date)}
-              </span>
+              {formatYear(record.record_date) && (
+                <span className="text-[10px] text-muted-foreground shrink-0">
+                  {formatYear(record.record_date)}
+                </span>
+              )}
               {isBest && (
                 <Trophy className="h-3 w-3 text-rank-gold shrink-0" />
               )}
@@ -727,6 +740,11 @@ function InlineRanking({
                     </span>
                   )}
                 </span>
+                {formatYear(perf.record_date) && (
+                  <span className="text-[10px] text-muted-foreground shrink-0">
+                    {formatYear(perf.record_date)}
+                  </span>
+                )}
               </div>
             );
           })}
@@ -830,6 +848,11 @@ function RankingPanel({
                 <span className="text-muted-foreground shrink-0">
                   {perf.actual_age ?? perf.age}a
                 </span>
+                {formatYear(perf.record_date) && (
+                  <span className="text-[10px] text-muted-foreground shrink-0">
+                    {formatYear(perf.record_date)}
+                  </span>
+                )}
               </div>
             );
           })}
