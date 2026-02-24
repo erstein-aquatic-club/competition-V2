@@ -1,6 +1,6 @@
 # État des fonctionnalités
 
-*Dernière mise à jour : 2026-02-24 (§61 Interface objectifs nageur + refonte Profil hub)*
+*Dernière mise à jour : 2026-02-24 (§62 Compétitions : assignations, absences, compteur, SMS)*
 
 ## Légende
 
@@ -131,8 +131,20 @@ Tous les feature flags sont activés.
 | Fonctionnalité | Statut | Fichiers | Notes |
 |----------------|--------|----------|-------|
 | CRUD compétitions coach | ✅ | `CoachCompetitionsScreen.tsx`, `competitions.ts` | Nom, date, lieu, multi-jours, description (§59) |
+| Assignation compétitions (groupes/nageurs) | ✅ | `CoachCompetitionsScreen.tsx`, `competitions.ts` | Multiselect avec pré-cochage groupe, compteur assignés (§62) |
+| Filtrage compétitions par assignation | ✅ | `Dashboard.tsx` | Nageur ne voit que ses compétitions assignées, fallback tout (§62) |
 | Marqueurs compétition calendrier nageur | ✅ | `Dashboard.tsx`, `DayCell.tsx`, `CalendarGrid.tsx` | Trophy icon ambre sur les jours de compétition |
 | Bannière prochaine compétition | ✅ | `Dashboard.tsx` | Card ambre avec J-X au-dessus du calendrier |
+| Compteur séances avant compétition | ✅ | `Dashboard.tsx`, `Progress.tsx` | "X séance(s) d'ici là" — créneaux assignés uniques (§62) |
+| SMS groupé coach | ✅ | `CoachCompetitionsScreen.tsx` | URI sms: sur mobile, clipboard desktop (§62) |
+
+### Absences planifiées
+
+| Fonctionnalité | Statut | Fichiers | Notes |
+|----------------|--------|----------|-------|
+| Signalement absence nageur | ✅ | `FeedbackDrawer.tsx`, `Dashboard.tsx`, `absences.ts` | Bouton inline jour futur, raison optionnelle (§62) |
+| Marqueurs absences calendrier nageur | ✅ | `DayCell.tsx`, `CalendarGrid.tsx` | "X" circulaire sur les jours marqués (§62) |
+| Absences visibles coach calendrier | ✅ | `useCoachCalendarState.ts`, `CoachCalendar.tsx` | Marqueur X + bannière rouge "Absence prévue" (§62) |
 
 ### Objectifs
 
@@ -173,7 +185,7 @@ Tous les feature flags sont activés.
 |----------------|--------|----------|-------|
 | Hub Profil (grille navigation) | ✅ | `Profile.tsx` | State machine home/objectives, grille 2x2 (Mon profil, Sécurité, Records, Objectifs) (§61) |
 | Affichage infos | ✅ | `Profile.tsx` | Hero banner bg-accent, avatar ring, badge rôle (§38) |
-| Édition profil | ✅ | `Profile.tsx` | Sheet bottom mobile-friendly, formulaire complet (§38) |
+| Édition profil | ✅ | `Profile.tsx` | Sheet bottom mobile-friendly, formulaire complet + téléphone (§38, §62) |
 | Changement mot de passe | ✅ | `Profile.tsx` | Bottom sheet dédié Sécurité (§61, was Collapsible §38) |
 | FFN & Records | ✅ | `Profile.tsx` | Card fusionnée sync FFN + lien records (§38) |
 

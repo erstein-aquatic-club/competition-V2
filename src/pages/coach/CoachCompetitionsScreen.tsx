@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { Competition, CompetitionInput } from "@/lib/api";
+import type { Competition, CompetitionInput, CompetitionAssignment } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import CoachSectionHeader from "./CoachSectionHeader";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Trophy, MapPin } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, Trophy, MapPin, Users, MessageSquare } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 // ── Helpers ─────────────────────────────────────────────────────
 
@@ -70,6 +79,23 @@ const CompetitionFormSheet = ({
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [assignedAthleteIds, setAssignedAthleteIds] = useState<Set<number>>(new Set());
+
+  const { data: athletes = [] } = useQuery({
+    queryKey: ["athletes"],
+    queryFn: () => api.getAthletes(),
+  });
+
+  const { data: groups = [] } = useQuery({
+    queryKey: ["groups"],
+    queryFn: () => api.getGroups(),
+  });
+
+  const { data: existingAssignments } = useQuery({
+    queryKey: ["competition-assignments", competition?.id],
+    queryFn: () => api.getCompetitionAssignments(competition!.id),
+    enabled: !!competition?.id,
+  });
 
   // Sync form fields when sheet opens or competition changes
   useEffect(() => {
@@ -81,6 +107,10 @@ const CompetitionFormSheet = ({
       setMultiDay(!!competition.end_date);
       setLocation(competition.location ?? "");
       setDescription(competition.description ?? "");
+      // Set athlete assignments
+      if (existingAssignments) {
+        setAssignedAthleteIds(new Set(existingAssignments.map((a) => a.athlete_id)));
+      }
     } else {
       setName("");
       setDate("");
@@ -88,14 +118,24 @@ const CompetitionFormSheet = ({
       setMultiDay(true);
       setLocation("");
       setDescription("");
+      setAssignedAthleteIds(new Set());
     }
-  }, [open, competition]);
+  }, [open, competition, existingAssignments]);
 
   const createMutation = useMutation({
     mutationFn: (input: CompetitionInput) => api.createCompetition(input),
-    onSuccess: () => {
+    onSuccess: async (result) => {
+      // Save competition assignments
+      if (assignedAthleteIds.size > 0) {
+        try {
+          await api.setCompetitionAssignments(result.id, Array.from(assignedAthleteIds));
+        } catch (e) {
+          console.warn("[EAC] Failed to save competition assignments:", e);
+        }
+      }
       toast({ title: "Competition creee" });
       void queryClient.invalidateQueries({ queryKey: ["competitions"] });
+      void queryClient.invalidateQueries({ queryKey: ["competition-assignments"] });
       onOpenChange(false);
     },
     onError: (err: Error) => {
@@ -110,9 +150,16 @@ const CompetitionFormSheet = ({
   const updateMutation = useMutation({
     mutationFn: (input: Partial<CompetitionInput>) =>
       api.updateCompetition(competition!.id, input),
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Save competition assignments
+      try {
+        await api.setCompetitionAssignments(competition!.id, Array.from(assignedAthleteIds));
+      } catch (e) {
+        console.warn("[EAC] Failed to save competition assignments:", e);
+      }
       toast({ title: "Competition mise a jour" });
       void queryClient.invalidateQueries({ queryKey: ["competitions"] });
+      void queryClient.invalidateQueries({ queryKey: ["competition-assignments"] });
       onOpenChange(false);
     },
     onError: (err: Error) => {
@@ -262,6 +309,67 @@ const CompetitionFormSheet = ({
               />
             </div>
 
+            {/* Athlete assignment */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <Label>Nageurs assignes</Label>
+              </div>
+
+              {/* Group quick-select */}
+              <Select
+                value=""
+                onValueChange={(groupId) => {
+                  const groupMembers = athletes.filter((a) => a.group_id === Number(groupId));
+                  setAssignedAthleteIds((prev) => {
+                    const next = new Set(prev);
+                    groupMembers.forEach((m) => { if (m.id != null) next.add(m.id); });
+                    return next;
+                  });
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Ajouter un groupe..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {groups.filter((g) => !g.is_temporary).map((g) => (
+                    <SelectItem key={g.id} value={String(g.id)}>{g.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Individual checkboxes */}
+              <div className="max-h-48 overflow-y-auto rounded-md border p-2 space-y-1">
+                {athletes.map((athlete) => {
+                  if (athlete.id == null) return null;
+                  const checked = assignedAthleteIds.has(athlete.id);
+                  return (
+                    <label key={athlete.id} className="flex items-center gap-2 py-1 px-1 rounded hover:bg-muted/50 cursor-pointer">
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(c) => {
+                          setAssignedAthleteIds((prev) => {
+                            const next = new Set(prev);
+                            if (c) next.add(athlete.id!);
+                            else next.delete(athlete.id!);
+                            return next;
+                          });
+                        }}
+                      />
+                      <span className="text-sm">{athlete.display_name}</span>
+                      {athlete.group_label && (
+                        <span className="text-xs text-muted-foreground ml-auto">{athlete.group_label}</span>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                {assignedAthleteIds.size} nageur{assignedAthleteIds.size > 1 ? "s" : ""} assigne{assignedAthleteIds.size > 1 ? "s" : ""}
+              </p>
+            </div>
+
             {/* Actions */}
             <div className="space-y-2 pt-2">
               <Button
@@ -327,9 +435,15 @@ const CompetitionFormSheet = ({
 type CompetitionCardProps = {
   competition: Competition;
   onEdit: (comp: Competition) => void;
+  onSendSms?: (comp: Competition, assignments: CompetitionAssignment[]) => void;
 };
 
-const CompetitionCard = ({ competition, onEdit }: CompetitionCardProps) => {
+const CompetitionCard = ({ competition, onEdit, onSendSms }: CompetitionCardProps) => {
+  const { data: assignments = [] } = useQuery({
+    queryKey: ["competition-assignments", competition.id],
+    queryFn: () => api.getCompetitionAssignments(competition.id),
+  });
+
   const days = daysUntil(competition.date);
   const isPast = days < 0;
   const isUpcoming = days >= 0;
@@ -371,6 +485,25 @@ const CompetitionCard = ({ competition, onEdit }: CompetitionCardProps) => {
           <span className="truncate">{competition.location}</span>
         </div>
       )}
+      {assignments.length > 0 && (
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Users className="h-3 w-3 shrink-0" />
+          <span>{assignments.length} nageur{assignments.length > 1 ? "s" : ""}</span>
+        </div>
+      )}
+      {assignments.length > 0 && onSendSms && (
+        <button
+          type="button"
+          className="flex items-center gap-1 text-xs text-primary hover:underline"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSendSms(competition, assignments);
+          }}
+        >
+          <MessageSquare className="h-3 w-3" />
+          SMS
+        </button>
+      )}
     </button>
   );
 };
@@ -382,12 +515,24 @@ type CoachCompetitionsScreenProps = {
 };
 
 const CoachCompetitionsScreen = ({ onBack }: CoachCompetitionsScreenProps) => {
+  const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [editingComp, setEditingComp] = useState<Competition | null>(null);
 
   const { data: competitions = [], isLoading } = useQuery({
     queryKey: ["competitions"],
     queryFn: () => api.getCompetitions(),
+  });
+
+  const { data: athletePhones } = useQuery({
+    queryKey: ["athlete-phones"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("user_profiles")
+        .select("user_id, phone")
+        .not("phone", "is", null);
+      return new Map((data ?? []).map((p: any) => [p.user_id as number, p.phone as string]));
+    },
   });
 
   // Sort: upcoming first (by date ascending), then past (by date descending)
@@ -430,6 +575,38 @@ const CoachCompetitionsScreen = ({ onBack }: CoachCompetitionsScreenProps) => {
   const handleEdit = (comp: Competition) => {
     setEditingComp(comp);
     setShowForm(true);
+  };
+
+  const handleSendSms = (comp: Competition, compAssignments: CompetitionAssignment[]) => {
+    if (!athletePhones) return;
+    const phones = compAssignments
+      .map((a) => athletePhones.get(a.athlete_id))
+      .filter((p): p is string => !!p && p.trim().length > 0);
+
+    if (phones.length === 0) {
+      toast({
+        title: "Aucun numero",
+        description: "Aucun nageur assigne n'a renseigne de numero de telephone.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile) {
+      const body = encodeURIComponent(`[${comp.name}] `);
+      window.location.href = `sms:${phones.join(",")}?body=${body}`;
+    } else {
+      // Desktop fallback: copy phones to clipboard
+      navigator.clipboard.writeText(phones.join(", ")).then(() => {
+        toast({
+          title: "Numeros copies",
+          description: `${phones.length} numero${phones.length > 1 ? "s" : ""} copie${phones.length > 1 ? "s" : ""} dans le presse-papiers. Utilisez votre telephone pour envoyer le SMS.`,
+        });
+      }).catch(() => {
+        toast({ title: "Erreur", description: "Impossible de copier les numéros.", variant: "destructive" });
+      });
+    }
   };
 
   const description =
@@ -483,6 +660,7 @@ const CoachCompetitionsScreen = ({ onBack }: CoachCompetitionsScreenProps) => {
               key={comp.id}
               competition={comp}
               onEdit={handleEdit}
+              onSendSms={handleSendSms}
             />
           ))}
         </div>

@@ -1,6 +1,6 @@
 # Roadmap de Développement
 
-*Dernière mise à jour : 2026-02-24 (§61 Interface objectifs nageur + refonte Profil hub)*
+*Dernière mise à jour : 2026-02-24 (§62 Compétitions : assignations, absences, compteur, SMS)*
 
 Ce document décrit les fonctionnalités à implémenter. Il sert de référence pour reprendre le développement dans une future conversation.
 
@@ -40,6 +40,7 @@ Ce document décrit les fonctionnalités à implémenter. Il sert de référence
 | 27 | Compétitions coach (calendrier échéances) | Moyenne | Moyenne | Fait (§59) |
 | 28 | Objectifs coach (temps cibles & texte par nageur) | Moyenne | Moyenne | Fait (§60) |
 | 29 | Interface objectifs nageur + refonte Profil hub | Moyenne | Moyenne | Fait (§61) |
+| 30 | Compétitions : assignations, absences, compteur, SMS | Moyenne | Haute | Fait (§62) |
 
 ---
 

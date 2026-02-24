@@ -21,6 +21,7 @@ interface DayCellProps {
   status: { completed: number; total: number; slots: SlotStatus[] };
   strengthAssigned?: boolean;
   hasCompetition?: boolean;
+  hasAbsence?: boolean;
   onClick: () => void;
   onKeyDown: (e: React.KeyboardEvent) => void;
 }
@@ -34,6 +35,7 @@ export const DayCell = memo(function DayCell({
   status,
   strengthAssigned,
   hasCompetition,
+  hasAbsence,
   onClick,
   onKeyDown,
 }: DayCellProps) {
@@ -75,7 +77,14 @@ export const DayCell = memo(function DayCell({
     >
       <div className="flex h-full flex-col justify-between">
         <div className="flex items-start justify-between">
-          <div className="text-[12px] font-semibold text-foreground">{date.getDate()}</div>
+          <div className="flex items-center gap-0.5">
+            <div className="text-[12px] font-semibold text-foreground">{date.getDate()}</div>
+            {hasAbsence && (
+              <div className="h-3 w-3 rounded-full bg-muted-foreground/20 flex items-center justify-center">
+                <span className="text-[8px] font-bold text-muted-foreground">X</span>
+              </div>
+            )}
+          </div>
           {hasCompetition ? (
             <Trophy className="h-3 w-3 text-amber-500" />
           ) : (

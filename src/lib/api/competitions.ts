@@ -3,7 +3,7 @@
  */
 
 import { supabase, canUseSupabase } from "./client";
-import type { Competition, CompetitionInput } from "./types";
+import type { Competition, CompetitionInput, CompetitionAssignment } from "./types";
 
 export async function getCompetitions(): Promise<Competition[]> {
   if (!canUseSupabase()) return [];
@@ -46,4 +46,47 @@ export async function deleteCompetition(id: string): Promise<void> {
     .delete()
     .eq("id", id);
   if (error) throw new Error(error.message);
+}
+
+export async function getCompetitionAssignments(competitionId: string): Promise<CompetitionAssignment[]> {
+  if (!canUseSupabase()) return [];
+  const { data, error } = await supabase
+    .from("competition_assignments")
+    .select("*")
+    .eq("competition_id", competitionId);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as CompetitionAssignment[];
+}
+
+export async function setCompetitionAssignments(
+  competitionId: string,
+  athleteIds: number[],
+): Promise<void> {
+  if (!canUseSupabase()) return;
+  // Delete all existing assignments for this competition
+  const { error: delError } = await supabase
+    .from("competition_assignments")
+    .delete()
+    .eq("competition_id", competitionId);
+  if (delError) throw new Error(delError.message);
+  // Insert new assignments
+  if (athleteIds.length > 0) {
+    const rows = athleteIds.map((athlete_id) => ({
+      competition_id: competitionId,
+      athlete_id,
+    }));
+    const { error: insError } = await supabase
+      .from("competition_assignments")
+      .insert(rows);
+    if (insError) throw new Error(insError.message);
+  }
+}
+
+export async function getMyCompetitionIds(): Promise<string[]> {
+  if (!canUseSupabase()) return [];
+  const { data, error } = await supabase
+    .from("competition_assignments")
+    .select("competition_id");
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r: any) => r.competition_id);
 }

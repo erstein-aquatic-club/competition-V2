@@ -233,6 +233,41 @@ interface SessionStatus {
   expectedByDefault: boolean;
 }
 
+function AbsenceInlineButton({ onMark }: { onMark: (reason?: string) => void }) {
+  const [showInput, setShowInput] = useState(false);
+  const [reason, setReason] = useState("");
+  if (!showInput) {
+    return (
+      <button
+        type="button"
+        className="w-full rounded-xl border border-dashed border-muted-foreground/30 p-2.5 mb-3 text-sm text-muted-foreground hover:bg-muted/50 transition-colors"
+        onClick={() => setShowInput(true)}
+      >
+        Marquer indisponible
+      </button>
+    );
+  }
+  return (
+    <div className="flex gap-2 mb-3">
+      <input
+        type="text"
+        placeholder="Motif (optionnel)"
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        className="flex-1 rounded-md border border-input bg-transparent px-3 py-1.5 text-sm"
+        autoFocus
+      />
+      <button
+        type="button"
+        onClick={() => { onMark(reason || undefined); setShowInput(false); setReason(""); }}
+        className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground"
+      >
+        OK
+      </button>
+    </div>
+  );
+}
+
 interface FeedbackDrawerProps {
   open: boolean;
   selectedDate: Date;
@@ -256,6 +291,11 @@ interface FeedbackDrawerProps {
   onSaveFeedback: () => void;
   onDraftStateChange: (state: DraftState) => void;
   getSessionStatus: (session: PlannedSession, date: Date) => SessionStatus;
+  isAbsent?: boolean;
+  absenceReason?: string | null;
+  isFutureDate?: boolean;
+  onMarkDayAbsent?: (reason?: string) => void;
+  onRemoveDayAbsence?: () => void;
 }
 
 export function FeedbackDrawer({
@@ -281,6 +321,11 @@ export function FeedbackDrawer({
   onSaveFeedback,
   onDraftStateChange,
   getSessionStatus,
+  isAbsent,
+  absenceReason,
+  isFutureDate,
+  onMarkDayAbsent,
+  onRemoveDayAbsence,
 }: FeedbackDrawerProps) {
   const [, setLocation] = useLocation();
   const [unexpectedExpanded, setUnexpectedExpanded] = useState(false);
@@ -362,6 +407,25 @@ export function FeedbackDrawer({
                     <Power className="h-5 w-5" />
                   </IconButton>
                 </div>
+
+                {/* Planned absence */}
+                {isFutureDate && onMarkDayAbsent && onRemoveDayAbsence && (
+                  isAbsent ? (
+                    <div className="rounded-xl border border-muted bg-muted/30 p-3 mt-3 mb-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-muted-foreground">Marqué indisponible</span>
+                        <button type="button" onClick={onRemoveDayAbsence} className="text-xs text-primary hover:underline">
+                          Annuler
+                        </button>
+                      </div>
+                      {absenceReason && <p className="text-xs text-muted-foreground mt-1">{absenceReason}</p>}
+                    </div>
+                  ) : (
+                    <div className="mt-3">
+                      <AbsenceInlineButton onMark={onMarkDayAbsent} />
+                    </div>
+                  )
+                )}
 
                 {/* Liste séances (compacte) */}
                 {(() => {

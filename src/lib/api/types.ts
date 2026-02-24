@@ -157,6 +157,7 @@ export interface UserProfile {
   bio?: string | null;
   avatar_url?: string | null;
   ffn_iuf?: string | null;
+  phone?: string | null;
 }
 
 export interface AthleteSummary {
@@ -432,6 +433,13 @@ export interface CompetitionInput {
   description?: string | null;
 }
 
+export interface CompetitionAssignment {
+  id: number;
+  competition_id: string;
+  athlete_id: number;
+  assigned_at?: string | null;
+}
+
 export interface Objective {
   id: string;
   athlete_id: string;
@@ -454,4 +462,12 @@ export interface ObjectiveInput {
   pool_length?: number | null;
   target_time_seconds?: number | null;
   text?: string | null;
+}
+
+export interface PlannedAbsence {
+  id: number;
+  user_id: number;
+  date: string;
+  reason?: string | null;
+  created_at?: string | null;
 }

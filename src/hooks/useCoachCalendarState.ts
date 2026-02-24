@@ -164,6 +164,17 @@ export function useCoachCalendarState({ groupId, userId, enabled }: UseCoachCale
     });
   }, [assignmentsForSelectedDay]);
 
+  // Fetch planned absences when a specific athlete is selected
+  const { data: plannedAbsences = [] } = useQuery({
+    queryKey: ["planned-absences-coach", userId, dateRange.from, dateRange.to],
+    queryFn: () => api.getPlannedAbsences({ userId: userId!, from: dateRange.from, to: dateRange.to }),
+    enabled: enabled && !!userId,
+  });
+
+  const absenceDates = useMemo(() => {
+    return new Set(plannedAbsences.map((a) => a.date));
+  }, [plannedAbsences]);
+
   const hasStrengthByISO = useMemo(() => {
     const map: Record<string, boolean> = {};
     for (const d of gridDates) {
@@ -214,6 +225,7 @@ export function useCoachCalendarState({ groupId, userId, enabled }: UseCoachCale
     assignmentsForSelectedDay,
     slotsForSelectedDay,
     hasStrengthByISO,
+    absenceDates,
     isLoading,
     hasFilter,
     setSelectedISO,

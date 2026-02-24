@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
-import type { Session, Competition } from "@/lib/api";
+import type { Session, Competition, PlannedAbsence } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { useDashboardState } from "@/hooks/useDashboardState";
@@ -158,6 +158,26 @@ export default function Dashboard() {
     queryFn: () => api.getCompetitions(),
   });
 
+  const { data: myCompetitionIds } = useQuery({
+    queryKey: ["my-competition-ids"],
+    queryFn: () => api.getMyCompetitionIds(),
+  });
+
+  const visibleCompetitions = useMemo(() => {
+    // If no assignments exist at all, show all competitions (backward compat)
+    if (!myCompetitionIds || myCompetitionIds.length === 0) return competitions;
+    return competitions.filter((c) => myCompetitionIds.includes(c.id));
+  }, [competitions, myCompetitionIds]);
+
+  const { data: myAbsences = [] } = useQuery({
+    queryKey: ["my-planned-absences"],
+    queryFn: () => api.getMyPlannedAbsences(),
+  });
+
+  const absenceDates = useMemo(() => {
+    return new Set(myAbsences.map((a) => a.date));
+  }, [myAbsences]);
+
   const isLoading = sessionsLoading || assignmentsLoading;
   const error = sessionsError || assignmentsError;
   const refetch = () => {
@@ -264,6 +284,29 @@ export default function Dashboard() {
     },
   });
 
+  const absenceMutation = useMutation({
+    mutationFn: ({ date, reason }: { date: string; reason?: string }) =>
+      api.setPlannedAbsence(date, reason),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["my-planned-absences"] });
+      toast({ title: "Jour marqué indisponible" });
+    },
+    onError: () => {
+      toast({ title: "Erreur", description: "Impossible de marquer ce jour indisponible.", variant: "destructive" });
+    },
+  });
+
+  const removeAbsenceMutation = useMutation({
+    mutationFn: (date: string) => api.removePlannedAbsence(date),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["my-planned-absences"] });
+      toast({ title: "Disponibilité restaurée" });
+    },
+    onError: () => {
+      toast({ title: "Erreur", description: "Impossible de restaurer la disponibilité.", variant: "destructive" });
+    },
+  });
+
   const state = useDashboardState({ sessions, assignments, userId, user });
 
   const {
@@ -309,7 +352,7 @@ export default function Dashboard() {
   // Competition dates for calendar markers
   const competitionDates = useMemo(() => {
     const dates = new Set<string>();
-    for (const c of competitions) {
+    for (const c of visibleCompetitions) {
       if (!c.date) continue;
       const start = c.date.slice(0, 10);
       const end = c.end_date ? c.end_date.slice(0, 10) : start;
@@ -327,16 +370,16 @@ export default function Dashboard() {
       }
     }
     return dates;
-  }, [competitions]);
+  }, [visibleCompetitions]);
 
   // Next upcoming competition
   const nextCompetition = useMemo(() => {
     const todayISO = toISODate(new Date());
-    const upcoming = competitions
+    const upcoming = visibleCompetitions
       .filter((c) => c.date && c.date.slice(0, 10) >= todayISO)
       .sort((a, b) => a.date.localeCompare(b.date));
     return upcoming[0] ?? null;
-  }, [competitions]);
+  }, [visibleCompetitions]);
 
   const daysUntilNextCompetition = useMemo(() => {
     if (!nextCompetition) return null;
@@ -346,6 +389,21 @@ export default function Dashboard() {
     const diff = Math.round((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     return diff;
   }, [nextCompetition]);
+
+  const trainingDaysRemaining = useMemo(() => {
+    if (!nextCompetition || !assignments) return null;
+    const todayISO = toISODate(new Date());
+    const compDate = nextCompetition.date.slice(0, 10);
+    // Count unique dates from assignments between today and competition
+    const assignmentDates = new Set<string>();
+    for (const a of assignments) {
+      const d = (a.assigned_date || "").slice(0, 10);
+      if (d > todayISO && d <= compDate) {
+        assignmentDates.add(d);
+      }
+    }
+    return assignmentDates.size;
+  }, [nextCompetition, assignments]);
 
   const openDay = useCallback(
     (iso: string) => {
@@ -703,6 +761,11 @@ export default function Dashboard() {
                 {nextCompetition.location && (
                   <div className="text-xs text-muted-foreground truncate">{nextCompetition.location}</div>
                 )}
+                {trainingDaysRemaining != null && trainingDaysRemaining > 0 && (
+                  <div className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                    {trainingDaysRemaining} séance{trainingDaysRemaining > 1 ? "s" : ""} d'ici là
+                  </div>
+                )}
               </div>
               <div className="shrink-0 rounded-lg bg-amber-100 dark:bg-amber-900/30 px-2.5 py-1">
                 <span className="font-bold text-sm text-amber-600 dark:text-amber-400">
@@ -728,6 +791,7 @@ export default function Dashboard() {
             gridDates={gridDates}
             completionByISO={completionByISO}
             competitionDates={competitionDates}
+            absenceDates={absenceDates}
             selectedISO={selectedISO}
             selectedDayIndex={selectedDayIndex}
             today={today}
@@ -856,6 +920,11 @@ export default function Dashboard() {
           onSaveFeedback={saveFeedback}
           onDraftStateChange={setDraftState}
           getSessionStatus={getSessionStatus}
+          isAbsent={absenceDates.has(selectedISO)}
+          absenceReason={myAbsences.find((a) => a.date === selectedISO)?.reason ?? null}
+          isFutureDate={selectedISO > toISODate(new Date())}
+          onMarkDayAbsent={(reason) => absenceMutation.mutate({ date: selectedISO, reason })}
+          onRemoveDayAbsence={() => removeAbsenceMutation.mutate(selectedISO)}
         />
       </div>
     </div>

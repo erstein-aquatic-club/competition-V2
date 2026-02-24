@@ -51,6 +51,7 @@ export default function CoachCalendar({ onBack, athletes, groups, swimSessions, 
     selectedDayStatus,
     slotsForSelectedDay,
     hasStrengthByISO,
+    absenceDates,
     hasFilter,
     setSelectedISO,
     setSelectedDayIndex,
@@ -180,6 +181,7 @@ export default function CoachCalendar({ onBack, athletes, groups, swimSessions, 
             gridDates={gridDates}
             completionByISO={completionByISO}
             strengthByISO={hasStrengthByISO}
+            absenceDates={absenceDates}
             selectedISO={selectedISO}
             selectedDayIndex={selectedDayIndex}
             today={today}
@@ -202,6 +204,11 @@ export default function CoachCalendar({ onBack, athletes, groups, swimSessions, 
           </SheetHeader>
 
           <div className="space-y-3">
+            {absenceDates.has(selectedISO) && (
+              <div className="rounded-xl border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900/40 px-3 py-2 flex items-center gap-2">
+                <span className="text-[10px] font-bold text-red-500 uppercase tracking-wide">Absence prévue</span>
+              </div>
+            )}
             {slotsForSelectedDay.map((slot) => {
               const isGroupAssignment = slot.assignment?.targetType === "group";
               const isUserMode = filterMode === "user";

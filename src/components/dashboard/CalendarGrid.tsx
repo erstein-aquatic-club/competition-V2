@@ -19,6 +19,7 @@ interface CalendarGridProps {
   completionByISO: Record<string, { completed: number; total: number; slots: Array<{ slotKey: "AM" | "PM"; expected: boolean; completed: boolean; absent: boolean }> }>;
   strengthByISO?: Record<string, boolean>;
   competitionDates?: Set<string>;
+  absenceDates?: Set<string>;
   selectedISO: string;
   selectedDayIndex: number | null;
   today: Date;
@@ -32,6 +33,7 @@ export function CalendarGrid({
   completionByISO,
   strengthByISO,
   competitionDates,
+  absenceDates,
   selectedISO,
   selectedDayIndex,
   today,
@@ -66,6 +68,7 @@ export function CalendarGrid({
               status={status}
               strengthAssigned={strengthByISO?.[iso]}
               hasCompetition={competitionDates?.has(iso)}
+              hasAbsence={absenceDates?.has(iso)}
               onClick={() => onDayClick(iso)}
               onKeyDown={(e) => onKeyDown(e, index)}
             />
