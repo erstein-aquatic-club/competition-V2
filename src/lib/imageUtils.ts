@@ -74,6 +74,48 @@ function supportsWebP(): boolean {
   return _supportsWebP;
 }
 
+export interface CropArea {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Extracts a cropped region from an image source using Canvas.
+ * Returns the cropped square as a Blob ready for compression.
+ */
+export async function cropImage(
+  imageSrc: string,
+  cropAreaPixels: CropArea,
+): Promise<Blob> {
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Impossible de charger l'image"));
+    image.src = imageSrc;
+  });
+
+  const canvas = document.createElement("canvas");
+  canvas.width = cropAreaPixels.width;
+  canvas.height = cropAreaPixels.height;
+  const ctx = canvas.getContext("2d")!;
+
+  ctx.drawImage(
+    img,
+    cropAreaPixels.x,
+    cropAreaPixels.y,
+    cropAreaPixels.width,
+    cropAreaPixels.height,
+    0,
+    0,
+    cropAreaPixels.width,
+    cropAreaPixels.height,
+  );
+
+  return canvasToBlob(canvas, "image/png", 1);
+}
+
 export async function compressImage(file: File): Promise<{
   blob: Blob;
   mimeType: string;

@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { Lock, Pen, Target, Trophy, LogOut, Save, AlertCircle, Download, Camera, Trash2 } from "lucide-react";
 import { compressImage, isAcceptedImageType } from "@/lib/imageUtils";
+import AvatarCropDialog from "@/components/profile/AvatarCropDialog";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -94,6 +95,7 @@ export default function Profile() {
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
   const [isPasswordSheetOpen, setIsPasswordSheetOpen] = useState(false);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [cropDialogSrc, setCropDialogSrc] = useState<string | null>(null);
 
   const handleCheckUpdate = async () => {
     setIsCheckingUpdate(true);
@@ -207,18 +209,14 @@ export default function Profile() {
   });
 
   const uploadAvatarMutation = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async (croppedBlob: Blob) => {
       if (!userId) throw new Error("Utilisateur non identifié");
-      if (!isAcceptedImageType(file)) {
-        throw new Error("Format non supporté. Utilisez JPEG, PNG ou WebP.");
-      }
-      if (file.size > 10 * 1024 * 1024) {
-        throw new Error("Fichier trop volumineux (max 10 Mo).");
-      }
+      const file = new File([croppedBlob], "avatar.png", { type: "image/png" });
       const { blob, mimeType, extension } = await compressImage(file);
       return api.uploadAvatar({ userId, blob, mimeType, extension });
     },
     onSuccess: () => {
+      setCropDialogSrc(null);
       queryClient.invalidateQueries({ queryKey: ["profile"] });
       toast({ title: "Photo de profil mise à jour" });
     },
@@ -230,6 +228,27 @@ export default function Profile() {
       });
     },
   });
+
+  const handleFileSelected = (file: File) => {
+    if (!isAcceptedImageType(file)) {
+      toast({
+        title: "Format non supporté",
+        description: "Utilisez JPEG, PNG ou WebP.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: "Fichier trop volumineux",
+        description: "La taille maximale est de 10 Mo.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    setCropDialogSrc(objectUrl);
+  };
 
   const deleteAvatarMutation = useMutation({
     mutationFn: async () => {
@@ -483,7 +502,7 @@ export default function Profile() {
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
-                  if (file) uploadAvatarMutation.mutate(file);
+                  if (file) handleFileSelected(file);
                   e.target.value = "";
                 }}
               />
@@ -552,6 +571,21 @@ export default function Profile() {
           </form>
         </SheetContent>
       </Sheet>
+      {/* Avatar crop dialog */}
+      {cropDialogSrc && (
+        <AvatarCropDialog
+          open={!!cropDialogSrc}
+          imageSrc={cropDialogSrc}
+          onClose={() => {
+            URL.revokeObjectURL(cropDialogSrc);
+            setCropDialogSrc(null);
+          }}
+          onCropDone={(blob) => {
+            URL.revokeObjectURL(cropDialogSrc);
+            uploadAvatarMutation.mutate(blob);
+          }}
+        />
+      )}
     </motion.div>
   );
 }
