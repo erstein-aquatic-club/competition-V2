@@ -122,6 +122,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 31 | Upload photo de profil avec compression | Moyenne | Fait (§63) |
 | 32 | Traduction exercices FR + option Poids du corps | Faible | Fait (§64) |
 | 33 | Écran SMS dédié coach dashboard | Moyenne | Fait (§65) |
+| 34 | Groupes encadrés par shift (pointage coach) | Moyenne | Fait (§66) |
 
 Détail complet dans `docs/ROADMAP.md`.
 

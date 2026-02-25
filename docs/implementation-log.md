@@ -41,6 +41,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §62 Compétitions : assignations, absences, compteur, SMS | ✅ Fait | 2026-02-24 |
 | §63 Upload photo de profil avec compression | ✅ Fait | 2026-02-24 |
 | §65 Écran SMS dédié coach dashboard | ✅ Fait | 2026-02-24 |
+| §66 Groupes encadrés par shift (pointage coach) | ✅ Fait | 2026-02-25 |
 | §45 Audit UI/UX — header Strength + login mobile + fixes | ✅ Fait | 2026-02-16 |
 | §46 Harmonisation headers + Login mobile thème clair | ✅ Fait | 2026-02-16 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
@@ -5584,3 +5585,77 @@ Le SMS existait uniquement sur les cartes de compétition (`CoachCompetitionsScr
 
 - Pas de persistance historique des SMS envoyés (même limitation que le SMS compétition existant).
 - Le champ message n'est pré-rempli que sur mobile (URI `sms:?body=`), sur desktop seuls les numéros sont copiés.
+
+## 2026-02-25 — §66 Groupes encadrés par shift (pointage coach)
+
+**Branche** : `main`
+**Chantier ROADMAP** : §34 — Groupes encadrés par shift (pointage coach)
+
+### Contexte
+
+Les coachs pointent leurs heures via l'onglet Administratif. Il manquait la possibilité d'indiquer quels groupes (Elite, Performance, Excellence, etc.) le coach a encadrés pendant un créneau donné. La demande : multi-checkbox avec les groupes permanents + labels custom ajoutables par tous les coachs.
+
+### Changements réalisés
+
+1. **Migration Supabase** — 2 nouvelles tables :
+   - `timesheet_group_labels` (id, name UNIQUE, created_at) — labels custom ajoutés par les coachs
+   - `timesheet_shift_groups` (id, shift_id FK, group_name, UNIQUE(shift_id, group_name)) — jointure M:N
+   - RLS policies coach/admin sur les 2 tables
+
+2. **Schema Drizzle** (`schema.ts`) — Ajout des 2 tables Drizzle + types inférés
+
+3. **Types API** (`types.ts`) — Interface `TimesheetGroupLabel` + champ `group_names?: string[]` sur `TimesheetShift`
+
+4. **API Timesheet** (`timesheet.ts`) — 7 nouvelles fonctions :
+   - `listTimesheetGroupLabels()` / `createTimesheetGroupLabel()` / `deleteTimesheetGroupLabel()` — CRUD labels custom
+   - `getShiftGroupNames()` / `setShiftGroupNames()` — M:N shift↔groupes
+   - `listPermanentGroupsForTimesheet()` — groupes permanents actifs
+   - `listTimesheetShifts()` enrichi : batch-fetch des group_names
+   - `createTimesheetShift()` / `updateTimesheetShift()` : sauvegarde des group_names
+
+5. **TimesheetShiftForm** — Section "Groupes encadrés" avec :
+   - Checkboxes pills pour groupes permanents (non supprimables)
+   - Checkboxes pills pour labels custom (supprimables avec ✕)
+   - Input + bouton "+" pour ajouter un label custom
+
+6. **TimesheetShiftList** — Badges colorés `bg-primary/10` sous le lieu pour chaque groupe
+
+7. **Administratif.tsx** — Câblage complet :
+   - Queries `timesheet-permanent-groups` + `timesheet-group-labels`
+   - Mutations `createGroupLabel` / `deleteGroupLabel`
+   - State `selectedGroupNames` avec toggle/reset/restore à l'édition
+   - Passage des props au formulaire
+
+### Fichiers modifiés
+
+| Fichier | Changement |
+|---------|-----------|
+| Migration Supabase `add_timesheet_groups` | 2 tables + RLS policies |
+| `src/lib/schema.ts` | Tables Drizzle `timesheetGroupLabels` + `timesheetShiftGroups` |
+| `src/lib/api/types.ts` | Interface `TimesheetGroupLabel` + `group_names` sur shift |
+| `src/lib/api/timesheet.ts` | 7 fonctions + modifications create/update/list |
+| `src/lib/api/index.ts` | Exports des nouvelles fonctions |
+| `src/lib/api.ts` | Type re-export + imports + delegation stubs |
+| `src/components/timesheet/TimesheetShiftForm.tsx` | Section checkboxes groupes |
+| `src/components/timesheet/TimesheetShiftList.tsx` | Badges groupes |
+| `src/pages/timesheetHelpers.ts` | Type `group_names` |
+| `src/pages/Administratif.tsx` | Queries, mutations, state, props |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — OK (0 erreurs)
+- [ ] Test manuel : Coach → Administratif → nouveau shift → cocher groupes → vérifier badges
+- [ ] Test manuel : modifier un shift → groupes pré-cochés → modifier → re-vérifier
+- [ ] Test manuel : ajouter label custom → visible par tous les coachs
+- [ ] Test manuel : supprimer label custom → disparaît de la liste
+
+### Décisions prises
+
+- **`group_name` texte plutôt que FK** : les items viennent de 2 sources (table `groups` + `timesheet_group_labels`). Le texte simplifie et préserve l'historique si un groupe est renommé.
+- **Table dédiée `timesheet_group_labels`** plutôt que JSONB : meilleure structure, requêtabilité, et partage entre coachs.
+- **Batch-fetch dans `listTimesheetShifts`** : une seule query `.in("shift_id", ids)` plutôt que N+1.
+
+### Limites / dette
+
+- Pas de gestion du renommage d'un label custom (il faut supprimer + recréer).
+- Si un groupe permanent est renommé dans `groups`, les anciens shifts gardent l'ancien nom (acceptable pour l'historique).

@@ -170,6 +170,7 @@ Tous les feature flags sont activés.
 | Bar chart empilé par jour | ✅ | `Administratif.tsx` | BarChart stacked work + travel (§39) |
 | Top lieux par heures | ✅ | `Administratif.tsx` | Classement avec barres de progression (§39) |
 | Comparaison période | ✅ | `Administratif.tsx` | Delta badge TrendingUp/Down (§39) |
+| Groupes encadrés par shift | ✅ | `Administratif.tsx`, `TimesheetShiftForm.tsx` | Multi-checkbox groupes permanents + custom labels (§66) |
 | Vue comité | ✅ | `Comite.tsx` | Tous les coachs, filtrage |
 
 ### Admin

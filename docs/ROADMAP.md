@@ -1,6 +1,6 @@
 # Roadmap de Développement
 
-*Dernière mise à jour : 2026-02-24 (§65 Écran SMS dédié coach dashboard)*
+*Dernière mise à jour : 2026-02-25 (§66 Groupes encadrés par shift — pointage coach)*
 
 Ce document décrit les fonctionnalités à implémenter. Il sert de référence pour reprendre le développement dans une future conversation.
 
@@ -44,6 +44,7 @@ Ce document décrit les fonctionnalités à implémenter. Il sert de référence
 | 31 | Upload photo de profil avec compression | Moyenne | Faible | Fait (§63) |
 | 32 | Traduction exercices FR + option Poids du corps | Faible | Faible | Fait (§64) |
 | 33 | Écran SMS dédié coach dashboard | Moyenne | Faible | Fait (§65) |
+| 34 | Groupes encadrés par shift (pointage coach) | Moyenne | Moyenne | Fait (§66) |
 
 ---
 
