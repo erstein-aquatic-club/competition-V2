@@ -27,7 +27,7 @@ import { Button } from "@/components/ui/button";
 import { SwimSessionTimeline } from "@/components/swim/SwimSessionTimeline";
 import { SessionListView } from "@/components/coach/shared/SessionListView";
 import { SwimSessionBuilder } from "@/components/coach/swim/SwimSessionBuilder";
-import { AlertCircle, Archive, FolderOpen, FolderPlus, Home, Layers, Plus, Route, Search, Share2, Timer } from "lucide-react";
+import { AlertCircle, Archive, FolderOpen, FolderPlus, Home, Layers, Plus, Route, Search, Timer } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useBeforeUnload } from "@/hooks/use-before-unload";
 import { useAuth } from "@/lib/auth";
@@ -305,7 +305,10 @@ export default function SwimCatalog() {
     }
 
     if (q) {
-      filtered = filtered.filter((s) => s.name.toLowerCase().includes(q));
+      filtered = filtered.filter((s) =>
+        s.name.toLowerCase().includes(q) ||
+        (s.description ?? "").toLowerCase().includes(q)
+      );
     }
 
     return filtered;
@@ -449,26 +452,38 @@ export default function SwimCatalog() {
     }
   };
 
+  /** Parse "Séance du DD/MM - Créneau" or "Séance du DD/MM/YYYY - Créneau" into structured parts */
+  const parseSessionTitle = (name: string) => {
+    const match = name.match(/^Séance du (\d{2}\/\d{2}(?:\/\d{4})?) - (.+)$/);
+    if (match) return { date: match[1], creneau: match[2] };
+    return null;
+  };
+
+  const renderTitle = (session: SwimSessionTemplate) => {
+    const parsed = parseSessionTitle(session.name);
+    if (!parsed) return session.name;
+    return (
+      <span className="flex items-baseline gap-1.5">
+        <span>{parsed.date}</span>
+        <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          {parsed.creneau}
+        </span>
+      </span>
+    );
+  };
+
   const renderMetrics = (session: SwimSessionTemplate) => {
     const totalDistance = calculateSwimTotalDistance(session.items ?? []);
-    const hasDuration = session.items?.some((item) => item.duration != null) ?? false;
-    const totalDuration = hasDuration
-      ? session.items?.reduce((sum, item) => sum + (item.duration ?? 0), 0) ?? 0
-      : null;
     const blockCount = countBlocks(session.items ?? []);
     return (
       <>
         <span className="inline-flex items-center gap-1">
-          <Route className="h-3.5 w-3.5" />
-          {totalDistance}m
+          <Route className="h-3 w-3" />
+          {totalDistance > 0 ? `${totalDistance}m` : "—"}
         </span>
         <span className="inline-flex items-center gap-1">
-          <Timer className="h-3.5 w-3.5" />
-          ~{totalDuration ?? "—"} min
-        </span>
-        <span className="inline-flex items-center gap-1">
-          <Layers className="h-3.5 w-3.5" />
-          {blockCount}
+          <Layers className="h-3 w-3" />
+          {blockCount} bloc{blockCount > 1 ? "s" : ""}
         </span>
       </>
     );
@@ -663,7 +678,7 @@ export default function SwimCatalog() {
             sessions={visibleSessions}
             isLoading={sessionsLoading}
             error={sessionsError}
-            renderTitle={(session) => session.name}
+            renderTitle={renderTitle}
             renderMetrics={renderMetrics}
             onPreview={setSelectedSession}
             onEdit={handleEdit}
@@ -672,6 +687,7 @@ export default function SwimCatalog() {
             canDelete={(sessionId) => canDeleteSwimCatalog(sessionId, assignments ?? null)}
             isDeleting={deleteSession.isPending}
             onMove={showArchive ? undefined : (session) => setPendingMoveSession(session)}
+            onShare={showArchive ? undefined : handleShare}
             archiveMode={showArchive ? "restore" : "archive"}
           />
         </div>
@@ -687,19 +703,10 @@ export default function SwimCatalog() {
         }}
       >
         <DialogContent className="max-w-4xl">
-          <div className="flex items-center justify-between pb-2">
+          <div className="pb-2">
             <span className="text-lg font-display font-bold uppercase tracking-tight">
               {selectedSession?.name}
             </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => selectedSession && handleShare(selectedSession)}
-              className="gap-1.5"
-            >
-              <Share2 className="h-4 w-4" />
-              Partager
-            </Button>
           </div>
           <SwimSessionTimeline
             title={selectedSession?.name ?? ""}

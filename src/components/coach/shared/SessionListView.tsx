@@ -1,14 +1,31 @@
 import React from "react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, Archive, FolderInput, Pencil, Play, RotateCcw, Trash2 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertCircle,
+  Archive,
+  EllipsisVertical,
+  FolderInput,
+  Pencil,
+  Play,
+  RotateCcw,
+  Share2,
+  Trash2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SessionListViewProps<T extends { id: number }> {
   sessions: T[];
   isLoading?: boolean;
   error?: Error | null;
-  renderTitle: (session: T) => string;
+  renderTitle: (session: T) => React.ReactNode;
   renderMetrics: (session: T) => React.ReactNode;
   renderExtraActions?: (session: T) => React.ReactNode;
   onPreview: (session: T) => void;
@@ -18,6 +35,7 @@ interface SessionListViewProps<T extends { id: number }> {
   canDelete: (sessionId: number) => boolean;
   isDeleting?: boolean;
   onMove?: (session: T) => void;
+  onShare?: (session: T) => void;
   archiveMode?: "archive" | "restore";
 }
 
@@ -27,7 +45,6 @@ export function SessionListView<T extends { id: number }>({
   error,
   renderTitle,
   renderMetrics,
-  renderExtraActions,
   onPreview,
   onEdit,
   onArchive,
@@ -35,31 +52,22 @@ export function SessionListView<T extends { id: number }>({
   canDelete,
   isDeleting,
   onMove,
+  onShare,
   archiveMode = "archive",
 }: SessionListViewProps<T>) {
   if (isLoading) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-2">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={`skeleton-${i}`} className="rounded-2xl border-border">
-            <div className="p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1">
-                  <Skeleton className="h-5 w-3/4 mb-2" />
-                  <div className="flex items-center gap-2">
-                    <Skeleton className="h-4 w-16" />
-                    <Skeleton className="h-4 w-16" />
-                    <Skeleton className="h-4 w-12" />
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Skeleton className="h-9 w-9 rounded-full" />
-                  <Skeleton className="h-9 w-9 rounded-full" />
-                  <Skeleton className="h-9 w-9 rounded-full" />
-                </div>
+          <div key={`skeleton-${i}`} className="rounded-2xl border border-border p-3">
+            <div className="flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <Skeleton className="h-4 w-3/4 mb-1.5" />
+                <Skeleton className="h-3.5 w-1/2" />
               </div>
+              <Skeleton className="h-8 w-8 rounded-full shrink-0" />
             </div>
-          </Card>
+          </div>
         ))}
       </div>
     );
@@ -80,92 +88,99 @@ export function SessionListView<T extends { id: number }>({
   if (sessions.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border bg-muted px-3 py-6 text-center text-sm text-muted-foreground">
-        Aucune séance trouvée. Crée une nouvelle séance pour commencer.
+        Aucune séance trouvée.
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {sessions.map((session) => {
-        const canDeleteSession = canDelete(session.id);
-        const deleteDisabled = !canDeleteSession || isDeleting;
+        const deleteAllowed = canDelete(session.id);
 
         return (
-          <Card key={session.id} className="rounded-2xl border-border">
-            <div className="p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="text-base font-semibold tracking-tight truncate">
-                    {renderTitle(session)}
-                  </div>
-                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                    {renderMetrics(session)}
-                  </div>
+          <Card
+            key={session.id}
+            className="rounded-2xl border-border transition-colors active:bg-muted/50"
+          >
+            <div className="flex items-center gap-2 p-3">
+              {/* Tap area: preview on click */}
+              <button
+                type="button"
+                onClick={() => onPreview(session)}
+                className="flex min-w-0 flex-1 flex-col gap-0.5 text-left"
+              >
+                <div className="text-sm font-semibold leading-snug">
+                  {renderTitle(session)}
                 </div>
-                <div className="flex shrink-0 items-center gap-1">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                  {renderMetrics(session)}
+                </div>
+              </button>
+
+              {/* Quick edit */}
+              <button
+                type="button"
+                onClick={() => onEdit(session)}
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label="Modifier"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+
+              {/* More actions dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    onClick={() => onPreview(session)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"
-                    aria-label="Aperçu"
-                    title="Aperçu"
+                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+                    aria-label="Actions"
                   >
+                    <EllipsisVertical className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => onPreview(session)}>
                     <Play className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onEdit(session)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"
-                    aria-label="Modifier"
-                    title="Modifier"
-                  >
+                    Aperçu
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onEdit(session)}>
                     <Pencil className="h-4 w-4" />
-                  </button>
+                    Modifier
+                  </DropdownMenuItem>
+                  {onShare && (
+                    <DropdownMenuItem onClick={() => onShare(session)}>
+                      <Share2 className="h-4 w-4" />
+                      Partager
+                    </DropdownMenuItem>
+                  )}
                   {onMove && (
-                    <button
-                      type="button"
-                      onClick={() => onMove(session)}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"
-                      aria-label="Déplacer"
-                      title="Déplacer dans un dossier"
-                    >
+                    <DropdownMenuItem onClick={() => onMove(session)}>
                       <FolderInput className="h-4 w-4" />
-                    </button>
+                      Déplacer
+                    </DropdownMenuItem>
                   )}
                   {onArchive && (
-                    <button
-                      type="button"
-                      onClick={() => onArchive(session)}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"
-                      aria-label={archiveMode === "restore" ? "Restaurer" : "Archiver"}
-                      title={archiveMode === "restore" ? "Restaurer" : "Archiver"}
-                    >
+                    <DropdownMenuItem onClick={() => onArchive(session)}>
                       {archiveMode === "restore" ? (
                         <RotateCcw className="h-4 w-4" />
                       ) : (
                         <Archive className="h-4 w-4" />
                       )}
-                    </button>
+                      {archiveMode === "restore" ? "Restaurer" : "Archiver"}
+                    </DropdownMenuItem>
                   )}
-                  {renderExtraActions?.(session)}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (deleteDisabled) return;
-                      onDelete(session);
-                    }}
-                    className={cn(
-                      "inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted",
-                      deleteDisabled && "cursor-not-allowed text-muted-foreground"
-                    )}
-                    aria-label="Supprimer"
-                    title={canDeleteSession ? "Supprimer" : "Suppression indisponible"}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => onDelete(session)}
+                    disabled={!deleteAllowed || isDeleting}
+                    className="text-destructive focus:text-destructive"
                   >
                     <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
+                    {deleteAllowed ? "Supprimer" : "Utilisée (assignation)"}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </Card>
         );
