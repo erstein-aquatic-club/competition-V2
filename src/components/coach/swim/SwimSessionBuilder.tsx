@@ -133,7 +133,7 @@ export function SwimSessionBuilder({
 }: SwimSessionBuilderProps) {
   const { toast } = useToast();
   const [editorMode, setEditorMode] = React.useState<"blocks" | "text">("blocks");
-  const [rawText, setRawText] = React.useState("");
+  const [rawText, setRawText] = React.useState(session.description || "");
   const [expandedExercise, setExpandedExercise] = React.useState<{
     blockIndex: number;
     exerciseIndex: number;
@@ -330,7 +330,7 @@ export function SwimSessionBuilder({
                   });
                   return;
                 }
-                onSessionChange({ ...session, blocks });
+                onSessionChange({ ...session, blocks, description: rawText });
                 setEditorMode("blocks");
                 toast({ title: `${blocks.length} bloc(s) importé(s)` });
               }}
