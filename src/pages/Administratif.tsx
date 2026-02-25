@@ -4,7 +4,7 @@ import { endOfMonth, format, startOfMonth, subDays, subMonths } from "date-fns";
 import { motion } from "framer-motion";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
-import { api, summarizeApiError, type TimesheetLocation } from "@/lib/api";
+import { api, summarizeApiError, type TimesheetLocation, type TimesheetGroupLabel } from "@/lib/api";
 import { supabaseConfig } from "@/lib/config";
 import { useToast } from "@/hooks/use-toast";
 import { SafeArea } from "@/components/shared/SafeArea";
@@ -123,6 +123,7 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
   const [editingShiftId, setEditingShiftId] = useState<number | null>(null);
   const [isLocationPanelOpen, setIsLocationPanelOpen] = useState(false);
   const [newLocationName, setNewLocationName] = useState("");
+  const [selectedGroupNames, setSelectedGroupNames] = useState<string[]>([]);
 
   // ─── Dashboard state ──
   const [dashboardPeriod, setDashboardPeriod] = useState<DashboardPeriod>("month");
@@ -144,6 +145,18 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
     enabled: isCoach,
   });
 
+  const { data: permanentGroups = [] } = useQuery({
+    queryKey: ["timesheet-permanent-groups"],
+    queryFn: () => api.listPermanentGroupsForTimesheet(),
+    enabled: isCoach,
+  });
+
+  const { data: customGroupLabels = [] } = useQuery<TimesheetGroupLabel[]>({
+    queryKey: ["timesheet-group-labels"],
+    queryFn: () => api.listTimesheetGroupLabels(),
+    enabled: isCoach,
+  });
+
   const { data: capabilities, error: capabilitiesError } = useQuery({
     queryKey: ["capabilities", "timesheet"],
     queryFn: () => api.getCapabilities(),
@@ -159,6 +172,7 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
     setEndTime("");
     setLocation(defaultLocation);
     setIsTravel(false);
+    setSelectedGroupNames([]);
   }, [defaultLocation]);
 
   const createShift = useMutation({
@@ -218,6 +232,26 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
     },
     onError: (error: unknown) => {
       toast({ title: "Erreur", description: summarizeApiError(error, "Impossible de supprimer le lieu.").message });
+    },
+  });
+
+  const createGroupLabel = useMutation({
+    mutationFn: (payload: { name: string }) => api.createTimesheetGroupLabel(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["timesheet-group-labels"] });
+    },
+    onError: (error: unknown) => {
+      toast({ title: "Erreur", description: summarizeApiError(error, "Impossible d'ajouter le groupe.").message });
+    },
+  });
+
+  const deleteGroupLabel = useMutation({
+    mutationFn: (payload: { id: number }) => api.deleteTimesheetGroupLabel(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["timesheet-group-labels"] });
+    },
+    onError: (error: unknown) => {
+      toast({ title: "Erreur", description: summarizeApiError(error, "Impossible de supprimer le groupe.").message });
     },
   });
 
@@ -398,6 +432,7 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
         end_time: endTime || null,
         location: location.trim() || null,
         is_travel: isTravel,
+        group_names: selectedGroupNames,
       });
     } else {
       createShift.mutate({
@@ -407,6 +442,7 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
         end_time: endTime || null,
         location: location.trim() || null,
         is_travel: isTravel,
+        group_names: selectedGroupNames,
       });
     }
   };
@@ -424,6 +460,7 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
     setEndTime(shift.end_time ? buildTimeLabel(shift.end_time) : "");
     setLocation(shift.location ?? "");
     setIsTravel(shift.is_travel);
+    setSelectedGroupNames(shift.group_names ?? []);
     setIsSheetOpen(true);
   };
 
@@ -902,6 +939,16 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
           onTravelChange={setIsTravel}
           onCreateLocation={(name) => createLocation.mutate({ name })}
           onDeleteLocation={(id) => deleteLocation.mutate({ id })}
+          permanentGroups={permanentGroups}
+          customGroupLabels={customGroupLabels}
+          selectedGroupNames={selectedGroupNames}
+          onGroupToggle={(name) => {
+            setSelectedGroupNames((prev) =>
+              prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+            );
+          }}
+          onCreateGroupLabel={(name) => createGroupLabel.mutate({ name })}
+          onDeleteGroupLabel={(id) => deleteGroupLabel.mutate({ id })}
         />
       ) : null}
     </SafeArea>
