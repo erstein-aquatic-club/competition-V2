@@ -53,6 +53,12 @@ interface TimesheetShiftFormProps {
   onTravelChange: (value: boolean) => void;
   onCreateLocation: (name: string) => void;
   onDeleteLocation: (id: number) => void;
+  permanentGroups: { id: number; name: string }[];
+  customGroupLabels: { id: number; name: string }[];
+  selectedGroupNames: string[];
+  onGroupToggle: (name: string) => void;
+  onCreateGroupLabel: (name: string) => void;
+  onDeleteGroupLabel: (id: number) => void;
 }
 
 export function TimesheetShiftForm({
@@ -75,6 +81,12 @@ export function TimesheetShiftForm({
   onTravelChange,
   onCreateLocation,
   onDeleteLocation,
+  permanentGroups,
+  customGroupLabels,
+  selectedGroupNames,
+  onGroupToggle,
+  onCreateGroupLabel,
+  onDeleteGroupLabel,
 }: TimesheetShiftFormProps) {
   const snapKey = React.useMemo(() => (isOpen ? Date.now() : 0), [isOpen]);
   const [isLocationPanelOpen, setIsLocationPanelOpen] = React.useState(false);
@@ -94,6 +106,15 @@ export function TimesheetShiftForm({
     if (!trimmed) return;
     onCreateLocation(trimmed);
     setNewLocationName("");
+  };
+
+  const [newGroupLabelName, setNewGroupLabelName] = React.useState("");
+
+  const handleAddGroupLabel = () => {
+    const trimmed = newGroupLabelName.trim();
+    if (!trimmed) return;
+    onCreateGroupLabel(trimmed);
+    setNewGroupLabelName("");
   };
 
   if (!isOpen) return null;
@@ -193,6 +214,66 @@ export function TimesheetShiftForm({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Groupes encadrés */}
+          <div className="space-y-2">
+            <Label>Groupes encadrés</Label>
+            <div className="flex flex-wrap gap-2">
+              {permanentGroups.map((g) => (
+                <label
+                  key={`perm-${g.id}`}
+                  className="flex items-center gap-1.5 rounded-full border border-border bg-muted/30 px-3 py-1.5 text-xs font-semibold cursor-pointer select-none"
+                >
+                  <Checkbox
+                    checked={selectedGroupNames.includes(g.name)}
+                    onCheckedChange={() => onGroupToggle(g.name)}
+                  />
+                  <span>{g.name}</span>
+                </label>
+              ))}
+              {customGroupLabels.map((g) => (
+                <label
+                  key={`custom-${g.id}`}
+                  className="flex items-center gap-1.5 rounded-full border border-border bg-muted/30 px-3 py-1.5 text-xs font-semibold cursor-pointer select-none"
+                >
+                  <Checkbox
+                    checked={selectedGroupNames.includes(g.name)}
+                    onCheckedChange={() => onGroupToggle(g.name)}
+                  />
+                  <span>{g.name}</span>
+                  <button
+                    type="button"
+                    className="ml-1 text-muted-foreground hover:text-foreground"
+                    onClick={(e) => { e.preventDefault(); onDeleteGroupLabel(g.id); }}
+                    aria-label={`Supprimer ${g.name}`}
+                  >
+                    ✕
+                  </button>
+                </label>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                value={newGroupLabelName}
+                onChange={(e) => setNewGroupLabelName(e.target.value)}
+                placeholder="Ajouter un groupe..."
+                className="h-8 flex-1 text-xs"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); handleAddGroupLabel(); }
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={handleAddGroupLabel}
+                disabled={!newGroupLabelName.trim()}
+              >
+                +
+              </Button>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">

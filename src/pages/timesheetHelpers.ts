@@ -9,6 +9,7 @@ export type TimesheetShift = {
   end_time?: string | null;
   location?: string | null;
   is_travel: boolean;
+  group_names?: string[] | null;
 };
 
 export type TimesheetTotals = {

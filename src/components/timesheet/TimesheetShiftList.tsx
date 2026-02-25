@@ -94,6 +94,18 @@ export function TimesheetShiftList({ groups, onEdit, onDelete }: TimesheetShiftL
                       <div className="mt-1 text-sm text-foreground">
                         {shift.location || "Lieu non précisé"}
                       </div>
+                      {shift.group_names && shift.group_names.length > 0 ? (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {shift.group_names.map((name) => (
+                            <span
+                              key={name}
+                              className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary"
+                            >
+                              {name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
                       {isOngoing ? <div className="mt-1 text-xs text-muted-foreground">En cours</div> : null}
                     </div>
                   </div>
