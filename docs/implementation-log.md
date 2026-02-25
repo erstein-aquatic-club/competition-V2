@@ -5704,3 +5704,29 @@ Quand un nageur changeait de groupe via son Profil (ex: Elite → Excellence), s
 
 - Le trigger ne gère pas le cas où un admin supprimerait directement une entrée `group_members` sans passer par `user_profiles` — acceptable car l'UI passe toujours par le profil.
 - Si la migration est appliquée sur une base avec beaucoup d'utilisateurs, la resync one-shot peut prendre quelques secondes.
+
+---
+
+## §68 — 2026-02-25 — Fix SMS multi-destinataires iOS
+
+### Contexte
+
+L'envoi de SMS à un groupe depuis le dashboard coach (CoachSmsScreen et CoachCompetitionsScreen) ne pré-remplissait qu'un seul numéro de téléphone sur iOS au lieu de tous les membres du groupe.
+
+### Cause racine
+
+Le format d'URI `sms:num1,num2?body=text` n'est pas correctement géré par iOS pour les destinataires multiples. iOS requiert le format `/open?addresses=` pour les SMS multi-destinataires : `sms:/open?addresses=num1,num2&body=text`.
+
+### Changements
+
+| Fichier | Modification |
+|---------|-------------|
+| `src/pages/coach/CoachSmsScreen.tsx` | Détection iOS → format `sms:/open?addresses=...&body=...` ; Android garde le format `sms:...?body=...` |
+| `src/pages/coach/CoachCompetitionsScreen.tsx` | Même fix pour le bouton SMS des compétitions |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — OK
+- [x] `npm run build` — OK
+- [ ] Test manuel iOS : sélectionner un groupe → vérifier que tous les numéros sont pré-remplis dans Messages
+- [ ] Test manuel Android : vérifier que le format standard fonctionne toujours

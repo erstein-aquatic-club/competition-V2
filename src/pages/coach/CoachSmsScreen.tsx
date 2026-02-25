@@ -92,9 +92,18 @@ const CoachSmsScreen = ({ onBack, athletes, groups, athletesLoading }: CoachSmsS
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     if (isMobile) {
       const body = message.trim() ? encodeURIComponent(message.trim()) : "";
-      const uri = body
-        ? `sms:${selectedPhones.join(",")}?body=${body}`
-        : `sms:${selectedPhones.join(",")}`;
+      const isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      let uri: string;
+      if (isIos) {
+        const addresses = selectedPhones.join(",");
+        uri = body
+          ? `sms:/open?addresses=${addresses}&body=${body}`
+          : `sms:/open?addresses=${addresses}`;
+      } else {
+        uri = body
+          ? `sms:${selectedPhones.join(",")}?body=${body}`
+          : `sms:${selectedPhones.join(",")}`;
+      }
       window.location.href = uri;
     } else {
       navigator.clipboard.writeText(selectedPhones.join(", ")).then(() => {

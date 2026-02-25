@@ -595,7 +595,12 @@ const CoachCompetitionsScreen = ({ onBack }: CoachCompetitionsScreenProps) => {
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     if (isMobile) {
       const body = encodeURIComponent(`[${comp.name}] `);
-      window.location.href = `sms:${phones.join(",")}?body=${body}`;
+      const isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      if (isIos) {
+        window.location.href = `sms:/open?addresses=${phones.join(",")}&body=${body}`;
+      } else {
+        window.location.href = `sms:${phones.join(",")}?body=${body}`;
+      }
     } else {
       // Desktop fallback: copy phones to clipboard
       navigator.clipboard.writeText(phones.join(", ")).then(() => {
