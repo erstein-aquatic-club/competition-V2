@@ -45,6 +45,7 @@ import {
   strokeFromCode,
   findBestTime,
   daysUntil,
+  computeProgress,
 } from "@/lib/objectiveHelpers";
 
 type Props = { onBack: () => void };
@@ -469,20 +470,12 @@ function ObjectiveCard({
   const hasCompetition = !!objective.competition_name;
   const leftDays = objective.competition_date ? daysUntil(objective.competition_date) : null;
 
-  // Progress calculation: how close is current best to target
+  // Progress: distance-based baseline (e.g. 4s for 50m, 10s for 100m)
   let progressPct: number | null = null;
+  let delta: number | null = null;
   if (hasTarget && bestTime != null && objective.target_time_seconds != null) {
-    const target = objective.target_time_seconds;
-    if (bestTime <= target) {
-      progressPct = 100;
-    } else {
-      const baseline = target * 1.2; // 20% slower as baseline
-      if (bestTime >= baseline) {
-        progressPct = 5; // minimum visible bar
-      } else {
-        progressPct = Math.round(((baseline - bestTime) / (baseline - target)) * 100);
-      }
-    }
+    delta = bestTime - objective.target_time_seconds;
+    progressPct = computeProgress(bestTime, objective.target_time_seconds, objective.event_code!);
   }
 
   return (
@@ -566,9 +559,9 @@ function ObjectiveCard({
                 />
               </div>
               <div className="text-[10px] text-muted-foreground text-right">
-                {progressPct >= 100
+                {delta != null && delta <= 0
                   ? "Objectif atteint !"
-                  : `+${(bestTime! - objective.target_time_seconds!).toFixed(1)}s`}
+                  : `+${delta!.toFixed(1)}s`}
               </div>
             </div>
           )}

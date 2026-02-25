@@ -101,6 +101,43 @@ export function findBestTime(
   return best;
 }
 
+/**
+ * Maximum gap (in seconds) between target and current time used as
+ * baseline for the progress gauge, keyed by race distance.
+ */
+const GAUGE_BASELINE_BY_DISTANCE: Record<number, number> = {
+  50: 4,
+  100: 10,
+  200: 25,
+  400: 35,
+  800: 60,
+  1500: 120,
+};
+
+/** Extract race distance from event_code (e.g. "200PAP" → 200). */
+export function distanceFromCode(code: string): number | null {
+  const match = code.match(/^(\d+)(NL|DOS|BR|PAP|QN)$/);
+  return match ? Number(match[1]) : null;
+}
+
+/**
+ * Compute progress percentage for the objective gauge.
+ * baseline = target + GAUGE_BASELINE seconds for the distance.
+ * 100% = target reached, 0% = current >= baseline.
+ */
+export function computeProgress(
+  bestTime: number,
+  targetTime: number,
+  eventCode: string,
+): number {
+  if (bestTime <= targetTime) return 100;
+  const distance = distanceFromCode(eventCode);
+  const baselineGap = distance ? (GAUGE_BASELINE_BY_DISTANCE[distance] ?? 10) : 10;
+  const baseline = targetTime + baselineGap;
+  if (bestTime >= baseline) return 0;
+  return Math.round(((baseline - bestTime) / (baseline - targetTime)) * 100);
+}
+
 /** Days until a date string (YYYY-MM-DD). Negative if past. */
 export function daysUntil(dateStr: string): number {
   const today = new Date();
