@@ -118,6 +118,12 @@ export {
   createTimesheetShift,
   updateTimesheetShift,
   deleteTimesheetShift,
+  listTimesheetGroupLabels,
+  createTimesheetGroupLabel,
+  deleteTimesheetGroupLabel,
+  getShiftGroupNames,
+  setShiftGroupNames,
+  listPermanentGroupsForTimesheet,
 } from './timesheet';
 
 export {

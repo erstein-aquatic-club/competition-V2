@@ -8,7 +8,7 @@ import {
   delay,
   STORAGE_KEYS,
 } from './client';
-import type { TimesheetShift, TimesheetLocation } from './types';
+import type { TimesheetShift, TimesheetLocation, TimesheetGroupLabel } from './types';
 import { localStorageGet, localStorageSave } from './localStorage';
 
 const defaultTimesheetLocations = ["Piscine", "Compétition"];
@@ -28,7 +28,25 @@ export async function listTimesheetShifts(options?: {
     if (options?.to) query = query.lte("shift_date", options.to);
     const { data, error } = await query;
     if (error) throw new Error(error.message);
-    return data ?? [];
+    const shifts = data ?? [];
+    if (shifts.length === 0) return shifts;
+
+    // Batch-fetch all group names for these shifts
+    const shiftIds = shifts.map((s: TimesheetShift) => s.id);
+    const { data: groupRows } = await supabase
+      .from("timesheet_shift_groups")
+      .select("shift_id, group_name")
+      .in("shift_id", shiftIds);
+    const groupMap = new Map<number, string[]>();
+    for (const row of groupRows ?? []) {
+      const list = groupMap.get(row.shift_id) ?? [];
+      list.push(row.group_name);
+      groupMap.set(row.shift_id, list);
+    }
+    return shifts.map((s: TimesheetShift) => ({
+      ...s,
+      group_names: groupMap.get(s.id) ?? [],
+    }));
   }
 
   await delay(200);
@@ -146,15 +164,18 @@ export async function createTimesheetShift(
   payload: Omit<TimesheetShift, "id" | "created_at" | "updated_at" | "coach_name">,
 ) {
   if (canUseSupabase()) {
-    const { error } = await supabase.from("timesheet_shifts").insert({
+    const { data, error } = await supabase.from("timesheet_shifts").insert({
       coach_id: payload.coach_id,
       shift_date: payload.shift_date,
       start_time: payload.start_time,
       end_time: payload.end_time ?? null,
       location: payload.location ?? null,
       is_travel: payload.is_travel,
-    });
+    }).select("id").single();
     if (error) throw new Error(error.message);
+    if (payload.group_names?.length) {
+      await setShiftGroupNames(data.id, payload.group_names);
+    }
     return { status: "created" };
   }
 
@@ -169,9 +190,12 @@ export async function updateTimesheetShift(
   payload: Partial<TimesheetShift> & { id: number },
 ) {
   if (canUseSupabase()) {
-    const { id, ...rest } = payload;
+    const { id, group_names, ...rest } = payload;
     const { error } = await supabase.from("timesheet_shifts").update(rest).eq("id", id);
     if (error) throw new Error(error.message);
+    if (group_names !== undefined) {
+      await setShiftGroupNames(id, group_names ?? []);
+    }
     return { status: "updated" };
   }
 
@@ -200,4 +224,103 @@ export async function deleteTimesheetShift(payload: { id: number }) {
   const updated = shifts.filter((shift: TimesheetShift) => shift.id !== payload.id);
   localStorageSave(STORAGE_KEYS.TIMESHEET_SHIFTS, updated);
   return { status: "deleted" };
+}
+
+// ─── Timesheet Group Labels ─────────────────────────────────────────────────
+
+export async function listTimesheetGroupLabels(): Promise<TimesheetGroupLabel[]> {
+  if (canUseSupabase()) {
+    const { data, error } = await supabase
+      .from("timesheet_group_labels")
+      .select("*")
+      .order("name");
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  }
+  await delay(120);
+  return (localStorageGet("timesheet_group_labels") || []) as TimesheetGroupLabel[];
+}
+
+export async function createTimesheetGroupLabel(payload: { name: string }) {
+  if (canUseSupabase()) {
+    const { error } = await supabase
+      .from("timesheet_group_labels")
+      .insert({ name: payload.name.trim() });
+    if (error) throw new Error(error.message);
+    return { status: "created" };
+  }
+  await delay(120);
+  const trimmed = payload.name.trim();
+  if (!trimmed) throw new Error("Missing label name");
+  const stored = (localStorageGet("timesheet_group_labels") || []) as TimesheetGroupLabel[];
+  const exists = stored.some((l) => l.name.toLowerCase() === trimmed.toLowerCase());
+  if (exists) return { status: "exists" };
+  const created = { id: Date.now(), name: trimmed, created_at: new Date().toISOString() };
+  localStorageSave("timesheet_group_labels", [...stored, created]);
+  return { status: "created" };
+}
+
+export async function deleteTimesheetGroupLabel(payload: { id: number }) {
+  if (canUseSupabase()) {
+    const { error } = await supabase
+      .from("timesheet_group_labels")
+      .delete()
+      .eq("id", payload.id);
+    if (error) throw new Error(error.message);
+    return { status: "deleted" };
+  }
+  await delay(120);
+  const stored = (localStorageGet("timesheet_group_labels") || []) as TimesheetGroupLabel[];
+  localStorageSave("timesheet_group_labels", stored.filter((l) => l.id !== payload.id));
+  return { status: "deleted" };
+}
+
+// ─── Timesheet Shift Groups (M:N) ──────────────────────────────────────────
+
+export async function getShiftGroupNames(shiftId: number): Promise<string[]> {
+  if (canUseSupabase()) {
+    const { data, error } = await supabase
+      .from("timesheet_shift_groups")
+      .select("group_name")
+      .eq("shift_id", shiftId);
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((r: { group_name: string }) => r.group_name);
+  }
+  return [];
+}
+
+export async function setShiftGroupNames(shiftId: number, groupNames: string[]) {
+  if (canUseSupabase()) {
+    const { error: delError } = await supabase
+      .from("timesheet_shift_groups")
+      .delete()
+      .eq("shift_id", shiftId);
+    if (delError) throw new Error(delError.message);
+
+    if (groupNames.length > 0) {
+      const rows = groupNames.map((name) => ({ shift_id: shiftId, group_name: name }));
+      const { error: insError } = await supabase
+        .from("timesheet_shift_groups")
+        .insert(rows);
+      if (insError) throw new Error(insError.message);
+    }
+    return { status: "updated" };
+  }
+  return { status: "noop" };
+}
+
+// ─── Permanent Groups for Timesheet ─────────────────────────────────────────
+
+export async function listPermanentGroupsForTimesheet(): Promise<{ id: number; name: string }[]> {
+  if (canUseSupabase()) {
+    const { data, error } = await supabase
+      .from("groups")
+      .select("id, name")
+      .eq("is_temporary", false)
+      .eq("is_active", true)
+      .order("name");
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  }
+  return [];
 }

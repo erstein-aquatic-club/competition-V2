@@ -23,6 +23,7 @@ export type {
   ClubRecordSwimmer,
   TimesheetShift,
   TimesheetLocation,
+  TimesheetGroupLabel,
   FeatureCapability,
   ApiCapabilities,
   ApiErrorInfo,
@@ -96,6 +97,10 @@ import {
   createTimesheetShift as _createTimesheetShift,
   updateTimesheetShift as _updateTimesheetShift,
   deleteTimesheetShift as _deleteTimesheetShift,
+  listTimesheetGroupLabels as _listTimesheetGroupLabels,
+  createTimesheetGroupLabel as _createTimesheetGroupLabel,
+  deleteTimesheetGroupLabel as _deleteTimesheetGroupLabel,
+  listPermanentGroupsForTimesheet as _listPermanentGroupsForTimesheet,
 } from "./api/timesheet";
 
 import {
@@ -554,6 +559,10 @@ export const api = {
   async createTimesheetShift(payload: Parameters<typeof _createTimesheetShift>[0]) { return _createTimesheetShift(payload); },
   async updateTimesheetShift(payload: Parameters<typeof _updateTimesheetShift>[0]) { return _updateTimesheetShift(payload); },
   async deleteTimesheetShift(payload: Parameters<typeof _deleteTimesheetShift>[0]) { return _deleteTimesheetShift(payload); },
+  async listTimesheetGroupLabels() { return _listTimesheetGroupLabels(); },
+  async createTimesheetGroupLabel(payload: Parameters<typeof _createTimesheetGroupLabel>[0]) { return _createTimesheetGroupLabel(payload); },
+  async deleteTimesheetGroupLabel(payload: Parameters<typeof _deleteTimesheetGroupLabel>[0]) { return _deleteTimesheetGroupLabel(payload); },
+  async listPermanentGroupsForTimesheet() { return _listPermanentGroupsForTimesheet(); },
 
   // ══════════════════════════════════════════════════════════════════
   // DELEGATION STUBS — Temporary Groups

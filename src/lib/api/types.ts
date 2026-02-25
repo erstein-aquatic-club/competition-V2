@@ -263,6 +263,7 @@ export interface TimesheetShift {
   is_travel: boolean;
   created_at?: string | null;
   updated_at?: string | null;
+  group_names?: string[] | null;
 }
 
 export interface TimesheetLocation {
@@ -270,6 +271,12 @@ export interface TimesheetLocation {
   name: string;
   created_at?: string | null;
   updated_at?: string | null;
+}
+
+export interface TimesheetGroupLabel {
+  id: number;
+  name: string;
+  created_at?: string | null;
 }
 
 export interface FeatureCapability {

@@ -608,6 +608,27 @@ export const timesheetShifts = pgTable(
   ]
 );
 
+export const timesheetGroupLabels = pgTable("timesheet_group_labels", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const timesheetShiftGroups = pgTable(
+  "timesheet_shift_groups",
+  {
+    id: serial("id").primaryKey(),
+    shiftId: integer("shift_id")
+      .notNull()
+      .references(() => timesheetShifts.id, { onDelete: "cascade" }),
+    groupName: text("group_name").notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_timesheet_shift_groups_unique").on(table.shiftId, table.groupName),
+    index("idx_timesheet_shift_groups_shift").on(table.shiftId),
+  ]
+);
+
 // =============================================================================
 // ZOD SCHEMAS (for validation)
 // =============================================================================
@@ -662,3 +683,5 @@ export type InsertOneRmRecord = typeof oneRmRecords.$inferInsert;
 export type TimesheetShift = typeof timesheetShifts.$inferSelect;
 export type InsertTimesheetShift = typeof timesheetShifts.$inferInsert;
 export type TimesheetLocation = typeof timesheetLocations.$inferSelect;
+export type TimesheetGroupLabel = typeof timesheetGroupLabels.$inferSelect;
+export type TimesheetShiftGroup = typeof timesheetShiftGroups.$inferSelect;
