@@ -5659,3 +5659,48 @@ Les coachs pointent leurs heures via l'onglet Administratif. Il manquait la poss
 
 - Pas de gestion du renommage d'un label custom (il faut supprimer + recréer).
 - Si un groupe permanent est renommé dans `groups`, les anciens shifts gardent l'ancien nom (acceptable pour l'historique).
+
+## 2026-02-25 — §67 Fix désynchronisation group_members au changement de groupe
+
+**Branche** : `main`
+**Chantier ROADMAP** : §35 — Fix group change desync
+
+### Contexte
+
+Quand un nageur changeait de groupe via son Profil (ex: Elite → Excellence), seul `user_profiles.group_id` était mis à jour. Or toutes les interfaces (assignments, listes d'athlètes coach, notifications RLS) lisent depuis la table `group_members`, pas `user_profiles`. Résultat : le nageur restait "fantôme" dans l'ancien groupe — les affectations ne fonctionnaient plus, le coach le voyait toujours dans l'ancien groupe.
+
+### Changements réalisés
+
+1. **Migration Supabase** (`00032_sync_group_members_trigger.sql`) :
+   - Trigger `BEFORE INSERT OR UPDATE` sur `user_profiles` : quand `group_id` change, supprime l'ancien `group_members` permanent et insère le nouveau (avec `ON CONFLICT DO NOTHING`)
+   - Sync automatique de `group_label` (cache texte) depuis `groups.name`
+   - `SECURITY DEFINER` pour contourner la policy RLS (les athlètes n'ont pas le droit d'écrire dans `group_members`)
+   - One-shot data fix : resync de toutes les entrées divergentes existantes
+
+2. **Profile.tsx** — Ajout de `group_label` dans le payload `updateProfile()` pour que le cache texte soit aussi mis à jour côté client (belt and suspenders avec le trigger)
+
+### Fichiers modifiés
+
+| Fichier | Changement |
+|---------|-----------|
+| `supabase/migrations/00032_sync_group_members_trigger.sql` | NOUVEAU — trigger + data fix |
+| `src/pages/Profile.tsx` | Ajout `group_label` dans le payload updateProfile |
+
+### Tests
+
+- [x] `npm run build` — OK (0 erreurs)
+- [x] `npm test` — 121 tests passent, 0 échecs
+- [ ] Test manuel : changer groupe d'un nageur via Profil → vérifier `group_members` mis à jour
+- [ ] Test manuel : vérifier que le coach voit le nageur dans le bon groupe
+- [ ] Test manuel : vérifier que les assignments sont correctes pour le nouveau groupe
+
+### Décisions prises
+
+- **Trigger PostgreSQL plutôt que code frontend** : la policy RLS `group_members_write` n'autorise que coach/admin. Un trigger `SECURITY DEFINER` contourne cette restriction de manière sécurisée.
+- **BEFORE trigger** (pas AFTER) : permet de modifier `NEW.group_label` dans la même transaction.
+- **Préservation des groupes temporaires** : le trigger ne supprime que les memberships de groupes permanents (`is_temporary = false`).
+
+### Limites / dette
+
+- Le trigger ne gère pas le cas où un admin supprimerait directement une entrée `group_members` sans passer par `user_profiles` — acceptable car l'UI passe toujours par le profil.
+- Si la migration est appliquée sur une base avec beaucoup d'utilisateurs, la resync one-shot peut prendre quelques secondes.

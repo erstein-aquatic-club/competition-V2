@@ -1,6 +1,6 @@
 # Roadmap de Développement
 
-*Dernière mise à jour : 2026-02-25 (§66 Groupes encadrés par shift — pointage coach)*
+*Dernière mise à jour : 2026-02-25 (§67 Fix désynchronisation group_members au changement de groupe)*
 
 Ce document décrit les fonctionnalités à implémenter. Il sert de référence pour reprendre le développement dans une future conversation.
 
@@ -45,6 +45,7 @@ Ce document décrit les fonctionnalités à implémenter. Il sert de référence
 | 32 | Traduction exercices FR + option Poids du corps | Faible | Faible | Fait (§64) |
 | 33 | Écran SMS dédié coach dashboard | Moyenne | Faible | Fait (§65) |
 | 34 | Groupes encadrés par shift (pointage coach) | Moyenne | Moyenne | Fait (§66) |
+| 35 | Fix désynchronisation group_members au changement de groupe | Haute | Faible | Fait (§67) |
 
 ---
 

@@ -123,6 +123,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 32 | Traduction exercices FR + option Poids du corps | Faible | Fait (§64) |
 | 33 | Écran SMS dédié coach dashboard | Moyenne | Fait (§65) |
 | 34 | Groupes encadrés par shift (pointage coach) | Moyenne | Fait (§66) |
+| 35 | Fix désynchronisation group_members au changement de groupe | Haute | Fait (§67) |
 
 Détail complet dans `docs/ROADMAP.md`.
 

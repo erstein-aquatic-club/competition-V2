@@ -189,6 +189,7 @@ Tous les feature flags sont activés.
 | Hub Profil (grille navigation) | ✅ | `Profile.tsx` | State machine home/objectives, grille 2x2 (Mon profil, Sécurité, Records, Objectifs) (§61) |
 | Affichage infos | ✅ | `Profile.tsx` | Hero banner bg-accent, avatar ring, badge rôle (§38) |
 | Édition profil | ✅ | `Profile.tsx` | Sheet bottom mobile-friendly, formulaire complet + téléphone (§38, §62) |
+| Changement de groupe → sync group_members | ✅ | `Profile.tsx`, migration `00032` | Trigger PostgreSQL BEFORE UPDATE sync `group_members` + `group_label` automatiquement (§67) |
 | Changement mot de passe | ✅ | `Profile.tsx` | Bottom sheet dédié Sécurité (§61, was Collapsible §38) |
 | FFN & Records | ✅ | `Profile.tsx` | Card fusionnée sync FFN + lien records (§38) |
 

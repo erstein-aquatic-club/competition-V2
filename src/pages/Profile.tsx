@@ -173,6 +173,9 @@ export default function Profile() {
         userId,
         profile: {
           group_id: data.group_id ? Number(data.group_id) : null,
+          group_label: data.group_id
+            ? groups.find((g) => g.id === Number(data.group_id))?.name ?? null
+            : null,
           birthdate: data.birthdate || null,
           bio: data.bio,
           ffn_iuf: (data.ffn_iuf || "").trim() || null,
