@@ -5730,3 +5730,28 @@ Le format d'URI `sms:num1,num2?body=text` n'est pas correctement géré par iOS 
 - [x] `npm run build` — OK
 - [ ] Test manuel iOS : sélectionner un groupe → vérifier que tous les numéros sont pré-remplis dans Messages
 - [ ] Test manuel Android : vérifier que le format standard fonctionne toujours
+
+---
+
+## §69 — 2026-02-26 — Fix RLS objectifs nageur (INSERT bloqué)
+
+### Contexte
+
+Un nageur qui tentait d'ajouter un objectif personnel recevait une erreur RLS. Seuls les coachs et admins pouvaient écrire dans la table `objectives`.
+
+### Cause racine
+
+La policy `objectives_write` n'autorisait que `app_user_role() IN ('admin', 'coach')`. Les nageurs (rôle `athlete`) étaient bloqués en écriture même sur leurs propres objectifs.
+
+### Changements
+
+| Fichier / Ressource | Modification |
+|---------------------|-------------|
+| Migration Supabase `allow_athlete_own_objectives` | DROP + CREATE policy `objectives_write` : ajoute `OR athlete_id = auth.uid()` dans USING et WITH CHECK |
+
+### Tests
+
+- [x] Policy vérifiée via `pg_policy` — USING et WITH CHECK incluent `athlete_id = auth.uid()`
+- [ ] Test manuel : nageur crée un objectif → succès
+- [ ] Test manuel : nageur modifie/supprime son objectif → succès
+- [ ] Test manuel : nageur ne peut pas modifier l'objectif d'un autre nageur
