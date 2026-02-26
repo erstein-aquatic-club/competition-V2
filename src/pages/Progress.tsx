@@ -172,8 +172,8 @@ export default function Progress() {
   });
 
   const { data: myCompetitionIds } = useQuery<string[]>({
-    queryKey: ["my-competition-ids"],
-    queryFn: () => api.getMyCompetitionIds(),
+    queryKey: ["my-competition-ids", athleteKey],
+    queryFn: () => api.getMyCompetitionIds(athleteId),
   });
 
   const { data: assignments } = useQuery({
@@ -183,8 +183,11 @@ export default function Progress() {
   });
 
   const { data: myAbsences = [] } = useQuery({
-    queryKey: ["my-planned-absences"],
-    queryFn: () => api.getMyPlannedAbsences(),
+    queryKey: ["planned-absences", athleteKey],
+    queryFn: () =>
+      athleteId
+        ? api.getPlannedAbsences({ userId: athleteId })
+        : api.getMyPlannedAbsences(),
   });
 
   const absenceDates = useMemo(() => {

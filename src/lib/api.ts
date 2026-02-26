@@ -585,7 +585,7 @@ export const api = {
   async deleteCompetition(id: string) { return _deleteCompetition(id); },
   async getCompetitionAssignments(competitionId: string) { return _getCompetitionAssignments(competitionId); },
   async setCompetitionAssignments(competitionId: string, athleteIds: number[]) { return _setCompetitionAssignments(competitionId, athleteIds); },
-  async getMyCompetitionIds() { return _getMyCompetitionIds(); },
+  async getMyCompetitionIds(athleteId?: number | null) { return _getMyCompetitionIds(athleteId); },
 
   // ══════════════════════════════════════════════════════════════════
   // DELEGATION STUBS — Objectives

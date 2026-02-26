@@ -82,11 +82,13 @@ export async function setCompetitionAssignments(
   }
 }
 
-export async function getMyCompetitionIds(): Promise<string[]> {
+export async function getMyCompetitionIds(athleteId?: number | null): Promise<string[]> {
   if (!canUseSupabase()) return [];
-  const { data, error } = await supabase
+  let query = supabase
     .from("competition_assignments")
     .select("competition_id");
+  if (athleteId) query = query.eq("athlete_id", athleteId);
+  const { data, error } = await query;
   if (error) throw new Error(error.message);
   return (data ?? []).map((r: any) => r.competition_id);
 }
