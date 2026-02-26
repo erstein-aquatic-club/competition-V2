@@ -176,6 +176,21 @@ export default function Progress() {
     queryFn: () => api.getMyCompetitionIds(),
   });
 
+  const { data: assignments } = useQuery({
+    queryKey: ["assignments", athleteKey],
+    queryFn: () => api.getAssignments(athleteName!, athleteId),
+    enabled: !!athleteName,
+  });
+
+  const { data: myAbsences = [] } = useQuery({
+    queryKey: ["my-planned-absences"],
+    queryFn: () => api.getMyPlannedAbsences(),
+  });
+
+  const absenceDates = useMemo(() => {
+    return new Set(myAbsences.map((a: any) => a.date));
+  }, [myAbsences]);
+
   const { data: sessions, isLoading: isSwimLoading } = useQuery({
     queryKey: ["sessions", athleteKey],
     queryFn: () => api.getSessions(athleteName!, athleteId),
@@ -276,6 +291,20 @@ export default function Progress() {
     const target = new Date(nextCompetition.date.slice(0, 10) + "T00:00:00");
     return Math.round((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
   }, [nextCompetition]);
+
+  const trainingDaysRemaining = useMemo(() => {
+    if (!nextCompetition) return null;
+    const todayISO = new Date().toISOString().slice(0, 10);
+    const compDate = nextCompetition.date.slice(0, 10);
+    const trainingDates = new Set<string>();
+    if (assignments) {
+      for (const a of assignments) {
+        const d = (a.assigned_date || "").slice(0, 10);
+        if (d > todayISO && d < compDate && !absenceDates.has(d)) trainingDates.add(d);
+      }
+    }
+    return trainingDates.size;
+  }, [nextCompetition, assignments, absenceDates]);
 
   // ─── Swim Data Processing ──────────────────────────────────────────────────
 
@@ -488,13 +517,22 @@ export default function Progress() {
           <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/30 dark:bg-amber-950/20 p-3">
             <div className="flex items-center gap-2">
               <Trophy className="h-4 w-4 text-amber-500" />
-              <span className="text-sm font-semibold">{nextCompetition.name}</span>
-              <span className="text-xs text-amber-600 dark:text-amber-400 font-bold ml-auto">
+              <span className="text-sm font-semibold truncate">{nextCompetition.name}</span>
+              <span className="text-xs text-amber-600 dark:text-amber-400 font-bold ml-auto shrink-0">
                 {daysUntilNextComp === 0 ? "Aujourd'hui" : `J-${daysUntilNextComp}`}
               </span>
             </div>
-            {nextCompetition.location && (
-              <p className="text-xs text-muted-foreground mt-0.5">{nextCompetition.location}</p>
+            {(nextCompetition.location || (trainingDaysRemaining != null && trainingDaysRemaining > 0)) && (
+              <div className="flex items-center gap-2 mt-0.5">
+                {nextCompetition.location && (
+                  <p className="text-xs text-muted-foreground truncate">{nextCompetition.location}</p>
+                )}
+                {trainingDaysRemaining != null && trainingDaysRemaining > 0 && (
+                  <span className="text-xs text-amber-600 dark:text-amber-400 font-medium ml-auto shrink-0">
+                    {trainingDaysRemaining} séance{trainingDaysRemaining > 1 ? "s" : ""} d'ici là
+                  </span>
+                )}
+              </div>
             )}
           </div>
         </motion.div>
