@@ -1,6 +1,6 @@
 
-import { useLocation } from "wouter";
-import { useCallback, useEffect, useState } from "react";
+import { useLocation, Link } from "wouter";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import eacLogo from "@assets/logo-eac.png";
@@ -12,20 +12,19 @@ import { InstallPrompt } from "@/components/shared/InstallPrompt";
 export const NAV_RESET_EVENT = "nav:reset";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const [location, navigate] = useLocation();
+  const [location] = useLocation();
   const { role } = useAuth();
   const [isFocusMode, setIsFocusMode] = useState(false);
   const navItems = getNavItemsForRole(role);
 
-  const handleNavClick = useCallback((href: string) => {
+  /** When the user taps the active nav item, reset the page state instead of navigating. */
+  const handleSamePageClick = (e: React.MouseEvent, href: string) => {
     if (location === href) {
-      // Already on this page — reset to home state
+      e.preventDefault();
       window.dispatchEvent(new CustomEvent(NAV_RESET_EVENT));
       window.scrollTo(0, 0);
-    } else {
-      navigate(href);
     }
-  }, [location, navigate]);
+  };
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -58,21 +57,25 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             SUIVI<span className="text-primary">NATATION</span>
             </div>
         </div>
-        <nav className="flex gap-6">
-          {navItems.map((item) => (
-            <button
-              key={item.href}
-              type="button"
-              onClick={() => handleNavClick(item.href)}
-              className={cn(
-                "flex items-center gap-2 text-sm font-bold uppercase transition-colors hover:text-primary cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-sm",
-                location === item.href ? "text-primary border-b-2 border-primary" : "text-muted-foreground"
-              )}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </button>
-          ))}
+        <nav aria-label="Navigation principale" className="flex gap-6">
+          {navItems.map((item) => {
+            const isActive = location === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={isActive ? "page" : undefined}
+                onClick={(e) => handleSamePageClick(e, item.href)}
+                className={cn(
+                  "flex items-center gap-2 text-sm font-bold uppercase transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-sm",
+                  isActive ? "text-primary border-b-2 border-primary" : "text-muted-foreground"
+                )}
+              >
+                <item.icon className="h-4 w-4" />
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
       </header>
 
@@ -94,12 +97,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           {navItems.map((item) => {
             const isActive = location === item.href;
             return (
-              <button
+              <Link
                 key={item.href}
-                type="button"
-                onClick={() => handleNavClick(item.href)}
+                href={item.href}
+                aria-current={isActive ? "page" : undefined}
+                onClick={(e) => handleSamePageClick(e, item.href)}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 py-2 flex-1 min-w-0 max-w-[72px] transition-colors relative active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg",
+                  "flex flex-col items-center justify-center gap-0.5 py-2 flex-1 min-w-0 max-w-[72px] transition-colors relative active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg",
                   isActive
                     ? "text-primary"
                     : "text-muted-foreground active:text-foreground"
@@ -117,7 +121,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 )}>
                   {item.label}
                 </span>
-              </button>
+              </Link>
             );
           })}
         </div>
