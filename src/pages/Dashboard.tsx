@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo } from "react";
+import { motion } from "framer-motion";
+import { slideUp } from "@/lib/animations";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
@@ -707,27 +709,29 @@ export default function Dashboard() {
 
         {/* Next competition banner */}
         {nextCompetition && daysUntilNextCompetition != null && (
-          <div className="mt-4 rounded-xl border border-status-warning/30 bg-status-warning-bg p-3">
-            <div className="flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-status-warning" />
-              <span className="text-sm font-semibold truncate">{nextCompetition.name}</span>
-              <span className="text-xs text-status-warning font-bold ml-auto shrink-0">
-                {daysUntilNextCompetition === 0 ? "Aujourd'hui" : `J-${daysUntilNextCompetition}`}
-              </span>
-            </div>
-            {(nextCompetition.location || (trainingDaysRemaining != null && trainingDaysRemaining > 0)) && (
-              <div className="flex items-center gap-2 mt-0.5">
-                {nextCompetition.location && (
-                  <p className="text-xs text-muted-foreground truncate">{nextCompetition.location}</p>
-                )}
-                {trainingDaysRemaining != null && trainingDaysRemaining > 0 && (
-                  <span className="text-xs text-status-warning font-medium ml-auto shrink-0">
-                    {trainingDaysRemaining} séance{trainingDaysRemaining > 1 ? "s" : ""} d'ici là
-                  </span>
-                )}
+          <motion.div className="mt-4" variants={slideUp} initial="hidden" animate="visible">
+            <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/30 dark:bg-amber-950/20 p-3">
+              <div className="flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-amber-500" />
+                <span className="text-sm font-semibold truncate">{nextCompetition.name}</span>
+                <span className="text-xs text-amber-600 dark:text-amber-400 font-bold ml-auto shrink-0">
+                  {daysUntilNextCompetition === 0 ? "Aujourd'hui" : `J-${daysUntilNextCompetition}`}
+                </span>
               </div>
-            )}
-          </div>
+              {(nextCompetition.location || (trainingDaysRemaining != null && trainingDaysRemaining > 0)) && (
+                <div className="flex items-center gap-2 mt-0.5">
+                  {nextCompetition.location && (
+                    <p className="text-xs text-muted-foreground truncate">{nextCompetition.location}</p>
+                  )}
+                  {trainingDaysRemaining != null && trainingDaysRemaining > 0 && (
+                    <span className="text-xs text-amber-600 dark:text-amber-400 font-medium ml-auto shrink-0">
+                      {trainingDaysRemaining} séance{trainingDaysRemaining > 1 ? "s" : ""} d'ici là
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </motion.div>
         )}
 
         {/* Calendar */}

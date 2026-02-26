@@ -309,7 +309,9 @@ export default function Progress() {
 
   const trainingDaysRemaining = useMemo(() => {
     if (!nextCompetition) return null;
-    const todayISO = new Date().toISOString().slice(0, 10);
+    const pad2 = (n: number) => String(n).padStart(2, "0");
+    const localISO = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    const todayISO = localISO(new Date());
     const compDate = nextCompetition.date.slice(0, 10);
     const trainingDates = new Set<string>();
     if (assignments) {
@@ -319,11 +321,12 @@ export default function Progress() {
       }
     }
     // Add days where the swimmer has expected slots (presence defaults ON)
-    const cursor = new Date(todayISO + "T00:00:00");
+    const cursor = new Date();
+    cursor.setHours(0, 0, 0, 0);
     cursor.setDate(cursor.getDate() + 1);
     const compEnd = new Date(compDate + "T00:00:00");
     while (cursor < compEnd) {
-      const iso = cursor.toISOString().slice(0, 10);
+      const iso = localISO(cursor);
       if (!absenceDates.has(iso)) {
         const jsDay = cursor.getDay();
         const weekday = (jsDay + 6) % 7; // Monday=0
