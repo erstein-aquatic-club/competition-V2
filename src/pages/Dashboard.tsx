@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
@@ -708,11 +707,11 @@ export default function Dashboard() {
 
         {/* Next competition banner */}
         {nextCompetition && daysUntilNextCompetition != null && (
-          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/30 dark:bg-amber-950/20 p-3">
+          <div className="mt-4 rounded-xl border border-status-warning/30 bg-status-warning-bg p-3">
             <div className="flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-amber-500" />
+              <Trophy className="h-4 w-4 text-status-warning" />
               <span className="text-sm font-semibold truncate">{nextCompetition.name}</span>
-              <span className="text-xs text-amber-600 dark:text-amber-400 font-bold ml-auto shrink-0">
+              <span className="text-xs text-status-warning font-bold ml-auto shrink-0">
                 {daysUntilNextCompetition === 0 ? "Aujourd'hui" : `J-${daysUntilNextCompetition}`}
               </span>
             </div>
@@ -722,7 +721,7 @@ export default function Dashboard() {
                   <p className="text-xs text-muted-foreground truncate">{nextCompetition.location}</p>
                 )}
                 {trainingDaysRemaining != null && trainingDaysRemaining > 0 && (
-                  <span className="text-xs text-amber-600 dark:text-amber-400 font-medium ml-auto shrink-0">
+                  <span className="text-xs text-status-warning font-medium ml-auto shrink-0">
                     {trainingDaysRemaining} séance{trainingDaysRemaining > 1 ? "s" : ""} d'ici là
                   </span>
                 )}
@@ -764,89 +763,96 @@ export default function Dashboard() {
           />
         )}
 
-        {/* Info Modal */}
-        <Modal open={infoOpen} title="Codes" onClose={() => setInfoOpen(false)}>
-          <div className="space-y-3 text-sm">
-            <div className="flex items-center justify-between rounded-2xl border border-orange-200 bg-orange-50 px-3 py-2">
-              <span className="font-semibold">Orange</span>
-              <span className="text-foreground">À compléter</span>
-            </div>
-            <div className="flex items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2">
-              <span className="font-semibold">Vert</span>
-              <span className="text-foreground">Validé → km</span>
-            </div>
-            <div className="flex items-center justify-between rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2">
-              <span className="font-semibold">Bleu</span>
-              <span className="text-foreground">Absent / Non prévu</span>
-            </div>
-            <div className="text-xs text-muted-foreground">Les km comptent uniquement après validation.</div>
-          </div>
-        </Modal>
-
-        {/* Settings Modal */}
-        <Modal open={settingsOpen} title="Présence" onClose={() => setSettingsOpen(false)}>
-          <div className="space-y-3">
-            <div className="text-xs text-muted-foreground">Toggle hebdo (séances attendues).</div>
-
-            <div className="overflow-hidden rounded-2xl border border-border bg-card">
-              <div className="grid grid-cols-[1fr_110px_110px] bg-muted border-b border-border px-3 py-2 text-xs font-semibold text-muted-foreground">
-                <div>Jour</div>
-                <div className="text-center">Matin</div>
-                <div className="text-center">Soir</div>
+        {/* Info Dialog */}
+        <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
+          <DialogContent className="max-w-sm rounded-2xl">
+            <DialogHeader>
+              <DialogTitle>Codes</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between rounded-2xl border border-orange-200 bg-orange-50 px-3 py-2">
+                <span className="font-semibold">Orange</span>
+                <span className="text-foreground">À compléter</span>
               </div>
-              {WEEKDAYS_FR.map((wd, idx) => (
-                <div key={wd} className={cn("grid grid-cols-[1fr_110px_110px] items-center px-3 py-2", idx !== 6 && "border-b border-border")}>
-                  <div className="text-sm font-medium text-foreground">{wd}</div>
-                  {SLOTS.map((s) => {
-                    const on = Boolean(presenceDefaults?.[idx]?.[s.key]);
-                    return (
-                      <div key={s.key} className="flex justify-center">
-                        <button
-                          type="button"
-                          onClick={() => toggleDefaultPresence(idx, s.key)}
-                          className={cn(
-                            "w-24 rounded-2xl border px-3 py-2 text-sm font-semibold transition",
-                            on ? "bg-foreground text-background border-foreground" : "bg-card text-foreground border-border hover:bg-muted"
-                          )}
-                          aria-label={`${wd} ${s.label}`}
-                        >
-                          {on ? "On" : "Off"}
-                        </button>
-                      </div>
-                    );
-                  })}
+              <div className="flex items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+                <span className="font-semibold">Vert</span>
+                <span className="text-foreground">Validé → km</span>
+              </div>
+              <div className="flex items-center justify-between rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2">
+                <span className="font-semibold">Bleu</span>
+                <span className="text-foreground">Absent / Non prévu</span>
+              </div>
+              <div className="text-xs text-muted-foreground">Les km comptent uniquement après validation.</div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Settings Dialog */}
+        <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+          <DialogContent className="max-w-sm rounded-2xl">
+            <DialogHeader>
+              <DialogTitle>Présence</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="text-xs text-muted-foreground">Toggle hebdo (séances attendues).</div>
+
+              <div className="overflow-hidden rounded-2xl border border-border bg-card">
+                <div className="grid grid-cols-[1fr_110px_110px] bg-muted border-b border-border px-3 py-2 text-xs font-semibold text-muted-foreground">
+                  <div>Jour</div>
+                  <div className="text-center">Matin</div>
+                  <div className="text-center">Soir</div>
                 </div>
-              ))}
-            </div>
+                {WEEKDAYS_FR.map((wd, idx) => (
+                  <div key={wd} className={cn("grid grid-cols-[1fr_110px_110px] items-center px-3 py-2", idx !== 6 && "border-b border-border")}>
+                    <div className="text-sm font-medium text-foreground">{wd}</div>
+                    {SLOTS.map((s) => {
+                      const on = Boolean(presenceDefaults?.[idx]?.[s.key]);
+                      return (
+                        <div key={s.key} className="flex justify-center">
+                          <button
+                            type="button"
+                            onClick={() => toggleDefaultPresence(idx, s.key)}
+                            className={cn(
+                              "w-24 rounded-2xl border px-3 py-2 text-sm font-semibold transition",
+                              on ? "bg-foreground text-background border-foreground" : "bg-card text-foreground border-border hover:bg-muted"
+                            )}
+                            aria-label={`${wd} ${s.label}`}
+                          >
+                            {on ? "On" : "Off"}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
 
-            {/* Hidden stable duration (backend requirement) */}
-            <div className="rounded-2xl border border-border bg-muted px-3 py-2">
-              <div className="text-xs font-semibold text-foreground">Durée (valeur par défaut)</div>
-              <div className="mt-2 flex items-center gap-2">
-                <button
-                  type="button"
-                  className="h-9 w-9 rounded-2xl border border-border bg-card hover:bg-muted flex items-center justify-center"
-                  onClick={() => setStableDurationMin((v) => Math.max(30, v - 15))}
-                  aria-label="Diminuer la durée"
-                >
-                  <Minus className="h-4 w-4" />
-                </button>
-                <div className="text-sm font-semibold text-foreground">{stableDurationMin} min</div>
-                <button
-                  type="button"
-                  className="h-9 w-9 rounded-2xl border border-border bg-card hover:bg-muted flex items-center justify-center"
-                  onClick={() => setStableDurationMin((v) => Math.min(240, v + 15))}
-                  aria-label="Augmenter la durée"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="mt-1 text-[11px] text-muted-foreground">
-                Durée envoyée au back-end (non affichée dans la maquette).
+              {/* Stable duration (backend requirement) */}
+              <div className="rounded-2xl border border-border bg-muted px-3 py-2">
+                <div className="text-xs font-semibold text-foreground">Durée (valeur par défaut)</div>
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="h-9 w-9 rounded-2xl border border-border bg-card hover:bg-muted flex items-center justify-center"
+                    onClick={() => setStableDurationMin((v) => Math.max(30, v - 15))}
+                    aria-label="Diminuer la durée"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <div className="text-sm font-semibold text-foreground">{stableDurationMin} min</div>
+                  <button
+                    type="button"
+                    className="h-9 w-9 rounded-2xl border border-border bg-card hover:bg-muted flex items-center justify-center"
+                    onClick={() => setStableDurationMin((v) => Math.min(240, v + 15))}
+                    aria-label="Augmenter la durée"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        </Modal>
+          </DialogContent>
+        </Dialog>
 
         {/* Feedback Drawer */}
         <FeedbackDrawer
@@ -877,7 +883,6 @@ export default function Dashboard() {
           getSessionStatus={getSessionStatus}
           isAbsent={absenceDates.has(selectedISO)}
           absenceReason={myAbsences.find((a) => a.date === selectedISO)?.reason ?? null}
-          isFutureDate={selectedISO > toISODate(new Date())}
           onMarkDayAbsent={(reason) => absenceMutation.mutate({ date: selectedISO, reason })}
           onRemoveDayAbsence={() => removeAbsenceMutation.mutate(selectedISO)}
         />

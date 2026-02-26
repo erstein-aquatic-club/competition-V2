@@ -5755,3 +5755,24 @@ La policy `objectives_write` n'autorisait que `app_user_role() IN ('admin', 'coa
 - [ ] Test manuel : nageur crée un objectif → succès
 - [ ] Test manuel : nageur modifie/supprime son objectif → succès
 - [ ] Test manuel : nageur ne peut pas modifier l'objectif d'un autre nageur
+
+---
+
+## §70 — 2026-02-26 — Absences disponibles sur tous les jours (pas seulement futurs)
+
+### Contexte
+
+Le bouton "Marquer indisponible" dans le drawer du calendrier nageur n'apparaissait que pour les dates futures (`isFutureDate`). Un nageur voulant déclarer une absence rétroactive (jour passé ou aujourd'hui) ne voyait pas le bouton.
+
+### Changements
+
+| Fichier | Modification |
+|---------|-------------|
+| `src/components/dashboard/FeedbackDrawer.tsx` | Suppression condition `isFutureDate` + nettoyage prop inutilisée |
+| `src/pages/Dashboard.tsx` | Suppression prop `isFutureDate` passée au drawer |
+
+### Tests
+
+- [x] `npm run build` — OK
+- [ ] Test manuel : cliquer sur un jour passé → le bouton "Marquer indisponible" est visible
+- [ ] Test manuel : cliquer sur aujourd'hui → idem

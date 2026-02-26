@@ -293,7 +293,6 @@ interface FeedbackDrawerProps {
   getSessionStatus: (session: PlannedSession, date: Date) => SessionStatus;
   isAbsent?: boolean;
   absenceReason?: string | null;
-  isFutureDate?: boolean;
   onMarkDayAbsent?: (reason?: string) => void;
   onRemoveDayAbsence?: () => void;
 }
@@ -323,7 +322,6 @@ export function FeedbackDrawer({
   getSessionStatus,
   isAbsent,
   absenceReason,
-  isFutureDate,
   onMarkDayAbsent,
   onRemoveDayAbsence,
 }: FeedbackDrawerProps) {
@@ -409,7 +407,7 @@ export function FeedbackDrawer({
                 </div>
 
                 {/* Planned absence */}
-                {isFutureDate && onMarkDayAbsent && onRemoveDayAbsence && (
+                {onMarkDayAbsent && onRemoveDayAbsence && (
                   isAbsent ? (
                     <div className="rounded-xl border border-muted bg-muted/30 p-3 mt-3 mb-1">
                       <div className="flex items-center justify-between">
