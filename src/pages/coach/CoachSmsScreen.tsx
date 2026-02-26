@@ -1,12 +1,15 @@
 import { useMemo, useState } from "react";
-import { MessageSquare, Copy, ExternalLink } from "lucide-react";
+import { MessageSquare, Copy, ExternalLink, Check, ChevronsUpDown, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import CoachSectionHeader from "./CoachSectionHeader";
 
@@ -20,7 +23,9 @@ type CoachSmsScreenProps = {
 const CoachSmsScreen = ({ onBack, athletes, groups, athletesLoading }: CoachSmsScreenProps) => {
   const { toast } = useToast();
   const [message, setMessage] = useState("");
-  const [targetValue, setTargetValue] = useState("");
+  const [selectedGroups, setSelectedGroups] = useState<Set<number>>(new Set());
+  const [selectedUsers, setSelectedUsers] = useState<Set<number>>(new Set());
+  const [open, setOpen] = useState(false);
 
   const { data: athletePhones } = useQuery({
     queryKey: ["athlete-phones"],
@@ -38,46 +43,77 @@ const CoachSmsScreen = ({ onBack, athletes, groups, athletesLoading }: CoachSmsS
       athletes
         .filter((a) => a.id != null)
         .map((a) => ({
-          value: `user:${a.id}`,
-          label: a.group_label ? `${a.display_name} · ${a.group_label}` : a.display_name,
           id: a.id!,
+          display_name: a.display_name,
+          group_id: a.group_id ?? null,
+          group_label: a.group_label ?? null,
         })),
     [athletes],
   );
 
-  const groupOptions = useMemo(
-    () =>
-      groups.map((g) => ({
-        value: `group:${g.id}`,
-        label: g.name,
-        id: g.id,
-      })),
-    [groups],
-  );
-
-  const resolvePhones = (): { found: string[]; total: number } => {
-    if (!targetValue || !athletePhones) return { found: [], total: 0 };
-
-    if (targetValue.startsWith("user:")) {
-      const userId = Number(targetValue.split(":")[1]);
-      const phone = athletePhones.get(userId);
-      return { found: phone ? [phone] : [], total: 1 };
-    }
-
-    if (targetValue.startsWith("group:")) {
-      const groupId = Number(targetValue.split(":")[1]);
-      const groupAthletes = athletes.filter((a) => a.group_id === groupId && a.id != null);
-      const phones = groupAthletes
-        .map((a) => athletePhones.get(a.id!))
-        .filter((p): p is string => !!p && p.trim().length > 0);
-      return { found: phones, total: groupAthletes.length };
-    }
-
-    return { found: [], total: 0 };
+  const toggleGroup = (groupId: number) => {
+    setSelectedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
   };
 
-  const { found: selectedPhones, total: selectedTotal } = resolvePhones();
-  const missingCount = selectedTotal - selectedPhones.length;
+  const toggleUser = (userId: number) => {
+    setSelectedUsers((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
+
+  const clearAll = () => {
+    setSelectedGroups(new Set());
+    setSelectedUsers(new Set());
+  };
+
+  // Resolve all unique phone numbers from selection
+  const { selectedPhones, selectedTotal, missingCount } = useMemo(() => {
+    if (!athletePhones) return { selectedPhones: [] as string[], selectedTotal: 0, missingCount: 0 };
+
+    const userIds = new Set<number>();
+
+    // Add users from selected groups
+    for (const groupId of selectedGroups) {
+      for (const a of athleteOptions) {
+        if (a.group_id === groupId) userIds.add(a.id);
+      }
+    }
+
+    // Add individually selected users
+    for (const userId of selectedUsers) {
+      userIds.add(userId);
+    }
+
+    const total = userIds.size;
+    const phones: string[] = [];
+    for (const uid of userIds) {
+      const phone = athletePhones.get(uid);
+      if (phone && phone.trim().length > 0) phones.push(phone);
+    }
+
+    return { selectedPhones: phones, selectedTotal: total, missingCount: total - phones.length };
+  }, [selectedGroups, selectedUsers, athleteOptions, athletePhones]);
+
+  const selectionCount = selectedGroups.size + selectedUsers.size;
+
+  const selectionSummary = useMemo(() => {
+    const parts: string[] = [];
+    if (selectedGroups.size > 0) {
+      parts.push(`${selectedGroups.size} groupe${selectedGroups.size > 1 ? "s" : ""}`);
+    }
+    if (selectedUsers.size > 0) {
+      parts.push(`${selectedUsers.size} nageur${selectedUsers.size > 1 ? "s" : ""}`);
+    }
+    return parts.join(", ");
+  }, [selectedGroups.size, selectedUsers.size]);
 
   const handleSendSms = () => {
     if (selectedPhones.length === 0) {
@@ -109,7 +145,7 @@ const CoachSmsScreen = ({ onBack, athletes, groups, athletesLoading }: CoachSmsS
       navigator.clipboard.writeText(selectedPhones.join(", ")).then(() => {
         toast({
           title: "Numéros copiés",
-          description: `${selectedPhones.length} numéro${selectedPhones.length > 1 ? "s" : ""} copié${selectedPhones.length > 1 ? "s" : ""} dans le presse-papiers. Utilisez votre téléphone pour envoyer le SMS.`,
+          description: `${selectedPhones.length} numéro${selectedPhones.length > 1 ? "s" : ""} copié${selectedPhones.length > 1 ? "s" : ""} dans le presse-papiers.`,
         });
       }).catch(() => {
         toast({ title: "Erreur", description: "Impossible de copier les numéros.", variant: "destructive" });
@@ -129,57 +165,137 @@ const CoachSmsScreen = ({ onBack, athletes, groups, athletesLoading }: CoachSmsS
 
       <Card className="border-l-4 border-l-primary">
         <CardHeader>
-          <CardTitle>Destinataire</CardTitle>
-          <CardDescription>Sélectionnez un nageur ou un groupe.</CardDescription>
+          <CardTitle>Destinataires</CardTitle>
+          <CardDescription>Sélectionnez des groupes et/ou des nageurs.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Destinataire</Label>
-            <Select value={targetValue} onValueChange={setTargetValue}>
-              <SelectTrigger>
-                <SelectValue placeholder={athletesLoading ? "Chargement..." : "Choisir un nageur ou un groupe"} />
-              </SelectTrigger>
-              <SelectContent>
-                {groupOptions.length ? (
-                  <>
-                    <SelectItem value="section-group" disabled>
-                      Groupes
-                    </SelectItem>
-                    {groupOptions.map((g) => (
-                      <SelectItem key={g.value} value={g.value}>
-                        {g.label}
-                      </SelectItem>
-                    ))}
-                  </>
-                ) : null}
-                {athleteOptions.length ? (
-                  <>
-                    <SelectItem value="section-athlete" disabled>
-                      Nageurs
-                    </SelectItem>
-                    {athleteOptions.map((a) => (
-                      <SelectItem key={a.value} value={a.value}>
-                        {a.label}
-                      </SelectItem>
-                    ))}
-                  </>
-                ) : null}
-              </SelectContent>
-            </Select>
-          </div>
-          {targetValue && selectedPhones.length > 0 ? (
+        <CardContent className="space-y-3">
+          <Label>Destinataires</Label>
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={open}
+                className="w-full justify-between font-normal"
+              >
+                <span className="truncate">
+                  {selectionCount > 0
+                    ? selectionSummary
+                    : athletesLoading
+                      ? "Chargement..."
+                      : "Choisir des destinataires"}
+                </span>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Rechercher..." />
+                <CommandList>
+                  <CommandEmpty>Aucun résultat.</CommandEmpty>
+                  {groups.length > 0 && (
+                    <CommandGroup heading="Groupes">
+                      {groups.map((g) => (
+                        <CommandItem
+                          key={`group:${g.id}`}
+                          value={`groupe ${g.name}`}
+                          onSelect={() => toggleGroup(g.id)}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              selectedGroups.has(g.id) ? "opacity-100" : "opacity-0",
+                            )}
+                          />
+                          {g.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )}
+                  {athleteOptions.length > 0 && (
+                    <CommandGroup heading="Nageurs">
+                      {athleteOptions.map((a) => (
+                        <CommandItem
+                          key={`user:${a.id}`}
+                          value={`nageur ${a.display_name} ${a.group_label ?? ""}`}
+                          onSelect={() => toggleUser(a.id)}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              selectedUsers.has(a.id) ? "opacity-100" : "opacity-0",
+                            )}
+                          />
+                          <span className="truncate">{a.display_name}</span>
+                          {a.group_label && (
+                            <span className="ml-auto text-xs text-muted-foreground">{a.group_label}</span>
+                          )}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )}
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+
+          {selectionCount > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {[...selectedGroups].map((gid) => {
+                const g = groups.find((gr) => gr.id === gid);
+                return g ? (
+                  <Badge key={`g:${gid}`} variant="secondary" className="gap-1 pr-1">
+                    {g.name}
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(gid)}
+                      className="ml-0.5 rounded-full p-0.5 hover:bg-muted"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ) : null;
+              })}
+              {[...selectedUsers].map((uid) => {
+                const a = athleteOptions.find((at) => at.id === uid);
+                return a ? (
+                  <Badge key={`u:${uid}`} variant="outline" className="gap-1 pr-1">
+                    {a.display_name}
+                    <button
+                      type="button"
+                      onClick={() => toggleUser(uid)}
+                      className="ml-0.5 rounded-full p-0.5 hover:bg-muted"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ) : null;
+              })}
+              {selectionCount > 1 && (
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  className="text-xs text-muted-foreground underline hover:text-foreground"
+                >
+                  Tout effacer
+                </button>
+              )}
+            </div>
+          )}
+
+          {selectionCount > 0 && selectedPhones.length > 0 && (
             <p className="text-xs text-muted-foreground">
               {selectedPhones.length} numéro{selectedPhones.length > 1 ? "s" : ""} trouvé{selectedPhones.length > 1 ? "s" : ""}
-              {missingCount > 0 ? (
+              {missingCount > 0 && (
                 <span className="text-destructive"> · {missingCount} sans téléphone</span>
-              ) : null}
+              )}
             </p>
-          ) : null}
-          {targetValue && selectedPhones.length === 0 ? (
+          )}
+          {selectionCount > 0 && selectedPhones.length === 0 && (
             <p className="text-xs text-destructive">
               Aucun numéro de téléphone disponible pour cette sélection.
             </p>
-          ) : null}
+          )}
         </CardContent>
       </Card>
 
@@ -202,7 +318,7 @@ const CoachSmsScreen = ({ onBack, athletes, groups, athletesLoading }: CoachSmsS
         <Button
           className="w-full sm:w-auto"
           onClick={handleSendSms}
-          disabled={!targetValue || selectedPhones.length === 0}
+          disabled={selectionCount === 0 || selectedPhones.length === 0}
         >
           {isMobile ? (
             <>
