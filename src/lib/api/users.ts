@@ -143,8 +143,9 @@ export async function getAthletes(): Promise<AthleteSummary[]> {
   }
   const { data: members, error: membersError } = await supabase
     .from("group_members")
-    .select("user_id, group_id, users!inner(display_name, role, email)")
-    .eq("users.role", "athlete");
+    .select("user_id, group_id, users!inner(display_name, role, email), groups!inner(is_temporary)")
+    .eq("users.role", "athlete")
+    .eq("groups.is_temporary", false);
   if (membersError) throw new Error(membersError.message);
   const groupMap = new Map(groups.map((g: any) => [g.id, g.name]));
   const athleteMap = new Map<number, AthleteSummary>();
