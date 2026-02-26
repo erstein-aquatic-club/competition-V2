@@ -295,6 +295,18 @@ export default function Progress() {
     return Math.round((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
   }, [nextCompetition]);
 
+  const presenceDefaults = useMemo(() => {
+    const key = `swim-dashboard-v2:${athleteKey}:presenceDefaults`;
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (raw) return JSON.parse(raw) as Record<number, { AM?: boolean; PM?: boolean }>;
+    } catch { /* ignore */ }
+    // Default: all days ON
+    const init: Record<number, { AM: boolean; PM: boolean }> = {};
+    for (let i = 0; i < 7; i++) init[i] = { AM: true, PM: true };
+    return init;
+  }, [athleteKey]);
+
   const trainingDaysRemaining = useMemo(() => {
     if (!nextCompetition) return null;
     const todayISO = new Date().toISOString().slice(0, 10);
@@ -303,11 +315,26 @@ export default function Progress() {
     if (assignments) {
       for (const a of assignments) {
         const d = (a.assigned_date || "").slice(0, 10);
-        if (d > todayISO && d < compDate && !absenceDates.has(d)) trainingDates.add(d);
+        if (d > todayISO && d < compDate) trainingDates.add(d);
       }
     }
+    // Add days where the swimmer has expected slots (presence defaults ON)
+    const cursor = new Date(todayISO + "T00:00:00");
+    cursor.setDate(cursor.getDate() + 1);
+    const compEnd = new Date(compDate + "T00:00:00");
+    while (cursor < compEnd) {
+      const iso = cursor.toISOString().slice(0, 10);
+      if (!absenceDates.has(iso)) {
+        const jsDay = cursor.getDay();
+        const weekday = (jsDay + 6) % 7; // Monday=0
+        const hasAM = Boolean(presenceDefaults?.[weekday]?.AM);
+        const hasPM = Boolean(presenceDefaults?.[weekday]?.PM);
+        if (hasAM || hasPM) trainingDates.add(iso);
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
     return trainingDates.size;
-  }, [nextCompetition, assignments, absenceDates]);
+  }, [nextCompetition, assignments, absenceDates, presenceDefaults]);
 
   // ─── Swim Data Processing ──────────────────────────────────────────────────
 
