@@ -5776,3 +5776,43 @@ Le bouton "Marquer indisponible" dans le drawer du calendrier nageur n'apparaiss
 - [x] `npm run build` — OK
 - [ ] Test manuel : cliquer sur un jour passé → le bouton "Marquer indisponible" est visible
 - [ ] Test manuel : cliquer sur aujourd'hui → idem
+
+---
+
+## §71 — 2026-02-27 — Quiz neurotype nageur (profil d'entraînement)
+
+### Contexte
+
+Ajout d'un quiz de 30 questions dans la page Profil nageur pour déterminer le neurotype d'entraînement parmi 5 profils (1A Intensité, 1B Explosif, 2A Variation, 2B Sensation, Type 3 Contrôle). Basé sur le quiz SwimStrength, adapté pour le club EAC. Le résultat est stocké en base et visible par le nageur et le coach.
+
+### Changements
+
+| Fichier / Ressource | Modification |
+|---------------------|-------------|
+| `supabase/migrations/00033_neurotype_result.sql` | Ajout colonne `neurotype_result jsonb` à `user_profiles` |
+| `src/lib/api/types.ts` | Ajout interfaces `NeurotypScores`, `NeurotypCode`, `NeurotypResult` + extension `UserProfile` |
+| `src/lib/api/users.ts` | `getProfile` et `updateProfile` intègrent `neurotype_result` |
+| `src/lib/api.ts` | Re-export des nouveaux types |
+| `src/lib/neurotype-quiz-data.ts` | 30 questions avec scoring + 5 profils complets (traits, salle, piscine) + couleurs |
+| `src/lib/neurotype-scoring.ts` | Logique de calcul des scores (points/maxPoints par catégorie) + niveaux |
+| `src/components/neurotype/NeurotypQuiz.tsx` | Composant quiz : intro + carousel 30 questions + progress bar + auto-advance |
+| `src/components/neurotype/NeurotypResult.tsx` | Composant résultat : header, barres de score, sections salle/traits/piscine |
+| `src/pages/Profile.tsx` | Carte neurotype dans la grille, routing sections quiz/result, mutation save |
+
+### Décisions techniques
+
+- **Stockage JSONB** dans `user_profiles` plutôt qu'une table séparée (pas besoin d'historique, résultat écrasable)
+- **Scoring client-side** : pas d'edge function, calcul entièrement dans le navigateur
+- **Résultat axé salle** : section "Entraînement en Salle" toujours ouverte, traits et piscine en accordéon
+- **Refaisable** : le nageur peut refaire le quiz, le nouveau résultat écrase l'ancien
+- **Visible par le coach** : le neurotype est dans le profil déjà chargé
+
+### Tests
+
+- [x] `npm run build` — OK (0 erreurs)
+- [x] `npm test` — 121 tests passent, 0 échecs
+- [x] `npx tsc --noEmit` — OK
+- [ ] Test manuel : naviguer au profil → carte Neurotype visible
+- [ ] Test manuel : cliquer → quiz 30 questions → résultat → enregistrer
+- [ ] Test manuel : revoir le résultat depuis le profil
+- [ ] Test manuel : refaire le quiz → nouveau résultat

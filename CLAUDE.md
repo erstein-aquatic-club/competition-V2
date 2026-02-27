@@ -68,6 +68,10 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 | `src/lib/imageUtils.ts` | Compression image Canvas (avatar upload, WebP/JPEG ≤200KB) | ~95 lignes |
 | `src/components/profile/SwimmerObjectivesView.tsx` | Vue objectifs nageur (lecture coach + CRUD perso) | ~530 lignes |
 | `src/pages/coach/CoachSmsScreen.tsx` | Écran SMS généraliste coach (groupe/nageur) | ~190 lignes |
+| `src/lib/neurotype-quiz-data.ts` | 30 questions quiz + 5 profils neurotype + couleurs | ~450 lignes |
+| `src/lib/neurotype-scoring.ts` | Calcul scores neurotype (points/maxPoints) + niveaux | ~40 lignes |
+| `src/components/neurotype/NeurotypQuiz.tsx` | Quiz 30 questions avec carousel + progress bar | ~250 lignes |
+| `src/components/neurotype/NeurotypResult.tsx` | Affichage résultat neurotype (barres, profil, accordéons) | ~250 lignes |
 
 ## Edge Functions Supabase
 
@@ -124,6 +128,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 33 | Écran SMS dédié coach dashboard | Moyenne | Fait (§65) |
 | 34 | Groupes encadrés par shift (pointage coach) | Moyenne | Fait (§66) |
 | 35 | Fix désynchronisation group_members au changement de groupe | Haute | Fait (§67) |
+| 36 | Quiz neurotype nageur (profil d'entraînement) | Moyenne | Fait (§71) |
 
 Détail complet dans `docs/ROADMAP.md`.
 
