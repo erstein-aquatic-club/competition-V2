@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Waves, Power, Check, Circle, UserX, FileText, UserCheck, Minus, Plus, Sun, Moon, ChevronDown } from "lucide-react";
+import { X, Waves, Power, Check, Circle, UserX, FileText, UserCheck, Minus, Plus, Sun, Moon, ChevronDown, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { BottomActionBar, type SaveState } from "@/components/shared/BottomActionBar";
 import { slideInFromBottom, staggerChildren, listItem } from "@/lib/animations";
@@ -293,6 +293,7 @@ interface FeedbackDrawerProps {
   getSessionStatus: (session: PlannedSession, date: Date) => SessionStatus;
   isAbsent?: boolean;
   absenceReason?: string | null;
+  onDeleteFeedback?: (sessionId: string) => void;
   onMarkDayAbsent?: (reason?: string) => void;
   onRemoveDayAbsence?: () => void;
 }
@@ -322,6 +323,7 @@ export function FeedbackDrawer({
   getSessionStatus,
   isAbsent,
   absenceReason,
+  onDeleteFeedback,
   onMarkDayAbsent,
   onRemoveDayAbsence,
 }: FeedbackDrawerProps) {
@@ -776,6 +778,22 @@ export function FeedbackDrawer({
                                 onToggle={() => onDraftStateChange({ ...draftState, showStrokeDetail: !draftState.showStrokeDetail })}
                                 onChange={(strokes) => onDraftStateChange({ ...draftState, strokes })}
                               />
+
+                              {hasLog && onDeleteFeedback && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (window.confirm("Supprimer ce ressenti ?")) {
+                                      onDeleteFeedback(activeSession.id);
+                                    }
+                                  }}
+                                  disabled={isPending}
+                                  className="mt-4 w-full rounded-2xl border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10 transition disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  Supprimer le ressenti
+                                </button>
+                              )}
 
                             </div>
                           </>

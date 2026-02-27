@@ -883,6 +883,14 @@ export default function Dashboard() {
           onMarkPresent={markPresent}
           onClearOverride={clearOverride}
           onSaveFeedback={saveFeedback}
+          onDeleteFeedback={(sessionId) => {
+            const existing = logsBySessionId[sessionId];
+            if (existing?.id) {
+              deleteMutation.mutate(Number(existing.id));
+              setActiveSessionId(null);
+              setDetailsOpen(false);
+            }
+          }}
           onDraftStateChange={setDraftState}
           getSessionStatus={getSessionStatus}
           isAbsent={absenceDates.has(selectedISO)}
