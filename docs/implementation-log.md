@@ -42,6 +42,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §63 Upload photo de profil avec compression | ✅ Fait | 2026-02-24 |
 | §65 Écran SMS dédié coach dashboard | ✅ Fait | 2026-02-24 |
 | §66 Groupes encadrés par shift (pointage coach) | ✅ Fait | 2026-02-25 |
+| §72 Dashboard synthétique nageurs (coach) | ✅ Fait | 2026-02-27 |
 | §45 Audit UI/UX — header Strength + login mobile + fixes | ✅ Fait | 2026-02-16 |
 | §46 Harmonisation headers + Login mobile thème clair | ✅ Fait | 2026-02-16 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
@@ -5816,3 +5817,56 @@ Ajout d'un quiz de 30 questions dans la page Profil nageur pour déterminer le n
 - [ ] Test manuel : cliquer → quiz 30 questions → résultat → enregistrer
 - [ ] Test manuel : revoir le résultat depuis le profil
 - [ ] Test manuel : refaire le quiz → nouveau résultat
+
+---
+
+## 2026-02-27 — §72 Dashboard synthétique nageurs (coach)
+
+**Branche** : `main`
+**Chantier ROADMAP** : §72 — Dashboard synthétique nageurs (coach)
+
+### Contexte — Pourquoi ce patch
+
+La section "Nageurs" du coach affichait une liste basique (nom, groupe, IUF, bouton Fiche). Les coaches avaient besoin d'une vue d'ensemble synthétique pour suivre l'état de forme, l'activité et les objectifs de chaque nageur.
+
+### Changements réalisés
+
+1. **AthleteSummary enrichi** : ajout `avatar_url` au type + fetch dans `getAthletes()`
+2. **API bulk sessions** : nouvelle fonction `getRecentSessionsAllAthletes(days)` qui récupère toutes les sessions des N derniers jours en une seule requête
+3. **CoachSwimmersOverview** : nouveau composant dashboard avec grille de cartes nageur, chaque carte affichant avatar, groupe, score de forme (coloré), nombre de séances 30j, nombre d'objectifs
+4. **Filtres et tri** : chips de filtrage par groupe, tri par nom/forme/activité
+5. **Intégration Coach.tsx** : remplacement de la section inline par le nouveau composant
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/lib/api/types.ts` | Ajout `avatar_url` à `AthleteSummary` |
+| `src/lib/api/users.ts` | Fetch `avatar_url` + nouvelle fonction `getRecentSessionsAllAthletes` |
+| `src/lib/api/index.ts` | Re-export nouvelle fonction |
+| `src/lib/api.ts` | Delegation stub nouvelle fonction |
+| `src/pages/coach/CoachSwimmersOverview.tsx` | **Nouveau** — Composant dashboard nageurs |
+| `src/pages/Coach.tsx` | Remplacement section swimmers, nettoyage imports inutilisés |
+
+### Tests
+
+- [x] `npm run build` — OK
+- [x] `npx tsc --noEmit` — OK
+- [ ] Test manuel : coach → section Nageurs → grille de cartes visible
+- [ ] Test manuel : filtrer par groupe → cartes filtrées
+- [ ] Test manuel : trier par forme/activité → ordre correct
+- [ ] Test manuel : cliquer une carte → page Progression nageur
+
+### Décisions prises
+
+- Score de forme = moyenne inversée des 4 indicateurs du dernier ressenti (effort et fatigue inversés car haute valeur = mauvais)
+- Assiduité V1 = nombre de séances 30j (pas de % car nécessiterait les assignations par nageur)
+- Objectifs = compteur simple (pas de progression atteint/non atteint en V1)
+- Pas de TDD pour ce composant UI (pas de logique complexe testable isolément)
+
+### Limites / dette
+
+- Le score de forme utilise les valeurs DB (échelle 1-10) et non les valeurs normalisées (1-5)
+- L'assiduité est un compte brut de séances, pas un pourcentage vs assignations
+- Les objectifs ne distinguent pas atteints vs non atteints
+- Pas de lazy-loading du composant (à considérer si le bundle coach grossit)
