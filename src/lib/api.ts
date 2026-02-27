@@ -89,6 +89,7 @@ import {
   authPasswordUpdate as _authPasswordUpdate,
   uploadAvatar as _uploadAvatar,
   deleteAvatar as _deleteAvatar,
+  getRecentSessionsAllAthletes as _getRecentSessionsAllAthletes,
 } from "./api/users";
 
 import {
@@ -625,4 +626,5 @@ export const api = {
   async authPasswordUpdate(payload: Parameters<typeof _authPasswordUpdate>[0]) { return _authPasswordUpdate(payload); },
   async uploadAvatar(payload: Parameters<typeof _uploadAvatar>[0]) { return _uploadAvatar(payload); },
   async deleteAvatar(userId: number) { return _deleteAvatar(userId); },
+  async getRecentSessionsAllAthletes(days?: number) { return _getRecentSessionsAllAthletes(days); },
 };

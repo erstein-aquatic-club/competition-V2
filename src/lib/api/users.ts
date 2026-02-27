@@ -381,3 +381,37 @@ export async function deleteAvatar(userId: number): Promise<void> {
     .eq("user_id", userId);
   if (profileError) throw new Error(profileError.message);
 }
+
+export async function getRecentSessionsAllAthletes(days = 30): Promise<
+  Array<{
+    athlete_id: number | null;
+    athlete_name: string;
+    session_date: string;
+    effort: number | null;
+    performance: number | null;
+    engagement: number | null;
+    fatigue: number | null;
+  }>
+> {
+  if (!canUseSupabase()) return [];
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+  const sinceISO = since.toISOString().slice(0, 10);
+
+  const { data, error } = await supabase
+    .from("dim_sessions")
+    .select("athlete_id, athlete_name, session_date, rpe, performance, engagement, fatigue")
+    .gte("session_date", sinceISO)
+    .order("session_date", { ascending: false });
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).map((row: any) => ({
+    athlete_id: row.athlete_id ? safeInt(row.athlete_id) : null,
+    athlete_name: String(row.athlete_name ?? ""),
+    session_date: String(row.session_date ?? ""),
+    effort: safeOptionalInt(row.rpe),
+    performance: safeOptionalInt(row.performance),
+    engagement: safeOptionalInt(row.engagement),
+    fatigue: safeOptionalInt(row.fatigue),
+  }));
+}

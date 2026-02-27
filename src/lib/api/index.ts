@@ -107,6 +107,7 @@ export {
   authPasswordUpdate,
   uploadAvatar,
   deleteAvatar,
+  getRecentSessionsAllAthletes,
 } from './users';
 
 export {
