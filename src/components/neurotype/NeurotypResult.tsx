@@ -45,7 +45,7 @@ function LevelBadge({ level }: { level: "match" | "potential" | "unsuited" }) {
       className: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400",
     },
     unsuited: {
-      label: "Inadapt\u00e9",
+      label: "Inadapté",
       className: "bg-muted text-muted-foreground",
     },
   }[level];
@@ -222,7 +222,7 @@ export default function NeurotypResult({
       <div className="rounded-xl border bg-card text-card-foreground overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 font-semibold text-sm">
           <Dumbbell className="h-4 w-4" />
-          <span>Entra\u00eenement en Salle</span>
+          <span>Entraînement en Salle</span>
         </div>
         <ul className="space-y-2 px-4 pb-4 text-sm text-muted-foreground">
           {profile.gymTraining.map((item, i) => (
@@ -236,13 +236,13 @@ export default function NeurotypResult({
 
       {/* ---- Traits (collapsible, default closed) ---- */}
       <CollapsibleSection
-        title="Traits de personnalit\u00e9"
+        title="Traits de personnalité"
         items={profile.traits}
       />
 
       {/* ---- Pool Training (collapsible, default closed) ---- */}
       <CollapsibleSection
-        title="Entra\u00eenement en Piscine"
+        title="Entraînement en Piscine"
         items={profile.poolTraining}
       />
 
@@ -261,7 +261,7 @@ export default function NeurotypResult({
           ) : (
             <>
               <Save className="mr-2 h-4 w-4" />
-              Enregistrer mon r\u00e9sultat
+              Enregistrer mon résultat
             </>
           )}
         </Button>

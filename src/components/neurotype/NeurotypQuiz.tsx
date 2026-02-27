@@ -35,7 +35,7 @@ const PILLARS = [
   {
     icon: Focus,
     title: "Focus",
-    text: "Adopte des methodes d'entrainement adaptees",
+    text: "Adopte des méthodes d'entraînement adaptées",
   },
   {
     icon: Trophy,
@@ -45,12 +45,12 @@ const PILLARS = [
   {
     icon: Flame,
     title: "Performer",
-    text: "Developpe la confiance dans ton programme",
+    text: "Développe la confiance dans ton programme",
   },
   {
     icon: TrendingUp,
-    title: "Resultats",
-    text: "Commence a exploser tes records !",
+    title: "Résultats",
+    text: "Commence à exploser tes records !",
   },
 ] as const;
 
@@ -117,11 +117,11 @@ export function NeurotypQuiz({ onComplete, onCancel }: NeurotypQuizProps) {
     return (
       <div className="flex flex-col items-center px-5 py-8 text-center max-w-md mx-auto">
         <h1 className="text-2xl font-bold tracking-tight">
-          Decouvre ton Type d'Entrainement
+          Découvre ton Type d'Entraînement
         </h1>
         <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
-          Connaitre ton Neurotype te permet de t'entrainer d'une maniere qui
-          maximise tes resultats, ta recuperation et ta motivation !
+          Connaître ton Neurotype te permet de t'entraîner d'une manière qui
+          maximise tes résultats, ta récupération et ta motivation !
         </p>
 
         <div className="grid grid-cols-2 gap-3 mt-8 w-full">
@@ -171,7 +171,7 @@ export function NeurotypQuiz({ onComplete, onCancel }: NeurotypQuizProps) {
           type="button"
           className="p-2 -ml-2 text-muted-foreground hover:text-foreground transition-colors"
           onClick={goPrev}
-          aria-label="Question precedente"
+          aria-label="Question précédente"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
@@ -209,7 +209,7 @@ export function NeurotypQuiz({ onComplete, onCancel }: NeurotypQuizProps) {
           transition={TRANSITION}
           className="mt-8 flex flex-col gap-4"
         >
-          <h2 className="text-lg font-semibold leading-snug">
+          <h2 className="text-base font-medium leading-relaxed">
             {question.text}
           </h2>
 
