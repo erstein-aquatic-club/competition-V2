@@ -15,6 +15,7 @@ import type {
   GroupSummary,
   UpcomingBirthday,
   UserSummary,
+  NeurotypResult,
 } from './types';
 import { localStorageGet } from './localStorage';
 
@@ -44,6 +45,7 @@ export async function getProfile(options: {
     avatar_url: data.avatar_url ?? null,
     ffn_iuf: data.ffn_iuf ?? null,
     phone: data.phone ?? null,
+    neurotype_result: data.neurotype_result ?? null,
   };
 }
 
@@ -58,6 +60,7 @@ export async function updateProfile(payload: {
     avatar_url?: string | null;
     ffn_iuf?: string | null;
     phone?: string | null;
+    neurotype_result?: NeurotypResult | null;
   };
 }) {
   if (!canUseSupabase()) return { status: "skipped" };

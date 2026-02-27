@@ -158,6 +158,7 @@ export interface UserProfile {
   avatar_url?: string | null;
   ffn_iuf?: string | null;
   phone?: string | null;
+  neurotype_result?: NeurotypResult | null;
 }
 
 export interface AthleteSummary {
@@ -477,4 +478,20 @@ export interface PlannedAbsence {
   date: string;
   reason?: string | null;
   created_at?: string | null;
+}
+
+export interface NeurotypScores {
+  "1A": number;
+  "1B": number;
+  "2A": number;
+  "2B": number;
+  "3": number;
+}
+
+export type NeurotypCode = "1A" | "1B" | "2A" | "2B" | "3";
+
+export interface NeurotypResult {
+  dominant: NeurotypCode;
+  scores: NeurotypScores;
+  takenAt: string;
 }

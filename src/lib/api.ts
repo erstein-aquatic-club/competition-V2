@@ -43,6 +43,9 @@ export type {
   Objective,
   ObjectiveInput,
   PlannedAbsence,
+  NeurotypResult,
+  NeurotypScores,
+  NeurotypCode,
 } from "./api/types";
 
 import type {
