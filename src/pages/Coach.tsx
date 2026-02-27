@@ -2,15 +2,15 @@ import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CalendarDays, Download, Dumbbell, HeartPulse, Mail, MessageSquare, Target, Trophy, Users, UsersRound, Waves } from "lucide-react";
+import { CalendarDays, Dumbbell, HeartPulse, Mail, MessageSquare, Target, Trophy, Users, UsersRound, Waves } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { Badge } from "@/components/ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import CoachSectionHeader from "./coach/CoachSectionHeader";
+import CoachSwimmersOverview from "./coach/CoachSwimmersOverview";
 import CoachMessagesScreen from "./coach/CoachMessagesScreen";
 import CoachSmsScreen from "./coach/CoachSmsScreen";
 import CoachCalendar from "./coach/CoachCalendar";
@@ -438,21 +438,6 @@ export default function Coach() {
   };
 
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const importSingle = useMutation({
-    mutationFn: async (params: { iuf: string; name: string }) => {
-      const result = await api.importSingleSwimmer(params.iuf, params.name);
-      await api.recalculateClubRecords();
-      return result;
-    },
-    onSuccess: (data) => {
-      toast({ title: "Import terminé", description: `${data.total_found} trouvées, ${data.new_imported} nouvelles.` });
-      void queryClient.invalidateQueries({ queryKey: ["club-records"] });
-    },
-    onError: (err: Error) => {
-      toast({ title: "Erreur import", description: err.message, variant: "destructive" });
-    },
-  });
 
   if (!coachAccess) {
     return (
@@ -542,77 +527,12 @@ export default function Coach() {
       ) : null}
 
       {activeSection === "swimmers" ? (
-        <div className="space-y-4">
-          <CoachSectionHeader
-            title="Nageurs"
-            description={
-              athletesLoading
-                ? "Chargement…"
-                : `${athletes.length} nageur${athletes.length !== 1 ? "s" : ""} inscrit${athletes.length !== 1 ? "s" : ""}`
-            }
-            onBack={() => setActiveSection("home")}
-            actions={
-              <Button variant="outline" size="sm" onClick={() => setActiveSection("messaging")}>
-                <Mail className="mr-1.5 h-3.5 w-3.5" />
-                Email
-              </Button>
-            }
-          />
-          {athletesLoading ? (
-            <div className="space-y-2">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="rounded-xl border p-3 animate-pulse motion-reduce:animate-none">
-                  <div className="flex items-center gap-3">
-                    <div className="h-4 w-32 rounded bg-muted" />
-                    <div className="ml-auto h-8 w-16 rounded bg-muted" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : athletes.length ? (
-            <div className="space-y-2">
-              {athletes.map((athlete) => (
-                <div
-                  key={athlete.id ?? athlete.display_name}
-                  className="flex items-center gap-3 rounded-xl border bg-card p-3"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold truncate">{athlete.display_name}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      {athlete.group_label ? (
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                          {athlete.group_label}
-                        </Badge>
-                      ) : null}
-                      {athlete.ffn_iuf ? (
-                        <span className="text-[10px] font-mono text-muted-foreground">{athlete.ffn_iuf}</span>
-                      ) : null}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {athlete.ffn_iuf ? (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8"
-                        disabled={importSingle.isPending}
-                        onClick={() => importSingle.mutate({ iuf: athlete.ffn_iuf!, name: athlete.display_name })}
-                        title="Importer performances FFN"
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    ) : null}
-                    <Button size="sm" variant="outline" onClick={() => handleOpenAthlete(athlete)}>
-                      Fiche
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">Aucun nageur disponible.</p>
-          )}
-        </div>
+        <CoachSwimmersOverview
+          athletes={athletes}
+          athletesLoading={athletesLoading}
+          onBack={() => setActiveSection("home")}
+          onOpenAthlete={handleOpenAthlete}
+        />
       ) : null}
 
       {activeSection === "messaging" ? (
