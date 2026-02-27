@@ -168,6 +168,7 @@ export interface AthleteSummary {
   group_id?: number | null;
   group_label?: string | null;
   ffn_iuf?: string | null;
+  avatar_url?: string | null;
 }
 
 export interface GroupSummary {
