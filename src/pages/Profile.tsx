@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Lock, Pen, Target, Trophy, LogOut, Save, AlertCircle, Download, Camera, Trash2 } from "lucide-react";
+import { Lock, Pen, Target, Trophy, LogOut, Save, AlertCircle, Download, Camera, Trash2, Brain } from "lucide-react";
 import { compressImage, isAcceptedImageType } from "@/lib/imageUtils";
 import AvatarCropDialog from "@/components/profile/AvatarCropDialog";
 import { useForm } from "react-hook-form";
@@ -22,6 +22,10 @@ import { z } from "zod";
 import { motion } from "framer-motion";
 import { fadeIn } from "@/lib/animations";
 import SwimmerObjectivesView from "@/components/profile/SwimmerObjectivesView";
+import { NeurotypQuiz } from "@/components/neurotype/NeurotypQuiz";
+import NeurotypResultView from "@/components/neurotype/NeurotypResult";
+import { NEUROTYPE_PROFILES } from "@/lib/neurotype-quiz-data";
+import type { NeurotypResult as NeurotypResultType, NeurotypCode } from "@/lib/api/types";
 
 declare const __BUILD_TIMESTAMP__: string;
 
@@ -39,6 +43,8 @@ export const getRoleLabel = (role: string | null) => {
       return "Nageur";
   }
 };
+
+const getNeurotypName = (code: string) => NEUROTYPE_PROFILES[code as NeurotypCode]?.name ?? code;
 
 // Profile edit validation schema
 const profileEditSchema = z.object({
@@ -91,11 +97,12 @@ export default function Profile() {
   const canUpdatePassword = role === "athlete" || role === "coach" || role === "admin";
   const roleLabel = getRoleLabel(role);
 
-  const [activeSection, setActiveSection] = useState<"home" | "objectives">("home");
+  const [activeSection, setActiveSection] = useState<"home" | "objectives" | "neurotype-quiz" | "neurotype-result">("home");
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
   const [isPasswordSheetOpen, setIsPasswordSheetOpen] = useState(false);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [cropDialogSrc, setCropDialogSrc] = useState<string | null>(null);
+  const [pendingNeurotypResult, setPendingNeurotypResult] = useState<NeurotypResultType | null>(null);
 
   const handleCheckUpdate = async () => {
     setIsCheckingUpdate(true);
@@ -273,6 +280,27 @@ export default function Profile() {
     },
   });
 
+  const saveNeurotyp = useMutation({
+    mutationFn: (result: NeurotypResultType) =>
+      api.updateProfile({
+        userId,
+        profile: { neurotype_result: result },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      setPendingNeurotypResult(null);
+      setActiveSection("home");
+      toast({ title: "Neurotype enregistré" });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: "Erreur",
+        description: String((error as Error)?.message || error),
+        variant: "destructive",
+      });
+    },
+  });
+
   const startEdit = () => {
     profileForm.reset({
       group_id: profile?.group_id ? String(profile.group_id) : "",
@@ -329,6 +357,33 @@ export default function Profile() {
           Réessayer
         </Button>
       </div>
+    );
+  }
+
+  if (activeSection === "neurotype-quiz") {
+    return (
+      <NeurotypQuiz
+        onComplete={(result) => {
+          setPendingNeurotypResult(result);
+          setActiveSection("neurotype-result");
+        }}
+        onCancel={() => setActiveSection("home")}
+      />
+    );
+  }
+
+  if (activeSection === "neurotype-result" && pendingNeurotypResult) {
+    return (
+      <NeurotypResultView
+        result={pendingNeurotypResult}
+        onSave={(result) => saveNeurotyp.mutate(result)}
+        onRetry={() => {
+          setPendingNeurotypResult(null);
+          setActiveSection("neurotype-quiz");
+        }}
+        onBack={() => setActiveSection("home")}
+        isSaving={saveNeurotyp.isPending}
+      />
     );
   }
 
@@ -393,6 +448,31 @@ export default function Profile() {
           <p className="text-sm font-bold">Objectifs</p>
           <p className="text-xs text-muted-foreground">Mon plan</p>
         </button>
+        {showRecords && (
+          <button type="button"
+            onClick={() => {
+              if (profile?.neurotype_result) {
+                setPendingNeurotypResult(profile.neurotype_result);
+                setActiveSection("neurotype-result");
+              } else {
+                setActiveSection("neurotype-quiz");
+              }
+            }}
+            className="rounded-xl border bg-card p-4 text-left shadow-sm active:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <Brain className="h-5 w-5 text-primary mb-2" />
+            {profile?.neurotype_result ? (
+              <>
+                <p className="text-sm font-bold">{profile.neurotype_result.dominant} — {getNeurotypName(profile.neurotype_result.dominant)}</p>
+                <p className="text-xs text-muted-foreground">Mon neurotype</p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-bold">Neurotype</p>
+                <p className="text-xs text-muted-foreground">Découvrir mon profil</p>
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       {/* Logout */}
