@@ -3,6 +3,7 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import React, { useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import type { Competition } from "@/lib/api/types";
+import { computeTrainingDaysRemaining } from "@/lib/date";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -309,34 +310,12 @@ export default function Progress() {
 
   const trainingDaysRemaining = useMemo(() => {
     if (!nextCompetition) return null;
-    const pad2 = (n: number) => String(n).padStart(2, "0");
-    const localISO = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-    const todayISO = localISO(new Date());
-    const compDate = nextCompetition.date.slice(0, 10);
-    const trainingDates = new Set<string>();
-    if (assignments) {
-      for (const a of assignments) {
-        const d = (a.assigned_date || "").slice(0, 10);
-        if (d > todayISO && d < compDate) trainingDates.add(d);
-      }
-    }
-    // Add days where the swimmer has expected slots (presence defaults ON)
-    const cursor = new Date();
-    cursor.setHours(0, 0, 0, 0);
-    cursor.setDate(cursor.getDate() + 1);
-    const compEnd = new Date(compDate + "T00:00:00");
-    while (cursor < compEnd) {
-      const iso = localISO(cursor);
-      if (!absenceDates.has(iso)) {
-        const jsDay = cursor.getDay();
-        const weekday = (jsDay + 6) % 7; // Monday=0
-        const hasAM = Boolean(presenceDefaults?.[weekday]?.AM);
-        const hasPM = Boolean(presenceDefaults?.[weekday]?.PM);
-        if (hasAM || hasPM) trainingDates.add(iso);
-      }
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    return trainingDates.size;
+    return computeTrainingDaysRemaining({
+      compDate: nextCompetition.date.slice(0, 10),
+      assignments,
+      absenceDates,
+      presenceDefaults,
+    });
   }, [nextCompetition, assignments, absenceDates, presenceDefaults]);
 
   // ─── Swim Data Processing ──────────────────────────────────────────────────
