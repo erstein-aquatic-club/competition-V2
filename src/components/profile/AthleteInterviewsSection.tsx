@@ -299,7 +299,7 @@ function InterviewCard({
   const isSigned = interview.status === "signed";
 
   // Signed cards collapsed by default, others expanded
-  const [expanded, setExpanded] = useState(!isSigned);
+  const [expanded, setExpanded] = useState(false);
 
   // Local form state for draft editing
   const [successes, setSuccesses] = useState(

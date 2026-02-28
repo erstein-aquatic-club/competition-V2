@@ -1,10 +1,15 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { TrainingWeek } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SwimmerFeedbackTab from "@/pages/coach/SwimmerFeedbackTab";
 import AthleteInterviewsSection from "./AthleteInterviewsSection";
@@ -13,6 +18,7 @@ import { weekTypeColor, weekTypeTextColor } from "@/lib/weekTypeColor";
 import {
   ArrowLeft,
   CalendarRange,
+  ChevronRight,
   Clock,
   MessageSquare,
   Sparkles,
@@ -79,6 +85,7 @@ function daysBetween(dateA: string, dateB: string): number {
 
 function AthleteSeasonPlanning({ athleteId }: { athleteId: number }) {
   const todayIso = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const [openCompetitionIds, setOpenCompetitionIds] = useState<string[]>([]);
 
   const { data: competitions = [] } = useQuery({
     queryKey: ["competitions"],
@@ -144,14 +151,20 @@ function AthleteSeasonPlanning({ athleteId }: { athleteId: number }) {
 
   const nextCompetition = upcomingCompetitions[0] ?? null;
 
+  const toggleCompetition = (competitionId: string) => {
+    setOpenCompetitionIds((current) =>
+      current.includes(competitionId)
+        ? current.filter((id) => id !== competitionId)
+        : [...current, competitionId],
+    );
+  };
+
   if (upcomingCompetitions.length === 0) {
     return (
       <div className="rounded-3xl border border-dashed bg-card/70 px-4 py-8 text-center">
         <CalendarRange className="mx-auto h-10 w-10 text-muted-foreground/60" />
-        <p className="mt-3 text-sm font-medium">Aucune échéance assignée pour le moment.</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Dès qu&apos;une compétition est ciblée, le macrocycle apparaîtra ici.
-        </p>
+        <p className="mt-3 text-sm font-medium">Aucune échéance à venir.</p>
+        <p className="mt-1 text-xs text-muted-foreground">Ton plan apparaîtra ici.</p>
       </div>
     );
   }
@@ -162,17 +175,15 @@ function AthleteSeasonPlanning({ athleteId }: { athleteId: number }) {
         <div className="flex items-center gap-2 flex-wrap">
           <Sparkles className="h-4 w-4 text-primary" />
           <span className="text-sm font-semibold">
-            {upcomingCompetitions.length} échéance{upcomingCompetitions.length > 1 ? "s" : ""} à l&apos;horizon
+            {upcomingCompetitions.length} échéance{upcomingCompetitions.length > 1 ? "s" : ""}
           </span>
           {nextCompetition && (
             <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-              prochaine J-{daysBetween(todayIso, nextCompetition.date)}
+              cap J-{daysBetween(todayIso, nextCompetition.date)}
             </Badge>
           )}
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Vision multi-macrocycles: chaque échéance garde son cap, même si le cycle n&apos;est pas encore détaillé.
-        </p>
+        <p className="mt-2 text-xs text-muted-foreground">Vue de tes prochains cycles.</p>
       </div>
 
       <div className="space-y-3">
@@ -186,105 +197,127 @@ function AthleteSeasonPlanning({ athleteId }: { athleteId: number }) {
           const cycleWeeks = cycle ? (weeksByCycleId.get(cycle.id) ?? []) : [];
           const weeksByStart = new Map(cycleWeeks.map((week) => [week.week_start, week]));
           const daysUntil = daysBetween(todayIso, competition.date);
+          const isOpen = openCompetitionIds.includes(competition.id);
 
           return (
-            <section key={competition.id} className="overflow-hidden rounded-3xl border bg-card shadow-sm">
-              <div className="border-b border-border bg-muted/20 px-4 py-3">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-semibold">{competition.name}</span>
-                  {compIndex === 0 && (
-                    <Badge className="border-primary/20 bg-primary/10 text-[10px] text-primary">
-                      Priorité
-                    </Badge>
-                  )}
-                  <Badge variant="secondary" className="text-[10px]">
-                    {formatDate(competition.date)}
-                  </Badge>
-                  <Badge variant="outline" className="text-[10px]">
-                    J-{daysUntil}
-                  </Badge>
-                </div>
-                {cycle ? (
-                  <div className="mt-1 flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
-                    <span className="font-medium text-foreground">{cycle.name}</span>
-                    {cycle.start_competition_name && (
-                      <span>depuis {cycle.start_competition_name}</span>
-                    )}
-                    <span>{totalMondays.length} sem.</span>
-                    {hiddenWeeks > 0 && (
-                      <span>{hiddenWeeks} déjà écoulée{hiddenWeeks > 1 ? "s" : ""}</span>
-                    )}
-                  </div>
-                ) : (
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Aucun macrocycle détaillé pour cette échéance.
-                  </p>
-                )}
-              </div>
-
-              {!cycle ? (
-                <div className="px-4 py-4 text-xs text-muted-foreground italic">
-                  La compétition reste visible pour garder une projection saison complète.
-                </div>
-              ) : visibleMondays.length === 0 ? (
-                <div className="px-4 py-4 text-xs text-muted-foreground italic">
-                  Aucune semaine future à afficher sur ce macrocycle.
-                </div>
-              ) : (
-                <div className="px-4 py-4">
-                  <div className="relative ml-2 space-y-2 border-l-2 border-border pl-4">
-                    {visibleMondays.map((monday, index) => {
-                      const week = weeksByStart.get(monday);
-                      const current = isCurrentWeek(monday);
-                      const sunday = getSunday(monday);
-
-                      return (
-                        <div
-                          key={monday}
-                          className={`rounded-2xl border bg-card px-3 py-2 text-xs ${
-                            current ? "ring-2 ring-primary/40 bg-primary/[0.04]" : ""
-                          }`}
-                        >
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span
-                              className={`h-2 w-2 rounded-full shrink-0 ${
-                                current
-                                  ? "bg-primary"
-                                  : week?.week_type
-                                    ? "bg-muted-foreground/40"
-                                    : "bg-muted-foreground/20"
-                              }`}
-                            />
-                            <span className="whitespace-nowrap text-muted-foreground">
-                              Sem. {hiddenWeeks + index + 1}
-                            </span>
-                            <span className="whitespace-nowrap text-muted-foreground/70">
-                              {fmtShort(monday)} - {fmtShort(sunday)}
-                            </span>
-                            {week?.week_type && (
-                              <Badge
-                                className="ml-auto border-0 px-1.5 py-0 text-[10px]"
-                                style={{
-                                  backgroundColor: weekTypeColor(week.week_type),
-                                  color: weekTypeTextColor(week.week_type),
-                                }}
-                              >
-                                {week.week_type}
-                              </Badge>
+            <Collapsible
+              key={competition.id}
+              open={isOpen}
+              onOpenChange={() => toggleCompetition(competition.id)}
+            >
+              <section className="overflow-hidden rounded-3xl border bg-card shadow-sm">
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="w-full border-b border-border bg-muted/20 px-4 py-3 text-left transition-colors hover:bg-muted/30"
+                  >
+                    <div className="flex items-start gap-3">
+                      <ChevronRight
+                        className={`mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
+                          isOpen ? "rotate-90" : ""
+                        }`}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold">{competition.name}</span>
+                          {compIndex === 0 && (
+                            <Badge className="border-primary/20 bg-primary/10 text-[10px] text-primary">
+                              Priorité
+                            </Badge>
+                          )}
+                          <Badge variant="secondary" className="text-[10px]">
+                            {formatDate(competition.date)}
+                          </Badge>
+                          <Badge variant="outline" className="text-[10px]">
+                            J-{daysUntil}
+                          </Badge>
+                        </div>
+                        {cycle ? (
+                          <div className="mt-1 flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                            <span className="font-medium text-foreground">{cycle.name}</span>
+                            <span>{totalMondays.length} sem.</span>
+                            {hiddenWeeks > 0 && (
+                              <span>
+                                {hiddenWeeks} sem. passée{hiddenWeeks > 1 ? "s" : ""}
+                              </span>
                             )}
                           </div>
-                          {week?.notes && (
-                            <p className="mt-1 pl-4 text-[11px] text-muted-foreground line-clamp-2">
-                              {week.notes}
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </section>
+                        ) : (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Pas de cycle détaillé.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                </CollapsibleTrigger>
+
+                <CollapsibleContent>
+                  {!cycle ? (
+                    <div className="px-4 py-4 text-xs text-muted-foreground italic">
+                      L&apos;échéance reste affichée.
+                    </div>
+                  ) : visibleMondays.length === 0 ? (
+                    <div className="px-4 py-4 text-xs text-muted-foreground italic">
+                      Pas de semaine à venir.
+                    </div>
+                  ) : (
+                    <div className="px-4 py-4">
+                      <div className="relative ml-2 space-y-2 border-l-2 border-border pl-4">
+                        {visibleMondays.map((monday, index) => {
+                          const week = weeksByStart.get(monday);
+                          const current = isCurrentWeek(monday);
+                          const sunday = getSunday(monday);
+
+                          return (
+                            <div
+                              key={monday}
+                              className={`rounded-2xl border bg-card px-3 py-2 text-xs ${
+                                current ? "ring-2 ring-primary/40 bg-primary/[0.04]" : ""
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span
+                                  className={`h-2 w-2 rounded-full shrink-0 ${
+                                    current
+                                      ? "bg-primary"
+                                      : week?.week_type
+                                        ? "bg-muted-foreground/40"
+                                        : "bg-muted-foreground/20"
+                                  }`}
+                                />
+                                <span className="whitespace-nowrap text-muted-foreground">
+                                  Sem. {hiddenWeeks + index + 1}
+                                </span>
+                                <span className="whitespace-nowrap text-muted-foreground/70">
+                                  {fmtShort(monday)} - {fmtShort(sunday)}
+                                </span>
+                                {week?.week_type && (
+                                  <Badge
+                                    className="ml-auto border-0 px-1.5 py-0 text-[10px]"
+                                    style={{
+                                      backgroundColor: weekTypeColor(week.week_type),
+                                      color: weekTypeTextColor(week.week_type),
+                                    }}
+                                  >
+                                    {week.week_type}
+                                  </Badge>
+                                )}
+                              </div>
+                              {week?.notes && (
+                                <p className="mt-1 pl-4 text-[11px] text-muted-foreground line-clamp-2">
+                                  {week.notes}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </section>
+            </Collapsible>
           );
         })}
       </div>
@@ -326,7 +359,7 @@ export default function AthletePerformanceHub({
               )}
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              {athleteName}: ressenti, objectifs, macrocycles et entretiens regroupés dans un seul espace.
+              {athleteName}: tout ton suivi au même endroit.
             </p>
           </div>
         </div>

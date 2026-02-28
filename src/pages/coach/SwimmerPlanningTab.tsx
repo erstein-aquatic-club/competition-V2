@@ -299,7 +299,7 @@ const SwimmerPlanningTab = ({ athleteId }: Props) => {
       return;
     }
     if (!newCycleStartId || !newCycleEndId) {
-      toast({ title: "Dates requises", description: "Selectionnez le debut et la fin du cycle.", variant: "destructive" });
+      toast({ title: "Dates requises", description: "Choisis un debut et une fin.", variant: "destructive" });
       return;
     }
     const isToday = newCycleStartId === TODAY_SENTINEL;
@@ -308,7 +308,7 @@ const SwimmerPlanningTab = ({ athleteId }: Props) => {
     const endComp = competitions.find((c) => c.id === newCycleEndId);
     const effectiveStartDate = isToday ? startDate! : startComp?.date;
     if (effectiveStartDate && endComp && endComp.date <= effectiveStartDate) {
-      toast({ title: "Dates invalides", description: "La competition de fin doit etre apres la date de debut.", variant: "destructive" });
+      toast({ title: "Dates invalides", description: "La fin doit etre apres le debut.", variant: "destructive" });
       return;
     }
     createCycleMutation.mutate({
@@ -356,7 +356,7 @@ const SwimmerPlanningTab = ({ athleteId }: Props) => {
       <div className="text-center py-12 space-y-3">
         <CalendarRange className="h-10 w-10 text-muted-foreground mx-auto" />
         <p className="text-sm text-muted-foreground">
-          Aucun cycle de planification.
+          Aucun cycle pour ce nageur.
         </p>
         <Button variant="outline" size="sm" onClick={() => setShowCreateSheet(true)}>
           <Plus className="mr-1.5 h-3.5 w-3.5" />
@@ -551,7 +551,7 @@ const SwimmerPlanningTab = ({ athleteId }: Props) => {
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer le cycle</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action est irreversible. Le cycle et toutes ses semaines seront supprimes.
+              Le cycle et ses semaines seront supprimes.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -572,8 +572,7 @@ const SwimmerPlanningTab = ({ athleteId }: Props) => {
           <AlertDialogHeader>
             <AlertDialogTitle>Personnaliser la planification</AlertDialogTitle>
             <AlertDialogDescription>
-              Les cycles du groupe seront copies en tant que planification individuelle pour ce nageur.
-              Vous pourrez ensuite les modifier independamment.
+              Copie le plan du groupe pour ce nageur. Tu pourras ensuite l'ajuster.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -640,7 +639,7 @@ const WeekRow = ({
           <Label className="text-xs">Type de semaine</Label>
           <Input
             className="h-7 text-sm"
-            placeholder="Ex : Foncier, Affutage, Recup..."
+            placeholder="Ex : Foncier, Affutage"
             list={datalistId}
             value={editWeekType}
             onChange={(e) => setEditWeekType(e.target.value)}
@@ -655,7 +654,7 @@ const WeekRow = ({
           <Label className="text-xs">Notes</Label>
           <Textarea
             className="text-sm min-h-[48px]"
-            placeholder="Notes optionnelles..."
+            placeholder="Note optionnelle"
             rows={2}
             value={editWeekNotes}
             onChange={(e) => setEditWeekNotes(e.target.value)}

@@ -693,7 +693,7 @@ const CoachInterviewCard = ({
 }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [expanded, setExpanded] = useState(interview.status !== "signed");
+  const [expanded, setExpanded] = useState(false);
 
   // Coach form state — per-section comments
   const [coachCommentSuccesses, setCoachCommentSuccesses] = useState(interview.coach_comment_successes ?? "");
