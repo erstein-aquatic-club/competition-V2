@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type {
@@ -17,12 +17,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -33,16 +27,23 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   Plus,
   Trash2,
   Send,
   Clock,
-  CheckCircle2,
   MessageSquare,
   User,
   GraduationCap,
   Trophy,
   Target,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
 } from "lucide-react";
 import {
   eventLabel,
@@ -141,22 +142,6 @@ function getStatusBadge(status: InterviewStatus) {
   );
 }
 
-function getPreviewText(interview: Interview): string | null {
-  const sections = [
-    interview.athlete_successes,
-    interview.athlete_difficulties,
-    interview.athlete_goals,
-    interview.athlete_commitments,
-    interview.coach_review,
-    interview.coach_objectives,
-    interview.coach_actions,
-  ];
-  for (const text of sections) {
-    if (text && text.trim()) return text.trim();
-  }
-  return null;
-}
-
 async function fetchAuthUidForUser(userId: number): Promise<string | null> {
   const { data, error } = await supabase.rpc("get_auth_uid_for_user", {
     p_user_id: userId,
@@ -198,12 +183,14 @@ const CoachSectionEditable = ({
   label,
   value,
   onChange,
+  onBlur,
   placeholder,
   rows = 3,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
+  onBlur?: () => void;
   placeholder?: string;
   rows?: number;
 }) => (
@@ -217,6 +204,7 @@ const CoachSectionEditable = ({
       placeholder={placeholder}
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      onBlur={onBlur}
       rows={rows}
     />
   </div>
@@ -292,49 +280,58 @@ const ObjectiveRow = ({ objective, performances = [] }: { objective: Objective; 
   );
 };
 
-// ── Previous Cycle Summary ──────────────────────────────────────
-
-const PreviousCycleSummary = ({
+const CollapsiblePreviousCommitments = ({
   prevInterview,
+  commitmentReview,
 }: {
   prevInterview: Interview;
-}) => (
-  <div className="rounded-xl border bg-muted/30 p-4 space-y-3">
-    <div className="flex items-center gap-2">
-      <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-        Bilan du cycle précédent
-      </span>
-      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-        {formatDate(prevInterview.date)}
-      </Badge>
-    </div>
+  commitmentReview?: string | null;
+}) => {
+  const [open, setOpen] = useState(false);
 
-    {prevInterview.athlete_commitments && (
-      <div className="border-l-4 border-blue-400 rounded-r-lg bg-blue-50/50 dark:bg-blue-950/20 p-3 space-y-1">
-        <p className="text-xs font-semibold text-muted-foreground">Engagements nageur</p>
-        <p className="text-sm whitespace-pre-wrap">{prevInterview.athlete_commitments}</p>
-      </div>
-    )}
-
-    {prevInterview.coach_actions && (
-      <div className="border-l-4 border-amber-400 rounded-r-lg bg-amber-50/50 dark:bg-amber-950/20 p-3 space-y-1">
-        <p className="text-xs font-semibold text-muted-foreground">Actions coach</p>
-        <p className="text-sm whitespace-pre-wrap">{prevInterview.coach_actions}</p>
-      </div>
-    )}
-
-    {prevInterview.athlete_commitment_review && (
-      <div className="border-l-4 border-blue-400 rounded-r-lg bg-blue-50/80 dark:bg-blue-950/30 p-3 space-y-1">
-        <p className="text-xs font-semibold text-muted-foreground">Bilan du nageur</p>
-        <p className="text-sm whitespace-pre-wrap">{prevInterview.athlete_commitment_review}</p>
-      </div>
-    )}
-
-    {!prevInterview.athlete_commitments && !prevInterview.coach_actions && (
-      <p className="text-xs text-muted-foreground italic">Aucun engagement enregistré.</p>
-    )}
-  </div>
-);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger asChild>
+        <button
+          type="button"
+          className="w-full flex items-center gap-2 rounded-xl border bg-muted/30 px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
+        >
+          <ChevronRight
+            className={`h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform ${open ? "rotate-90" : ""}`}
+          />
+          <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            Rappel engagements précédents
+          </span>
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-auto">
+            {formatDate(prevInterview.date)}
+          </Badge>
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="rounded-b-xl border border-t-0 bg-muted/30 px-3 pb-3 space-y-2">
+          {prevInterview.athlete_commitments && (
+            <div className="border-l-4 border-blue-400 rounded-r-lg bg-blue-50/50 dark:bg-blue-950/20 p-2">
+              <p className="text-[10px] font-semibold text-muted-foreground">Engagements nageur</p>
+              <p className="text-xs whitespace-pre-wrap">{prevInterview.athlete_commitments}</p>
+            </div>
+          )}
+          {prevInterview.coach_actions && (
+            <div className="border-l-4 border-amber-400 rounded-r-lg bg-amber-50/50 dark:bg-amber-950/20 p-2">
+              <p className="text-[10px] font-semibold text-muted-foreground">Actions coach</p>
+              <p className="text-xs whitespace-pre-wrap">{prevInterview.coach_actions}</p>
+            </div>
+          )}
+          {commitmentReview && (
+            <div className="border-l-4 border-blue-400 rounded-r-lg bg-blue-50/80 dark:bg-blue-950/30 p-2">
+              <p className="text-[10px] font-semibold text-muted-foreground">Bilan du nageur</p>
+              <p className="text-xs whitespace-pre-wrap">{commitmentReview}</p>
+            </div>
+          )}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+};
 
 // ── Inline Planning Section ─────────────────────────────────────
 
@@ -616,99 +613,74 @@ const InlinePlanning = ({
   );
 };
 
-// ── Interview Detail Sheet ──────────────────────────────────────
+// ── Coach Interview Card ────────────────────────────────────────
 
-const InterviewDetailSheet = ({
-  open,
-  onOpenChange,
+const CoachInterviewCard = ({
   interview,
   athleteId,
-  athleteAuthId,
+  objectives,
+  performances,
 }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  interview: Interview | null;
+  interview: Interview;
   athleteId: number;
-  athleteAuthId: string | null;
+  objectives: Objective[];
+  performances: SwimmerPerformance[];
 }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [expanded, setExpanded] = useState(interview.status !== "signed");
 
   // Coach form state — per-section comments
-  const [coachCommentSuccesses, setCoachCommentSuccesses] = useState("");
-  const [coachCommentDifficulties, setCoachCommentDifficulties] = useState("");
-  const [coachCommentGoals, setCoachCommentGoals] = useState("");
+  const [coachCommentSuccesses, setCoachCommentSuccesses] = useState(interview.coach_comment_successes ?? "");
+  const [coachCommentDifficulties, setCoachCommentDifficulties] = useState(interview.coach_comment_difficulties ?? "");
+  const [coachCommentGoals, setCoachCommentGoals] = useState(interview.coach_comment_goals ?? "");
   // Legacy fields (kept for backward compat with old interviews)
-  const [coachReview, setCoachReview] = useState("");
-  const [coachObjectives, setCoachObjectives] = useState("");
-  const [coachActions, setCoachActions] = useState("");
+  const coachReview = interview.coach_review ?? "";
+  const coachObjectives = interview.coach_objectives ?? "";
+  const [coachActions, setCoachActions] = useState(interview.coach_actions ?? "");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showSendConfirm, setShowSendConfirm] = useState(false);
-
-  // Sync form state when sheet opens
-  const [lastLoadedId, setLastLoadedId] = useState<string | null>(null);
-  if (open && interview && interview.id !== lastLoadedId) {
-    setCoachCommentSuccesses(interview.coach_comment_successes ?? "");
-    setCoachCommentDifficulties(interview.coach_comment_difficulties ?? "");
-    setCoachCommentGoals(interview.coach_comment_goals ?? "");
-    setCoachReview(interview.coach_review ?? "");
-    setCoachObjectives(interview.coach_objectives ?? "");
-    setCoachActions(interview.coach_actions ?? "");
-    setLastLoadedId(interview.id);
-  }
-  if (!open && lastLoadedId !== null) {
-    setLastLoadedId(null);
-  }
+  const savingRef = useRef(false);
 
   // Previous interview
   const { data: prevInterview } = useQuery({
-    queryKey: ["previous-interview", athleteId, interview?.date, interview?.id],
-    queryFn: () => api.getPreviousInterview(athleteId, interview!.date, interview!.id),
-    enabled: !!interview?.date,
-  });
-
-  // Objectives
-  const { data: objectives = [] } = useQuery({
-    queryKey: ["objectives", athleteAuthId],
-    queryFn: () => api.getObjectives(athleteAuthId!),
-    enabled: !!athleteAuthId,
-  });
-
-  // Athlete profile for IUF + performances (360 days)
-  const { data: athleteProfile } = useQuery({
-    queryKey: ["athlete-profile", athleteId],
-    queryFn: () => api.getProfile({ userId: athleteId }),
-    enabled: !!athleteId,
-  });
-  const athleteIuf = athleteProfile?.ffn_iuf ?? null;
-
-  const perfFromDate = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 360);
-    return d.toISOString().slice(0, 10);
-  }, []);
-
-  const { data: performances = [] } = useQuery({
-    queryKey: ["swimmer-performances-recent", athleteIuf],
-    queryFn: () => api.getSwimmerPerformances({ iuf: athleteIuf!, fromDate: perfFromDate }),
-    enabled: !!athleteIuf,
+    queryKey: ["previous-interview", athleteId, interview.date, interview.id],
+    queryFn: () => api.getPreviousInterview(athleteId, interview.date, interview.id),
+    enabled: !!interview.date,
   });
 
   // ── Mutations ──
-
-  const buildCoachInput = (): InterviewCoachInput => ({
+  const buildCoachInput = useCallback((): InterviewCoachInput => ({
     coach_comment_successes: coachCommentSuccesses.trim() || null,
     coach_comment_difficulties: coachCommentDifficulties.trim() || null,
     coach_comment_goals: coachCommentGoals.trim() || null,
     coach_review: coachReview.trim() || null,
     coach_objectives: coachObjectives.trim() || null,
     coach_actions: coachActions.trim() || null,
-  });
+  }), [
+    coachActions,
+    coachCommentDifficulties,
+    coachCommentGoals,
+    coachCommentSuccesses,
+    coachObjectives,
+    coachReview,
+  ]);
+
+  const hasDraftChanges = useCallback(() => {
+    const next = buildCoachInput();
+    return (
+      (interview.coach_comment_successes ?? null) !== next.coach_comment_successes ||
+      (interview.coach_comment_difficulties ?? null) !== next.coach_comment_difficulties ||
+      (interview.coach_comment_goals ?? null) !== next.coach_comment_goals ||
+      (interview.coach_review ?? null) !== next.coach_review ||
+      (interview.coach_objectives ?? null) !== next.coach_objectives ||
+      (interview.coach_actions ?? null) !== next.coach_actions
+    );
+  }, [buildCoachInput, interview]);
 
   const saveMutation = useMutation({
-    mutationFn: () => api.updateInterviewCoachSections(interview!.id, buildCoachInput()),
+    mutationFn: (input: InterviewCoachInput) => api.updateInterviewCoachSections(interview.id, input),
     onSuccess: () => {
-      toast({ title: "Enregistré" });
       void queryClient.invalidateQueries({ queryKey: ["interviews", athleteId] });
     },
     onError: (err: Error) => {
@@ -718,13 +690,12 @@ const InterviewDetailSheet = ({
 
   const sendMutation = useMutation({
     mutationFn: async () => {
-      await api.updateInterviewCoachSections(interview!.id, buildCoachInput());
-      return api.sendInterviewToAthlete(interview!.id);
+      await api.updateInterviewCoachSections(interview.id, buildCoachInput());
+      return api.sendInterviewToAthlete(interview.id);
     },
     onSuccess: () => {
       toast({ title: "Entretien envoyé au nageur" });
       void queryClient.invalidateQueries({ queryKey: ["interviews", athleteId] });
-      onOpenChange(false);
     },
     onError: (err: Error) => {
       toast({ title: "Erreur", description: err.message, variant: "destructive" });
@@ -732,11 +703,10 @@ const InterviewDetailSheet = ({
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => api.deleteInterview(interview!.id),
+    mutationFn: () => api.deleteInterview(interview.id),
     onSuccess: () => {
       toast({ title: "Entretien supprimé" });
       void queryClient.invalidateQueries({ queryKey: ["interviews", athleteId] });
-      onOpenChange(false);
     },
     onError: (err: Error) => {
       toast({ title: "Erreur", description: err.message, variant: "destructive" });
@@ -744,61 +714,89 @@ const InterviewDetailSheet = ({
   });
 
   const isPending = saveMutation.isPending || sendMutation.isPending || deleteMutation.isPending;
-
-  if (!interview) return null;
-
   const status = interview.status;
+  const borderClass = status === "draft_athlete"
+    ? "border-amber-300 dark:border-amber-700 border-l-4"
+    : status === "draft_coach"
+      ? "border-blue-300 dark:border-blue-700 border-l-4"
+      : status === "sent"
+        ? "border-emerald-300 dark:border-emerald-700 border-l-4"
+        : "";
+
+  const handleAutoSave = useCallback(() => {
+    if (status !== "draft_coach" || savingRef.current || isPending || !hasDraftChanges()) return;
+    savingRef.current = true;
+    saveMutation.mutate(buildCoachInput());
+    window.setTimeout(() => {
+      savingRef.current = false;
+    }, 500);
+  }, [buildCoachInput, hasDraftChanges, isPending, saveMutation, status]);
 
   return (
     <>
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2 flex-wrap">
-              <span>Entretien du {formatDate(interview.date)}</span>
-              {getStatusBadge(status)}
-            </SheetTitle>
-          </SheetHeader>
+      <div className={`rounded-xl border bg-card shadow-sm ${borderClass}`}>
+        <button
+          type="button"
+          className="w-full flex items-center justify-between p-4 text-left"
+          onClick={() => setExpanded((v) => !v)}
+        >
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-sm font-semibold">{formatDate(interview.date)}</span>
+            {getStatusBadge(status)}
+            {status === "signed" && interview.signed_at && (
+              <span className="text-xs text-muted-foreground">
+                le {formatDate(interview.signed_at.slice(0, 10))}
+              </span>
+            )}
+          </div>
+          {expanded ? (
+            <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+          )}
+        </button>
 
-          <div className="mt-6 space-y-5">
-            {/* ── draft_athlete: waiting for athlete ── */}
+        {expanded && (
+          <div className="px-4 pb-4 space-y-5">
             {status === "draft_athlete" && (
               <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50/50 dark:bg-amber-950/20 p-6 text-center space-y-2">
                 <Clock className="h-8 w-8 mx-auto text-amber-500" />
                 <p className="text-sm font-medium">En attente de la préparation du nageur</p>
                 <p className="text-xs text-muted-foreground">
-                  Le contenu n'est pas encore visible. Le nageur doit d'abord remplir ses sections.
+                  Le contenu n&apos;est pas encore visible. Le nageur doit d&apos;abord remplir ses sections.
                 </p>
               </div>
             )}
 
-            {/* ── draft_coach: conversational editing layout ── */}
             {status === "draft_coach" && (
               <>
-                {/* Previous cycle summary */}
-                {prevInterview && <PreviousCycleSummary prevInterview={prevInterview} />}
+                {prevInterview && (
+                  <CollapsiblePreviousCommitments
+                    prevInterview={prevInterview}
+                    commitmentReview={interview.athlete_commitment_review}
+                  />
+                )}
 
-                {/* ── Réussites ── */}
                 <SectionDivider label="Réussites" />
                 <AthleteSection label="Nageur" text={interview.athlete_successes} />
                 <CoachSectionEditable
                   label="Coach"
                   value={coachCommentSuccesses}
                   onChange={setCoachCommentSuccesses}
+                  onBlur={handleAutoSave}
                   placeholder="Votre commentaire sur les réussites..."
                 />
 
-                {/* ── Difficultés ── */}
                 <SectionDivider label="Difficultés" />
                 <AthleteSection label="Nageur" text={interview.athlete_difficulties} />
                 <CoachSectionEditable
                   label="Coach"
                   value={coachCommentDifficulties}
                   onChange={setCoachCommentDifficulties}
+                  onBlur={handleAutoSave}
                   placeholder="Votre commentaire sur les difficultés..."
                 />
 
-                {/* ── Objectifs ── */}
                 <SectionDivider label="Objectifs" />
                 {objectives.length > 0 && (
                   <div className="space-y-1.5">
@@ -812,46 +810,39 @@ const InterviewDetailSheet = ({
                   label="Coach"
                   value={coachCommentGoals}
                   onChange={setCoachCommentGoals}
+                  onBlur={handleAutoSave}
                   placeholder="Objectifs complémentaires, commentaires..."
                 />
 
-                {/* ── Planification inline ── */}
                 <SectionDivider label="Planification" />
-                <InlinePlanning
-                  athleteId={athleteId}
-                  interviewDate={interview.date}
-                />
+                <InlinePlanning athleteId={athleteId} interviewDate={interview.date} />
 
-                {/* ── Engagements & Actions (prominent) ── */}
                 <SectionDivider label="Engagements & Actions" />
                 <div className="rounded-xl bg-card border shadow-sm p-4 space-y-3">
-                  <div className="border-l-4 border-blue-400 rounded-r-lg bg-blue-50/50 dark:bg-blue-950/20 p-3 space-y-1">
-                    <div className="flex items-center gap-1.5">
-                      <User className="h-3.5 w-3.5 text-blue-500" />
-                      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                        Engagements du nageur
-                      </p>
-                    </div>
-                    <p className="text-sm whitespace-pre-wrap">
-                      {interview.athlete_commitments?.trim() || (
-                        <span className="italic text-muted-foreground">Non renseigné</span>
-                      )}
-                    </p>
-                  </div>
+                  <AthleteSection label="Engagements du nageur" text={interview.athlete_commitments} />
                   <CoachSectionEditable
                     label="Actions du coach"
                     value={coachActions}
                     onChange={setCoachActions}
+                    onBlur={handleAutoSave}
                     placeholder="Actions concrètes, points de suivi..."
                   />
+                </div>
+
+                <div className="text-xs text-muted-foreground">
+                  {saveMutation.isPending ? "Sauvegarde..." : "Sauvegarde automatique a la sortie d'un champ."}
                 </div>
               </>
             )}
 
-            {/* ── sent / signed: read-only conversational view ── */}
             {(status === "sent" || status === "signed") && (
               <>
-                {prevInterview && <PreviousCycleSummary prevInterview={prevInterview} />}
+                {prevInterview && (
+                  <CollapsiblePreviousCommitments
+                    prevInterview={prevInterview}
+                    commitmentReview={interview.athlete_commitment_review}
+                  />
+                )}
 
                 <SectionDivider label="Réussites" />
                 <AthleteSection label="Nageur" text={interview.athlete_successes} />
@@ -880,37 +871,19 @@ const InterviewDetailSheet = ({
                   <AthleteSection label="Engagements du nageur" text={interview.athlete_commitments} />
                   <CoachSectionReadOnly label="Actions du coach" text={interview.coach_actions} />
                 </div>
-
-                {status === "signed" && interview.signed_at && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    <span>Signé le {formatDate(interview.signed_at.slice(0, 10))}</span>
-                  </div>
-                )}
               </>
             )}
 
-            {/* ── Footer actions ── */}
             <div className="space-y-2 pt-2 border-t">
               {status === "draft_coach" && (
-                <>
-                  <Button
-                    className="w-full"
-                    variant="outline"
-                    onClick={() => saveMutation.mutate()}
-                    disabled={isPending}
-                  >
-                    {saveMutation.isPending ? "Enregistrement..." : "Enregistrer"}
-                  </Button>
-                  <Button
-                    className="w-full"
-                    onClick={() => setShowSendConfirm(true)}
-                    disabled={isPending}
-                  >
-                    <Send className="mr-1.5 h-3.5 w-3.5" />
-                    Envoyer au nageur
-                  </Button>
-                </>
+                <Button
+                  className="w-full"
+                  onClick={() => setShowSendConfirm(true)}
+                  disabled={isPending}
+                >
+                  <Send className="mr-1.5 h-3.5 w-3.5" />
+                  Envoyer au nageur
+                </Button>
               )}
               <Button
                 variant="outline"
@@ -923,8 +896,8 @@ const InterviewDetailSheet = ({
               </Button>
             </div>
           </div>
-        </SheetContent>
-      </Sheet>
+        )}
+      </div>
 
       {/* Delete confirmation */}
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
@@ -977,47 +950,42 @@ const InterviewDetailSheet = ({
   );
 };
 
-// ── Interview Card ──────────────────────────────────────────────
-
-const InterviewCard = ({
-  interview,
-  onClick,
-}: {
-  interview: Interview;
-  onClick: () => void;
-}) => {
-  const preview = getPreviewText(interview);
-
-  return (
-    <button
-      type="button"
-      className="w-full text-left rounded-xl border bg-card p-3 space-y-1.5 transition-colors hover:bg-muted/50"
-      onClick={onClick}
-    >
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-sm font-semibold">{formatDate(interview.date)}</span>
-        {getStatusBadge(interview.status)}
-      </div>
-      {preview && (
-        <p className="text-xs text-muted-foreground line-clamp-2">{preview}</p>
-      )}
-    </button>
-  );
-};
-
 // ── Main Component ──────────────────────────────────────────────
 
 const SwimmerInterviewsTab = ({ athleteId, athleteName }: Props) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [selectedInterview, setSelectedInterview] = useState<Interview | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
 
-  // Resolve auth UUID (for objectives context panel)
+  // Resolve auth UUID (for objective context)
   const { data: athleteAuthId } = useQuery({
     queryKey: ["auth-uid", athleteId],
     queryFn: () => fetchAuthUidForUser(athleteId),
     enabled: !!athleteId,
+  });
+
+  const { data: objectives = [] } = useQuery({
+    queryKey: ["objectives", athleteAuthId],
+    queryFn: () => api.getObjectives(athleteAuthId!),
+    enabled: !!athleteAuthId,
+  });
+
+  const { data: athleteProfile } = useQuery({
+    queryKey: ["athlete-profile", athleteId],
+    queryFn: () => api.getProfile({ userId: athleteId }),
+    enabled: !!athleteId,
+  });
+  const athleteIuf = athleteProfile?.ffn_iuf ?? null;
+
+  const perfFromDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 360);
+    return d.toISOString().slice(0, 10);
+  }, []);
+
+  const { data: performances = [] } = useQuery({
+    queryKey: ["swimmer-performances-recent", athleteIuf],
+    queryFn: () => api.getSwimmerPerformances({ iuf: athleteIuf!, fromDate: perfFromDate }),
+    enabled: !!athleteIuf,
   });
 
   // Interviews
@@ -1031,26 +999,14 @@ const SwimmerInterviewsTab = ({ athleteId, athleteName }: Props) => {
   const createMutation = useMutation({
     mutationFn: () =>
       api.createInterview({ athlete_id: athleteId }),
-    onSuccess: (newInterview) => {
+    onSuccess: () => {
       toast({ title: "Entretien créé" });
       void queryClient.invalidateQueries({ queryKey: ["interviews", athleteId] });
-      setSelectedInterview(newInterview);
-      setSheetOpen(true);
     },
     onError: (err: Error) => {
       toast({ title: "Erreur", description: err.message, variant: "destructive" });
     },
   });
-
-  const handleOpenInterview = (interview: Interview) => {
-    setSelectedInterview(interview);
-    setSheetOpen(true);
-  };
-
-  const handleSheetChange = (open: boolean) => {
-    setSheetOpen(open);
-    if (!open) setSelectedInterview(null);
-  };
 
   // Loading
   if (isLoading) {
@@ -1116,22 +1072,15 @@ const SwimmerInterviewsTab = ({ athleteId, athleteName }: Props) => {
       {/* List */}
       <div className="space-y-2">
         {interviews.map((interview) => (
-          <InterviewCard
+          <CoachInterviewCard
             key={interview.id}
             interview={interview}
-            onClick={() => handleOpenInterview(interview)}
+            athleteId={athleteId}
+            objectives={objectives}
+            performances={performances}
           />
         ))}
       </div>
-
-      {/* Detail sheet */}
-      <InterviewDetailSheet
-        open={sheetOpen}
-        onOpenChange={handleSheetChange}
-        interview={selectedInterview}
-        athleteId={athleteId}
-        athleteAuthId={athleteAuthId ?? null}
-      />
     </div>
   );
 };
