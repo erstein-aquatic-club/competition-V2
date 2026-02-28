@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { shouldShowRecords } from "@/pages/Profile";
-import { Check, ChevronDown, ChevronRight, Dumbbell, Edit2, Download, RefreshCw, SlidersHorizontal, StickyNote, Trophy, Waves, X, AlertCircle } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Dumbbell, Edit2, Download, RefreshCw, StickyNote, Trophy, Waves, X, AlertCircle } from "lucide-react";
 import { InlineBanner } from "@/components/shared/InlineBanner";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { motion, useReducedMotion } from "framer-motion";
@@ -181,8 +181,6 @@ export default function Records() {
   const [swimMode, setSwimMode] = useState<SwimMode>("training");
   const [poolLen, setPoolLen] = useState<25 | 50>(25);
   const [swimEditorOpenFor, setSwimEditorOpenFor] = useState<SwimEditorOpenFor>(null);
-  const [isSwimControlsOpen, setIsSwimControlsOpen] = useState(false);
-
   const [editingExerciseId, setEditingExerciseId] = useState<number | null>(null);
   const [editingOneRmValue, setEditingOneRmValue] = useState<string>("");
   const [expandedExerciseId, setExpandedExerciseId] = useState<number | null>(null);
@@ -611,143 +609,103 @@ export default function Records() {
             </TabsList>
 
             {mainTab === "swim" ? (
-              <div className="mt-2.5 flex items-center justify-between gap-2 rounded-2xl border border-border/60 bg-muted/20 px-3 py-2">
-                <div className="min-w-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                    Vue active
-                  </p>
-                  <p className="truncate text-sm font-semibold text-foreground">
-                    {swimModeLabel} · {activePoolLen}m
-                  </p>
+              <div className="mt-2.5 rounded-2xl border border-border/60 bg-muted/20 px-3 py-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                      Vue active
+                    </p>
+                    <p className="truncate text-sm font-semibold text-foreground">
+                      {swimModeLabel} · {activePoolLen}m
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {swimMode === "training" ? (
+                      <Button type="button" size="sm" onClick={openAddSwim} className="rounded-xl text-xs h-8 gap-1">
+                        Ajouter
+                      </Button>
+                    ) : null}
+                    {swimMode === "history" ? (
+                      <motion.div variants={successBounce} animate={importSuccess ? "visible" : "hidden"}>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => importPerformances.mutate()}
+                          disabled={importPerformances.isPending || !userIuf}
+                          className="rounded-xl text-xs h-8 gap-1"
+                        >
+                          {importPerformances.isPending ? (
+                            <RefreshCw className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Download className="h-3 w-3" />
+                          )}
+                          {importPerformances.isPending ? "Import..." : "Importer"}
+                        </Button>
+                      </motion.div>
+                    ) : null}
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  {swimMode === "training" ? (
-                    <Button type="button" size="sm" onClick={openAddSwim} className="rounded-xl text-xs h-8 gap-1">
-                      Ajouter
-                    </Button>
-                  ) : null}
-                  {swimMode === "history" ? (
-                    <motion.div variants={successBounce} animate={importSuccess ? "visible" : "hidden"}>
-                      <Button
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {(["training", "comp", "history"] as const).map((mode) => {
+                    const label =
+                      mode === "training" ? "Entraînement" : mode === "comp" ? "Compétition" : "Historique";
+                    return (
+                      <button
+                        key={mode}
                         type="button"
-                        size="sm"
-                        onClick={() => importPerformances.mutate()}
-                        disabled={importPerformances.isPending || !userIuf}
-                        className="rounded-xl text-xs h-8 gap-1"
-                      >
-                        {importPerformances.isPending ? (
-                          <RefreshCw className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Download className="h-3 w-3" />
+                        onClick={() => {
+                          setModeSafe(mode);
+                          if (mode !== "history") {
+                            setHistExpandedEvent(null);
+                          }
+                        }}
+                        className={cx(
+                          "rounded-xl border px-3 py-1.5 text-xs font-semibold transition",
+                          swimMode === mode
+                            ? "border-primary/30 bg-primary/5 text-primary"
+                            : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground",
                         )}
-                        {importPerformances.isPending ? "Import..." : "Importer"}
-                      </Button>
-                    </motion.div>
+                        aria-pressed={swimMode === mode}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {([25, 50] as const).map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => {
+                        if (swimMode === "history") {
+                          setHistPoolLen(v);
+                        } else {
+                          setPoolLen(v);
+                          closeSwimEditor();
+                        }
+                      }}
+                      className={cx(
+                        "rounded-xl border px-3 py-1.5 text-xs font-semibold transition",
+                        activePoolLen === v
+                          ? "border-primary/30 bg-primary/5 text-primary"
+                          : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground",
+                      )}
+                    >
+                      {v}m
+                    </button>
+                  ))}
+                  {swimMode === "comp" ? (
+                    <span className="text-[11px] text-muted-foreground">
+                      Données FFN synchronisées
+                    </span>
                   ) : null}
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setIsSwimControlsOpen(true)}
-                    className="rounded-xl text-xs h-8 gap-1"
-                  >
-                    <SlidersHorizontal className="h-3.5 w-3.5" />
-                    Filtres
-                  </Button>
                 </div>
               </div>
             ) : null}
-
-            <Sheet open={isSwimControlsOpen} onOpenChange={setIsSwimControlsOpen}>
-              <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-3xl">
-                <SheetHeader className="text-left">
-                  <SheetTitle>Filtres natation</SheetTitle>
-                  <SheetDescription>
-                    Choisis le type de records et le bassin sans surcharger l&apos;écran principal.
-                  </SheetDescription>
-                </SheetHeader>
-
-                <div className="mt-5 space-y-5">
-                  <div className="space-y-2">
-                    <Label className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
-                      Type
-                    </Label>
-                    <div className="grid grid-cols-1 gap-2">
-                      {(["training", "comp", "history"] as const).map((mode) => {
-                        const label = mode === "training" ? "Entraînement" : mode === "comp" ? "Compétition" : "Historique FFN";
-                        const helper =
-                          mode === "training"
-                            ? "Tes meilleurs temps saisis dans l'app"
-                            : mode === "comp"
-                              ? "Les performances validées en compétition"
-                              : "Historique détaillé importé depuis la FFN";
-                        return (
-                          <button
-                            key={mode}
-                            type="button"
-                            onClick={() => {
-                              setModeSafe(mode);
-                              if (mode !== "history") {
-                                setHistExpandedEvent(null);
-                              }
-                              setIsSwimControlsOpen(false);
-                            }}
-                            className={cx(
-                              "rounded-2xl border px-4 py-3 text-left transition",
-                              swimMode === mode
-                                ? "border-primary/30 bg-primary/5"
-                                : "border-border bg-background hover:bg-muted/40"
-                            )}
-                            aria-pressed={swimMode === mode}
-                          >
-                            <p className="text-sm font-semibold">{label}</p>
-                            <p className="mt-1 text-xs text-muted-foreground">{helper}</p>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
-                      Bassin
-                    </Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {([25, 50] as const).map((v) => (
-                        <button
-                          key={v}
-                          type="button"
-                          onClick={() => {
-                            if (swimMode === "history") {
-                              setHistPoolLen(v);
-                            } else {
-                              setPoolLen(v);
-                              closeSwimEditor();
-                            }
-                            setIsSwimControlsOpen(false);
-                          }}
-                          className={cx(
-                            "rounded-2xl border px-4 py-3 text-sm font-semibold transition",
-                            activePoolLen === v
-                              ? "border-primary/30 bg-primary/5 text-foreground"
-                              : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
-                          )}
-                        >
-                          {v}m
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {swimMode === "comp" ? (
-                    <div className="rounded-2xl border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
-                      Les records compétition sont affichés à partir des données synchronisées FFN.
-                    </div>
-                  ) : null}
-                </div>
-              </SheetContent>
-            </Sheet>
 
             <Sheet
               open={swimMode === "training" && swimEditorOpenFor === "add"}
