@@ -1210,6 +1210,45 @@ const CoachTrainingSlotsScreen = ({
     queryFn: () => api.listUsers({ role: "coach" }),
   });
 
+  // Fetch athletes for swimmer filter
+  const { data: athletes = [] } = useQuery({
+    queryKey: ["athletes"],
+    queryFn: () => api.getAthletes(),
+  });
+
+  // Swimmer filter: fetch swimmer's custom slots when selected
+  const swimmerFilterId = filterValue.startsWith("swimmer:")
+    ? Number(filterValue.split(":")[1])
+    : null;
+
+  const { data: swimmerSlots } = useQuery({
+    queryKey: ["swimmer-slots", swimmerFilterId],
+    queryFn: () => api.getSwimmerSlots(swimmerFilterId!),
+    enabled: swimmerFilterId != null,
+  });
+
+  const { data: swimmerHasCustom } = useQuery({
+    queryKey: ["swimmer-slots-exists", swimmerFilterId],
+    queryFn: () => api.hasCustomSlots(swimmerFilterId!),
+    enabled: swimmerFilterId != null,
+  });
+
+  // Convert swimmer slots to TrainingSlot shape for timeline display
+  const swimmerSlotsAsTraining = useMemo((): TrainingSlot[] => {
+    if (!swimmerSlots) return [];
+    return swimmerSlots.map((s) => ({
+      id: s.id,
+      day_of_week: s.day_of_week,
+      start_time: s.start_time,
+      end_time: s.end_time,
+      location: s.location,
+      is_active: s.is_active,
+      created_by: s.created_by,
+      created_at: s.created_at,
+      assignments: [],
+    }));
+  }, [swimmerSlots]);
+
   // Filter slots
   const filteredSlots = useMemo(() => {
     if (filterValue === "all") return slots;
@@ -1225,8 +1264,22 @@ const CoachTrainingSlotsScreen = ({
         s.assignments.some((a) => a.coach_id === cid),
       );
     }
+    if (filterValue.startsWith("swimmer:")) {
+      // When a swimmer has custom slots, show those; otherwise show group slots
+      if (swimmerHasCustom && swimmerSlotsAsTraining.length > 0) {
+        return swimmerSlotsAsTraining;
+      }
+      // Fallback: show slots for the swimmer's group
+      const athlete = athletes.find((a) => a.id === swimmerFilterId);
+      if (athlete?.group_id) {
+        return slots.filter((s) =>
+          s.assignments.some((a) => a.group_id === athlete.group_id),
+        );
+      }
+      return slots;
+    }
     return slots;
-  }, [slots, filterValue]);
+  }, [slots, filterValue, swimmerHasCustom, swimmerSlotsAsTraining, athletes, swimmerFilterId]);
 
   // Group filtered slots by day, sorted by start_time
   const slotsByDay = useMemo(() => {
@@ -1401,6 +1454,12 @@ const CoachTrainingSlotsScreen = ({
                   {g.name}
                 </SelectItem>
               ))}
+              {athletes.length > 0 && <SelectSeparator />}
+              {athletes.map((a) => (
+                <SelectItem key={`swimmer:${a.id}`} value={`swimmer:${a.id}`}>
+                  {a.display_name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -1449,6 +1508,12 @@ const CoachTrainingSlotsScreen = ({
               {coaches.map((c) => (
                 <SelectItem key={c.id} value={`coach:${c.id}`}>
                   {c.display_name}
+                </SelectItem>
+              ))}
+              {athletes.length > 0 && <SelectSeparator />}
+              {athletes.map((a) => (
+                <SelectItem key={`swimmer:${a.id}`} value={`swimmer:${a.id}`}>
+                  {a.display_name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -1516,6 +1581,13 @@ const CoachTrainingSlotsScreen = ({
         </div>
       ) : (
         <>
+          {/* ── Swimmer inherited banner ── */}
+          {swimmerFilterId != null && swimmerHasCustom === false && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 px-3 py-2 text-sm text-blue-700 dark:text-blue-300">
+              Ce nageur hérite des créneaux du groupe. Personnalisez depuis sa fiche.
+            </div>
+          )}
+
           {/* ── Mobile timeline ── */}
           <div className="sm:hidden">
             <MobileTimeline
