@@ -47,6 +47,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §74 Planification + Entretiens (fiche nageur coach) | ✅ Fait | 2026-02-28 |
 | §75 Refonte entretiens conversationnels + planif inline | ✅ Fait | 2026-02-28 |
 | §76 Créneaux d'entraînement récurrents | ✅ Fait | 2026-02-28 |
+| §77 Performance & dock reset | ✅ Fait | 2026-02-28 |
 | §45 Audit UI/UX — header Strength + login mobile + fixes | ✅ Fait | 2026-02-16 |
 | §46 Harmonisation headers + Login mobile thème clair | ✅ Fait | 2026-02-16 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
@@ -6112,3 +6113,71 @@ L'application n'avait aucune notion de planning hebdomadaire fixe. Le calendrier
 - Pas de validation front que `end_time > start_time` (la contrainte DB le fait)
 - Pas de notification aux nageurs quand un créneau est modifié/annulé
 - Les exceptions ne sont pas liées au calendrier des assignations (séparation volontaire)
+
+---
+
+## 2026-02-28 — §77 Performance & dock reset
+
+**Branche** : `main`
+**Chantier ROADMAP** : §77 — Performance optimization + dock reset behavior
+
+### Contexte
+
+Les pages chargeaient parfois lentement (gros chunks, logo 382KB, re-renders inutiles). Les clics sur les icônes du dock ne ramenaient pas toujours à l'accueil de la section.
+
+### Changements réalisés
+
+**Performance :**
+1. **Logo optimisé** : `logo-eac.png` (382 KB) remplacé par WebP — `logo-eac.webp` (918 B, 64px pour nav) et `logo-eac-256.webp` (7.8 KB, 256px pour login)
+2. **Lazy-loading Coach** : 8 sous-écrans (`CoachSwimmersOverview`, `CoachMessagesScreen`, `CoachSmsScreen`, `CoachCalendar`, `CoachGroupsScreen`, `CoachCompetitionsScreen`, `CoachObjectivesScreen`, `CoachTrainingSlotsScreen`) convertis de imports eagerly en `lazy()` + `<Suspense>`, réduisant le chunk Coach de ~200 KB
+3. **Vendor chunks** : ajout `framer-motion`, `recharts`, `date-fns` dans `manualChunks` (vite.config.ts) pour dédupliquer entre pages
+4. **Zustand selectors** : remplacement de `const { user, userId } = useAuth()` par `const user = useAuth(s => s.user)` dans 10 fichiers pour éviter les re-renders lors du refresh de tokens
+
+**Dock reset :**
+5. **Listener `nav:reset`** ajouté dans `useDashboardState`, `useStrengthState`, `Profile`, `Progress`, `HallOfFame` — cliquer sur l'icône dock de la section courante remet la page à son état d'accueil (ferme drawers, reset onglets/filtres, revient à la vue liste)
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `public/logo-eac.webp` | Créé (918 B) |
+| `public/logo-eac-256.webp` | Créé (7.8 KB) |
+| `src/components/layout/AppLayout.tsx` | Import logo → WebP, useAuth selector |
+| `src/pages/Login.tsx` | Import logo → WebP 256px |
+| `src/pages/Coach.tsx` | 8 imports → lazy() + Suspense |
+| `vite.config.ts` | 3 vendor chunks ajoutés |
+| `src/App.tsx` | useAuth selectors |
+| `src/pages/Dashboard.tsx` | useAuth selectors |
+| `src/pages/Progress.tsx` | useAuth selectors + nav:reset listener |
+| `src/pages/Strength.tsx` | useAuth selectors |
+| `src/pages/Records.tsx` | useAuth selectors |
+| `src/pages/Profile.tsx` | useAuth selectors + nav:reset listener |
+| `src/pages/SwimSessionView.tsx` | useAuth selectors |
+| `src/pages/HallOfFame.tsx` | nav:reset listener |
+| `src/pages/coach/SwimCatalog.tsx` | useAuth selectors |
+| `src/components/profile/SwimmerObjectivesView.tsx` | useAuth selectors |
+| `src/hooks/useDashboardState.ts` | nav:reset listener |
+| `src/hooks/useStrengthState.ts` | nav:reset listener |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — 0 erreurs
+- [x] `npm run build` — Build OK (6.70s), vendor chunks visibles
+- [x] `npm test` — 120/121 (1 échec pré-existant : InstallPrompt)
+- [ ] Test manuel : vérifier logo WebP affiché (nav + login)
+- [ ] Test manuel : dock icon tap → reset état page (Dashboard, Strength, Profile, Progress, HallOfFame, Coach)
+- [ ] Test manuel : Coach sub-screens chargent avec skeleton
+
+### Décisions prises
+
+- **Approche event-based** pour le dock reset (pas de remount) — plus performant, conserve le cache React Query
+- **WebP** plutôt que AVIF — support navigateur plus large, suffisant pour ces tailles
+- **Pas de reset de `monthCursor`/`selectedISO`** dans Dashboard — le scroll to top suffit, reset la date serait perturbant
+- **`staleTime: Infinity`** conservé — choix délibéré du projet, pas un bug de performance
+
+### Limites / dette
+
+- `React.memo` non ajouté sur les composants de liste (impact moyen, scope futur)
+- `tw-animate-css` importé globalement (faible impact)
+- Pas de virtualisation sur les longues listes (pas nécessaire aux volumes actuels)
+- `ComingSoon` reste en import eager dans Coach.tsx (composant minuscule)
