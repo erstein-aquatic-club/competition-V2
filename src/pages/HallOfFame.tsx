@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +29,15 @@ const PERIOD_OPTIONS = [
 
 export default function HallOfFame() {
   const [periodDays, setPeriodDays] = useState<string>("30");
+
+  // Reset view state when dock icon is tapped while already on this page
+  useEffect(() => {
+    const reset = () => {
+      setPeriodDays("30");
+    };
+    window.addEventListener("nav:reset", reset);
+    return () => window.removeEventListener("nav:reset", reset);
+  }, []);
 
   const fromDate = useMemo(() => {
     return format(subDays(new Date(), Number(periodDays)), "yyyy-MM-dd");

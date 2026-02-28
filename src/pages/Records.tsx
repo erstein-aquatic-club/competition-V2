@@ -150,7 +150,9 @@ function InlineEditBar({
 const SkeletonRow = () => <div className="h-10 rounded-xl bg-muted animate-pulse motion-reduce:animate-none" />;
 
 export default function Records() {
-  const { user, userId, role } = useAuth();
+  const user = useAuth((s) => s.user);
+  const userId = useAuth((s) => s.userId);
+  const role = useAuth((s) => s.role);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const prefersReducedMotion = useReducedMotion();

@@ -82,7 +82,8 @@ export default function SwimmerObjectivesView({ onBack, embedded = false }: Prop
   });
 
   // Get swimmer IUF from profile, then performances (last 360 days) for progress gauge
-  const { userId, user } = useAuth();
+  const userId = useAuth((s) => s.userId);
+  const user = useAuth((s) => s.user);
   const { data: profile } = useQuery({
     queryKey: ["my-profile"],
     queryFn: () => api.getProfile({ displayName: user, userId }),

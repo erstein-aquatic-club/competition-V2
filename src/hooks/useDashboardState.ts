@@ -587,6 +587,20 @@ export function useDashboardState({ sessions, assignments, userId, user }: UseDa
     setDraftState((prev) => ({ ...prev, ...feedbackDraft }));
   }, [feedbackDraft, activeSessionId, sessionsForSelectedDay, assignments]);
 
+  // Reset view state when dock icon is tapped while already on this page
+  useEffect(() => {
+    const reset = () => {
+      setDrawerOpen(false);
+      setSettingsOpen(false);
+      setInfoOpen(false);
+      setActiveSessionId(null);
+      setDetailsOpen(false);
+      setSelectedDayIndex(null);
+    };
+    window.addEventListener("nav:reset", reset);
+    return () => window.removeEventListener("nav:reset", reset);
+  }, []);
+
   // Auto-close drawer once day becomes fully completed
   useEffect(() => {
     if (!drawerOpen) return;

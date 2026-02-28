@@ -119,7 +119,8 @@ function DashboardHeaderContent({
 }
 
 export default function Dashboard() {
-  const { user, userId } = useAuth();
+  const user = useAuth((s) => s.user);
+  const userId = useAuth((s) => s.userId);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [saveState, setSaveState] = React.useState<SaveState>("idle");

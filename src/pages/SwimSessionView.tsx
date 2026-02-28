@@ -66,7 +66,8 @@ function inferSlot(assignedDate?: string | null): string {
 // ---------------------------------------------------------------------------
 
 export default function SwimSessionView() {
-  const { user, userId } = useAuth();
+  const user = useAuth((s) => s.user);
+  const userId = useAuth((s) => s.userId);
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();

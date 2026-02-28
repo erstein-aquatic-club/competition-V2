@@ -136,6 +136,21 @@ export function useStrengthState({ athleteKey }: UseStrengthStateProps) {
     screenMode,
   ]);
 
+  // Reset view state when dock icon is tapped while already on this page
+  useEffect(() => {
+    const reset = () => {
+      setScreenMode("list");
+      setActiveSession(null);
+      setActiveAssignment(null);
+      setActiveRunId(null);
+      setActiveRunLogs(null);
+      setActiveRunnerStep(0);
+      setSearchQuery("");
+    };
+    window.addEventListener("nav:reset", reset);
+    return () => window.removeEventListener("nav:reset", reset);
+  }, []);
+
   // Reset run state helper
   const clearActiveRunState = () => {
     setActiveSession(null);

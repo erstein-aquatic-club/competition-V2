@@ -10,14 +10,14 @@ import { useToast } from "@/hooks/use-toast";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import CoachSectionHeader from "./coach/CoachSectionHeader";
-import CoachSwimmersOverview from "./coach/CoachSwimmersOverview";
-import CoachMessagesScreen from "./coach/CoachMessagesScreen";
-import CoachSmsScreen from "./coach/CoachSmsScreen";
-import CoachCalendar from "./coach/CoachCalendar";
-import CoachGroupsScreen from "./coach/CoachGroupsScreen";
-import CoachCompetitionsScreen from "./coach/CoachCompetitionsScreen";
-import CoachObjectivesScreen from "./coach/CoachObjectivesScreen";
-import CoachTrainingSlotsScreen from "./coach/CoachTrainingSlotsScreen";
+const CoachSwimmersOverview = lazy(() => import("./coach/CoachSwimmersOverview"));
+const CoachMessagesScreen = lazy(() => import("./coach/CoachMessagesScreen"));
+const CoachSmsScreen = lazy(() => import("./coach/CoachSmsScreen"));
+const CoachCalendar = lazy(() => import("./coach/CoachCalendar"));
+const CoachGroupsScreen = lazy(() => import("./coach/CoachGroupsScreen"));
+const CoachCompetitionsScreen = lazy(() => import("./coach/CoachCompetitionsScreen"));
+const CoachObjectivesScreen = lazy(() => import("./coach/CoachObjectivesScreen"));
+const CoachTrainingSlotsScreen = lazy(() => import("./coach/CoachTrainingSlotsScreen"));
 import ComingSoon from "./ComingSoon";
 import { FEATURES } from "@/lib/features";
 import type { LocalStrengthRun } from "@/lib/types";
@@ -541,70 +541,86 @@ export default function Coach() {
       ) : null}
 
       {activeSection === "swimmers" ? (
-        <CoachSwimmersOverview
-          athletes={athletes}
-          athletesLoading={athletesLoading}
-          onBack={() => setActiveSection("home")}
-          onOpenAthlete={handleOpenAthlete}
-        />
+        <Suspense fallback={<PageSkeleton />}>
+          <CoachSwimmersOverview
+            athletes={athletes}
+            athletesLoading={athletesLoading}
+            onBack={() => setActiveSection("home")}
+            onOpenAthlete={handleOpenAthlete}
+          />
+        </Suspense>
       ) : null}
 
       {activeSection === "messaging" ? (
-        <CoachMessagesScreen
-          onBack={() => setActiveSection("home")}
-          athletes={athletes}
-          groups={groups}
-          athletesLoading={athletesLoading}
-        />
+        <Suspense fallback={<PageSkeleton />}>
+          <CoachMessagesScreen
+            onBack={() => setActiveSection("home")}
+            athletes={athletes}
+            groups={groups}
+            athletesLoading={athletesLoading}
+          />
+        </Suspense>
       ) : null}
 
       {activeSection === "sms" ? (
-        <CoachSmsScreen
-          onBack={() => setActiveSection("home")}
-          athletes={athletes}
-          groups={groups}
-          athletesLoading={athletesLoading}
-        />
+        <Suspense fallback={<PageSkeleton />}>
+          <CoachSmsScreen
+            onBack={() => setActiveSection("home")}
+            athletes={athletes}
+            groups={groups}
+            athletesLoading={athletesLoading}
+          />
+        </Suspense>
       ) : null}
 
       {activeSection === "calendar" ? (
-        <CoachCalendar
-          onBack={() => setActiveSection("home")}
-          athletes={athletes}
-          groups={groups}
-          swimSessions={swimSessions}
-          strengthSessions={strengthSessions}
-        />
+        <Suspense fallback={<PageSkeleton />}>
+          <CoachCalendar
+            onBack={() => setActiveSection("home")}
+            athletes={athletes}
+            groups={groups}
+            swimSessions={swimSessions}
+            strengthSessions={strengthSessions}
+          />
+        </Suspense>
       ) : null}
 
       {activeSection === "groups" ? (
-        <CoachGroupsScreen
-          onBack={() => setActiveSection("home")}
-          athletes={athletes}
-          groups={groups}
-          athletesLoading={athletesLoading}
-        />
+        <Suspense fallback={<PageSkeleton />}>
+          <CoachGroupsScreen
+            onBack={() => setActiveSection("home")}
+            athletes={athletes}
+            groups={groups}
+            athletesLoading={athletesLoading}
+          />
+        </Suspense>
       ) : null}
 
       {activeSection === "competitions" ? (
-        <CoachCompetitionsScreen
-          onBack={() => setActiveSection("home")}
-        />
+        <Suspense fallback={<PageSkeleton />}>
+          <CoachCompetitionsScreen
+            onBack={() => setActiveSection("home")}
+          />
+        </Suspense>
       ) : null}
 
       {activeSection === "objectives" ? (
-        <CoachObjectivesScreen
-          onBack={() => setActiveSection("home")}
-          athletes={athletes}
-          athletesLoading={athletesLoading}
-        />
+        <Suspense fallback={<PageSkeleton />}>
+          <CoachObjectivesScreen
+            onBack={() => setActiveSection("home")}
+            athletes={athletes}
+            athletesLoading={athletesLoading}
+          />
+        </Suspense>
       ) : null}
 
       {activeSection === "training-slots" ? (
-        <CoachTrainingSlotsScreen
-          onBack={() => setActiveSection("home")}
-          groups={groups}
-        />
+        <Suspense fallback={<PageSkeleton />}>
+          <CoachTrainingSlotsScreen
+            onBack={() => setActiveSection("home")}
+            groups={groups}
+          />
+        </Suspense>
       ) : null}
     </div>
   );

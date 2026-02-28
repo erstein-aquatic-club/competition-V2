@@ -170,7 +170,8 @@ const getFolderDisplayName = (folderPath: string, parentFolder: string | null) =
 export default function SwimCatalog() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { userId, role } = useAuth();
+  const userId = useAuth((s) => s.userId);
+  const role = useAuth((s) => s.role);
   const [isCreating, setIsCreating] = useState(false);
   useBeforeUnload(isCreating);
   const [selectedSession, setSelectedSession] = useState<SwimSessionTemplate | null>(null);

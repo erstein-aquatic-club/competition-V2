@@ -1,6 +1,6 @@
 
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import type { Competition } from "@/lib/api/types";
 import { computeTrainingDaysRemaining } from "@/lib/date";
@@ -153,7 +153,11 @@ const tooltipStyle = { borderRadius: "8px", border: "none", boxShadow: "0 4px 12
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 export default function Progress() {
-  const { user, userId, role, selectedAthleteId, selectedAthleteName } = useAuth();
+  const user = useAuth((s) => s.user);
+  const userId = useAuth((s) => s.userId);
+  const role = useAuth((s) => s.role);
+  const selectedAthleteId = useAuth((s) => s.selectedAthleteId);
+  const selectedAthleteName = useAuth((s) => s.selectedAthleteName);
   const hasCoachSelection =
     (role === "coach" || role === "admin") &&
     (selectedAthleteId !== null || !!selectedAthleteName);
@@ -165,6 +169,16 @@ export default function Progress() {
   const [historyTo] = useState("");
   const [swimPeriodDays, setSwimPeriodDays] = useState(30);
   const [strengthPeriodDays, setStrengthPeriodDays] = useState(30);
+
+  // Reset view state when dock icon is tapped while already on this page
+  useEffect(() => {
+    const reset = () => {
+      setSwimPeriodDays(30);
+      setStrengthPeriodDays(30);
+    };
+    window.addEventListener("nav:reset", reset);
+    return () => window.removeEventListener("nav:reset", reset);
+  }, []);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
 

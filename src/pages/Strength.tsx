@@ -143,7 +143,11 @@ export const buildInProgressRunCache = (run: ReturnType<typeof createInProgressR
 });
 
 export default function Strength() {
-  const { user, userId, role, selectedAthleteId, selectedAthleteName } = useAuth();
+  const user = useAuth((s) => s.user);
+  const userId = useAuth((s) => s.userId);
+  const role = useAuth((s) => s.role);
+  const selectedAthleteId = useAuth((s) => s.selectedAthleteId);
+  const selectedAthleteName = useAuth((s) => s.selectedAthleteName);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const hasCoachSelection =

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -181,7 +181,10 @@ const passwordChangeSchema = z.object({
 type PasswordChangeForm = z.infer<typeof passwordChangeSchema>;
 
 export default function Profile() {
-  const { user, userId, logout, role } = useAuth();
+  const user = useAuth((s) => s.user);
+  const userId = useAuth((s) => s.userId);
+  const logout = useAuth((s) => s.logout);
+  const role = useAuth((s) => s.role);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
@@ -198,6 +201,19 @@ export default function Profile() {
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [cropDialogSrc, setCropDialogSrc] = useState<string | null>(null);
   const [pendingNeurotypResult, setPendingNeurotypResult] = useState<NeurotypResultType | null>(null);
+
+  // Reset view state when dock icon is tapped while already on this page
+  useEffect(() => {
+    const reset = () => {
+      setActiveSection("home");
+      setIsEditSheetOpen(false);
+      setIsPasswordSheetOpen(false);
+      setCropDialogSrc(null);
+      setPendingNeurotypResult(null);
+    };
+    window.addEventListener("nav:reset", reset);
+    return () => window.removeEventListener("nav:reset", reset);
+  }, []);
 
   const handleCheckUpdate = async () => {
     setIsCheckingUpdate(true);

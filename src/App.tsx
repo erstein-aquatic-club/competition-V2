@@ -191,7 +191,8 @@ function ResetPassword() {
 }
 
 function AppRouter() {
-  const { user, role } = useAuth();
+  const user = useAuth((s) => s.user);
+  const role = useAuth((s) => s.role);
   const isApproved = useAuth((s) => s.isApproved);
 
   if (!user) {

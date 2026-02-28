@@ -19,7 +19,7 @@ import { PasswordStrength } from "@/components/shared/PasswordStrength";
 import { LoginInstallBanner } from "@/components/shared/LoginInstallBanner";
 import { fadeIn, staggerChildren } from "@/lib/animations";
 import { durationsSeconds } from "@/lib/design-tokens";
-import eacLogo from "@assets/logo-eac.png";
+const eacLogo = `${import.meta.env.BASE_URL}logo-eac-256.webp`;
 import { getLandingRouteForRole } from "@/pages/loginHelpers";
 
 // Validation schemas

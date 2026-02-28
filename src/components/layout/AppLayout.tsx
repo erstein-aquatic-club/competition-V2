@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
-import eacLogo from "@assets/logo-eac.png";
+const eacLogo = `${import.meta.env.BASE_URL}logo-eac.webp`;
 import { getNavItemsForRole } from "@/components/layout/navItems";
 import { OfflineDetector } from "@/components/shared/OfflineDetector";
 import { InstallPrompt } from "@/components/shared/InstallPrompt";
@@ -13,7 +13,7 @@ export const NAV_RESET_EVENT = "nav:reset";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location, navigate] = useLocation();
-  const { role } = useAuth();
+  const role = useAuth((s) => s.role);
   const [isFocusMode, setIsFocusMode] = useState(false);
   const navItems = getNavItemsForRole(role);
 
