@@ -41,6 +41,8 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
+  ChevronLeft,
+  ChevronRight,
   Clock,
   MapPin,
   Plus,
@@ -96,6 +98,42 @@ function timeToPx(t: string): number {
 /** Duration in px between two time strings */
 function durationPx(start: string, end: string): number {
   return timeToPx(end) - timeToPx(start);
+}
+
+/** Get Monday of the week containing `date` */
+function getMonday(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay(); // 0=Sun, 1=Mon...6=Sat
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/** ISO week number (ISO 8601) */
+function getISOWeek(date: Date): number {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+  const jan4 = new Date(d.getFullYear(), 0, 4);
+  return 1 + Math.round(((d.getTime() - jan4.getTime()) / 86400000 - 3 + ((jan4.getDay() + 6) % 7)) / 7);
+}
+
+/** Format date as "DD/MM" */
+function formatDayMonth(date: Date): string {
+  return date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
+}
+
+/** ISO date string "YYYY-MM-DD" from a Date */
+function toIsoDate(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** True if slot is a swimming session (vs PPG/muscu) based on location */
+function isSwimSlot(location: string): boolean {
+  const loc = location.toLowerCase();
+  return loc.includes("piscine") || loc.includes("bassin") || (!loc.includes("salle") && !loc.includes("muscu") && !loc.includes("ppg") && !loc.includes("gym"));
 }
 
 // ── Types ────────────────────────────────────────────────────────
@@ -711,11 +749,20 @@ const TimelineSlot = ({ slot, hasOverrides, cancelled = false, onSelect }: Timel
   const top = timeToPx(slot.start_time);
   const height = durationPx(slot.start_time, slot.end_time);
   const isShort = height < 50;
+  const swim = isSwimSlot(slot.location);
+
+  const bgClass = cancelled
+    ? "bg-muted/50 border-muted-foreground/20 opacity-50 line-through"
+    : swim
+      ? "bg-blue-500/15 border-blue-400/40 hover:bg-blue-500/25"
+      : "bg-amber-400/15 border-amber-400/40 hover:bg-amber-400/25";
+
+  const iconClass = swim ? "text-blue-500" : "text-amber-500";
 
   return (
     <button
       type="button"
-      className="absolute left-0.5 right-0.5 rounded-md border bg-primary/10 border-primary/30 px-1.5 py-0.5 text-left overflow-hidden cursor-pointer hover:bg-primary/20 transition-colors group"
+      className={`absolute left-0.5 right-0.5 rounded-md border px-1.5 py-0.5 text-left overflow-hidden cursor-pointer transition-colors ${bgClass}`}
       style={{ top, height, minHeight: 24 }}
       onClick={() => onSelect(slot)}
       title={`${formatTime(slot.start_time)}–${formatTime(slot.end_time)} · ${slot.location}`}
@@ -723,11 +770,11 @@ const TimelineSlot = ({ slot, hasOverrides, cancelled = false, onSelect }: Timel
       <div className={`flex flex-col gap-0.5 ${isShort ? "flex-row items-center" : ""}`}>
         {/* Location */}
         <div className="flex items-center gap-1 min-w-0">
-          <MapPin className="h-2.5 w-2.5 text-primary shrink-0" />
+          <MapPin className={`h-2.5 w-2.5 shrink-0 ${iconClass}`} />
           <span className="text-[10px] font-medium text-foreground truncate">
             {slot.location}
           </span>
-          {hasOverrides && (
+          {hasOverrides && !cancelled && (
             <AlertTriangle className="h-2.5 w-2.5 text-orange-500 shrink-0" />
           )}
         </div>

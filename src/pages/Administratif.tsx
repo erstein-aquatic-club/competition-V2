@@ -32,7 +32,13 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Briefcase, Car, Clock, MapPin, TrendingDown, TrendingUp } from "lucide-react";
+import { Briefcase, Car, Clock, MapPin, Plus, TrendingDown, TrendingUp } from "lucide-react";
+import {
+  Tooltip as ShadcnTooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -381,10 +387,7 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
     return sorted.map((item) => ({ ...item, percent: max > 0 ? (item.minutes / max) * 100 : 0 }));
   }, [dashboardShiftsInRange]);
 
-  const formatLongDate = useMemo(
-    () => new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric", month: "short" }),
-    [],
-  );
+  const formatLongDate = new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric", month: "short" });
 
   // ─── Form helpers ──
   const durationLabel = useMemo(() => {
@@ -516,19 +519,25 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
         {/* Header */}
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-lg font-display font-bold uppercase italic">Administratif</h1>
-          <div className="flex items-center gap-1 rounded-full border border-border bg-card p-1 text-xs font-extrabold">
+          <div role="tablist" aria-label="Sections administratives" className="flex items-center gap-1 rounded-full border border-border bg-card p-1 text-xs font-extrabold">
             <button
+              role="tab"
               type="button"
+              aria-selected={activeTab === "POINTAGE"}
+              aria-controls="tab-panel-pointage"
+              id="tab-pointage"
               className={`rounded-full px-3 py-2 transition-colors ${activeTab === "POINTAGE" ? "bg-primary text-primary-foreground" : "text-foreground"}`}
-              aria-current={activeTab === "POINTAGE" ? "page" : undefined}
               onClick={() => setActiveTab("POINTAGE")}
             >
               Pointage
             </button>
             <button
+              role="tab"
               type="button"
+              aria-selected={activeTab === "DASHBOARD"}
+              aria-controls="tab-panel-dashboard"
+              id="tab-dashboard"
               className={`rounded-full px-3 py-2 transition-colors ${activeTab === "DASHBOARD" ? "bg-primary text-primary-foreground" : "text-foreground"}`}
-              aria-current={activeTab === "DASHBOARD" ? "page" : undefined}
               onClick={() => setActiveTab("DASHBOARD")}
             >
               Dashboard
@@ -557,6 +566,9 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
         {activeTab === "POINTAGE" ? (
           <motion.div
             key="pointage"
+            role="tabpanel"
+            id="tab-panel-pointage"
+            aria-labelledby="tab-pointage"
             initial="hidden"
             animate="visible"
             variants={stagger}
@@ -674,14 +686,21 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
             </motion.div>
 
             {/* FAB */}
-            <button
-              type="button"
-              className="fixed bottom-4 right-4 z-fab flex h-14 w-14 items-center justify-center rounded-full bg-destructive text-2xl font-black text-white shadow-[0_8px_20px_rgba(220,38,38,0.25)]"
-              onClick={openNewShift}
-              aria-label="Ajouter un shift"
-            >
-              +
-            </button>
+            <TooltipProvider>
+              <ShadcnTooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="fixed bottom-4 right-4 z-fab flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_8px_20px_-2px_hsl(var(--primary)/0.25)] hover:bg-primary/90 transition-colors"
+                    onClick={openNewShift}
+                    aria-label="Nouveau shift"
+                  >
+                    <Plus className="h-6 w-6" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="left">Nouveau shift</TooltipContent>
+              </ShadcnTooltip>
+            </TooltipProvider>
           </motion.div>
         ) : null}
 
@@ -689,6 +708,9 @@ export default function Administratif({ initialTab = "POINTAGE" }: Administratif
         {activeTab === "DASHBOARD" ? (
           <motion.div
             key="dashboard"
+            role="tabpanel"
+            id="tab-panel-dashboard"
+            aria-labelledby="tab-dashboard"
             initial="hidden"
             animate="visible"
             variants={stagger}

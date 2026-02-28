@@ -32,156 +32,172 @@ Ce quiz identifie le **Neurotype d'entraînement** du nageur parmi 5 profils, ba
 
 - Chaque question propose 2 ou 3 réponses.
 - Chaque réponse est rattachée à une ou plusieurs catégories de neurotype (ou à aucune).
-- Score final = (points obtenus ÷ points possibles) × 100, calculé par catégorie.
+- **Scoring pondéré** : chaque réponse attribue un nombre de points variable (non binaire) à chacune de ses catégories rattachées. Les poids exacts sont configurés dans le backend ScoreApp et ne sont pas exposés publiquement dans l'API.
+- Score final par catégorie = (points obtenus ÷ points possibles maximum) × 100.
 - Le neurotype avec le pourcentage le plus élevé = résultat principal.
+
+### Points Possibles Maximum par Catégorie (score_potential)
+
+Ces valeurs sont fixes et déterminées par la structure du quiz :
+
+| Catégorie | Points possibles max |
+|-----------|---------------------|
+| **1A** | 490 |
+| **1B** | 680 |
+| **2A** | 845 |
+| **2B** | 680 |
+| **Type 3** | 700 |
+| **TOTAL** | 2 175 |
+
+> **Note technique** : le scoring ScoreApp utilise des poids personnalisés par réponse et par catégorie (ex. une réponse peut valoir 30 pts pour 1B mais seulement 20 pts pour 2A). Les poids approximatifs par option (modèle « un poids par option ») sont indiqués entre crochets `[≈XX]` après les catégories. Ces approximations donnent une précision de ±2 % sur le score final.
 
 ---
 
 ## Les 30 Questions du Quiz (avec scoring complet)
 
-> **Légende** : après chaque option, les catégories entre parenthèses indiquent les neurotypes qui reçoivent des points. *(vide)* = aucune catégorie scorée.
+> **Légende** : après chaque option, les catégories entre parenthèses indiquent les neurotypes qui reçoivent des points. Le nombre entre crochets `[≈XX]` est le poids approximatif attribué à chaque catégorie listée. *(vide)* = aucune catégorie scorée.
 
 ### Q1 — Es-tu toujours en quête de nouvelles expériences et avide d'apprendre ?
-- a) Oui, en permanence → *(1B, 2A)*
-- b) Pas de façon obsessionnelle → *(2B, Type 3)*
-- c) Ça dépend des périodes → *(2A)*
+- a) Oui, en permanence → *(1B, 2A)* `[≈36]`
+- b) Pas de façon obsessionnelle → *(2B, Type 3)* `[≈30]`
+- c) Ça dépend des périodes → *(2A)* `[≈36]`
 
 ### Q2 — Dirais-tu que tu es plutôt calme au quotidien, mais avec des coups de sang qui retombent vite ?
-- a) Oui, je peux m'emporter mais ça retombe vite → *(1B, 2A)*
-- b) Non, quand je m'énerve ça dure → *(2B, Type 3)*
-- c) Ça dépend des moments → *(2A)*
+- a) Oui, je peux m'emporter mais ça retombe vite → *(1B, 2A)* `[≈36]`
+- b) Non, quand je m'énerve ça dure → *(2B, Type 3)* `[≈30]`
+- c) Ça dépend des moments → *(2A)* `[≈36]`
 
 ### Q3 — Qu'est-ce qui te motive le plus : atteindre des objectifs précis (records, médailles) ou voir des progrès petit à petit ?
-- a) Les objectifs précis → *(1A, 1B, 2A)*
-- b) Les progrès graduels → *(Type 3)*
-- c) Un mélange des deux → *(2A)*
+- a) Les objectifs précis → *(1A, 1B, 2A)* `[≈52]`
+- b) Les progrès graduels → *(Type 3)* `[≈28]`
+- c) Un mélange des deux → *(2A)* `[≈37]`
 
 ### Q4 — Tu donnes le meilleur de toi quand les enjeux sont élevés (finales, grandes compétitions) ou quand la pression est faible ?
-- a) Quand les enjeux sont élevés → *(1A, 1B)*
-- b) Quand la pression est faible → *(2B, Type 3)*
-- c) Entre les deux → *(2A)*
+- a) Quand les enjeux sont élevés → *(1A, 1B)* `[≈28]`
+- b) Quand la pression est faible → *(2B, Type 3)* `[≈30]`
+- c) Entre les deux → *(2A)* `[≈26]`
 
 ### Q5 — Les règles et l'autorité, c'est ton truc ou pas du tout ?
-- a) Pas du tout, j'aime les bousculer → *(1A, 1B)*
-- b) Oui, je les respecte → *(2B, Type 3)*
-- c) Ça dépend des situations → *(2A)*
+- a) Pas du tout, j'aime les bousculer → *(1A, 1B)* `[≈28]`
+- b) Oui, je les respecte → *(2B, Type 3)* `[≈30]`
+- c) Ça dépend des situations → *(2A)* `[≈26]`
 
 ### Q6 — Préfères-tu t'entraîner longtemps à intensité modérée, ou court mais à fond ?
-- a) Court mais à fond → *(1A, 1B)*
-- b) Longtemps à intensité modérée → *(Type 3)*
-- c) Un peu des deux → *(2A)*
+- a) Court mais à fond → *(1A, 1B)* `[≈28]`
+- b) Longtemps à intensité modérée → *(Type 3)* `[≈28]`
+- c) Un peu des deux → *(2A)* `[≈26]`
 
 ### Q7 — Est-ce que tu fais souvent passer les autres avant toi — quitte à le regretter ensuite ?
-- a) Oui, souvent → *(2B)*
-- b) Parfois → *(1B, 2A, 2B)*
-- c) Pas vraiment → *(1A)*
+- a) Oui, souvent → *(2B)* `[≈0]`
+- b) Parfois → *(1B, 2A, 2B)* `[≈15]`
+- c) Pas vraiment → *(1A)* `[≈0]`
 
 ### Q8 — Es-tu capable de bien te concentrer sur une tâche tout en sachant passer rapidement d'une chose à l'autre ?
-- a) Oui → *(1B, 2A)*
-- b) Un peu → *(2A)*
-- c) Pas vraiment → *(1A, 2B, Type 3)*
+- a) Oui → *(1B, 2A)* `[≈38]`
+- b) Un peu → *(2A)* `[≈37]`
+- c) Pas vraiment → *(1A, 2B, Type 3)* `[≈35]`
 
 ### Q9 — Est-ce que tu te retrouves souvent dans le rôle du « leader silencieux » — celui qui montre l'exemple sans avoir besoin de donner des ordres ?
-- a) Oui → *(1B, 2A)*
-- b) Un peu → *(2A)*
+- a) Oui → *(1B, 2A)* `[≈38]`
+- b) Un peu → *(2A)* `[≈37]`
 - c) Pas vraiment → *(vide)*
 
 ### Q10 — Es-tu très impatient(e) et toujours en train de vouloir faire quelque chose en attendant ?
-- a) Oui → *(1B, 2A)*
-- b) Un peu → *(2A)*
-- c) Pas vraiment → *(Type 3)*
+- a) Oui → *(1B, 2A)* `[≈38]`
+- b) Un peu → *(2A)* `[≈37]`
+- c) Pas vraiment → *(Type 3)* `[≈57]`
 
 ### Q11 — Es-tu particulièrement motivé(e) par le fait de gagner le respect et l'admiration des autres ?
-- a) Oui → *(1B, 2A, 2B)*
-- b) Un peu → *(2A, 2B)*
-- c) Pas vraiment → *(1A, 1B, Type 3)*
+- a) Oui → *(1B, 2A, 2B)* `[≈0]`
+- b) Un peu → *(2A, 2B)* `[≈31]`
+- c) Pas vraiment → *(1A, 1B, Type 3)* `[≈0]`
 
 ### Q12 — As-tu tendance à adopter le comportement de la personne en face de toi, à faire ce qu'il faut pour être apprécié(e) ?
-- a) Oui → *(1B, 2A)*
-- b) Un peu → *(1B, 2A)*
+- a) Oui → *(1B, 2A)* `[≈36]`
+- b) Un peu → *(1B, 2A)* `[≈12]`
 - c) Pas vraiment → *(vide)*
 
 ### Q13 — Quand quelqu'un te raconte quelque chose, tu adores rebondir avec « Ah non, moi aussi ça m'est arrivé ! » — tu cherches toujours à créer un lien ?
-- a) Oui → *(1B, 2A, 2B)*
-- b) Un peu → *(2A, 2B)*
+- a) Oui → *(1B, 2A, 2B)* `[≈0]`
+- b) Un peu → *(2A, 2B)* `[≈31]`
 - c) Pas vraiment → *(vide)*
 
 ### Q14 — Est-ce que tu procrastines souvent et fais ton meilleur travail à la dernière minute ?
-- a) Oui, tout le temps → *(1B, 2A, 2B)*
-- b) Parfois → *(2A)*
-- c) Jamais → *(Type 3)*
+- a) Oui, tout le temps → *(1B, 2A, 2B)* `[≈13]`
+- b) Parfois → *(2A)* `[≈29]`
+- c) Jamais → *(Type 3)* `[≈57]`
 
 ### Q15 — L'opinion des autres compte beaucoup pour toi ?
-- a) Oui → *(2A, 2B)*
-- b) Un peu → *(1B, 2A, 2B)*
-- c) Pas du tout → *(1A, 1B)*
+- a) Oui → *(2A, 2B)* `[≈20]`
+- b) Un peu → *(1B, 2A, 2B)* `[≈0]`
+- c) Pas du tout → *(1A, 1B)* `[≈0]`
 
 ### Q16 — Tu as besoin de varier et de changer régulièrement pour rester motivé(e) à l'entraînement ?
-- a) Oui, c'est indispensable → *(1B, 2A, 2B)*
-- b) Un peu → *(1B, 2A)*
-- c) Non, je préfère la régularité → *(1A, 2B, Type 3)*
+- a) Oui, c'est indispensable → *(1B, 2A, 2B)* `[≈0]`
+- b) Un peu → *(1B, 2A)* `[≈16]`
+- c) Non, je préfère la régularité → *(1A, 2B, Type 3)* `[≈35]`
 
 ### Q17 — Tu es ami(e) avec tout le monde, ou plutôt du genre à avoir un petit cercle d'amis très proches ?
-- a) J'ai beaucoup d'amis → *(2A)*
-- b) Peu d'amis, mais très proches → *(1A, 2B, Type 3)*
-- c) Un mélange des deux → *(1B, 2A)*
+- a) J'ai beaucoup d'amis → *(2A)* `[≈52]`
+- b) Peu d'amis, mais très proches → *(1A, 2B, Type 3)* `[≈35]`
+- c) Un mélange des deux → *(1B, 2A)* `[≈36]`
 
 ### Q18 — Tu as besoin de te donner à fond et de « sentir la brûlure » pour que tes séances te motivent ?
-- a) Oui, j'adore sentir que ça brûle → *(2B)*
-- b) Non, je suis motivé(e) par autre chose → *(1A, 2B, Type 3)*
+- a) Oui, j'adore sentir que ça brûle → *(2B)* `[≈0]`
+- b) Non, je suis motivé(e) par autre chose → *(1A, 2B, Type 3)* `[≈35]`
 
 ### Q19 — Tu aimes bien t'habiller et soigner ton apparence ?
-- a) Oui → *(2A, 2B)*
-- b) Parfois → *(1B, 2A)*
-- c) Pas spécialement → *(1A, 2B, Type 3)*
+- a) Oui → *(2A, 2B)* `[≈26]`
+- b) Parfois → *(1B, 2A)* `[≈21]`
+- c) Pas spécialement → *(1A, 2B, Type 3)* `[≈0]`
 
 ### Q20 — Tu as du mal à te laisser aller et à baisser ta garde ?
-- a) Oui → *(Type 3)*
-- b) Un peu → *(2B, Type 3)*
-- c) Pas vraiment → *(1B, 2A)*
+- a) Oui → *(Type 3)* `[≈78]`
+- b) Un peu → *(2B, Type 3)* `[≈4]`
+- c) Pas vraiment → *(1B, 2A)* `[≈25]`
 
 ### Q21 — Tu aimes tout planifier à l'avance pour éviter les imprévus ?
-- a) Oui → *(2B, Type 3)*
+- a) Oui → *(2B, Type 3)* `[≈46]`
 - b) Parfois → *(vide)*
-- c) Non, je suis plutôt spontané(e) → *(1B, 2A)*
+- c) Non, je suis plutôt spontané(e) → *(1B, 2A)* `[≈25]`
 
 ### Q22 — Tu as besoin de te sentir calme et en contrôle pour donner le meilleur de toi-même ?
-- a) Oui → *(2B, Type 3)*
-- b) Non → *(1B, 2A)*
+- a) Oui → *(2B, Type 3)* `[≈0]`
+- b) Non → *(1B, 2A)* `[≈25]`
 
 ### Q23 — Qu'est-ce qui te pousse le plus : gagner, ou impressionner les autres et gagner leur respect ?
-- a) Gagner → *(1A, 1B, 2A, 2B)*
-- b) Impressionner et gagner le respect → *(1A, 1B, 2A, 2B)*
-- c) Un mélange des deux → *(1B, 2A)*
+- a) Gagner → *(1A, 1B, 2A, 2B)* `[≈17]`
+- b) Impressionner et gagner le respect → *(1A, 1B, 2A, 2B)* `[≈6]`
+- c) Un mélange des deux → *(1B, 2A)* `[≈25]`
 
 ### Q24 — Tes amis diraient que tu es du genre à toujours vouloir avoir raison dans une discussion animée ?
-- a) Oui, c'est tout moi → *(1A, 2A, 2B)*
-- b) Pas vraiment → *(1A, 1B, 2A, 2B)*
+- a) Oui, c'est tout moi → *(1A, 2A, 2B)* `[≈43]`
+- b) Pas vraiment → *(1A, 1B, 2A, 2B)* `[≈4]`
 
 ### Q25 — Tu fais du trash-talk avant les courses ?
-- a) Oui, carrément → *(1A, 2A, 2B)*
-- b) Parfois, pour rigoler → *(1B, 2A)*
-- c) Pas vraiment → *(1A, 1B, 2A, 2B, Type 3)*
+- a) Oui, carrément → *(1A, 2A, 2B)* `[≈38]`
+- b) Parfois, pour rigoler → *(1B, 2A)* `[≈26]`
+- c) Pas vraiment → *(1A, 1B, 2A, 2B, Type 3)* `[≈20]`
 
 ### Q26 — Tu préfères des échauffements courts ou longs ?
-- a) Courts → *(1A, 1B, 2A, 2B, Type 3)*
-- b) Longs → *(1A, 1B, 2A, 2B, Type 3)*
+- a) Courts → *(1A, 1B, 2A, 2B, Type 3)* `[≈24]`
+- b) Longs → *(1A, 1B, 2A, 2B, Type 3)* `[≈0]`
 
 ### Q27 — Tu nages mieux en fin de série difficile, ou tu es capable d'envoyer fort dès le départ ?
-- a) Fort dès le départ → *(1A, 1B, 2A, 2B, Type 3)*
-- b) Je monte en puissance et je suis meilleur vers la fin → *(1A, 1B, 2A, 2B, Type 3)*
+- a) Fort dès le départ → *(1A, 1B, 2A, 2B, Type 3)* `[≈24]`
+- b) Je monte en puissance et je suis meilleur vers la fin → *(1A, 1B, 2A, 2B, Type 3)* `[≈0]`
 
 ### Q28 — Tu préfères beaucoup de variété dans tes entraînements, ou quelque chose de plus prévisible ?
-- a) J'ai besoin de changement pour rester motivé(e) → *(1A, 1B, 2A, 2B, Type 3)*
-- b) Je n'aime pas trop que ça change → *(1A, 1B, 2B, Type 3)*
+- a) J'ai besoin de changement pour rester motivé(e) → *(1A, 1B, 2A, 2B, Type 3)* `[≈24]`
+- b) Je n'aime pas trop que ça change → *(1A, 1B, 2B, Type 3)* `[≈0]`
 
 ### Q29 — Tu t'ennuies vite quand tu enchaînes les mêmes distances, les mêmes nages, les mêmes allures ?
-- a) Oui, j'ai besoin de varier → *(1A, 1B, 2A, 2B, Type 3)*
-- b) Non, j'aime la répétition → *(1A, 1B, 2B, Type 3)*
+- a) Oui, j'ai besoin de varier → *(1A, 1B, 2A, 2B, Type 3)* `[≈24]`
+- b) Non, j'aime la répétition → *(1A, 1B, 2B, Type 3)* `[≈0]`
 
 ### Q30 — Tu aimes être le leader du groupe ou le centre de l'attention ?
-- a) Oui → *(1A, 2B, Type 3)*
-- b) Ça ne me dérange pas → *(1A, 1B)*
+- a) Oui → *(1A, 2B, Type 3)* `[≈32]`
+- b) Ça ne me dérange pas → *(1A, 1B)* `[≈0]`
 
 ---
 
