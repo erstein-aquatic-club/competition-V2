@@ -1,6 +1,6 @@
 # Roadmap de Développement
 
-*Dernière mise à jour : 2026-02-28 (§78 Créneaux personnalisés par nageur)*
+*Dernière mise à jour : 2026-02-28 (§79 Notifications push Web Push VAPID)*
 
 Ce document décrit les fonctionnalités à implémenter. Il sert de référence pour reprendre le développement dans une future conversation.
 
@@ -50,6 +50,7 @@ Ce document décrit les fonctionnalités à implémenter. Il sert de référence
 | 37 | Planification & Entretiens (fiche nageur coach) | Haute | Haute | Fait (§74) |
 | 38 | Créneaux d'entraînement récurrents | Moyenne | Moyenne | Fait (§76) |
 | 39 | Créneaux personnalisés par nageur | Moyenne | Moyenne | Fait (§78) |
+| 40 | Notifications push Web Push (VAPID) | Haute | Haute | Fait (§79) |
 
 ---
 

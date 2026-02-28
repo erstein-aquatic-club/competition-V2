@@ -86,6 +86,13 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 | `src/lib/weekTypeColor.ts` | Helper partage couleur type semaine (hash-based) | ~15 lignes |
 | `src/lib/api/swimmer-slots.ts` | CRUD créneaux personnalisés par nageur | ~160 lignes |
 | `src/components/coach/SwimmerSlotsTab.tsx` | Onglet Créneaux dans fiche nageur coach | ~374 lignes |
+| `src/lib/pwaHelpers.ts` | Détection plateforme, gate PWA | ~30 lignes |
+| `src/lib/push.ts` | Subscription push, helpers VAPID | ~77 lignes |
+| `src/lib/pushHelpers.ts` | Fonctions pures push (urlBase64ToUint8Array) | ~37 lignes |
+| `src/lib/pushConfig.ts` | VAPID public key config | ~1 ligne |
+| `src/components/shared/PWAInstallGate.tsx` | Gate installation PWA mobile | ~130 lignes |
+| `src/components/shared/PushPermissionBanner.tsx` | Banner permission push post-login | ~70 lignes |
+| `public/push-handler.js` | Service Worker push event handler | ~40 lignes |
 
 ## Edge Functions Supabase
 
@@ -95,6 +102,7 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 | `admin-user` | Fonctionnelle | `supabase/functions/admin-user/` |
 | `ffn-performances` | Fonctionnelle | `supabase/functions/ffn-performances/` |
 | `import-club-records` | Fonctionnelle | `supabase/functions/import-club-records/` |
+| `push-send` | Fonctionnelle | `supabase/functions/push-send/` |
 
 ## Documentation
 
@@ -149,6 +157,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 39 | Refonte entretiens conversationnels + planif inline | Haute | Fait (§75) |
 | 40 | Créneaux d'entraînement récurrents | Moyenne | Fait (§76) |
 | 41 | Créneaux personnalisés par nageur | Moyenne | Fait (§78) |
+| 42 | Notifications push Web Push (VAPID) | Haute | Fait (§79) |
 
 Détail complet dans `docs/ROADMAP.md`.
 

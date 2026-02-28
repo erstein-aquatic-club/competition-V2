@@ -1,6 +1,6 @@
 # État des fonctionnalités
 
-*Dernière mise à jour : 2026-02-28 (§78 Créneaux personnalisés par nageur)*
+*Dernière mise à jour : 2026-02-28 (§79 Notifications push Web Push VAPID)*
 
 ## Légende
 
@@ -241,6 +241,20 @@ Tous les feature flags sont activés.
 | Vue nageur dans timeline coach | ✅ | `CoachTrainingSlotsScreen.tsx` | Sélection nageur → affiche créneaux perso ou hérités (§78) |
 | Onglet Créneaux fiche nageur | ✅ | `SwimmerSlotsTab.tsx`, `CoachSwimmerDetail.tsx` | CRUD complet, init/reset depuis groupe (§78) |
 | Résolution créneaux profil nageur | ✅ | `Profile.tsx` | hasCustomSlots → créneaux perso, sinon fallback groupe (§78) |
+
+### Notifications push (§79)
+
+| Fonctionnalité | Statut | Fichiers | Notes |
+|----------------|--------|----------|-------|
+| Gate installation PWA mobile | ✅ | `PWAInstallGate.tsx`, `pwaHelpers.ts` | Bloquant sur mobile si pas standalone. Android: bouton install. iOS: instructions visuelles |
+| Table push_subscriptions | ✅ | `00043_push_subscriptions.sql` | RLS via app_user_id(), UNIQUE(user_id, endpoint) |
+| Service Worker push handler | ✅ | `public/push-handler.js`, `vite.config.ts` | importScripts dans Workbox generateSW |
+| Client push helpers | ✅ | `pushHelpers.ts`, `push.ts` | Subscribe/unsubscribe/check, split pur/browser |
+| Push permission banner | ✅ | `PushPermissionBanner.tsx`, `App.tsx` | Banner post-login, dismissible localStorage |
+| Edge Function push-send | ✅ | `supabase/functions/push-send/index.ts` | npm:web-push@3.6.7, nettoyage tokens expirés |
+| Database webhook trigger | ✅ | `00044_push_webhook_trigger.sql` | pg_net trigger sur notification_targets INSERT |
+| Push toggle dans Profil | ✅ | `Profile.tsx` | Activer/désactiver depuis la page profil |
+| VAPID keys config | ✅ | `pushConfig.ts`, `pages.yml` | GitHub Secrets + Supabase Secrets |
 
 ### UI/UX & Design System (Phase 6)
 

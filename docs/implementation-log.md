@@ -49,6 +49,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §76 Créneaux d'entraînement récurrents | ✅ Fait | 2026-02-28 |
 | §77 Performance & dock reset | ✅ Fait | 2026-02-28 |
 | §78 Créneaux personnalisés par nageur | ✅ Fait | 2026-02-28 |
+| §79 Notifications push Web Push (VAPID) | ✅ Fait | 2026-02-28 |
 | §45 Audit UI/UX — header Strength + login mobile + fixes | ✅ Fait | 2026-02-16 |
 | §46 Harmonisation headers + Login mobile thème clair | ✅ Fait | 2026-02-16 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
@@ -6250,3 +6251,80 @@ Les créneaux d'entraînement étaient définis par groupe (`training_slots` + `
 - La migration n'a pas pu être appliquée via Supabase MCP (permission denied) → à appliquer manuellement
 - Les notifications de modification/annulation de groupe ne sont pas encore propagées aux nageurs avec créneaux perso (chantier futur § design doc)
 - `group_id` dans `CoachSwimmerDetail` vient de `profile?.group_id ?? 0` — si le profil ne contient pas `group_id`, l'init échouera silencieusement
+
+---
+
+## 2026-02-28 — §79 Notifications push Web Push (VAPID)
+
+**Branche** : `main`
+**Chantier ROADMAP** : §79 — Notifications push Web Push (VAPID)
+
+### Contexte
+
+L'application disposait de notifications in-app (table `notifications` + `notification_targets`) mais aucun canal push externe. Les nageurs n'étaient alertés que quand ils ouvraient l'app. Le coach disposait d'un écran SMS qui ouvrait simplement l'app SMS native.
+
+Objectif : envoyer des notifications push gratuites et illimitées via Web Push / VAPID (sans Firebase SDK).
+
+### Changements réalisés
+
+1. **Gate installation PWA** — Écran bloquant sur mobile si l'app n'est pas installée en standalone. Android : bouton install via `beforeinstallprompt`. iOS : instructions visuelles étape par étape. Desktop : aucun blocage.
+2. **Table `push_subscriptions`** — Stockage des souscriptions Web Push (endpoint, p256dh, auth) avec RLS via `app_user_id()`.
+3. **Service Worker push handler** — `public/push-handler.js` importé par Workbox via `importScripts`. Gère les événements `push` et `notificationclick`.
+4. **Client push helpers** — `pushHelpers.ts` (fonctions pures testables) + `push.ts` (fonctions browser-dependent). Subscribe/unsubscribe/check.
+5. **Push Permission Banner** — Banner flottant post-login demandant l'activation des notifications. Dismissible avec persistence localStorage.
+6. **Edge Function `push-send`** — Deno Edge Function utilisant `npm:web-push@3.6.7`. Supporte invocation directe et webhook DB. Nettoyage automatique des souscriptions expirées.
+7. **Database webhook trigger** — Trigger `pg_net` sur INSERT `notification_targets` → appelle `push-send` Edge Function via HTTP POST async. Clé API stockée dans vault.
+8. **Push toggle dans Profil** — Toggle activer/désactiver les notifications push dans la page Profil.
+9. **VAPID keys** — Générées et stockées dans GitHub Secrets (public key) et Supabase Secrets (private key, public key, subject).
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/lib/pwaHelpers.ts` | Créé — Détection plateforme, gate PWA |
+| `src/lib/__tests__/pwaHelpers.test.ts` | Créé — 6 tests detection helpers |
+| `src/components/shared/PWAInstallGate.tsx` | Créé — Gate installation PWA mobile |
+| `src/lib/pushConfig.ts` | Créé — VAPID public key config |
+| `src/lib/pushHelpers.ts` | Créé — Fonctions pures push (urlBase64ToUint8Array, serializeSubscription) |
+| `src/lib/push.ts` | Créé — Subscribe/unsubscribe/check browser-side |
+| `src/lib/__tests__/push.test.ts` | Créé — 2 tests push helpers |
+| `src/components/shared/PushPermissionBanner.tsx` | Créé — Banner permission push |
+| `public/push-handler.js` | Créé — SW push event handler |
+| `supabase/migrations/00043_push_subscriptions.sql` | Créé — Table + RLS |
+| `supabase/migrations/00044_push_webhook_trigger.sql` | Créé — pg_net trigger |
+| `supabase/functions/push-send/index.ts` | Créé — Edge Function envoi push |
+| `src/App.tsx` | Modifié — PWAInstallGate wrapper + PushPermissionBanner |
+| `src/pages/Profile.tsx` | Modifié — Toggle push notifications |
+| `vite.config.ts` | Modifié — importScripts push-handler.js |
+| `.github/workflows/pages.yml` | Modifié — VITE_VAPID_PUBLIC_KEY env |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — 0 erreurs
+- [x] `npx vitest run src/lib/__tests__/push.test.ts` — 2/2 pass
+- [x] `npx vitest run src/lib/__tests__/pwaHelpers.test.ts` — 6/6 pass
+- [x] Edge Function déployée sur Supabase
+- [x] Migration push_subscriptions appliquée
+- [x] Migration webhook trigger appliquée
+- [x] Vault secret `push_edge_function_key` créé
+- [ ] Test manuel : mobile → gate installation PWA
+- [ ] Test manuel : login → banner permission push → activer → notification reçue
+- [ ] Test manuel : profil → toggle push on/off
+
+### Décisions prises
+
+- **Pure VAPID sans Firebase SDK** — Pas de dépendance Firebase côté client. Le web-push npm est utilisé uniquement côté Edge Function (Deno).
+- **`importScripts` dans Workbox** — Plutôt que de passer en mode `injectManifest`, on ajoute `push-handler.js` via `importScripts` dans la config `generateSW`. Plus simple, pas de rupture.
+- **Split pushHelpers/push** — Fonctions pures dans `pushHelpers.ts` pour testabilité Node, fonctions browser dans `push.ts`.
+- **RLS via `app_user_id()`** — Pattern existant du projet (pas de colonne `auth_uid` sur `users`).
+- **pg_net + vault** — Le trigger utilise `net.http_post` (async, fire-and-forget) avec la clé API stockée dans le vault Supabase.
+- **Anon key pour webhook** — L'Edge Function crée son propre client service_role en interne ; le trigger n'a besoin que de passer la validation JWT.
+- **Gate mobile obligatoire** — L'app est inaccessible sur mobile sans installation PWA (toutes les rôles). Desktop exempt.
+
+### Limites / dette
+
+- iOS : les push ne fonctionnent que si la PWA est installée sur l'écran d'accueil (d'où la gate obligatoire)
+- Desktop : si le navigateur est complètement fermé, pas de notification jusqu'à sa réouverture
+- L'utilisateur peut refuser la permission push dans le navigateur — fallback sur les notifications in-app
+- Le trigger `notify_push_on_target_insert` a un warning `function_search_path_mutable` (pre-existing pattern)
+- Les triggers automatiques (override créneau, veille compétition, etc.) nécessitent des INSERT dans `notification_targets` côté applicatif — à brancher progressivement
