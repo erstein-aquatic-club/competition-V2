@@ -162,9 +162,10 @@ export function NeurotypQuiz({ onComplete, onCancel }: NeurotypQuizProps) {
 
   const progress = ((currentIdx + 1) / totalQuestions) * 100;
   const selectedOption = answers[question.id];
+  const LETTERS = ["A", "B", "C", "D"];
 
   return (
-    <div className="flex flex-col max-w-md mx-auto px-5 py-4">
+    <div className="flex flex-col min-h-[calc(100dvh-4rem)] max-w-md mx-auto px-5 pt-4 pb-8">
       {/* Top bar */}
       <div className="flex items-center justify-between">
         <button
@@ -176,13 +177,19 @@ export function NeurotypQuiz({ onComplete, onCancel }: NeurotypQuizProps) {
           <ArrowLeft className="h-5 w-5" />
         </button>
 
-        <span className="text-sm font-medium tabular-nums">
-          {currentIdx + 1} / {totalQuestions}
-        </span>
+        <div className="flex items-baseline gap-1">
+          <span className="font-display text-base italic tabular-nums text-foreground">
+            {currentIdx + 1}
+          </span>
+          <span className="text-muted-foreground text-xs font-normal normal-case">/</span>
+          <span className="text-muted-foreground text-xs tabular-nums font-normal normal-case">
+            {totalQuestions}
+          </span>
+        </div>
 
         <button
           type="button"
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
           onClick={onCancel}
         >
           Quitter
@@ -190,14 +197,16 @@ export function NeurotypQuiz({ onComplete, onCancel }: NeurotypQuizProps) {
       </div>
 
       {/* Progress bar */}
-      <div className="mt-3 h-1.5 w-full rounded-full bg-muted overflow-hidden">
-        <div
-          className="h-full rounded-full bg-primary transition-all duration-300 ease-out"
-          style={{ width: `${progress}%` }}
+      <div className="mt-3 h-1 w-full rounded-full bg-muted overflow-hidden">
+        <motion.div
+          className="h-full rounded-full bg-primary"
+          initial={false}
+          animate={{ width: `${progress}%` }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
         />
       </div>
 
-      {/* Question + options (animated) */}
+      {/* Question + options — vertically centered */}
       <AnimatePresence mode="wait" custom={direction.current}>
         <motion.div
           key={currentIdx}
@@ -207,34 +216,50 @@ export function NeurotypQuiz({ onComplete, onCancel }: NeurotypQuizProps) {
           animate="center"
           exit="exit"
           transition={TRANSITION}
-          className="mt-8 flex flex-col gap-4"
+          className="flex-1 flex flex-col justify-center py-6"
         >
-          <h2 className="text-base font-medium leading-relaxed">
+          <p className="text-[1.125rem] font-semibold leading-relaxed tracking-[-0.01em] normal-case not-italic">
             {question.text}
-          </h2>
+          </p>
 
-          <div className="flex flex-col gap-3 mt-2">
+          <div className="flex flex-col gap-2.5 mt-6">
             {question.options.map((opt, idx) => {
               const isSelected = selectedOption === idx;
               const justPicked = selecting && isSelected;
+              const active = justPicked || isSelected;
 
               return (
-                <button
+                <motion.button
                   key={idx}
                   type="button"
                   disabled={selecting}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.06, duration: 0.25 }}
                   className={[
-                    "rounded-xl border bg-card p-4 text-left w-full text-sm transition-all",
+                    "flex items-start gap-3 rounded-2xl border p-3.5 text-left w-full transition-all duration-200 normal-case tracking-normal font-normal",
                     justPicked
-                      ? "ring-2 ring-primary bg-primary/5"
+                      ? "border-primary bg-primary/8 shadow-sm"
                       : isSelected
-                        ? "ring-2 ring-primary/50 bg-primary/5"
-                        : "hover:border-primary/40 active:scale-[0.98]",
+                        ? "border-primary/40 bg-primary/5"
+                        : "bg-card hover:bg-muted/50 active:scale-[0.98]",
                   ].join(" ")}
                   onClick={() => handleSelect(idx)}
                 >
-                  {opt.label}
-                </button>
+                  <span
+                    className={[
+                      "flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold transition-colors duration-200",
+                      active
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground",
+                    ].join(" ")}
+                  >
+                    {LETTERS[idx]}
+                  </span>
+                  <span className="text-sm leading-snug pt-1">
+                    {opt.label}
+                  </span>
+                </motion.button>
               );
             })}
           </div>
