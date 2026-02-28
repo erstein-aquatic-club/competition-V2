@@ -569,6 +569,10 @@ export default function Dashboard() {
     if (!drawerOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept keys when typing in an input/textarea
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable) return;
+
       if (e.key === "Escape") {
         e.preventDefault();
         closeDay();
