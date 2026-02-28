@@ -769,19 +769,46 @@ export default function Dashboard() {
               <DialogTitle>Codes</DialogTitle>
             </DialogHeader>
             <div className="space-y-3 text-sm">
-              <div className="flex items-center justify-between rounded-2xl border border-orange-200 bg-orange-50 px-3 py-2">
-                <span className="font-semibold">Orange</span>
-                <span className="text-foreground">À compléter</span>
+              <div className="rounded-2xl border border-border bg-muted/30 px-3 py-3">
+                <div className="text-sm font-semibold text-foreground">Lecture rapide</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  Vérifie la couleur du jour pour savoir s&apos;il te reste une action à faire.
+                </div>
               </div>
-              <div className="flex items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2">
-                <span className="font-semibold">Vert</span>
-                <span className="text-foreground">Validé → km</span>
+
+              <div className="rounded-2xl border border-orange-200 bg-orange-50 px-3 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-semibold text-orange-900">Orange</span>
+                  <span className="text-orange-900">Action attendue</span>
+                </div>
+                <div className="mt-1 text-xs text-orange-800/90">
+                  Il reste un ressenti ou une validation à compléter.
+                </div>
               </div>
-              <div className="flex items-center justify-between rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2">
-                <span className="font-semibold">Bleu</span>
-                <span className="text-foreground">Absent / Non prévu</span>
+
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-semibold text-emerald-900">Vert</span>
+                  <span className="text-emerald-900">Validé</span>
+                </div>
+                <div className="mt-1 text-xs text-emerald-800/90">
+                  La séance est confirmée et les kilomètres comptent.
+                </div>
               </div>
-              <div className="text-xs text-muted-foreground">Les km comptent uniquement après validation.</div>
+
+              <div className="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-semibold text-sky-900">Bleu</span>
+                  <span className="text-sky-900">Absent ou non prévu</span>
+                </div>
+                <div className="mt-1 text-xs text-sky-800/90">
+                  Aucun ressenti attendu pour ce créneau tant que tu ne l&apos;actives pas.
+                </div>
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                Les kilomètres ne sont ajoutés qu&apos;après validation finale.
+              </div>
             </div>
           </DialogContent>
         </Dialog>

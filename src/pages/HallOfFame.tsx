@@ -3,8 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Trophy, Dumbbell, Waves, Heart, AlertCircle, Medal, SlidersHorizontal } from "lucide-react";
+import { Trophy, Dumbbell, Waves, Heart, AlertCircle, Medal } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HallOfFameValue } from "@/pages/hallOfFame/HallOfFameValue";
@@ -30,7 +29,6 @@ const PERIOD_OPTIONS = [
 
 export default function HallOfFame() {
   const [periodDays, setPeriodDays] = useState<string>("30");
-  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
 
   // Reset view state when dock icon is tapped while already on this page
   useEffect(() => {
@@ -183,60 +181,34 @@ export default function HallOfFame() {
       />
 
       <div className="rounded-2xl border border-border/70 bg-card/90 px-4 py-3 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-              Période active
-            </p>
-            <p className="mt-1 text-sm font-semibold text-foreground">
-              Top calculé sur {activePeriodLabel}
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setIsFilterSheetOpen(true)}
-            className="gap-1.5 border-primary/20 text-primary hover:bg-primary/5"
-          >
-            <SlidersHorizontal className="h-3.5 w-3.5" />
-            Période
-          </Button>
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+            Période active
+          </p>
+          <p className="mt-1 text-sm font-semibold text-foreground">
+            Top calculé sur {activePeriodLabel}
+          </p>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {PERIOD_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setPeriodDays(opt.value)}
+              className={`rounded-xl border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                periodDays === opt.value
+                  ? "border-primary bg-primary/5 text-primary"
+                  : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <div className="mt-2 text-[11px] text-muted-foreground">
+          Changement immédiat, sans sous-menu.
         </div>
       </div>
-
-      <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
-        <SheetContent side="bottom" className="max-h-[70vh] overflow-y-auto rounded-t-3xl">
-          <SheetHeader className="text-left">
-            <SheetTitle>Filtrer les classements</SheetTitle>
-            <SheetDescription>
-              Choisis la période à prendre en compte pour recalculer les podiums.
-            </SheetDescription>
-          </SheetHeader>
-          <div className="grid grid-cols-2 gap-3 pt-5">
-            {PERIOD_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => {
-                  setPeriodDays(opt.value);
-                  setIsFilterSheetOpen(false);
-                }}
-                className={`rounded-2xl border px-4 py-4 text-left transition-colors ${
-                  periodDays === opt.value
-                    ? "border-primary bg-primary/5 text-primary"
-                    : "border-border hover:border-primary/30"
-                }`}
-              >
-                <div className="text-sm font-semibold">{opt.label}</div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  Classement glissant sur {opt.label}
-                </div>
-              </button>
-            ))}
-          </div>
-        </SheetContent>
-      </Sheet>
 
       <Tabs defaultValue="swim" className="w-full">
         <TabsList className="grid w-full grid-cols-2">

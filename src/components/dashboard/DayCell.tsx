@@ -56,6 +56,12 @@ export const DayCell = memo(function DayCell({
   const ring = isSelected ? "ring-2 ring-primary/30" : "";
   const todayRing = isToday && !isSelected ? "ring-2 ring-primary/50" : "";
   const focusRing = isFocused ? "ring-2 ring-primary" : "";
+  const slotBadgeTone = (slot?: SlotStatus) => {
+    if (!slot?.expected) return "hidden";
+    if (slot.completed) return "bg-status-success text-white";
+    if (slot.absent) return "bg-muted-foreground/15 text-muted-foreground";
+    return "bg-muted text-muted-foreground";
+  };
 
   const amSlot = slots.find((s) => s.slotKey === "AM");
   const pmSlot = slots.find((s) => s.slotKey === "PM");
@@ -94,19 +100,23 @@ export const DayCell = memo(function DayCell({
             <Moon className="h-3 w-3 text-muted-foreground/40" />
           ) : (
             <>
-              <div className="w-6">
-                <div className="flex gap-1">
-                  {amSlot?.expected ? (
-                    <span className={cn("h-1.5 flex-1 rounded-full", amSlot.completed ? "bg-status-success" : amSlot.absent ? "bg-muted-foreground/15" : "bg-muted-foreground/30")} />
-                  ) : (
-                    <span className="flex-1" />
+              <div className="flex items-center gap-1">
+                <span
+                  className={cn(
+                    "inline-flex h-3.5 min-w-[14px] items-center justify-center rounded-md px-0.5 text-[8px] font-bold leading-none",
+                    slotBadgeTone(amSlot),
                   )}
-                  {pmSlot?.expected ? (
-                    <span className={cn("h-1.5 flex-1 rounded-full", pmSlot.completed ? "bg-status-success" : pmSlot.absent ? "bg-muted-foreground/15" : "bg-muted-foreground/30")} />
-                  ) : (
-                    <span className="flex-1" />
+                >
+                  M
+                </span>
+                <span
+                  className={cn(
+                    "inline-flex h-3.5 min-w-[14px] items-center justify-center rounded-md px-0.5 text-[8px] font-bold leading-none",
+                    slotBadgeTone(pmSlot),
                   )}
-                </div>
+                >
+                  S
+                </span>
               </div>
               {strengthAssigned ? (
                 <span className="h-1.5 w-1.5 rounded-full bg-orange-400 shrink-0" />

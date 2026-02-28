@@ -1,5 +1,5 @@
 import React from "react";
-import { ChevronLeft, ChevronRight, Circle } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -52,6 +52,16 @@ interface CalendarHeaderProps {
 }
 
 export function CalendarHeader({ monthCursor, selectedDayStatus, onPrevMonth, onNextMonth, onJumpToday }: CalendarHeaderProps) {
+  const expectedCount = selectedDayStatus.slots.filter((slot) => slot.expected).length;
+  const completedCount = selectedDayStatus.slots.filter((slot) => slot.expected && slot.completed).length;
+  const absentCount = selectedDayStatus.slots.filter((slot) => slot.expected && slot.absent).length;
+  const summaryLabel =
+    expectedCount === 0
+      ? "repos"
+      : absentCount === expectedCount
+        ? "absent"
+        : `${completedCount}/${expectedCount} fait`;
+
   return (
     <div className="flex items-center justify-between px-3 sm:px-5 py-3 border-b border-border">
       <div className="flex items-center gap-1">
@@ -65,28 +75,19 @@ export function CalendarHeader({ monthCursor, selectedDayStatus, onPrevMonth, on
 
       <div className="min-w-0 text-center">
         <div className="text-base font-semibold text-foreground capitalize truncate">{monthLabelFR(monthCursor)}</div>
-        <div className="mt-1 flex items-center justify-center gap-1">
-          {selectedDayStatus.total > 0 ? (
-            selectedDayStatus.slots
-              .filter((s) => s.expected)
-              .map((s) => (
-                <span
-                  key={s.slotKey}
-                  className={cn(
-                    "h-1.5 w-1.5 rounded-full",
-                    s.completed ? "bg-status-success" : s.absent ? "bg-muted-foreground/15" : "bg-muted-foreground/30"
-                  )}
-                />
-              ))
-          ) : (
-            <span className="text-[10px] text-muted-foreground">repos</span>
-          )}
+        <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          {summaryLabel}
         </div>
       </div>
 
-      <IconButton onClick={onJumpToday} label="Aller à aujourd'hui" tone="neutral">
-        <Circle className="h-5 w-5" />
-      </IconButton>
+      <button
+        type="button"
+        onClick={onJumpToday}
+        className="rounded-2xl border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted"
+        aria-label="Aller à aujourd'hui"
+      >
+        Aujourd&apos;hui
+      </button>
     </div>
   );
 }

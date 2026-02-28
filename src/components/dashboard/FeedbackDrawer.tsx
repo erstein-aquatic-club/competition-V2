@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Waves, Power, Check, Circle, UserX, FileText, UserCheck, Minus, Plus, Sun, Moon, ChevronDown, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
@@ -329,11 +329,16 @@ export function FeedbackDrawer({
 }: FeedbackDrawerProps) {
   const [, setLocation] = useLocation();
   const [unexpectedExpanded, setUnexpectedExpanded] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const activeSession = useMemo(() => {
     if (!activeSessionId) return null;
     return sessionsForSelectedDay.find((s) => s.id === activeSessionId) || null;
   }, [activeSessionId, sessionsForSelectedDay]);
+
+  useEffect(() => {
+    setAdvancedOpen(false);
+  }, [activeSessionId]);
 
   return (
     <AnimatePresence>
@@ -748,38 +753,73 @@ export function FeedbackDrawer({
                                 </motion.div>
                               </motion.div>
 
-                              {/* Stepper distance (±100m) */}
-                              <DistanceStepper
-                                plannedMeters={plannedMeters}
-                                valueMeters={draftState.distanceMeters}
-                                onChange={(m) => onDraftStateChange({ ...draftState, distanceMeters: m })}
-                                disabled={!canRate}
-                              />
-
-                              {/* Détail par nage (collapsible) */}
-                              <StrokeDetailForm
-                                strokes={draftState.strokes}
-                                showStrokeDetail={draftState.showStrokeDetail}
-                                disabled={!canRate}
-                                onToggle={() => onDraftStateChange({ ...draftState, showStrokeDetail: !draftState.showStrokeDetail })}
-                                onChange={(strokes) => onDraftStateChange({ ...draftState, strokes })}
-                              />
-
-                              {hasLog && onDeleteFeedback && (
+                              <div className="mt-4 rounded-3xl border border-border bg-muted/20 overflow-hidden">
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    if (window.confirm("Supprimer ce ressenti ?")) {
-                                      onDeleteFeedback(activeSession.id);
-                                    }
-                                  }}
-                                  disabled={isPending}
-                                  className="mt-4 w-full rounded-2xl border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10 transition disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                                  onClick={() => setAdvancedOpen((openState) => !openState)}
+                                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
                                 >
-                                  <Trash2 className="h-4 w-4" />
-                                  Supprimer le ressenti
+                                  <div>
+                                    <div className="text-sm font-semibold text-foreground">Ajustements avancés</div>
+                                    <div className="mt-0.5 text-xs text-muted-foreground">
+                                      Kilométrage, détail par nage et suppression du ressenti
+                                    </div>
+                                  </div>
+                                  <ChevronDown
+                                    className={cn(
+                                      "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                                      advancedOpen && "rotate-180",
+                                    )}
+                                  />
                                 </button>
-                              )}
+
+                                <AnimatePresence initial={false}>
+                                  {advancedOpen ? (
+                                    <motion.div
+                                      initial={{ opacity: 0, height: 0 }}
+                                      animate={{ opacity: 1, height: "auto" }}
+                                      exit={{ opacity: 0, height: 0 }}
+                                      transition={{ duration: durationsSeconds.normal }}
+                                      className="overflow-hidden border-t border-border"
+                                    >
+                                      <div className="px-3 pb-3">
+                                        {/* Stepper distance (±100m) */}
+                                        <DistanceStepper
+                                          plannedMeters={plannedMeters}
+                                          valueMeters={draftState.distanceMeters}
+                                          onChange={(m) => onDraftStateChange({ ...draftState, distanceMeters: m })}
+                                          disabled={!canRate}
+                                        />
+
+                                        {/* Détail par nage (collapsible) */}
+                                        <StrokeDetailForm
+                                          strokes={draftState.strokes}
+                                          showStrokeDetail={draftState.showStrokeDetail}
+                                          disabled={!canRate}
+                                          onToggle={() => onDraftStateChange({ ...draftState, showStrokeDetail: !draftState.showStrokeDetail })}
+                                          onChange={(strokes) => onDraftStateChange({ ...draftState, strokes })}
+                                        />
+
+                                        {hasLog && onDeleteFeedback ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              if (window.confirm("Supprimer ce ressenti ?")) {
+                                                onDeleteFeedback(activeSession.id);
+                                              }
+                                            }}
+                                            disabled={isPending}
+                                            className="mt-4 w-full rounded-2xl border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10 transition disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                            Supprimer le ressenti
+                                          </button>
+                                        ) : null}
+                                      </div>
+                                    </motion.div>
+                                  ) : null}
+                                </AnimatePresence>
+                              </div>
 
                             </div>
                           </>

@@ -1,7 +1,7 @@
 import React from "react";
 import { DayCell } from "./DayCell";
 
-const WEEKDAYS_FR_SHORT = ["L", "M", "M", "J", "V", "S", "D"]; // mobile
+const WEEKDAYS_FR_SHORT = ["Lu", "Ma", "Me", "Je", "Ve", "Sa", "Di"]; // mobile
 const WEEKDAYS_FR = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]; // desktop
 
 function toISODate(d: Date) {
