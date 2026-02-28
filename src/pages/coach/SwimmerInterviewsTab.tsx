@@ -37,6 +37,7 @@ import {
   Send,
   Clock,
   MessageSquare,
+  Smartphone,
   User,
   GraduationCap,
   Trophy,
@@ -54,6 +55,7 @@ import {
   strokeFromCode,
 } from "@/lib/objectiveHelpers";
 import { weekTypeColor, weekTypeTextColor } from "@/lib/weekTypeColor";
+import { buildSmsUri, canOpenSmsApp } from "@/lib/smsUtils";
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -683,11 +685,15 @@ const InlinePlanning = ({
 const CoachInterviewCard = ({
   interview,
   athleteId,
+  athleteName,
+  athletePhone,
   objectives,
   performances,
 }: {
   interview: Interview;
   athleteId: number;
+  athleteName: string;
+  athletePhone: string | null;
   objectives: Objective[];
   performances: SwimmerPerformance[];
 }) => {
@@ -705,6 +711,7 @@ const CoachInterviewCard = ({
   const [coachActions, setCoachActions] = useState(interview.coach_actions ?? "");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showSendConfirm, setShowSendConfirm] = useState(false);
+  const [showSmsPrompt, setShowSmsPrompt] = useState(false);
   const savingRef = useRef(false);
 
   // Previous interview
@@ -761,11 +768,30 @@ const CoachInterviewCard = ({
     onSuccess: () => {
       toast({ title: "Entretien envoyé au nageur" });
       void queryClient.invalidateQueries({ queryKey: ["interviews", athleteId] });
+      setShowSmsPrompt(true);
     },
     onError: (err: Error) => {
       toast({ title: "Erreur", description: err.message, variant: "destructive" });
     },
   });
+
+  const handleSendSms = () => {
+    if (!athletePhone) return;
+    const firstName = athleteName.split(" ")[0];
+    const body = `Bonjour ${firstName}, ton entretien est disponible. Consulte-le ici : https://erstein-aquatic-club.github.io/competition/#/profile`;
+    const uri = buildSmsUri([athletePhone], body);
+
+    if (canOpenSmsApp()) {
+      window.location.href = uri;
+    } else {
+      navigator.clipboard.writeText(`${athletePhone}\n${body}`).then(() => {
+        toast({ title: "Copié", description: "Numéro et message copiés dans le presse-papiers." });
+      }).catch(() => {
+        toast({ title: "Erreur", description: "Impossible de copier.", variant: "destructive" });
+      });
+    }
+    setShowSmsPrompt(false);
+  };
 
   const deleteMutation = useMutation({
     mutationFn: () => api.deleteInterview(interview.id),
@@ -1011,6 +1037,32 @@ const CoachInterviewCard = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* SMS prompt after sending */}
+      <AlertDialog open={showSmsPrompt} onOpenChange={setShowSmsPrompt}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Entretien envoyé</AlertDialogTitle>
+            <AlertDialogDescription>
+              {athletePhone ? (
+                <>L'entretien a bien été envoyé à <strong>{athleteName}</strong>. Voulez-vous le notifier par SMS ?</>
+              ) : (
+                <>L'entretien a bien été envoyé à <strong>{athleteName}</strong>. Aucun numéro de téléphone enregistré pour ce nageur.</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Plus tard</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSendSms}
+              disabled={!athletePhone}
+            >
+              <Smartphone className="mr-1.5 h-3.5 w-3.5" />
+              Envoyer le SMS
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
@@ -1040,6 +1092,7 @@ const SwimmerInterviewsTab = ({ athleteId, athleteName }: Props) => {
     enabled: !!athleteId,
   });
   const athleteIuf = athleteProfile?.ffn_iuf ?? null;
+  const athletePhone = athleteProfile?.phone ?? null;
 
   const perfFromDate = useMemo(() => {
     const d = new Date();
@@ -1141,6 +1194,8 @@ const SwimmerInterviewsTab = ({ athleteId, athleteName }: Props) => {
             key={interview.id}
             interview={interview}
             athleteId={athleteId}
+            athleteName={athleteName}
+            athletePhone={athletePhone}
             objectives={objectives}
             performances={performances}
           />

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { MessageSquare, Copy, ExternalLink, Check, ChevronsUpDown, X } from "lucide-react";
+import { Copy, ExternalLink, Check, ChevronsUpDown, X, Smartphone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import CoachSectionHeader from "./CoachSectionHeader";
+import { buildSmsUri, canOpenSmsApp } from "@/lib/smsUtils";
 
 type CoachSmsScreenProps = {
   onBack: () => void;
@@ -125,21 +126,8 @@ const CoachSmsScreen = ({ onBack, athletes, groups, athletesLoading }: CoachSmsS
       return;
     }
 
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (isMobile) {
-      const body = message.trim() ? encodeURIComponent(message.trim()) : "";
-      const isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-      let uri: string;
-      if (isIos) {
-        const addresses = selectedPhones.join(",");
-        uri = body
-          ? `sms:/open?addresses=${addresses}&body=${body}`
-          : `sms:/open?addresses=${addresses}`;
-      } else {
-        uri = body
-          ? `sms:${selectedPhones.join(",")}?body=${body}`
-          : `sms:${selectedPhones.join(",")}`;
-      }
+    if (canOpenSmsApp()) {
+      const uri = buildSmsUri(selectedPhones, message.trim() || undefined);
       window.location.href = uri;
     } else {
       navigator.clipboard.writeText(selectedPhones.join(", ")).then(() => {
@@ -153,7 +141,7 @@ const CoachSmsScreen = ({ onBack, athletes, groups, athletesLoading }: CoachSmsS
     }
   };
 
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const canSms = canOpenSmsApp();
 
   return (
     <div className="space-y-6 pb-24">
@@ -320,10 +308,10 @@ const CoachSmsScreen = ({ onBack, athletes, groups, athletesLoading }: CoachSmsS
           onClick={handleSendSms}
           disabled={selectionCount === 0 || selectedPhones.length === 0}
         >
-          {isMobile ? (
+          {canSms ? (
             <>
-              <MessageSquare className="mr-2 h-4 w-4" />
-              Ouvrir dans l'app SMS
+              <Smartphone className="mr-2 h-4 w-4" />
+              Ouvrir dans Messages
               <ExternalLink className="ml-2 h-3 w-3" />
             </>
           ) : (
