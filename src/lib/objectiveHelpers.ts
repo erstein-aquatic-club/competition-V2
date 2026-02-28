@@ -106,7 +106,7 @@ export function findBestTime(
  * baseline for the progress gauge, keyed by race distance.
  */
 const GAUGE_BASELINE_BY_DISTANCE: Record<number, number> = {
-  50: 2,
+  50: 1,
   100: 4,
   200: 10,
   400: 15,
