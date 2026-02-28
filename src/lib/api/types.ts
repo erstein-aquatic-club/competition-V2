@@ -646,3 +646,25 @@ export interface TrainingSlotOverrideInput {
   new_location?: string | null;
   reason?: string | null;
 }
+
+export interface SwimmerTrainingSlot {
+  id: string;
+  user_id: number;
+  source_assignment_id: string | null;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  location: string;
+  is_active: boolean;
+  created_by: number | null;
+  created_at: string;
+}
+
+export interface SwimmerTrainingSlotInput {
+  user_id: number;
+  source_assignment_id?: string | null;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  location: string;
+}

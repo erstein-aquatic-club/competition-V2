@@ -257,6 +257,17 @@ export {
 } from './training-slots';
 
 export {
+  getSwimmerSlots,
+  hasCustomSlots,
+  initSwimmerSlots,
+  createSwimmerSlot,
+  updateSwimmerSlot,
+  deleteSwimmerSlot,
+  resetSwimmerSlots,
+  getSwimmersAffectedBySlot,
+} from './swimmer-slots';
+
+export {
   getExercises,
   createExercise,
   updateExercise,

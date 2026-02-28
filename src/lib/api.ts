@@ -60,6 +60,8 @@ export type {
   TrainingSlotOverride,
   TrainingSlotInput,
   TrainingSlotOverrideInput,
+  SwimmerTrainingSlot,
+  SwimmerTrainingSlotInput,
 } from "./api/types";
 
 import type {
@@ -249,6 +251,17 @@ import {
   createSlotOverride as _createSlotOverride,
   deleteSlotOverride as _deleteSlotOverride,
 } from './api/training-slots';
+
+import {
+  getSwimmerSlots as _getSwimmerSlots,
+  hasCustomSlots as _hasCustomSlots,
+  initSwimmerSlots as _initSwimmerSlots,
+  createSwimmerSlot as _createSwimmerSlot,
+  updateSwimmerSlot as _updateSwimmerSlot,
+  deleteSwimmerSlot as _deleteSwimmerSlot,
+  resetSwimmerSlots as _resetSwimmerSlots,
+  getSwimmersAffectedBySlot as _getSwimmersAffectedBySlot,
+} from "./api/swimmer-slots";
 
 import {
   getExercises as _getExercises,
@@ -718,4 +731,16 @@ export const api = {
   async getSlotOverrides(options?: Parameters<typeof _getSlotOverrides>[0]) { return _getSlotOverrides(options); },
   async createSlotOverride(input: Parameters<typeof _createSlotOverride>[0]) { return _createSlotOverride(input); },
   async deleteSlotOverride(overrideId: string) { return _deleteSlotOverride(overrideId); },
+
+  // ══════════════════════════════════════════════════════════════════
+  // DELEGATION STUBS — Swimmer Training Slots
+  // ══════════════════════════════════════════════════════════════════
+  async getSwimmerSlots(userId: number) { return _getSwimmerSlots(userId); },
+  async hasCustomSlots(userId: number) { return _hasCustomSlots(userId); },
+  async initSwimmerSlots(userId: number, groupId: number, createdBy: number) { return _initSwimmerSlots(userId, groupId, createdBy); },
+  async createSwimmerSlot(input: Parameters<typeof _createSwimmerSlot>[0], createdBy: number) { return _createSwimmerSlot(input, createdBy); },
+  async updateSwimmerSlot(slotId: string, input: Parameters<typeof _updateSwimmerSlot>[1]) { return _updateSwimmerSlot(slotId, input); },
+  async deleteSwimmerSlot(slotId: string) { return _deleteSwimmerSlot(slotId); },
+  async resetSwimmerSlots(userId: number, groupId: number, createdBy: number) { return _resetSwimmerSlots(userId, groupId, createdBy); },
+  async getSwimmersAffectedBySlot(assignmentId: string) { return _getSwimmersAffectedBySlot(assignmentId); },
 };
