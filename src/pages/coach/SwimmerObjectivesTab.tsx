@@ -657,6 +657,9 @@ const SwimmerObjectivesTab = ({ athleteId, athleteName }: Props) => {
           {objectives.map((obj) => (
             <ObjectiveCard key={obj.id} objective={obj} performances={performances} onEdit={handleEdit} />
           ))}
+          <p className="text-[10px] text-muted-foreground/60 italic text-center pt-1">
+            Les temps « Actuel » correspondent à la meilleure performance des 360 derniers jours sur l'épreuve.
+          </p>
         </div>
       )}
 

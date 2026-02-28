@@ -290,6 +290,13 @@ export default function SwimmerObjectivesView({ onBack }: Props) {
         </div>
       )}
 
+      {/* Perf note */}
+      {(coachObjectives.length > 0 || personalObjectives.length > 0) && (
+        <p className="text-[10px] text-muted-foreground/60 italic text-center">
+          Les temps « Actuel » correspondent à la meilleure performance des 360 derniers jours sur l'épreuve.
+        </p>
+      )}
+
       {/* Personal objectives (editable) */}
       {personalObjectives.length > 0 && (
         <div className="space-y-2">
