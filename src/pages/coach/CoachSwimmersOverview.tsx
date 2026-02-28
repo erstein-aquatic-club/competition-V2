@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
-import type { AthleteSummary, Objective } from "@/lib/api/types";
+import type { AthleteSummary } from "@/lib/api/types";
 import CoachSectionHeader from "./CoachSectionHeader";
 
 // --- Types ---
@@ -70,9 +70,9 @@ export default function CoachSwimmersOverview({ athletes, athletesLoading, onBac
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: allObjectives = [] } = useQuery({
-    queryKey: ["objectives-all"],
-    queryFn: () => api.getObjectives(),
+  const { data: objectiveCounts } = useQuery({
+    queryKey: ["objectives-counts-by-user"],
+    queryFn: () => api.getObjectivesCountsByUser(),
     enabled: athletes.length > 0,
     staleTime: 5 * 60 * 1000,
   });
@@ -96,18 +96,9 @@ export default function CoachSwimmersOverview({ athletes, athletesLoading, onBac
       list.push(s);
       sessionsByAthleteId.set(s.athlete_id, list);
     }
-    const objectivesByName = new Map<string, Objective[]>();
-    for (const obj of allObjectives) {
-      const name = obj.athlete_name?.toLowerCase() ?? "";
-      if (!name) continue;
-      const list = objectivesByName.get(name) ?? [];
-      list.push(obj);
-      objectivesByName.set(name, list);
-    }
     for (const athlete of athletes) {
       if (athlete.id == null) continue;
       const sessions = sessionsByAthleteId.get(athlete.id) ?? [];
-      const objectives = objectivesByName.get(athlete.display_name.toLowerCase()) ?? [];
       const forme = computeFormeScore(sessions);
       const lastSessionDate = sessions.length > 0 ? sessions[0].session_date : null;
       kpiMap.set(athlete.id, {
@@ -115,12 +106,12 @@ export default function CoachSwimmersOverview({ athletes, athletesLoading, onBac
         lastSessionDate,
         sessionsCount30d: sessions.length,
         assiduity: null,
-        objectivesTotal: objectives.length,
+        objectivesTotal: objectiveCounts?.get(athlete.id) ?? 0,
         objectivesAchieved: 0,
       });
     }
     return kpiMap;
-  }, [athletes, recentSessions, allObjectives]);
+  }, [athletes, recentSessions, objectiveCounts]);
 
   const sortedAthletes = useMemo(() => {
     let list = [...athletes];

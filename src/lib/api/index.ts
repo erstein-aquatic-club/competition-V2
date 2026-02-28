@@ -210,6 +210,7 @@ export {
   createObjective,
   updateObjective,
   deleteObjective,
+  getObjectivesCountsByUser,
 } from './objectives';
 
 export {

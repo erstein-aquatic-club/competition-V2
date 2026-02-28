@@ -199,6 +199,7 @@ import {
   createObjective as _createObjective,
   updateObjective as _updateObjective,
   deleteObjective as _deleteObjective,
+  getObjectivesCountsByUser as _getObjectivesCountsByUser,
 } from './api/objectives';
 
 import {
@@ -632,6 +633,7 @@ export const api = {
   async createObjective(input: Parameters<typeof _createObjective>[0]) { return _createObjective(input); },
   async updateObjective(id: string, input: Parameters<typeof _updateObjective>[1]) { return _updateObjective(id, input); },
   async deleteObjective(id: string) { return _deleteObjective(id); },
+  async getObjectivesCountsByUser() { return _getObjectivesCountsByUser(); },
 
   // ══════════════════════════════════════════════════════════════════
   // DELEGATION STUBS — Planned Absences

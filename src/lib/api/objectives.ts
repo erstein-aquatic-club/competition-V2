@@ -70,3 +70,15 @@ export async function deleteObjective(id: string): Promise<void> {
     .eq("id", id);
   if (error) throw new Error(error.message);
 }
+
+/** Returns objectives count keyed by numeric user_id. */
+export async function getObjectivesCountsByUser(): Promise<Map<number, number>> {
+  if (!canUseSupabase()) return new Map();
+  const { data, error } = await supabase.rpc("get_objectives_counts_by_user");
+  if (error) throw new Error(error.message);
+  const map = new Map<number, number>();
+  for (const row of data ?? []) {
+    map.set(row.user_id, Number(row.objectives_count));
+  }
+  return map;
+}
