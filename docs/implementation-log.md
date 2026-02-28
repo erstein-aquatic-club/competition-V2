@@ -43,6 +43,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §65 Écran SMS dédié coach dashboard | ✅ Fait | 2026-02-24 |
 | §66 Groupes encadrés par shift (pointage coach) | ✅ Fait | 2026-02-25 |
 | §72 Dashboard synthétique nageurs (coach) | ✅ Fait | 2026-02-27 |
+| §73 Fiche nageur coach (page onglets, ressentis, objectifs) | ✅ Fait | 2026-02-28 |
 | §45 Audit UI/UX — header Strength + login mobile + fixes | ✅ Fait | 2026-02-16 |
 | §46 Harmonisation headers + Login mobile thème clair | ✅ Fait | 2026-02-16 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
@@ -5870,3 +5871,55 @@ La section "Nageurs" du coach affichait une liste basique (nom, groupe, IUF, bou
 - L'assiduité est un compte brut de séances, pas un pourcentage vs assignations
 - Les objectifs ne distinguent pas atteints vs non atteints
 - Pas de lazy-loading du composant (à considérer si le bundle coach grossit)
+
+---
+
+## 2026-02-28 — §73 Fiche nageur coach (page onglets, ressentis, objectifs)
+
+**Branche** : `main`
+**Chantier ROADMAP** : §73 — Fiche nageur coach
+
+### Contexte — Pourquoi ce patch
+
+Depuis le dashboard nageurs (§72), le coach pouvait uniquement naviguer vers la page Progress générique. On ajoute une page dédiée par nageur avec 4 onglets : Ressentis (historique des saisies), Objectifs (CRUD), Planification (placeholder V2), Entretiens (placeholder V2).
+
+### Changements réalisés
+
+1. **Page CoachSwimmerDetail** : nouvelle route `/#/coach/swimmer/:id` avec header (avatar, nom, groupe) et 4 onglets Shadcn Tabs
+2. **SwimmerFeedbackTab** : liste chronologique des ressentis avec pastilles colorées (difficulté, fatigue, performance, engagement), commentaires expansibles, pagination par 20
+3. **SwimmerObjectivesTab** : CRUD complet des objectifs (chrono + texte), formulaire dans un Sheet avec sélecteur d'épreuve FFN, bassin, temps cible, lien compétition. Reproduit fidèlement la logique de CoachObjectivesScreen
+4. **Routing** : route lazy-loaded ajoutée dans App.tsx, `handleOpenAthlete` redirige vers la fiche au lieu de Progress
+5. **Placeholders** : onglets Planification et Entretiens avec message "Bientôt disponible"
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/pages/coach/CoachSwimmerDetail.tsx` | **Nouveau** — Page principale fiche nageur |
+| `src/pages/coach/SwimmerFeedbackTab.tsx` | **Nouveau** — Onglet ressentis |
+| `src/pages/coach/SwimmerObjectivesTab.tsx` | **Nouveau** — Onglet objectifs CRUD |
+| `src/App.tsx` | Ajout route `/coach/swimmer/:id` |
+| `src/pages/Coach.tsx` | Redirection handleOpenAthlete vers fiche |
+
+### Tests
+
+- [x] `npm run build` — OK
+- [x] `npx tsc --noEmit` — OK
+- [ ] Test manuel : coach → dashboard nageurs → cliquer carte → page fiche avec onglets
+- [ ] Test manuel : onglet Ressentis → liste sessions avec pastilles colorées
+- [ ] Test manuel : onglet Objectifs → créer/modifier/supprimer un objectif
+- [ ] Test manuel : onglets Planif/Entretiens → placeholder visible
+- [ ] Test manuel : bouton retour → retour au dashboard nageurs
+
+### Décisions prises
+
+- Route dédiée (`/coach/swimmer/:id`) plutôt que section inline dans Coach.tsx — meilleur deep linking
+- Contexte nageur passé via Zustand `selectedAthlete` (persisté localStorage) + URL param comme fallback
+- SwimmerObjectivesTab reproduit la logique de CoachObjectivesScreen plutôt que de partager un composant — plus simple à maintenir indépendamment
+- Lookup `auth_uid` via la même RPC que CoachObjectivesScreen (`get_auth_uid_for_user`)
+
+### Limites / dette
+
+- Planification et Entretiens sont des placeholders (V2)
+- Le SwimmerObjectivesTab duplique du code de CoachObjectivesScreen — à factoriser si le formulaire évolue
+- Pas de cache partagé entre les objectifs de la fiche et ceux de CoachObjectivesScreen (queryKey différent)

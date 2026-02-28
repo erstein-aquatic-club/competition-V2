@@ -62,6 +62,9 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 | `src/pages/coach/CoachCalendar.tsx` | Calendrier coach (vue mensuelle assignations) | ~266 lignes |
 | `src/hooks/useCoachCalendarState.ts` | Hook état calendrier coach (grille, query, slots) | ~187 lignes |
 | `src/pages/coach/CoachSwimmersOverview.tsx` | Dashboard synthétique nageurs (grille cards, KPIs) | ~310 lignes |
+| `src/pages/coach/CoachSwimmerDetail.tsx` | Page fiche nageur (onglets ressentis/objectifs/planif/entretiens) | ~120 lignes |
+| `src/pages/coach/SwimmerFeedbackTab.tsx` | Onglet ressentis (liste chronologique sessions) | ~120 lignes |
+| `src/pages/coach/SwimmerObjectivesTab.tsx` | Onglet objectifs CRUD (chrono + texte) | ~390 lignes |
 | `src/pages/coach/CoachGroupsScreen.tsx` | UI gestion groupes temporaires (stages) | ~580 lignes |
 | `src/pages/coach/CoachCompetitionsScreen.tsx` | UI compétitions coach + assignations + SMS | ~470 lignes |
 | `src/pages/coach/CoachObjectivesScreen.tsx` | UI gestion objectifs par nageur | ~710 lignes |
@@ -131,6 +134,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 35 | Fix désynchronisation group_members au changement de groupe | Haute | Fait (§67) |
 | 36 | Quiz neurotype nageur (profil d'entraînement) | Moyenne | Fait (§71) |
 | 37 | Dashboard synthétique nageurs (coach) | Moyenne | Fait (§72) |
+| 38 | Fiche nageur coach (ressentis, objectifs, onglets) | Moyenne | Fait (§73) |
 
 Détail complet dans `docs/ROADMAP.md`.
 
