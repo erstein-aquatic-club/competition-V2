@@ -105,12 +105,15 @@ const CoachMessagesScreen = ({ onBack, athletes, groups, athletesLoading }: Coac
       });
 
       const pushTriggered = "pushTriggered" in result ? result.pushTriggered : false;
+      const pushError = "pushError" in result ? result.pushError : null;
 
       toast({
         title: pushTriggered === false ? "Message créé, push à vérifier" : "Notification envoyée",
         description:
           pushTriggered === false
-            ? "La notification in-app est bien créée, mais l'envoi push n'a pas pu être confirmé."
+            ? pushError
+              ? `La notification in-app est créée, mais la push a échoué: ${pushError}`
+              : "La notification in-app est bien créée, mais l'envoi push n'a pas pu être confirmé."
             : selectedTarget.recipients === 1
               ? "Le nageur recevra la notification sur ses appareils abonnés."
               : `${selectedTarget.recipients} nageurs ciblés recevront la notification sur leurs appareils abonnés.`,
