@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { Interview, InterviewAthleteInput, Objective, SwimmerPerformance } from "@/lib/api";
+import type { Interview, InterviewAthleteInput, Objective, SwimmerPerformance, TrainingWeek } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -694,33 +694,55 @@ function ReadOnlyPlanning({
     queryFn: () => api.getTrainingCycles({ athleteId }),
   });
 
-  const matchingCycle = useMemo(() => {
-    if (!nextCompetition) return null;
-    return cycles.find(
-      (c) =>
-        c.end_competition_id === nextCompetition.id ||
-        (c.end_competition_date && c.end_competition_date >= interviewDate),
-    ) ?? null;
-  }, [cycles, nextCompetition, interviewDate]);
+  const upcomingCompetitions = useMemo(() => {
+    const assignedSet = new Set(assignedIds);
+    return competitions
+      .filter((c) => assignedSet.has(c.id) && c.date >= interviewDate)
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [competitions, assignedIds, interviewDate]);
 
-  const { data: weeks = [] } = useQuery({
-    queryKey: ["training-weeks", matchingCycle?.id],
-    queryFn: () => api.getTrainingWeeks(matchingCycle!.id),
-    enabled: !!matchingCycle,
+  const cyclesByCompetitionId = useMemo(() => {
+    const map = new Map<string, (typeof cycles)[number]>();
+    cycles
+      .slice()
+      .sort((a, b) => (a.end_competition_date ?? "").localeCompare(b.end_competition_date ?? ""))
+      .forEach((cycle) => {
+        if (cycle.end_competition_id && !map.has(cycle.end_competition_id)) {
+          map.set(cycle.end_competition_id, cycle);
+        }
+      });
+    return map;
+  }, [cycles]);
+
+  const plannedCycles = useMemo(() => {
+    const seen = new Set<string>();
+    return upcomingCompetitions
+      .map((competition) => cyclesByCompetitionId.get(competition.id) ?? null)
+      .filter((cycle): cycle is NonNullable<typeof cycle> => {
+        if (!cycle || seen.has(cycle.id)) return false;
+        seen.add(cycle.id);
+        return true;
+      });
+  }, [upcomingCompetitions, cyclesByCompetitionId]);
+
+  const weekQueries = useQueries({
+    queries: plannedCycles.map((cycle) => ({
+      queryKey: ["training-weeks", cycle.id],
+      queryFn: () => api.getTrainingWeeks(cycle.id),
+      enabled: !!cycle.id,
+    })),
   });
 
-  const weeksByStart = useMemo(() => {
-    const map = new Map<string, (typeof weeks)[number]>();
-    weeks.forEach((w) => map.set(w.week_start, w));
+  const weeksByCycleId = useMemo(() => {
+    const map = new Map<string, TrainingWeek[]>();
+    plannedCycles.forEach((cycle, index) => {
+      map.set(cycle.id, (weekQueries[index]?.data as TrainingWeek[] | undefined) ?? []);
+    });
     return map;
-  }, [weeks]);
+  }, [plannedCycles, weekQueries]);
 
-  const timelineMondays = useMemo(() => {
-    if (!nextCompetition) return [];
-    return getMondays(interviewDate, nextCompetition.date);
-  }, [nextCompetition, interviewDate]);
-
-  const daysToComp = nextCompetition ? daysBetween(new Date().toISOString().split("T")[0], nextCompetition.date) : null;
+  const todayIso = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const daysToComp = nextCompetition ? daysBetween(todayIso, nextCompetition.date) : null;
 
   if (!nextCompetition) {
     return (
@@ -730,73 +752,125 @@ function ReadOnlyPlanning({
     );
   }
 
-  if (!matchingCycle || timelineMondays.length === 0) {
-    return (
-      <div className="flex items-center gap-2 text-sm">
-        <Trophy className="h-4 w-4 text-amber-500" />
-        <span className="font-medium">{nextCompetition.name}</span>
-        <span className="text-xs text-muted-foreground">({formatDate(nextCompetition.date)})</span>
-        {daysToComp != null && (
-          <Badge variant="secondary" className="text-[10px]">J-{daysToComp}</Badge>
-        )}
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm flex-wrap">
-        <Trophy className="h-4 w-4 text-amber-500 shrink-0" />
-        <span className="font-medium">{nextCompetition.name}</span>
-        <span className="text-xs text-muted-foreground">({formatDate(nextCompetition.date)})</span>
-        {daysToComp != null && (
-          <Badge variant="secondary" className="text-[10px]">J-{daysToComp}</Badge>
-        )}
+    <div className="space-y-3">
+      <div className="rounded-xl border bg-muted/20 p-3">
+        <div className="flex items-center gap-2 text-sm flex-wrap">
+          <Trophy className="h-4 w-4 text-amber-500 shrink-0" />
+          <span className="font-medium">{upcomingCompetitions.length} échéance{upcomingCompetitions.length > 1 ? "s" : ""} visible{upcomingCompetitions.length > 1 ? "s" : ""}</span>
+          <Badge variant="secondary" className="text-[10px]">
+            prochaine J-{daysToComp}
+          </Badge>
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Vision multi-macrocycles depuis l&apos;entretien, jusqu&apos;aux prochaines compétitions assignées.
+        </p>
       </div>
 
-      <div className="relative ml-2 border-l-2 border-border pl-3 space-y-1">
-        {timelineMondays.map((monday, idx) => {
-          const week = weeksByStart.get(monday);
-          const isCurrent = isCurrentWeek(monday);
-          const sunday = getSunday(monday);
+      <div className="space-y-3">
+        {upcomingCompetitions.map((competition, compIndex) => {
+          const cycle = cyclesByCompetitionId.get(competition.id) ?? null;
+          const cycleStart = cycle?.start_date ?? cycle?.start_competition_date ?? interviewDate;
+          const visibleStart = cycleStart > interviewDate ? cycleStart : interviewDate;
+          const visibleMondays = cycle ? getMondays(visibleStart, competition.date) : [];
+          const totalMondays = cycle ? getMondays(cycleStart, competition.date) : [];
+          const hiddenWeeks = Math.max(totalMondays.length - visibleMondays.length, 0);
+          const daysUntil = daysBetween(todayIso, competition.date);
+          const cycleWeeks = cycle ? (weeksByCycleId.get(cycle.id) ?? []) : [];
+          const weeksByStart = new Map(cycleWeeks.map((week) => [week.week_start, week]));
 
           return (
-            <div
-              key={monday}
-              className={`rounded-lg px-2 py-1.5 flex items-center gap-2 text-xs ${
-                isCurrent ? "ring-2 ring-primary bg-primary/5" : ""
-              }`}
-            >
-              <span
-                className={`h-2 w-2 rounded-full shrink-0 ${
-                  isCurrent ? "bg-primary" : week?.week_type ? "bg-muted-foreground/40" : "bg-muted-foreground/20"
-                }`}
-              />
-              <span className="text-muted-foreground whitespace-nowrap">
-                Sem. {idx + 1}
-              </span>
-              <span className="text-muted-foreground/60 whitespace-nowrap">
-                {fmtShort(monday)} - {fmtShort(sunday)}
-              </span>
-              {week?.week_type && (
-                <Badge
-                  className="text-[10px] px-1.5 py-0 border-0 ml-auto"
-                  style={{
-                    backgroundColor: weekTypeColor(week.week_type),
-                    color: weekTypeTextColor(week.week_type),
-                  }}
-                >
-                  {week.week_type}
-                </Badge>
+            <div key={competition.id} className="rounded-xl border bg-card shadow-sm overflow-hidden">
+              <div className="border-b border-border bg-muted/20 px-3 py-2.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-semibold">{competition.name}</span>
+                  {compIndex === 0 && (
+                    <Badge className="text-[10px] bg-primary/10 text-primary border-primary/20">
+                      Prochaine
+                    </Badge>
+                  )}
+                  <Badge variant="secondary" className="text-[10px]">
+                    {formatDate(competition.date)}
+                  </Badge>
+                  <Badge variant="outline" className="text-[10px]">
+                    J-{daysUntil}
+                  </Badge>
+                </div>
+                {cycle ? (
+                  <div className="mt-1 flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground">{cycle.name}</span>
+                    {cycle.start_competition_name && (
+                      <span>depuis {cycle.start_competition_name}</span>
+                    )}
+                    <span>{totalMondays.length} sem.</span>
+                    {hiddenWeeks > 0 && <span>{hiddenWeeks} déjà écoulée{hiddenWeeks > 1 ? "s" : ""}</span>}
+                  </div>
+                ) : (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Aucun macrocycle créé pour cette échéance.
+                  </p>
+                )}
+              </div>
+
+              {!cycle ? (
+                <div className="px-3 py-3 text-xs text-muted-foreground italic">
+                  La compétition reste visible pour garder la projection long terme, même sans planification détaillée.
+                </div>
+              ) : visibleMondays.length === 0 ? (
+                <div className="px-3 py-3 text-xs text-muted-foreground italic">
+                  Aucune semaine future à afficher sur ce macrocycle.
+                </div>
+              ) : (
+                <div className="px-3 py-3">
+                  <div className="relative ml-2 border-l-2 border-border pl-3 space-y-1.5">
+                    {visibleMondays.map((monday, idx) => {
+                      const week = weeksByStart.get(monday);
+                      const isCurrent = isCurrentWeek(monday);
+                      const sunday = getSunday(monday);
+
+                      return (
+                        <div
+                          key={monday}
+                          className={`rounded-lg border bg-card px-2.5 py-2 text-xs ${isCurrent ? "ring-2 ring-primary bg-primary/5" : ""}`}
+                        >
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span
+                              className={`h-2 w-2 rounded-full shrink-0 ${
+                                isCurrent ? "bg-primary" : week?.week_type ? "bg-muted-foreground/40" : "bg-muted-foreground/20"
+                              }`}
+                            />
+                            <span className="text-muted-foreground whitespace-nowrap">
+                              Sem. {hiddenWeeks + idx + 1}
+                            </span>
+                            <span className="text-muted-foreground/70 whitespace-nowrap">
+                              {fmtShort(monday)} - {fmtShort(sunday)}
+                            </span>
+                            {week?.week_type && (
+                              <Badge
+                                className="text-[10px] px-1.5 py-0 border-0 ml-auto"
+                                style={{
+                                  backgroundColor: weekTypeColor(week.week_type),
+                                  color: weekTypeTextColor(week.week_type),
+                                }}
+                              >
+                                {week.week_type}
+                              </Badge>
+                            )}
+                          </div>
+                          {week?.notes && (
+                            <p className="mt-1 pl-4 text-[11px] text-muted-foreground line-clamp-2">
+                              {week.notes}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
             </div>
           );
         })}
-      </div>
-
-      <div className="flex items-center gap-2 ml-2 pl-3 text-xs">
-        <Trophy className="h-3.5 w-3.5 text-amber-500" />
-        <span className="font-semibold">{nextCompetition.name}</span>
       </div>
     </div>
   );

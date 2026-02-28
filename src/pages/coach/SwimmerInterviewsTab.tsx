@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type {
   Interview,
@@ -345,7 +345,6 @@ const InlinePlanning = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Competitions + assigned
   const { data: competitions = [] } = useQuery({
     queryKey: ["competitions"],
     queryFn: () => api.getCompetitions(),
@@ -356,86 +355,101 @@ const InlinePlanning = ({
     queryFn: () => api.getMyCompetitionIds(athleteId),
   });
 
-  // Find next assigned competition after interview date
-  const nextCompetition = useMemo(() => {
+  const assignedCompetitions = useMemo(() => {
     const assignedSet = new Set(assignedIds);
-    const upcoming = competitions
-      .filter((c) => assignedSet.has(c.id) && c.date >= interviewDate)
+    return competitions
+      .filter((competition) => assignedSet.has(competition.id))
       .sort((a, b) => a.date.localeCompare(b.date));
-    return upcoming[0] ?? null;
-  }, [competitions, assignedIds, interviewDate]);
+  }, [competitions, assignedIds]);
 
-  // Training cycles for this athlete
+  const upcomingCompetitions = useMemo(
+    () => assignedCompetitions.filter((competition) => competition.date >= interviewDate),
+    [assignedCompetitions, interviewDate],
+  );
+
   const { data: cycles = [] } = useQuery({
     queryKey: ["training-cycles", "athlete", athleteId],
     queryFn: () => api.getTrainingCycles({ athleteId }),
   });
 
-  // Find matching cycle (covers interview date to competition)
-  const matchingCycle = useMemo(() => {
-    if (!nextCompetition) return null;
-    return cycles.find(
-      (c) =>
-        c.end_competition_id === nextCompetition.id ||
-        (c.end_competition_date && c.end_competition_date >= interviewDate),
-    ) ?? null;
-  }, [cycles, nextCompetition, interviewDate]);
+  const cyclesByCompetitionId = useMemo(() => {
+    const map = new Map<string, (typeof cycles)[number]>();
+    cycles
+      .slice()
+      .sort((a, b) => (a.end_competition_date ?? "").localeCompare(b.end_competition_date ?? ""))
+      .forEach((cycle) => {
+        if (cycle.end_competition_id && !map.has(cycle.end_competition_id)) {
+          map.set(cycle.end_competition_id, cycle);
+        }
+      });
+    return map;
+  }, [cycles]);
 
-  // Weeks for matching cycle
-  const { data: weeks = [] } = useQuery({
-    queryKey: ["training-weeks", matchingCycle?.id],
-    queryFn: () => api.getTrainingWeeks(matchingCycle!.id),
-    enabled: !!matchingCycle,
+  const plannedCycles = useMemo(() => {
+    const seen = new Set<string>();
+    return upcomingCompetitions
+      .map((competition) => cyclesByCompetitionId.get(competition.id) ?? null)
+      .filter((cycle): cycle is NonNullable<typeof cycle> => {
+        if (!cycle || seen.has(cycle.id)) return false;
+        seen.add(cycle.id);
+        return true;
+      });
+  }, [upcomingCompetitions, cyclesByCompetitionId]);
+
+  const weekQueries = useQueries({
+    queries: plannedCycles.map((cycle) => ({
+      queryKey: ["training-weeks", cycle.id],
+      queryFn: () => api.getTrainingWeeks(cycle.id),
+      enabled: !!cycle.id,
+    })),
   });
 
-  // Week editing
-  const [editingMonday, setEditingMonday] = useState<string | null>(null);
+  const [editingWeekKey, setEditingWeekKey] = useState<string | null>(null);
   const [editWeekType, setEditWeekType] = useState("");
+
+  const weeksByCycleId = useMemo(() => {
+    const map = new Map<string, TrainingWeek[]>();
+    plannedCycles.forEach((cycle, index) => {
+      map.set(cycle.id, (weekQueries[index]?.data as TrainingWeek[] | undefined) ?? []);
+    });
+    return map;
+  }, [plannedCycles, weekQueries]);
 
   const existingWeekTypes = useMemo(() => {
     const types = new Set<string>();
-    weeks.forEach((w) => { if (w.week_type) types.add(w.week_type); });
+    weeksByCycleId.forEach((weeks) => {
+      weeks.forEach((week) => {
+        if (week.week_type) types.add(week.week_type);
+      });
+    });
     return Array.from(types).sort();
-  }, [weeks]);
+  }, [weeksByCycleId]);
 
-  const weeksByStart = useMemo(() => {
-    const map = new Map<string, TrainingWeek>();
-    weeks.forEach((w) => map.set(w.week_start, w));
-    return map;
-  }, [weeks]);
+  const nextCompetition = upcomingCompetitions[0] ?? null;
+  const todayIso = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const daysToComp = nextCompetition ? daysBetween(todayIso, nextCompetition.date) : null;
 
-  // Timeline mondays
-  const timelineMondays = useMemo(() => {
-    if (!nextCompetition) return [];
-    const startDate = interviewDate;
-    const endDate = nextCompetition.date;
-    return getMondays(startDate, endDate);
-  }, [nextCompetition, interviewDate]);
-
-  const daysToComp = nextCompetition ? daysBetween(new Date().toISOString().split("T")[0], nextCompetition.date) : null;
-
-  // Create cycle mutation
   const createCycleMutation = useMutation({
-    mutationFn: async () => {
-      if (!nextCompetition) throw new Error("Pas de compétition");
-      // Find a start competition (closest before interview date, or use interviewDate as anchor)
-      const startComps = competitions
-        .filter((c) => c.date <= interviewDate)
-        .sort((a, b) => b.date.localeCompare(a.date));
-      const startComp = startComps[0] ?? nextCompetition;
+    mutationFn: async (competitionId: string) => {
+      const endCompetition = assignedCompetitions.find((competition) => competition.id === competitionId);
+      if (!endCompetition) throw new Error("Pas de compétition");
+      const endIndex = assignedCompetitions.findIndex((competition) => competition.id === competitionId);
+      const startCompetition = endIndex > 0 ? assignedCompetitions[endIndex - 1] : null;
+      const startAnchor = startCompetition?.date ?? interviewDate;
 
       const cycle = await api.createTrainingCycle({
         athlete_id: athleteId,
         group_id: null,
-        start_competition_id: startComp.id,
-        end_competition_id: nextCompetition.id,
-        name: `Préparation ${nextCompetition.name}`,
+        start_competition_id: startCompetition?.id ?? null,
+        start_date: startCompetition ? null : interviewDate,
+        end_competition_id: endCompetition.id,
+        name: `Préparation ${endCompetition.name}`,
       });
-      // Auto-generate weeks
-      const mondays = getMondays(interviewDate, nextCompetition.date);
+
+      const mondays = getMondays(startAnchor, endCompetition.date);
       if (mondays.length > 0) {
         await api.bulkUpsertTrainingWeeks(
-          mondays.map((m) => ({ cycle_id: cycle.id, week_start: m })),
+          mondays.map((monday) => ({ cycle_id: cycle.id, week_start: monday })),
         );
       }
       return cycle;
@@ -450,12 +464,11 @@ const InlinePlanning = ({
     },
   });
 
-  // Upsert week mutation
   const upsertWeekMutation = useMutation({
     mutationFn: (input: TrainingWeekInput) => api.upsertTrainingWeek(input),
     onSuccess: () => {
-      setEditingMonday(null);
-      void queryClient.invalidateQueries({ queryKey: ["training-weeks", matchingCycle?.id] });
+      setEditingWeekKey(null);
+      void queryClient.invalidateQueries({ queryKey: ["training-weeks"] });
     },
     onError: (err: Error) => {
       toast({ title: "Erreur", description: err.message, variant: "destructive" });
@@ -472,142 +485,194 @@ const InlinePlanning = ({
     );
   }
 
-  // No cycle yet — offer to create
-  if (!matchingCycle) {
-    return (
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 text-sm">
-          <Trophy className="h-4 w-4 text-amber-500" />
-          <span className="font-medium">{nextCompetition.name}</span>
-          <span className="text-xs text-muted-foreground">({formatDate(nextCompetition.date)})</span>
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border bg-muted/20 p-3">
+        <div className="flex items-center gap-2 text-sm flex-wrap">
+          <Trophy className="h-4 w-4 text-amber-500 shrink-0" />
+          <span className="font-medium">{upcomingCompetitions.length} échéance{upcomingCompetitions.length > 1 ? "s" : ""} à planifier</span>
           {daysToComp != null && (
-            <Badge variant="secondary" className="text-[10px]">J-{daysToComp}</Badge>
+            <Badge variant="secondary" className="text-[10px]">
+              prochaine J-{daysToComp}
+            </Badge>
           )}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full text-xs"
-          onClick={() => createCycleMutation.mutate()}
-          disabled={createCycleMutation.isPending}
-        >
-          {createCycleMutation.isPending ? "Création..." : "Créer la planification"}
-        </Button>
-      </div>
-    );
-  }
-
-  // Show timeline
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm flex-wrap">
-        <Trophy className="h-4 w-4 text-amber-500 shrink-0" />
-        <span className="font-medium">{nextCompetition.name}</span>
-        <span className="text-xs text-muted-foreground">({formatDate(nextCompetition.date)})</span>
-        {daysToComp != null && (
-          <Badge variant="secondary" className="text-[10px]">J-{daysToComp}</Badge>
-        )}
+        <p className="mt-1 text-xs text-muted-foreground">
+          Une carte par compétition cible pour construire et piloter plusieurs macrocycles à l&apos;avance.
+        </p>
       </div>
 
-      <div className="relative ml-2 border-l-2 border-border pl-3 space-y-1">
-        {timelineMondays.map((monday, idx) => {
-          const week = weeksByStart.get(monday);
-          const isCurrent = isCurrentWeek(monday);
-          const isEditing = editingMonday === monday;
-          const sunday = getSunday(monday);
-          const datalistId = `inline-week-${monday}`;
-
-          if (isEditing) {
-            return (
-              <div
-                key={monday}
-                className={`rounded-lg border bg-card p-2 space-y-1.5 ${isCurrent ? "ring-2 ring-primary" : ""}`}
-              >
-                <div className="text-xs text-muted-foreground">
-                  Sem. {idx + 1} ({fmtShort(monday)} - {fmtShort(sunday)})
-                </div>
-                <Input
-                  className="h-7 text-sm"
-                  placeholder="Foncier, Techni., Affûtage..."
-                  list={datalistId}
-                  value={editWeekType}
-                  onChange={(e) => setEditWeekType(e.target.value)}
-                />
-                <datalist id={datalistId}>
-                  {existingWeekTypes.map((t) => <option key={t} value={t} />)}
-                </datalist>
-                <div className="flex gap-2 justify-end">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 text-xs px-2"
-                    onClick={() => setEditingMonday(null)}
-                  >
-                    Annuler
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="h-6 text-xs px-2"
-                    onClick={() => {
-                      if (!matchingCycle) return;
-                      upsertWeekMutation.mutate({
-                        cycle_id: matchingCycle.id,
-                        week_start: monday,
-                        week_type: editWeekType.trim() || null,
-                      });
-                    }}
-                    disabled={upsertWeekMutation.isPending}
-                  >
-                    OK
-                  </Button>
-                </div>
-              </div>
-            );
-          }
+      <div className="space-y-3">
+        {upcomingCompetitions.map((competition, compIndex) => {
+          const cycle = cyclesByCompetitionId.get(competition.id) ?? null;
+          const cycleWeeks = cycle ? (weeksByCycleId.get(cycle.id) ?? []) : [];
+          const weeksByStart = new Map(cycleWeeks.map((week) => [week.week_start, week]));
+          const cycleStart = cycle?.start_date ?? cycle?.start_competition_date ?? interviewDate;
+          const visibleStart = cycleStart > interviewDate ? cycleStart : interviewDate;
+          const visibleMondays = cycle ? getMondays(visibleStart, competition.date) : [];
+          const totalMondays = cycle ? getMondays(cycleStart, competition.date) : [];
+          const hiddenWeeks = Math.max(totalMondays.length - visibleMondays.length, 0);
+          const daysUntil = daysBetween(todayIso, competition.date);
 
           return (
-            <button
-              key={monday}
-              type="button"
-              className={`w-full text-left rounded-lg px-2 py-1.5 flex items-center gap-2 text-xs transition-colors hover:bg-muted/50 ${
-                isCurrent ? "ring-2 ring-primary bg-primary/5" : ""
-              }`}
-              onClick={() => {
-                setEditingMonday(monday);
-                setEditWeekType(week?.week_type ?? "");
-              }}
-            >
-              <span
-                className={`h-2 w-2 rounded-full shrink-0 ${
-                  isCurrent ? "bg-primary" : week?.week_type ? "bg-muted-foreground/40" : "bg-muted-foreground/20"
-                }`}
-              />
-              <span className="text-muted-foreground whitespace-nowrap">
-                Sem. {idx + 1}
-              </span>
-              <span className="text-muted-foreground/60 whitespace-nowrap">
-                {fmtShort(monday)} - {fmtShort(sunday)}
-              </span>
-              {week?.week_type && (
-                <Badge
-                  className="text-[10px] px-1.5 py-0 border-0 ml-auto"
-                  style={{
-                    backgroundColor: weekTypeColor(week.week_type),
-                    color: weekTypeTextColor(week.week_type),
-                  }}
-                >
-                  {week.week_type}
-                </Badge>
+            <div key={competition.id} className="rounded-xl border bg-card shadow-sm overflow-hidden">
+              <div className="border-b border-border bg-muted/20 px-3 py-2.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-semibold">{competition.name}</span>
+                  {compIndex === 0 && (
+                    <Badge className="text-[10px] bg-primary/10 text-primary border-primary/20">
+                      Priorité
+                    </Badge>
+                  )}
+                  <Badge variant="secondary" className="text-[10px]">
+                    {formatDate(competition.date)}
+                  </Badge>
+                  <Badge variant="outline" className="text-[10px]">
+                    J-{daysUntil}
+                  </Badge>
+                </div>
+                {cycle ? (
+                  <div className="mt-1 flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground">{cycle.name}</span>
+                    {cycle.start_competition_name && <span>depuis {cycle.start_competition_name}</span>}
+                    <span>{totalMondays.length} sem.</span>
+                    {hiddenWeeks > 0 && <span>{hiddenWeeks} déjà passées</span>}
+                  </div>
+                ) : (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Aucun macrocycle créé pour cette échéance.
+                  </p>
+                )}
+              </div>
+
+              {!cycle ? (
+                <div className="px-3 py-3 space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Créez un macrocycle dédié pour donner de la visibilité long terme sur cette cible.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => createCycleMutation.mutate(competition.id)}
+                    disabled={createCycleMutation.isPending}
+                  >
+                    {createCycleMutation.isPending ? "Création..." : "Créer ce macrocycle"}
+                  </Button>
+                </div>
+              ) : visibleMondays.length === 0 ? (
+                <div className="px-3 py-3 text-xs text-muted-foreground italic">
+                  Aucune semaine future à afficher sur ce macrocycle.
+                </div>
+              ) : (
+                <div className="px-3 py-3">
+                  <div className="relative ml-2 border-l-2 border-border pl-3 space-y-1.5">
+                    {visibleMondays.map((monday, idx) => {
+                      const week = weeksByStart.get(monday);
+                      const isCurrent = isCurrentWeek(monday);
+                      const sunday = getSunday(monday);
+                      const editKey = `${cycle.id}:${monday}`;
+                      const isEditing = editingWeekKey === editKey;
+                      const datalistId = `inline-week-${cycle.id}-${monday}`;
+
+                      if (isEditing) {
+                        return (
+                          <div
+                            key={monday}
+                            className={`rounded-lg border bg-card p-2 space-y-1.5 ${isCurrent ? "ring-2 ring-primary" : ""}`}
+                          >
+                            <div className="text-xs text-muted-foreground">
+                              Sem. {hiddenWeeks + idx + 1} ({fmtShort(monday)} - {fmtShort(sunday)})
+                            </div>
+                            <Input
+                              className="h-7 text-sm"
+                              placeholder="Foncier, Techni., Affûtage..."
+                              list={datalistId}
+                              value={editWeekType}
+                              onChange={(e) => setEditWeekType(e.target.value)}
+                            />
+                            <datalist id={datalistId}>
+                              {existingWeekTypes.map((t) => <option key={t} value={t} />)}
+                            </datalist>
+                            <div className="flex gap-2 justify-end">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 text-xs px-2"
+                                onClick={() => setEditingWeekKey(null)}
+                              >
+                                Annuler
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="h-6 text-xs px-2"
+                                onClick={() => {
+                                  upsertWeekMutation.mutate({
+                                    cycle_id: cycle.id,
+                                    week_start: monday,
+                                    week_type: editWeekType.trim() || null,
+                                    notes: week?.notes ?? null,
+                                  });
+                                }}
+                                disabled={upsertWeekMutation.isPending}
+                              >
+                                OK
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <button
+                          key={monday}
+                          type="button"
+                          className={`w-full text-left rounded-lg border bg-card px-2.5 py-2 text-xs transition-colors hover:bg-muted/50 ${
+                            isCurrent ? "ring-2 ring-primary bg-primary/5" : ""
+                          }`}
+                          onClick={() => {
+                            setEditingWeekKey(editKey);
+                            setEditWeekType(week?.week_type ?? "");
+                          }}
+                        >
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span
+                              className={`h-2 w-2 rounded-full shrink-0 ${
+                                isCurrent ? "bg-primary" : week?.week_type ? "bg-muted-foreground/40" : "bg-muted-foreground/20"
+                              }`}
+                            />
+                            <span className="text-muted-foreground whitespace-nowrap">
+                              Sem. {hiddenWeeks + idx + 1}
+                            </span>
+                            <span className="text-muted-foreground/70 whitespace-nowrap">
+                              {fmtShort(monday)} - {fmtShort(sunday)}
+                            </span>
+                            {week?.week_type && (
+                              <Badge
+                                className="text-[10px] px-1.5 py-0 border-0 ml-auto"
+                                style={{
+                                  backgroundColor: weekTypeColor(week.week_type),
+                                  color: weekTypeTextColor(week.week_type),
+                                }}
+                              >
+                                {week.week_type}
+                              </Badge>
+                            )}
+                          </div>
+                          {week?.notes && (
+                            <p className="mt-1 pl-4 text-[11px] text-muted-foreground line-clamp-2">
+                              {week.notes}
+                            </p>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
-            </button>
+            </div>
           );
         })}
-      </div>
-
-      {/* Final competition marker */}
-      <div className="flex items-center gap-2 ml-2 pl-3 text-xs">
-        <Trophy className="h-3.5 w-3.5 text-amber-500" />
-        <span className="font-semibold">{nextCompetition.name}</span>
       </div>
     </div>
   );
