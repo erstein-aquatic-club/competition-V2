@@ -58,6 +58,7 @@ const RecordsAdmin = lazyWithRetry(() => import("@/pages/RecordsAdmin"));
 const RecordsClub = lazyWithRetry(() => import("@/pages/RecordsClub"));
 const SwimSessionView = lazyWithRetry(() => import("@/pages/SwimSessionView"));
 const SharedSwimSession = lazyWithRetry(() => import("@/pages/SharedSwimSession"));
+const CoachSwimmerDetail = lazyWithRetry(() => import("@/pages/coach/CoachSwimmerDetail"));
 const ComingSoon = lazyWithRetry(() => import("@/pages/ComingSoon"));
 const NotFound = lazyWithRetry(() => import("@/pages/not-found"));
 
@@ -237,6 +238,7 @@ function AppRouter() {
             <Route path="/">{role === "coach" ? <Redirect to="/coach" /> : <Dashboard />}</Route>
             <Route path="/progress" component={Progress} />
             <Route path="/hall-of-fame" component={FEATURES.hallOfFame ? HallOfFame : ComingSoon} />
+            <Route path="/coach/swimmer/:id" component={CoachSwimmerDetail} />
             <Route path="/coach" component={Coach} />
             <Route path="/admin" component={Admin} />
             <Route path="/administratif" component={Administratif} />

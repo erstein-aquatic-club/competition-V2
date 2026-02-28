@@ -434,7 +434,7 @@ export default function Coach() {
 
   const handleOpenAthlete = (athlete: { id: number | null; display_name: string }) => {
     setSelectedAthlete({ id: athlete.id ?? null, name: athlete.display_name });
-    navigate("/progress");
+    navigate(athlete.id != null ? `/coach/swimmer/${athlete.id}` : "/progress");
   };
 
   const { toast } = useToast();
