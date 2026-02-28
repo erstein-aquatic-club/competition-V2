@@ -93,7 +93,7 @@ export default function SwimmerFeedbackTab({
           onClick={handleOpenProgression}
         >
           <BarChart3 className="h-3.5 w-3.5" />
-          Voir la progression
+          Voir l&apos;analyse
         </Button>
       ) : null}
 

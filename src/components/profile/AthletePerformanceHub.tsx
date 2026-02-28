@@ -364,20 +364,23 @@ export default function AthletePerformanceHub({
 
       <Tabs defaultValue="objectifs" className="space-y-4">
         <TabsList className="grid w-full grid-cols-4 rounded-2xl">
-          <TabsTrigger value="objectifs" className="gap-1 text-xs">
-            <Target className="h-3.5 w-3.5" />
+          <TabsTrigger value="objectifs" className="gap-1 text-[11px] sm:text-xs">
+            <Target className="hidden h-3.5 w-3.5 sm:block" />
+            <span className="sm:hidden">Plan</span>
             <span className="hidden sm:inline">Plan d'action</span>
           </TabsTrigger>
-          <TabsTrigger value="entretiens" className="gap-1 text-xs">
-            <MessageSquare className="h-3.5 w-3.5" />
+          <TabsTrigger value="entretiens" className="gap-1 text-[11px] sm:text-xs">
+            <MessageSquare className="hidden h-3.5 w-3.5 sm:block" />
+            <span className="sm:hidden">Entr.</span>
             <span className="hidden sm:inline">Entretiens</span>
           </TabsTrigger>
-          <TabsTrigger value="planification" className="gap-1 text-xs">
-            <CalendarRange className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Planif.</span>
+          <TabsTrigger value="planification" className="gap-1 text-[11px] sm:text-xs">
+            <CalendarRange className="hidden h-3.5 w-3.5 sm:block" />
+            <span>Planif.</span>
           </TabsTrigger>
-          <TabsTrigger value="ressentis" className="gap-1 text-xs">
-            <Clock className="h-3.5 w-3.5" />
+          <TabsTrigger value="ressentis" className="gap-1 text-[11px] sm:text-xs">
+            <Clock className="hidden h-3.5 w-3.5 sm:block" />
+            <span className="sm:hidden">Ress.</span>
             <span className="hidden sm:inline">Ressentis</span>
           </TabsTrigger>
         </TabsList>

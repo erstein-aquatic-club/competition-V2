@@ -539,7 +539,7 @@ export default function Progress() {
   return (
     <div className="space-y-4 pb-4">
       <PageHeader
-        title="Progression"
+        title="Analyse"
         icon={<BarChart3 className="h-3.5 w-3.5" />}
       />
 

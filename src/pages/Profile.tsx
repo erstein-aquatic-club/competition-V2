@@ -770,7 +770,7 @@ export default function Profile() {
                     ? `${pendingInterviewCount} entretien${pendingInterviewCount > 1 ? "s" : ""}`
                     : activeObjectiveCount > 0
                       ? `${activeObjectiveCount} objectif${activeObjectiveCount > 1 ? "s" : ""}`
-                      : "Progression"
+                      : "Plan et ressentis"
                 }
                 badgeLabel={nextObjectiveCountdown !== null ? `J-${nextObjectiveCountdown}` : null}
                 onClick={() => setActiveSection("performance-hub")}

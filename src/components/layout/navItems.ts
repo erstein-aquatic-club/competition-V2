@@ -31,7 +31,7 @@ export const getNavItemsForRole = (role: string | null): NavItem[] => {
   }
   const athleteItems: NavItem[] = [
     { href: "/", icon: Waves, label: "Accueil" },
-    { href: "/progress", icon: TrendingUp, label: "Suivi" },
+    { href: "/progress", icon: TrendingUp, label: "Analyse" },
   ];
 
   if (FEATURES.strength) {
