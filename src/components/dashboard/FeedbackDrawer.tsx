@@ -669,31 +669,17 @@ export function FeedbackDrawer({
                                   transition={{ duration: durationsSeconds.normal }}
                                   className="mx-3 mb-3 rounded-2xl border border-border bg-muted p-3"
                                 >
-                                  {activeSession.details?.length ? (
-                                    <ul className="list-disc pl-5 space-y-1 text-sm text-foreground">
-                                      {activeSession.details.map((line, idx) => (
-                                        <li key={idx}>{line}</li>
-                                      ))}
-                                    </ul>
-                                  ) : (
-                                    <div className="text-sm text-muted-foreground">
-                                      {activeSession.assignmentId ? "Séance coach — détails dans la fiche." : "Aucun détail pour ce créneau."}
-                                    </div>
-                                  )}
-
-                                  <div className="mt-3">
-                                    <button
-                                      type="button"
-                                      onClick={() => setLocation(
-                                        activeSession.assignmentId
-                                          ? `/swim-session?assignmentId=${activeSession.assignmentId}`
-                                          : `/swim-session`
-                                      )}
-                                      className="w-full rounded-2xl border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted"
-                                    >
-                                      {activeSession.assignmentId ? "Ouvrir la fiche complète" : "Saisir mes détails techniques"}
-                                    </button>
-                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setLocation(
+                                      activeSession.assignmentId
+                                        ? `/swim-session?assignmentId=${activeSession.assignmentId}`
+                                        : `/swim-session`
+                                    )}
+                                    className="w-full rounded-2xl border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted"
+                                  >
+                                    {activeSession.assignmentId ? "Ouvrir la fiche complète" : "Saisir mes détails techniques"}
+                                  </button>
                                 </motion.div>
                               )}
                             </AnimatePresence>

@@ -331,9 +331,7 @@ export default function SwimSessionView() {
             <div className="text-lg font-semibold tracking-tight">
               {assignment?.title ?? "Détails techniques libres"}
             </div>
-            {assignment?.description ? (
-              <p className="text-sm text-muted-foreground">{assignment.description}</p>
-            ) : !assignment && !isLoading ? (
+            {!assignment && !isLoading ? (
               <p className="text-sm text-muted-foreground">Saisissez vos exercices et détails techniques manuellement.</p>
             ) : null}
           </div>
