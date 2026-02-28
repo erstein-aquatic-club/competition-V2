@@ -54,11 +54,17 @@ CREATE POLICY interviews_coach_update ON interviews FOR UPDATE
   USING (app_user_role() IN ('admin', 'coach'));
 
 -- Athlete can update own interviews in draft_athlete (their sections) or sent (signature)
+-- WITH CHECK allows status transitions: draft_athlete→draft_coach, sent→signed
 CREATE POLICY interviews_athlete_update ON interviews FOR UPDATE
   USING (
     app_user_role() = 'athlete'
     AND athlete_id = app_user_id()
     AND status IN ('draft_athlete', 'sent')
+  )
+  WITH CHECK (
+    app_user_role() = 'athlete'
+    AND athlete_id = app_user_id()
+    AND status IN ('draft_athlete', 'draft_coach', 'sent', 'signed')
   );
 
 -- Only coach/admin can delete
