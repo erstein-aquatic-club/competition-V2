@@ -220,6 +220,29 @@ export {
 } from './absences';
 
 export {
+  getTrainingCycles,
+  createTrainingCycle,
+  updateTrainingCycle,
+  deleteTrainingCycle,
+  getTrainingWeeks,
+  upsertTrainingWeek,
+  bulkUpsertTrainingWeeks,
+  deleteTrainingWeek,
+} from './planning';
+
+export {
+  getInterviews,
+  getMyInterviews,
+  createInterview,
+  updateInterviewAthleteSections,
+  submitInterviewToCoach,
+  updateInterviewCoachSections,
+  sendInterviewToAthlete,
+  signInterview,
+  deleteInterview,
+} from './interviews';
+
+export {
   getExercises,
   createExercise,
   updateExercise,

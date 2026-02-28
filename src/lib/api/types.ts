@@ -481,6 +481,87 @@ export interface PlannedAbsence {
   created_at?: string | null;
 }
 
+export interface TrainingCycle {
+  id: string;
+  group_id?: number | null;
+  athlete_id?: number | null;
+  start_competition_id: string;
+  end_competition_id: string;
+  name: string;
+  notes?: string | null;
+  created_by?: string | null;
+  created_at?: string | null;
+  start_competition_name?: string | null;
+  start_competition_date?: string | null;
+  end_competition_name?: string | null;
+  end_competition_date?: string | null;
+}
+
+export interface TrainingCycleInput {
+  group_id?: number | null;
+  athlete_id?: number | null;
+  start_competition_id: string;
+  end_competition_id: string;
+  name: string;
+  notes?: string | null;
+}
+
+export interface TrainingWeek {
+  id: string;
+  cycle_id: string;
+  week_start: string;
+  week_type?: string | null;
+  notes?: string | null;
+}
+
+export interface TrainingWeekInput {
+  cycle_id: string;
+  week_start: string;
+  week_type?: string | null;
+  notes?: string | null;
+}
+
+export type InterviewStatus = 'draft_athlete' | 'draft_coach' | 'sent' | 'signed';
+
+export interface Interview {
+  id: string;
+  athlete_id: number;
+  status: InterviewStatus;
+  date: string;
+  athlete_successes?: string | null;
+  athlete_difficulties?: string | null;
+  athlete_goals?: string | null;
+  athlete_commitments?: string | null;
+  coach_review?: string | null;
+  coach_objectives?: string | null;
+  coach_actions?: string | null;
+  current_cycle_id?: string | null;
+  submitted_at?: string | null;
+  sent_at?: string | null;
+  signed_at?: string | null;
+  created_by?: string | null;
+  created_at?: string | null;
+}
+
+export interface InterviewCreateInput {
+  athlete_id: number;
+  date?: string;
+  current_cycle_id?: string | null;
+}
+
+export interface InterviewAthleteInput {
+  athlete_successes?: string | null;
+  athlete_difficulties?: string | null;
+  athlete_goals?: string | null;
+  athlete_commitments?: string | null;
+}
+
+export interface InterviewCoachInput {
+  coach_review?: string | null;
+  coach_objectives?: string | null;
+  coach_actions?: string | null;
+}
+
 export interface NeurotypScores {
   "1A": number;
   "1B": number;

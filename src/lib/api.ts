@@ -46,6 +46,15 @@ export type {
   NeurotypResult,
   NeurotypScores,
   NeurotypCode,
+  TrainingCycle,
+  TrainingCycleInput,
+  TrainingWeek,
+  TrainingWeekInput,
+  InterviewStatus,
+  Interview,
+  InterviewCreateInput,
+  InterviewAthleteInput,
+  InterviewCoachInput,
 } from "./api/types";
 
 import type {
@@ -198,6 +207,29 @@ import {
   setPlannedAbsence as _setPlannedAbsence,
   removePlannedAbsence as _removePlannedAbsence,
 } from './api/absences';
+
+import {
+  getTrainingCycles as _getTrainingCycles,
+  createTrainingCycle as _createTrainingCycle,
+  updateTrainingCycle as _updateTrainingCycle,
+  deleteTrainingCycle as _deleteTrainingCycle,
+  getTrainingWeeks as _getTrainingWeeks,
+  upsertTrainingWeek as _upsertTrainingWeek,
+  bulkUpsertTrainingWeeks as _bulkUpsertTrainingWeeks,
+  deleteTrainingWeek as _deleteTrainingWeek,
+} from './api/planning';
+
+import {
+  getInterviews as _getInterviews,
+  getMyInterviews as _getMyInterviews,
+  createInterview as _createInterview,
+  updateInterviewAthleteSections as _updateInterviewAthleteSections,
+  submitInterviewToCoach as _submitInterviewToCoach,
+  updateInterviewCoachSections as _updateInterviewCoachSections,
+  sendInterviewToAthlete as _sendInterviewToAthlete,
+  signInterview as _signInterview,
+  deleteInterview as _deleteInterview,
+} from './api/interviews';
 
 import {
   getExercises as _getExercises,
@@ -607,6 +639,31 @@ export const api = {
   async getMyPlannedAbsences() { return _getMyPlannedAbsences(); },
   async setPlannedAbsence(date: string, reason?: string | null) { return _setPlannedAbsence(date, reason); },
   async removePlannedAbsence(date: string) { return _removePlannedAbsence(date); },
+
+  // ══════════════════════════════════════════════════════════════════
+  // DELEGATION STUBS — Training Planning
+  // ══════════════════════════════════════════════════════════════════
+  async getTrainingCycles(opts?: Parameters<typeof _getTrainingCycles>[0]) { return _getTrainingCycles(opts); },
+  async createTrainingCycle(input: Parameters<typeof _createTrainingCycle>[0]) { return _createTrainingCycle(input); },
+  async updateTrainingCycle(id: string, input: Parameters<typeof _updateTrainingCycle>[1]) { return _updateTrainingCycle(id, input); },
+  async deleteTrainingCycle(id: string) { return _deleteTrainingCycle(id); },
+  async getTrainingWeeks(cycleId: string) { return _getTrainingWeeks(cycleId); },
+  async upsertTrainingWeek(input: Parameters<typeof _upsertTrainingWeek>[0]) { return _upsertTrainingWeek(input); },
+  async bulkUpsertTrainingWeeks(weeks: Parameters<typeof _bulkUpsertTrainingWeeks>[0]) { return _bulkUpsertTrainingWeeks(weeks); },
+  async deleteTrainingWeek(id: string) { return _deleteTrainingWeek(id); },
+
+  // ══════════════════════════════════════════════════════════════════
+  // DELEGATION STUBS — Interviews
+  // ══════════════════════════════════════════════════════════════════
+  async getInterviews(athleteId: number) { return _getInterviews(athleteId); },
+  async getMyInterviews() { return _getMyInterviews(); },
+  async createInterview(input: Parameters<typeof _createInterview>[0]) { return _createInterview(input); },
+  async updateInterviewAthleteSections(id: string, input: Parameters<typeof _updateInterviewAthleteSections>[1]) { return _updateInterviewAthleteSections(id, input); },
+  async submitInterviewToCoach(id: string) { return _submitInterviewToCoach(id); },
+  async updateInterviewCoachSections(id: string, input: Parameters<typeof _updateInterviewCoachSections>[1]) { return _updateInterviewCoachSections(id, input); },
+  async sendInterviewToAthlete(id: string) { return _sendInterviewToAthlete(id); },
+  async signInterview(id: string) { return _signInterview(id); },
+  async deleteInterview(id: string) { return _deleteInterview(id); },
 
   // ══════════════════════════════════════════════════════════════════
   // DELEGATION STUBS — Users
