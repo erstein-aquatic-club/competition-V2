@@ -165,7 +165,7 @@ export function NeurotypQuiz({ onComplete, onCancel }: NeurotypQuizProps) {
   const LETTERS = ["A", "B", "C", "D"];
 
   return (
-    <div className="flex flex-col min-h-[calc(100dvh-4rem)] max-w-md mx-auto px-5 pt-4 pb-8">
+    <div className="flex flex-col max-w-md mx-auto px-5 py-4">
       {/* Top bar */}
       <div className="flex items-center justify-between">
         <button
@@ -177,15 +177,9 @@ export function NeurotypQuiz({ onComplete, onCancel }: NeurotypQuizProps) {
           <ArrowLeft className="h-5 w-5" />
         </button>
 
-        <div className="flex items-baseline gap-1">
-          <span className="font-display text-base italic tabular-nums text-foreground">
-            {currentIdx + 1}
-          </span>
-          <span className="text-muted-foreground text-xs font-normal normal-case">/</span>
-          <span className="text-muted-foreground text-xs tabular-nums font-normal normal-case">
-            {totalQuestions}
-          </span>
-        </div>
+        <span className="text-sm font-medium tabular-nums">
+          {currentIdx + 1} / {totalQuestions}
+        </span>
 
         <button
           type="button"
@@ -197,7 +191,7 @@ export function NeurotypQuiz({ onComplete, onCancel }: NeurotypQuizProps) {
       </div>
 
       {/* Progress bar */}
-      <div className="mt-3 h-1 w-full rounded-full bg-muted overflow-hidden">
+      <div className="mt-3 h-1.5 w-full rounded-full bg-muted overflow-hidden">
         <motion.div
           className="h-full rounded-full bg-primary"
           initial={false}
@@ -206,7 +200,7 @@ export function NeurotypQuiz({ onComplete, onCancel }: NeurotypQuizProps) {
         />
       </div>
 
-      {/* Question + options — vertically centered */}
+      {/* Question + options */}
       <AnimatePresence mode="wait" custom={direction.current}>
         <motion.div
           key={currentIdx}
@@ -216,13 +210,13 @@ export function NeurotypQuiz({ onComplete, onCancel }: NeurotypQuizProps) {
           animate="center"
           exit="exit"
           transition={TRANSITION}
-          className="flex-1 flex flex-col justify-center py-6"
+          className="mt-8 flex flex-col gap-4"
         >
-          <p className="text-[1.125rem] font-semibold leading-relaxed tracking-[-0.01em] normal-case not-italic">
+          <p className="text-base font-medium leading-relaxed normal-case not-italic">
             {question.text}
           </p>
 
-          <div className="flex flex-col gap-2.5 mt-6">
+          <div className="flex flex-col gap-2.5 mt-2">
             {question.options.map((opt, idx) => {
               const isSelected = selectedOption === idx;
               const justPicked = selecting && isSelected;
@@ -237,7 +231,7 @@ export function NeurotypQuiz({ onComplete, onCancel }: NeurotypQuizProps) {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.06, duration: 0.25 }}
                   className={[
-                    "flex items-start gap-3 rounded-2xl border p-3.5 text-left w-full transition-all duration-200 normal-case tracking-normal font-normal",
+                    "flex items-start gap-3 rounded-xl border p-3.5 text-left w-full transition-all duration-200 normal-case tracking-normal font-normal",
                     justPicked
                       ? "border-primary bg-primary/8 shadow-sm"
                       : isSelected
