@@ -622,7 +622,7 @@ const CompetitionTimeline = ({
           onClick={() => setPastOpen((o) => !o)}
         >
           <ChevronDown className={cn("h-3 w-3 shrink-0 transition-transform", pastOpen && "rotate-180")} />
-          <span>Pass\u00e9es ({pastCount})</span>
+          <span>Passées ({pastCount})</span>
         </button>
       )}
 
