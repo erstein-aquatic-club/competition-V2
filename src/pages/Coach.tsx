@@ -17,6 +17,7 @@ const CoachGroupsScreen = lazy(() => import("./coach/CoachGroupsScreen"));
 const CoachCompetitionsScreen = lazy(() => import("./coach/CoachCompetitionsScreen"));
 const CoachObjectivesScreen = lazy(() => import("./coach/CoachObjectivesScreen"));
 const CoachTrainingSlotsScreen = lazy(() => import("./coach/CoachTrainingSlotsScreen"));
+const CoachSwimmerDetail = lazy(() => import("./coach/CoachSwimmerDetail"));
 import ComingSoon from "./ComingSoon";
 import { FEATURES } from "@/lib/features";
 import type { LocalStrengthRun } from "@/lib/types";
@@ -25,7 +26,7 @@ import type { LocalStrengthRun } from "@/lib/types";
 const StrengthCatalog = lazy(() => import("./coach/StrengthCatalog"));
 const SwimCatalog = lazy(() => import("./coach/SwimCatalog"));
 
-type CoachSection = "home" | "swim" | "strength" | "swimmers" | "messaging" | "sms" | "calendar" | "groups" | "competitions" | "objectives" | "training-slots";
+type CoachSection = "home" | "swim" | "strength" | "swimmers" | "messaging" | "sms" | "calendar" | "groups" | "competitions" | "objectives" | "training-slots" | "athlete";
 type KpiLookbackPeriod = 7 | 30 | 365;
 
 type CoachAthleteOption = {
@@ -351,10 +352,14 @@ export default function Coach() {
     return (match?.[1] as CoachSection) || "home";
   });
   const kpiPeriod: KpiLookbackPeriod = 7;
+  const [selectedCoachAthlete, setSelectedCoachAthlete] = useState<CoachAthleteOption | null>(null);
 
   // Reset to home when nav icon is tapped while already on /coach
   useEffect(() => {
-    const reset = () => setActiveSection("home");
+    const reset = () => {
+      setActiveSection("home");
+      setSelectedCoachAthlete(null);
+    };
     window.addEventListener("nav:reset", reset);
     return () => window.removeEventListener("nav:reset", reset);
   }, []);
@@ -366,6 +371,7 @@ export default function Coach() {
     activeSection === "messaging" ||
     activeSection === "sms" ||
     activeSection === "swimmers" ||
+    activeSection === "athlete" ||
     activeSection === "calendar" ||
     activeSection === "groups" ||
     activeSection === "objectives";
@@ -464,7 +470,12 @@ export default function Coach() {
 
   const handleOpenAthlete = (athlete: CoachAthleteOption) => {
     setSelectedAthlete({ id: athlete.id ?? null, name: athlete.display_name });
-    navigate(athlete.id != null ? `/coach/swimmer/${athlete.id}` : "/progress");
+    if (athlete.id == null) {
+      navigate("/progress");
+      return;
+    }
+    setSelectedCoachAthlete(athlete);
+    setActiveSection("athlete");
   };
 
   if (!coachAccess) {
@@ -558,6 +569,16 @@ export default function Coach() {
             athletesLoading={athletesLoading}
             onBack={() => setActiveSection("home")}
             onOpenAthlete={handleOpenAthlete}
+          />
+        </Suspense>
+      ) : null}
+
+      {activeSection === "athlete" ? (
+        <Suspense fallback={<PageSkeleton />}>
+          <CoachSwimmerDetail
+            athleteId={selectedCoachAthlete?.id ?? null}
+            athleteName={selectedCoachAthlete?.display_name ?? null}
+            onBack={() => setActiveSection("home")}
           />
         </Suspense>
       ) : null}
