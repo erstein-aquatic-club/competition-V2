@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Clock, Target, CalendarRange, MessageSquare } from "lucide-react";
+import SwimmerFeedbackTab from "./SwimmerFeedbackTab";
 
 export default function CoachSwimmerDetail() {
   const [, params] = useRoute("/coach/swimmer/:id");
@@ -88,7 +89,7 @@ export default function CoachSwimmerDetail() {
         </TabsList>
 
         <TabsContent value="ressentis" className="mt-4">
-          <p className="text-sm text-muted-foreground text-center py-8">Chargement…</p>
+          <SwimmerFeedbackTab athleteId={athleteId} athleteName={displayName} />
         </TabsContent>
 
         <TabsContent value="objectifs" className="mt-4">
