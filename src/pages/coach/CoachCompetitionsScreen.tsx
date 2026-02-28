@@ -34,7 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trophy, MapPin, Users, MessageSquare } from "lucide-react";
+import { Plus, Trophy, MapPin, Users, MessageSquare, ChevronDown } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 // ── Helpers ─────────────────────────────────────────────────────
@@ -535,36 +535,38 @@ const CoachCompetitionsScreen = ({ onBack }: CoachCompetitionsScreenProps) => {
     },
   });
 
-  // Sort: upcoming first (by date ascending), then past (by date descending)
-  const sorted = useMemo(() => {
+  const [pastOpen, setPastOpen] = useState(false);
+
+  // Sort: upcoming (by date ascending), past (by date descending)
+  const { upcoming, past } = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayMs = today.getTime();
 
-    const upcoming: Competition[] = [];
-    const past: Competition[] = [];
+    const up: Competition[] = [];
+    const pa: Competition[] = [];
 
     for (const c of competitions) {
       const d = new Date(c.date + "T00:00:00").getTime();
       if (d >= todayMs) {
-        upcoming.push(c);
+        up.push(c);
       } else {
-        past.push(c);
+        pa.push(c);
       }
     }
 
-    upcoming.sort(
+    up.sort(
       (a, b) =>
         new Date(a.date + "T00:00:00").getTime() -
         new Date(b.date + "T00:00:00").getTime(),
     );
-    past.sort(
+    pa.sort(
       (a, b) =>
         new Date(b.date + "T00:00:00").getTime() -
         new Date(a.date + "T00:00:00").getTime(),
     );
 
-    return [...upcoming, ...past];
+    return { upcoming: up, past: pa };
   }, [competitions]);
 
   const handleCreate = () => {
@@ -647,7 +649,7 @@ const CoachCompetitionsScreen = ({ onBack }: CoachCompetitionsScreenProps) => {
             </div>
           ))}
         </div>
-      ) : sorted.length === 0 ? (
+      ) : competitions.length === 0 ? (
         <div className="text-center py-12 space-y-3">
           <Trophy className="h-10 w-10 text-muted-foreground mx-auto" />
           <p className="text-sm text-muted-foreground">
@@ -660,7 +662,7 @@ const CoachCompetitionsScreen = ({ onBack }: CoachCompetitionsScreenProps) => {
         </div>
       ) : (
         <div className="space-y-2">
-          {sorted.map((comp) => (
+          {upcoming.map((comp) => (
             <CompetitionCard
               key={comp.id}
               competition={comp}
@@ -668,6 +670,33 @@ const CoachCompetitionsScreen = ({ onBack }: CoachCompetitionsScreenProps) => {
               onSendSms={handleSendSms}
             />
           ))}
+
+          {past.length > 0 && (
+            <div className="rounded-xl border bg-card">
+              <button
+                type="button"
+                className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-muted/50 rounded-xl transition-colors"
+                onClick={() => setPastOpen((o) => !o)}
+              >
+                <span className="text-xs font-medium text-muted-foreground">
+                  Passees ({past.length})
+                </span>
+                <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${pastOpen ? "rotate-180" : ""}`} />
+              </button>
+              {pastOpen && (
+                <div className="px-2 pb-2 space-y-1.5">
+                  {past.map((comp) => (
+                    <CompetitionCard
+                      key={comp.id}
+                      competition={comp}
+                      onEdit={handleEdit}
+                      onSendSms={handleSendSms}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
