@@ -187,10 +187,23 @@ export const useAuth = create<AuthState>((set) => ({
       set({ user: null, userId: null, role: null, isApproved: null, accessToken: null, refreshToken: null });
       return null;
     }
-    const session = data.session;
-    const supabaseUser = session.user;
-    const displayName = extractDisplayName(supabaseUser);
-    const userId = extractAppUserId(supabaseUser);
+    let session = data.session;
+    let supabaseUser = session.user;
+    let displayName = extractDisplayName(supabaseUser);
+    let userId = extractAppUserId(supabaseUser);
+
+    // If userId is missing (JWT generated before signup trigger updated app_metadata),
+    // force a session refresh to get the latest claims.
+    if (!userId) {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      if (refreshed.session) {
+        session = refreshed.session;
+        supabaseUser = session.user;
+        displayName = extractDisplayName(supabaseUser);
+        userId = extractAppUserId(supabaseUser);
+      }
+    }
+
     let role = extractAppUserRole(supabaseUser);
     let isApproved: boolean | null = null;
 
