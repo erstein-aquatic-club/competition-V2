@@ -4,11 +4,12 @@ import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Clock, Target, CalendarRange, MessageSquare } from "lucide-react";
+import { ArrowLeft, Clock, Target, CalendarRange, MessageSquare, CalendarClock } from "lucide-react";
 import SwimmerFeedbackTab from "./SwimmerFeedbackTab";
 import SwimmerObjectivesTab from "./SwimmerObjectivesTab";
 import SwimmerPlanningTab from "./SwimmerPlanningTab";
 import SwimmerInterviewsTab from "./SwimmerInterviewsTab";
+import SwimmerSlotsTab from "@/components/coach/SwimmerSlotsTab";
 
 export default function CoachSwimmerDetail() {
   const [, params] = useRoute("/coach/swimmer/:id");
@@ -72,7 +73,7 @@ export default function CoachSwimmerDetail() {
 
       {/* Tabs */}
       <Tabs defaultValue="ressentis">
-        <TabsList className="w-full grid grid-cols-4">
+        <TabsList className="w-full grid grid-cols-5">
           <TabsTrigger value="ressentis" className="text-xs gap-1">
             <Clock className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Ressentis</span>
@@ -88,6 +89,10 @@ export default function CoachSwimmerDetail() {
           <TabsTrigger value="entretiens" className="text-xs gap-1">
             <MessageSquare className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Entretiens</span>
+          </TabsTrigger>
+          <TabsTrigger value="creneaux" className="text-xs gap-1">
+            <CalendarClock className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Créneaux</span>
           </TabsTrigger>
         </TabsList>
 
@@ -105,6 +110,14 @@ export default function CoachSwimmerDetail() {
 
         <TabsContent value="entretiens" className="mt-4">
           <SwimmerInterviewsTab athleteId={athleteId} athleteName={displayName} />
+        </TabsContent>
+
+        <TabsContent value="creneaux" className="mt-4">
+          <SwimmerSlotsTab
+            athleteId={athleteId}
+            athleteName={displayName}
+            groupId={profile?.group_id ?? 0}
+          />
         </TabsContent>
       </Tabs>
     </div>
