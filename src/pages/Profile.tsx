@@ -23,6 +23,7 @@ import { motion } from "framer-motion";
 import { fadeIn } from "@/lib/animations";
 import SwimmerObjectivesView from "@/components/profile/SwimmerObjectivesView";
 import AthleteInterviewsSection from "@/components/profile/AthleteInterviewsSection";
+import AthletePerformanceHub from "@/components/profile/AthletePerformanceHub";
 import { NeurotypQuiz } from "@/components/neurotype/NeurotypQuiz";
 import NeurotypResultView from "@/components/neurotype/NeurotypResult";
 import { NEUROTYPE_PROFILES } from "@/lib/neurotype-quiz-data";
@@ -189,7 +190,9 @@ export default function Profile() {
   const canUpdatePassword = role === "athlete" || role === "coach" || role === "admin";
   const roleLabel = getRoleLabel(role);
 
-  const [activeSection, setActiveSection] = useState<"home" | "objectives" | "interviews" | "neurotype-quiz" | "neurotype-result">("home");
+  const [activeSection, setActiveSection] = useState<
+    "home" | "performance-hub" | "objectives" | "interviews" | "neurotype-quiz" | "neurotype-result"
+  >("home");
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
   const [isPasswordSheetOpen, setIsPasswordSheetOpen] = useState(false);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
@@ -487,6 +490,17 @@ export default function Profile() {
     return <SwimmerObjectivesView onBack={() => setActiveSection("home")} />;
   }
 
+  if (activeSection === "performance-hub") {
+    return (
+      <AthletePerformanceHub
+        athleteId={userId ?? 0}
+        athleteName={profile?.display_name || user || "Nageur"}
+        groupLabel={groupLabel}
+        onBack={() => setActiveSection("home")}
+      />
+    );
+  }
+
   return (
     <motion.div
       className="space-y-6"
@@ -528,6 +542,14 @@ export default function Profile() {
             <Lock className="h-5 w-5 text-primary mb-2" />
             <p className="text-sm font-bold">Sécurité</p>
             <p className="text-xs text-muted-foreground">Mot de passe</p>
+          </button>
+        )}
+        {showRecords && (
+          <button type="button" onClick={() => setActiveSection("performance-hub")}
+            className="rounded-xl border bg-card p-4 text-left shadow-sm active:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <Clock className="h-5 w-5 text-primary mb-2" />
+            <p className="text-sm font-bold">Suivi saison</p>
+            <p className="text-xs text-muted-foreground">Vue complète nageur</p>
           </button>
         )}
         {showRecords && (

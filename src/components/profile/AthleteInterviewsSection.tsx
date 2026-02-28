@@ -36,7 +36,10 @@ import {
   Trophy,
 } from "lucide-react";
 
-type Props = { onBack: () => void };
+type Props = {
+  onBack?: () => void;
+  embedded?: boolean;
+};
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + "T12:00:00");
@@ -88,7 +91,10 @@ function daysBetween(dateA: string, dateB: string): number {
   return Math.round((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-export default function AthleteInterviewsSection({ onBack }: Props) {
+export default function AthleteInterviewsSection({
+  onBack,
+  embedded = false,
+}: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -188,18 +194,20 @@ export default function AthleteInterviewsSection({ onBack }: Props) {
   return (
     <div className="space-y-6 pb-24">
       {/* Header */}
-      <div className="space-y-1">
-        <Button variant="ghost" size="sm" className="-ml-2" onClick={onBack}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" />
-          Retour
-        </Button>
-        <h2 className="text-2xl font-display font-semibold uppercase italic text-primary">
-          Mes entretiens
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Entretiens individuels avec le coach
-        </p>
-      </div>
+      {!embedded && (
+        <div className="space-y-1">
+          <Button variant="ghost" size="sm" className="-ml-2" onClick={onBack}>
+            <ArrowLeft className="mr-1.5 h-4 w-4" />
+            Retour
+          </Button>
+          <h2 className="text-2xl font-display font-semibold uppercase italic text-primary">
+            Mes entretiens
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Entretiens individuels avec le coach
+          </p>
+        </div>
+      )}
 
       {/* Loading */}
       {isLoading && (

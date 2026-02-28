@@ -49,10 +49,13 @@ import {
   progressBarColor,
 } from "@/lib/objectiveHelpers";
 
-type Props = { onBack: () => void };
+type Props = {
+  onBack?: () => void;
+  embedded?: boolean;
+};
 type ObjectiveType = "chrono" | "texte" | "both";
 
-export default function SwimmerObjectivesView({ onBack }: Props) {
+export default function SwimmerObjectivesView({ onBack, embedded = false }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -224,26 +227,35 @@ export default function SwimmerObjectivesView({ onBack }: Props) {
   return (
     <div className="space-y-6 pb-24">
       {/* Header */}
-      <div className="space-y-1">
-        <Button variant="ghost" size="sm" className="-ml-2" onClick={onBack}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" />
-          Retour
-        </Button>
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-display font-semibold uppercase italic text-primary">
-              Mon plan
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Mes objectifs d'entraînement
-            </p>
-          </div>
+      {embedded ? (
+        <div className="flex items-center justify-end">
           <Button variant="outline" size="sm" onClick={openCreate}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
             Ajouter
           </Button>
         </div>
-      </div>
+      ) : (
+        <div className="space-y-1">
+          <Button variant="ghost" size="sm" className="-ml-2" onClick={onBack}>
+            <ArrowLeft className="mr-1.5 h-4 w-4" />
+            Retour
+          </Button>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-display font-semibold uppercase italic text-primary">
+                Mon plan
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Mes objectifs d'entraînement
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={openCreate}>
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              Ajouter
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Loading */}
       {isLoading && (

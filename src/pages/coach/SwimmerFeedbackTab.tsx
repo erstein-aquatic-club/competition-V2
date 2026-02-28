@@ -29,9 +29,14 @@ function indicatorColor(mode: "hard" | "good", value: number | null | undefined)
 interface Props {
   athleteId: number;
   athleteName: string;
+  onOpenProgression?: () => void;
 }
 
-export default function SwimmerFeedbackTab({ athleteId, athleteName }: Props) {
+export default function SwimmerFeedbackTab({
+  athleteId,
+  athleteName,
+  onOpenProgression,
+}: Props) {
   const [, navigate] = useLocation();
   const { setSelectedAthlete } = useAuth();
   const [limit, setLimit] = useState(20);
@@ -68,6 +73,10 @@ export default function SwimmerFeedbackTab({ athleteId, athleteName }: Props) {
   }
 
   const handleOpenProgression = () => {
+    if (onOpenProgression) {
+      onOpenProgression();
+      return;
+    }
     setSelectedAthlete({ id: athleteId, name: athleteName });
     navigate("/progress");
   };
