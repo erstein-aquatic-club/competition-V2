@@ -9,11 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Lock, Pen, Target, Trophy, LogOut, Save, AlertCircle, Download, Camera, Trash2, Brain, MessageSquare, Clock, Bell, BellOff, BellRing } from "lucide-react";
+import { Lock, Pen, Target, Trophy, LogOut, Save, AlertCircle, Download, Camera, Trash2, Brain, MessageSquare, Clock, Bell, BellOff, BellRing, ChevronRight, type LucideIcon } from "lucide-react";
 import { isPushSupported, hasActivePushSubscription, subscribeToPush, unsubscribeFromPush } from "@/lib/push";
 import { compressImage, isAcceptedImageType } from "@/lib/imageUtils";
 import AvatarCropDialog from "@/components/profile/AvatarCropDialog";
@@ -78,6 +79,37 @@ export const getRoleLabel = (role: string | null) => {
 };
 
 const getNeurotypName = (code: string) => NEUROTYPE_PROFILES[code as NeurotypCode]?.name ?? code;
+
+function ProfileActionRow({
+  icon: Icon,
+  title,
+  description,
+  onClick,
+  accentClassName = "text-primary",
+}: {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  onClick: () => void;
+  accentClassName?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-3 rounded-2xl border border-border/70 bg-background/70 px-4 py-3 text-left transition hover:border-primary/25 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
+        <Icon className={`h-5 w-5 ${accentClassName}`} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold">{title}</p>
+        <p className="text-xs text-muted-foreground">{description}</p>
+      </div>
+      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+    </button>
+  );
+}
 
 // Profile edit validation schema
 const profileEditSchema = z.object({
@@ -555,109 +587,128 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Navigation Grid 2x2 */}
-      <div className="grid grid-cols-2 gap-3">
-        <button type="button" onClick={startEdit}
-          className="rounded-xl border bg-card p-4 text-left shadow-sm active:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <Pen className="h-5 w-5 text-primary mb-2" />
-          <p className="text-sm font-bold">Mon profil</p>
-          <p className="text-xs text-muted-foreground">Modifier mes infos</p>
-        </button>
-        {canUpdatePassword && (
-          <button type="button" onClick={() => setIsPasswordSheetOpen(true)}
-            className="rounded-xl border bg-card p-4 text-left shadow-sm active:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <Lock className="h-5 w-5 text-primary mb-2" />
-            <p className="text-sm font-bold">Sécurité</p>
-            <p className="text-xs text-muted-foreground">Mot de passe</p>
-          </button>
-        )}
-        {showRecords && (
-          <button type="button" onClick={() => setActiveSection("performance-hub")}
-            className="rounded-xl border bg-card p-4 text-left shadow-sm active:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <Clock className="h-5 w-5 text-primary mb-2" />
-            <p className="text-sm font-bold">Suivi saison</p>
-            <p className="text-xs text-muted-foreground">Vue complète nageur</p>
-          </button>
-        )}
-        {showRecords && (
-          <button type="button" onClick={() => navigate("/records")}
-            className="rounded-xl border bg-card p-4 text-left shadow-sm active:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <Trophy className="h-5 w-5 text-primary mb-2" />
-            <p className="text-sm font-bold">Records</p>
-            <p className="text-xs text-muted-foreground">Mes perfs personnelles</p>
-          </button>
-        )}
-        <button type="button" onClick={() => setActiveSection("objectives")}
-          className="rounded-xl border bg-card p-4 text-left shadow-sm active:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <Target className="h-5 w-5 text-primary mb-2" />
-          <p className="text-sm font-bold">Objectifs</p>
-          <p className="text-xs text-muted-foreground">Mon plan</p>
-        </button>
-        <button type="button" onClick={() => setActiveSection("messages")}
-          className="rounded-xl border bg-card p-4 text-left shadow-sm active:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <BellRing className="h-5 w-5 text-primary mb-2" />
-          <p className="text-sm font-bold">Messages</p>
-          <p className="text-xs text-muted-foreground">Notifications & détails</p>
-        </button>
-        <button type="button" onClick={() => setActiveSection("interviews")}
-          className="rounded-xl border bg-card p-4 text-left shadow-sm active:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <MessageSquare className="h-5 w-5 text-primary mb-2" />
-          <p className="text-sm font-bold">Entretiens</p>
-          <p className="text-xs text-muted-foreground">Mes entretiens individuels</p>
-        </button>
-        {showRecords && (
-          <button type="button"
-            onClick={() => {
-              if (profile?.neurotype_result) {
-                setPendingNeurotypResult(profile.neurotype_result);
-                setActiveSection("neurotype-result");
-              } else {
-                setActiveSection("neurotype-quiz");
-              }
-            }}
-            className="rounded-xl border bg-card p-4 text-left shadow-sm active:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <Brain className="h-5 w-5 text-primary mb-2" />
-            {profile?.neurotype_result ? (
-              <>
-                <p className="text-sm font-bold">{profile.neurotype_result.dominant} — {getNeurotypName(profile.neurotype_result.dominant)}</p>
-                <p className="text-xs text-muted-foreground">Mon neurotype</p>
-              </>
-            ) : (
-              <>
-                <p className="text-sm font-bold">Neurotype</p>
-                <p className="text-xs text-muted-foreground">Découvrir mon profil</p>
-              </>
-            )}
-          </button>
-        )}
-      </div>
+      <div className="space-y-4">
+        <Card className="overflow-hidden border-primary/15 bg-gradient-to-br from-card via-card to-primary/5 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base uppercase tracking-[0.08em]">Compte</CardTitle>
+            <CardDescription>
+              Regroupe les réglages essentiels au lieu de disperser plusieurs petites cartes.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <ProfileActionRow
+              icon={Pen}
+              title="Mon profil"
+              description="Modifier mes informations personnelles"
+              onClick={startEdit}
+            />
+            {canUpdatePassword ? (
+              <ProfileActionRow
+                icon={Lock}
+                title="Sécurité"
+                description="Changer mon mot de passe"
+                onClick={() => setIsPasswordSheetOpen(true)}
+              />
+            ) : null}
+            {isPushSupported() ? (
+              <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/70 px-4 py-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
+                  {pushEnabled ? (
+                    <Bell className="h-5 w-5 text-primary" />
+                  ) : (
+                    <BellOff className="h-5 w-5 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">Notifications push</p>
+                  <p className="text-xs text-muted-foreground">
+                    {pushEnabled ? "Activées sur cet appareil" : "Désactivées sur cet appareil"}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant={pushEnabled ? "outline" : "default"}
+                  onClick={handleTogglePush}
+                  disabled={pushLoading}
+                >
+                  {pushLoading ? "..." : pushEnabled ? "Désactiver" : "Activer"}
+                </Button>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
 
-      {/* Push notifications toggle */}
-      {isPushSupported() && (
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
-                {pushEnabled ? <Bell className="h-4.5 w-4.5 text-primary" /> : <BellOff className="h-4.5 w-4.5 text-muted-foreground" />}
+        {showRecords ? (
+          <Card className="overflow-hidden border-primary/15 bg-gradient-to-br from-card via-card to-primary/5 shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base uppercase tracking-[0.08em]">Suivi</CardTitle>
+              <CardDescription>
+                Concentre les outils d'analyse au même endroit: progression, records et neurotype.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <ProfileActionRow
+                  icon={Clock}
+                  title="Suivi saison"
+                  description="Vue complète sur la progression"
+                  onClick={() => setActiveSection("performance-hub")}
+                />
+                <ProfileActionRow
+                  icon={Trophy}
+                  title="Records"
+                  description="Consulter mes performances"
+                  onClick={() => navigate("/records")}
+                />
               </div>
-              <div>
-                <p className="text-sm font-bold">Notifications push</p>
-                <p className="text-xs text-muted-foreground">
-                  {pushEnabled ? "Activees" : "Desactivees"}
-                </p>
-              </div>
-            </div>
-            <Button
-              size="sm"
-              variant={pushEnabled ? "outline" : "default"}
-              onClick={handleTogglePush}
-              disabled={pushLoading}
-            >
-              {pushLoading ? "..." : pushEnabled ? "Desactiver" : "Activer"}
-            </Button>
-          </div>
-        </div>
-      )}
+              <ProfileActionRow
+                icon={Brain}
+                title={profile?.neurotype_result
+                  ? `${profile.neurotype_result.dominant} — ${getNeurotypName(profile.neurotype_result.dominant)}`
+                  : "Neurotype"}
+                description={profile?.neurotype_result ? "Relire mon profil neurotype" : "Découvrir mon profil"}
+                onClick={() => {
+                  if (profile?.neurotype_result) {
+                    setPendingNeurotypResult(profile.neurotype_result);
+                    setActiveSection("neurotype-result");
+                  } else {
+                    setActiveSection("neurotype-quiz");
+                  }
+                }}
+              />
+            </CardContent>
+          </Card>
+        ) : null}
+
+        <Card className="overflow-hidden border-primary/15 bg-card shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base uppercase tracking-[0.08em]">Espace Perso</CardTitle>
+            <CardDescription>
+              Trois accès utiles, regroupés en une seule zone au lieu de trois cartes séparées.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <ProfileActionRow
+              icon={BellRing}
+              title="Messages"
+              description="Notifications reçues et détails complets"
+              onClick={() => setActiveSection("messages")}
+            />
+            <ProfileActionRow
+              icon={MessageSquare}
+              title="Entretiens"
+              description="Mes échanges individuels avec le coach"
+              onClick={() => setActiveSection("interviews")}
+            />
+            <ProfileActionRow
+              icon={Target}
+              title="Objectifs"
+              description="Mon plan de progression"
+              onClick={() => setActiveSection("objectives")}
+            />
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Logout */}
       <Button variant="destructive" onClick={logout} className="w-full gap-2">
