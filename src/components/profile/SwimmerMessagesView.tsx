@@ -7,13 +7,16 @@ import { resolveNotificationActionLabel, resolveNotificationHref } from "@/lib/n
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { BellRing, ChevronRight, Dot, Inbox, ArrowLeft } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { BellRing, ChevronRight, Dot, Inbox, ArrowLeft, Trash2 } from "lucide-react";
 
 type Props = {
   userId: number;
   onBack: () => void;
   onOpenProfileSection: (section: "home" | "interviews" | "objectives" | "messages") => void;
 };
+
+const getDismissedStorageKey = (userId: number) => `profile-notifications-dismissed:${userId}`;
 
 function formatNotificationDate(value: string) {
   const date = new Date(value);
@@ -32,8 +35,21 @@ export default function SwimmerMessagesView({
   onOpenProfileSection,
 }: Props) {
   const [, navigate] = useLocation();
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedTargetId, setSelectedTargetId] = useState<number | null>(null);
+  const [dismissedTargetIds, setDismissedTargetIds] = useState<number[]>(() => {
+    if (typeof window === "undefined" || userId <= 0) return [];
+    try {
+      const raw = window.localStorage.getItem(getDismissedStorageKey(userId));
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed)
+        ? parsed.map((value) => Number(value)).filter((value) => Number.isFinite(value))
+        : [];
+    } catch {
+      return [];
+    }
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ["profile-notifications", userId],
@@ -45,7 +61,19 @@ export default function SwimmerMessagesView({
     enabled: userId > 0,
   });
 
-  const notifications = data?.notifications ?? [];
+  const notifications = useMemo(
+    () =>
+      (data?.notifications ?? []).filter(
+        (notification) =>
+          notification.target_id == null || !dismissedTargetIds.includes(notification.target_id),
+      ),
+    [data?.notifications, dismissedTargetIds],
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined" || userId <= 0) return;
+    window.localStorage.setItem(getDismissedStorageKey(userId), JSON.stringify(dismissedTargetIds));
+  }, [dismissedTargetIds, userId]);
 
   useEffect(() => {
     if (!notifications.length) {
@@ -66,12 +94,15 @@ export default function SwimmerMessagesView({
   );
 
   const selectNotification = async (notification: Notification) => {
-    if (notification.target_id && !notification.read) {
-      await api.notifications_mark_read({ targetId: notification.target_id });
-      await queryClient.invalidateQueries({ queryKey: ["profile-notifications"] });
-    }
-
     setSelectedTargetId(notification.target_id ?? null);
+
+    if (notification.target_id && !notification.read) {
+      api.notifications_mark_read({ targetId: notification.target_id })
+        .then(() => queryClient.invalidateQueries({ queryKey: ["profile-notifications"] }))
+        .catch(() => {
+          // Navigation should not be blocked if mark-read fails.
+        });
+    }
   };
 
   const openNotificationDestination = (notification: Notification) => {
@@ -87,7 +118,27 @@ export default function SwimmerMessagesView({
       return;
     }
 
+    if (href === "/") {
+      window.location.hash = "#/";
+      return;
+    }
+
     navigate(href);
+  };
+
+  const handleClearAll = () => {
+    const targetIds = notifications
+      .map((notification) => notification.target_id)
+      .filter((targetId): targetId is number => targetId != null);
+
+    if (targetIds.length === 0) return;
+
+    setDismissedTargetIds((current) => Array.from(new Set([...current, ...targetIds])));
+    setSelectedTargetId(null);
+    toast({
+      title: "Notifications effacées",
+      description: "La boîte de réception a été vidée sur cet appareil.",
+    });
   };
 
   return (
@@ -110,6 +161,12 @@ export default function SwimmerMessagesView({
             </p>
           </div>
         </div>
+        {notifications.length > 0 ? (
+          <Button variant="ghost" size="sm" className="-ml-1 w-fit" onClick={handleClearAll}>
+            <Trash2 className="h-4 w-4" />
+            Effacer toutes les notifications
+          </Button>
+        ) : null}
       </div>
 
       {isLoading ? (
