@@ -14,6 +14,11 @@ import {
   strokeFromCode,
 } from "@/lib/objectiveHelpers";
 import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@/components/ui/collapsible";
+import {
   ArrowLeft,
   MessageSquare,
   Send,
@@ -21,6 +26,7 @@ import {
   Clock,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
   Target,
   User,
   GraduationCap,
@@ -439,31 +445,12 @@ function InterviewCard({
           {/* ── Sent / Signed: conversational read-only layout ── */}
           {(isSent || isSigned) && (
             <>
-              {/* Previous commitments summary */}
+              {/* Previous commitments summary — collapsed by default */}
               {prevInterview && (prevInterview.athlete_commitments || prevInterview.coach_actions) && (
-                <div className="rounded-xl border bg-muted/30 p-3 space-y-2">
-                  <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    Bilan des engagements precedents
-                  </p>
-                  {prevInterview.athlete_commitments && (
-                    <div className="border-l-4 border-blue-400 rounded-r-lg bg-blue-50/50 dark:bg-blue-950/20 p-2">
-                      <p className="text-[10px] font-semibold text-muted-foreground">Engagements</p>
-                      <p className="text-xs whitespace-pre-wrap">{prevInterview.athlete_commitments}</p>
-                    </div>
-                  )}
-                  {prevInterview.coach_actions && (
-                    <div className="border-l-4 border-amber-400 rounded-r-lg bg-amber-50/50 dark:bg-amber-950/20 p-2">
-                      <p className="text-[10px] font-semibold text-muted-foreground">Actions coach</p>
-                      <p className="text-xs whitespace-pre-wrap">{prevInterview.coach_actions}</p>
-                    </div>
-                  )}
-                  {interview.athlete_commitment_review && (
-                    <div className="border-l-4 border-blue-400 rounded-r-lg bg-blue-50/80 dark:bg-blue-950/30 p-2">
-                      <p className="text-[10px] font-semibold text-muted-foreground">Mon bilan</p>
-                      <p className="text-xs whitespace-pre-wrap">{interview.athlete_commitment_review}</p>
-                    </div>
-                  )}
-                </div>
+                <CollapsiblePreviousCommitments
+                  prevInterview={prevInterview}
+                  commitmentReview={interview.athlete_commitment_review}
+                />
               )}
 
               {/* Conversational sections */}
@@ -513,6 +500,61 @@ function InterviewCard({
         </div>
       )}
     </div>
+  );
+}
+
+// ── Collapsible previous commitments (collapsed by default) ──
+
+function CollapsiblePreviousCommitments({
+  prevInterview,
+  commitmentReview,
+}: {
+  prevInterview: Interview;
+  commitmentReview?: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger asChild>
+        <button
+          type="button"
+          className="w-full flex items-center gap-2 rounded-xl border bg-muted/30 px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
+        >
+          <ChevronRight
+            className={`h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform ${open ? "rotate-90" : ""}`}
+          />
+          <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            Rappel engagements precedents
+          </span>
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-auto">
+            {formatDate(prevInterview.date)}
+          </Badge>
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="rounded-b-xl border border-t-0 bg-muted/30 px-3 pb-3 space-y-2">
+          {prevInterview.athlete_commitments && (
+            <div className="border-l-4 border-blue-400 rounded-r-lg bg-blue-50/50 dark:bg-blue-950/20 p-2">
+              <p className="text-[10px] font-semibold text-muted-foreground">Mes engagements</p>
+              <p className="text-xs whitespace-pre-wrap">{prevInterview.athlete_commitments}</p>
+            </div>
+          )}
+          {prevInterview.coach_actions && (
+            <div className="border-l-4 border-amber-400 rounded-r-lg bg-amber-50/50 dark:bg-amber-950/20 p-2">
+              <p className="text-[10px] font-semibold text-muted-foreground">Actions du coach</p>
+              <p className="text-xs whitespace-pre-wrap">{prevInterview.coach_actions}</p>
+            </div>
+          )}
+          {commitmentReview && (
+            <div className="border-l-4 border-blue-400 rounded-r-lg bg-blue-50/80 dark:bg-blue-950/30 p-2">
+              <p className="text-[10px] font-semibold text-muted-foreground">Mon bilan</p>
+              <p className="text-xs whitespace-pre-wrap">{commitmentReview}</p>
+            </div>
+          )}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
