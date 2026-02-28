@@ -44,6 +44,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §66 Groupes encadrés par shift (pointage coach) | ✅ Fait | 2026-02-25 |
 | §72 Dashboard synthétique nageurs (coach) | ✅ Fait | 2026-02-27 |
 | §73 Fiche nageur coach (page onglets, ressentis, objectifs) | ✅ Fait | 2026-02-28 |
+| §74 Planification + Entretiens (fiche nageur coach) | ✅ Fait | 2026-02-28 |
 | §45 Audit UI/UX — header Strength + login mobile + fixes | ✅ Fait | 2026-02-16 |
 | §46 Harmonisation headers + Login mobile thème clair | ✅ Fait | 2026-02-16 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
@@ -5923,3 +5924,71 @@ Depuis le dashboard nageurs (§72), le coach pouvait uniquement naviguer vers la
 - Planification et Entretiens sont des placeholders (V2)
 - Le SwimmerObjectivesTab duplique du code de CoachObjectivesScreen — à factoriser si le formulaire évolue
 - Pas de cache partagé entre les objectifs de la fiche et ceux de CoachObjectivesScreen (queryKey différent)
+
+## 2026-02-28 — §74 Planification & Entretiens (fiche nageur coach)
+
+**Branche** : `main`
+**Chantier ROADMAP** : §74 — Planification & Entretiens individuels
+
+### Contexte — Pourquoi ce patch
+
+Les onglets Planification et Entretiens de la fiche nageur coach (§73) étaient des placeholders. Ce patch implémente les 2 fonctionnalités complètes :
+- **Planification** : macro-cycles (entre 2 compétitions) avec semaines typées manuellement, héritage groupe → individuel
+- **Entretiens** : workflow multi-phases avec cloisonnement strict (coach initie → nageur remplit → coach prépare → envoi → signature)
+
+### Changements réalisés
+
+1. **Migration 00034** : tables `training_cycles` (macro-cycles) et `training_weeks` (micro-cycles). Contrainte CHECK `group_id OR athlete_id`. RLS : lecture pour tous, écriture coach/admin.
+2. **Migration 00035** : table `interviews` avec 4 statuts (`draft_athlete` → `draft_coach` → `sent` → `signed`), 4 sections nageur, 3 sections coach, FK `current_cycle_id`. RLS phase-based via `app_user_id()` et `app_user_role()`.
+3. **API planning.ts** : CRUD cycles + semaines, `bulkUpsertTrainingWeeks` pour auto-génération, join Supabase pour noms de compétitions.
+4. **API interviews.ts** : CRUD + transitions de statut avec guards (`submitInterviewToCoach` exige `draft_athlete`, etc.), `getMyInterviews` utilise `app_metadata.app_user_id`.
+5. **SwimmerPlanningTab** : timeline verticale macro-cycles, semaines colorées par type (hash-based), édition inline avec autocomplétion datalist, héritage groupe avec badge + bouton "Personnaliser", Sheet création cycle avec sélecteurs compétitions.
+6. **SwimmerInterviewsTab** : liste chronologique avec badges statut, Sheet détail multi-phases (draft_athlete : attente, draft_coach : sections coach éditables + nageur RO + panneau contextuel accordéon, sent/signed : tout RO), panneau contextuel avec objectifs/planification/compétitions.
+7. **AthleteInterviewsSection** : section "Mes entretiens" dans Profile, formulaire éditable en `draft_athlete` (4 textareas), lecture seule + signature en `sent`, historique en `signed` (collapsible).
+8. **Profile.tsx** : ajout section entretiens dans le hub (carte navigation + state machine).
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `supabase/migrations/00034_training_cycles.sql` | **Nouveau** — Tables training_cycles + training_weeks + RLS |
+| `supabase/migrations/00035_interviews.sql` | **Nouveau** — Table interviews + RLS phase-based |
+| `src/lib/api/types.ts` | Ajout interfaces TrainingCycle, TrainingWeek, Interview + inputs |
+| `src/lib/api/planning.ts` | **Nouveau** — CRUD cycles + semaines |
+| `src/lib/api/interviews.ts` | **Nouveau** — CRUD + transitions statut entretiens |
+| `src/lib/api/index.ts` | Re-exports 17 nouvelles fonctions |
+| `src/lib/api.ts` | Stubs de délégation + re-exports types |
+| `src/pages/coach/SwimmerPlanningTab.tsx` | **Nouveau** — Onglet planification coach |
+| `src/pages/coach/SwimmerInterviewsTab.tsx` | **Nouveau** — Onglet entretiens coach |
+| `src/components/profile/AthleteInterviewsSection.tsx` | **Nouveau** — Entretiens côté nageur |
+| `src/pages/Profile.tsx` | Ajout section entretiens hub |
+| `src/pages/coach/CoachSwimmerDetail.tsx` | Import composants réels (plus de placeholders) |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — OK (0 erreurs)
+- [x] `npm run build` — OK (5.66s, 117 entries PWA)
+- [ ] Test manuel : coach → fiche nageur → onglet Planif → créer cycle entre 2 compétitions
+- [ ] Test manuel : semaines auto-générées, typage inline, couleurs par type
+- [ ] Test manuel : héritage groupe → badge "Planification groupe" → personnaliser
+- [ ] Test manuel : coach → fiche nageur → onglet Entretiens → nouvel entretien
+- [ ] Test manuel : nageur → Profil → Entretiens → formulaire éditable → envoyer au coach
+- [ ] Test manuel : coach → sections nageur RO + sections coach éditables → envoyer au nageur
+- [ ] Test manuel : nageur → lecture seule tout → signer
+- [ ] Test manuel : panneau contextuel (objectifs, planification, compétitions)
+
+### Décisions prises
+
+- `app_user_id()` pour RLS (pas de sous-requête `auth_uid`) — fonction existante qui lit le JWT
+- Semaines typées en texte libre avec autocomplétion datalist (pas de table de types)
+- Couleur de type calculée par hash du nom → cohérence automatique sans mapping manuel
+- Héritage groupe : la planif groupe est affichée si aucune planif individuelle n'existe, bouton "Personnaliser" copie en individuel
+- Entretien masqué pour le nageur en phase `draft_coach` (RLS + client)
+- `interviews.athlete_id` est un integer (FK public.users.id), nécessite `get_auth_uid_for_user` pour les requêtes croisées avec les objectifs (qui utilisent auth.users.id)
+
+### Limites / dette
+
+- Les RLS interviews ne valident pas les transitions de statut (ex: `draft_athlete` → `signed` serait possible via SQL direct). Les guards sont côté client/API uniquement.
+- Le panneau contextuel du coach charge les données à chaque ouverture d'entretien (pas de cache partagé)
+- Pas de notification push/email au nageur quand le coach initie un entretien (dépend d'une feature future)
+- `bulkUpsertTrainingWeeks` fait des upserts individuels (pas de batch SQL) — acceptable pour le volume (~20 semaines max)

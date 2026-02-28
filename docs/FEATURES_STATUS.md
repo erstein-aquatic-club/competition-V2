@@ -1,6 +1,6 @@
 # État des fonctionnalités
 
-*Dernière mise à jour : 2026-02-24 (§65 Écran SMS dédié coach dashboard)*
+*Dernière mise à jour : 2026-02-28 (§74 Planification & Entretiens fiche nageur coach)*
 
 ## Légende
 
@@ -193,6 +193,31 @@ Tous les feature flags sont activés.
 | Changement mot de passe | ✅ | `Profile.tsx` | Bottom sheet dédié Sécurité (§61, was Collapsible §38) |
 | FFN & Records | ✅ | `Profile.tsx` | Card fusionnée sync FFN + lien records (§38) |
 | Quiz neurotype (profil entraînement) | ✅ | `NeurotypQuiz.tsx`, `NeurotypResult.tsx`, `neurotype-quiz-data.ts`, `neurotype-scoring.ts` | 30 questions, 5 profils, scoring client-side, résultat JSONB dans user_profiles (§71) |
+| Entretiens nageur | ✅ | `AthleteInterviewsSection.tsx`, `Profile.tsx` | Formulaire 4 sections en draft_athlete, lecture seule + signature en sent, historique en signed (§74) |
+
+### Planification (macro-cycles)
+
+| Fonctionnalité | Statut | Fichiers | Notes |
+|----------------|--------|----------|-------|
+| CRUD macro-cycles coach | ✅ | `SwimmerPlanningTab.tsx`, `planning.ts` | Bloc entre 2 compétitions, nom libre, notes (§74) |
+| Semaines auto-générées | ✅ | `SwimmerPlanningTab.tsx`, `planning.ts` | bulkUpsert des lundis entre start et end competition (§74) |
+| Typage semaines (libre) | ✅ | `SwimmerPlanningTab.tsx` | Texte libre avec autocomplétion datalist des types existants (§74) |
+| Couleur type par hash | ✅ | `SwimmerPlanningTab.tsx` | Palette automatique cohérente par nom de type (§74) |
+| Héritage groupe → individuel | ✅ | `SwimmerPlanningTab.tsx`, `planning.ts` | Badge "Planification groupe", bouton "Personnaliser" copie en individuel (§74) |
+| Timeline semaines | ✅ | `SwimmerPlanningTab.tsx` | Timeline verticale, semaine courante surbrillance, compétitions bornes (§74) |
+
+### Entretiens individuels (coach)
+
+| Fonctionnalité | Statut | Fichiers | Notes |
+|----------------|--------|----------|-------|
+| Workflow multi-phases | ✅ | `SwimmerInterviewsTab.tsx`, `interviews.ts` | draft_athlete → draft_coach → sent → signed avec guards (§74) |
+| Initiation coach | ✅ | `SwimmerInterviewsTab.tsx` | Crée en draft_athlete, nageur reçoit le formulaire (§74) |
+| Sections nageur (4) | ✅ | `AthleteInterviewsSection.tsx` | Réussites, difficultés, objectifs, engagements (§74) |
+| Sections coach (3) | ✅ | `SwimmerInterviewsTab.tsx` | Commentaires, objectifs ajoutés, actions à suivre (§74) |
+| Cloisonnement phases | ✅ | `interviews.ts`, migration 00035 | RLS phase-based : nageur masqué en draft_coach, coach masqué en draft_athlete (§74) |
+| Panneau contextuel | ✅ | `SwimmerInterviewsTab.tsx` | Accordéon objectifs + planification + compétitions en phase draft_coach (§74) |
+| Signature nageur | ✅ | `AthleteInterviewsSection.tsx` | Bouton signer en statut sent, passe à signed (§74) |
+| Historique entretiens | ✅ | `SwimmerInterviewsTab.tsx`, `AthleteInterviewsSection.tsx` | Liste chronologique coach + archive collapsible nageur (§74) |
 
 ### UI/UX & Design System (Phase 6)
 

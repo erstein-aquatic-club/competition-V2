@@ -68,6 +68,11 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 | `src/pages/coach/CoachGroupsScreen.tsx` | UI gestion groupes temporaires (stages) | ~580 lignes |
 | `src/pages/coach/CoachCompetitionsScreen.tsx` | UI compétitions coach + assignations + SMS | ~470 lignes |
 | `src/pages/coach/CoachObjectivesScreen.tsx` | UI gestion objectifs par nageur | ~710 lignes |
+| `src/lib/api/planning.ts` | CRUD macro-cycles + semaines | ~200 lignes |
+| `src/lib/api/interviews.ts` | CRUD entretiens + transitions multi-phases | ~200 lignes |
+| `src/pages/coach/SwimmerPlanningTab.tsx` | Onglet planification fiche nageur (timeline cycles) | ~440 lignes |
+| `src/pages/coach/SwimmerInterviewsTab.tsx` | Onglet entretiens fiche nageur (workflow multi-phases) | ~440 lignes |
+| `src/components/profile/AthleteInterviewsSection.tsx` | Entretiens côté nageur (formulaire, signature, historique) | ~320 lignes |
 | `src/lib/objectiveHelpers.ts` | Helpers partagés objectifs (FFN_EVENTS, formatTime) | ~40 lignes |
 | `src/lib/imageUtils.ts` | Compression image Canvas (avatar upload, WebP/JPEG ≤200KB) | ~95 lignes |
 | `src/components/profile/SwimmerObjectivesView.tsx` | Vue objectifs nageur (lecture coach + CRUD perso) | ~530 lignes |
@@ -132,6 +137,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 33 | Écran SMS dédié coach dashboard | Moyenne | Fait (§65) |
 | 34 | Groupes encadrés par shift (pointage coach) | Moyenne | Fait (§66) |
 | 35 | Fix désynchronisation group_members au changement de groupe | Haute | Fait (§67) |
+| 37 | Planification & Entretiens (fiche nageur coach) | Haute | Fait (§74) |
 | 36 | Quiz neurotype nageur (profil d'entraînement) | Moyenne | Fait (§71) |
 | 37 | Dashboard synthétique nageurs (coach) | Moyenne | Fait (§72) |
 | 38 | Fiche nageur coach (ressentis, objectifs, onglets) | Moyenne | Fait (§73) |
