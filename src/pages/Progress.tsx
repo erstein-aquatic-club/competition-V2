@@ -566,8 +566,8 @@ export default function Progress() {
 
           {/* Hero KPI — Volume */}
           <HeroKpi
-            value={swimSessionsTotals.distance.toLocaleString()}
-            unit="m"
+            value={(swimSessionsTotals.distance / 1000).toFixed(1)}
+            unit="km"
             label={`volume sur ${swimPeriodDays} jours`}
             trend={swimVolumeTrend}
             trendLabel="vs période préc."
