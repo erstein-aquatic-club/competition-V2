@@ -38,7 +38,7 @@ function formatSlotTime(time: string) {
   return time.slice(0, 5);
 }
 
-function SwimmerScheduleSection({ groupId }: { groupId: number }) {
+function SwimmerScheduleSection({ groupId, userId }: { groupId: number; userId: number | null }) {
   const todayISO = useMemo(() => new Date().toISOString().split("T")[0], []);
   const twoWeeksISO = useMemo(() => {
     const d = new Date();
@@ -56,17 +56,45 @@ function SwimmerScheduleSection({ groupId }: { groupId: number }) {
     queryFn: () => api.getSlotOverrides({ fromDate: todayISO }),
   });
 
-  if (slotsLoading || slots.length === 0) return null;
+  // Check for custom swimmer slots
+  const { data: hasCustom } = useQuery({
+    queryKey: ["swimmer-slots-exists", userId],
+    queryFn: () => api.hasCustomSlots(userId!),
+    enabled: userId != null,
+  });
+
+  const { data: customSlots = [] } = useQuery({
+    queryKey: ["swimmer-slots", userId],
+    queryFn: () => api.getSwimmerSlots(userId!),
+    enabled: hasCustom === true && userId != null,
+  });
+
+  // Resolve: use custom slots if they exist, otherwise group slots
+  const resolvedSlots = hasCustom && customSlots.length > 0
+    ? customSlots.map((s) => ({
+        id: s.id,
+        day_of_week: s.day_of_week,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        location: s.location,
+        is_active: s.is_active,
+        created_by: s.created_by,
+        created_at: s.created_at,
+        assignments: [] as any[],
+      }))
+    : slots;
+
+  if (slotsLoading || resolvedSlots.length === 0) return null;
 
   // Filter overrides relevant to these slots, within next 2 weeks
-  const slotIds = new Set(slots.map((s) => s.id));
+  const slotIds = new Set(resolvedSlots.map((s) => s.id));
   const relevantOverrides = overrides.filter(
     (o) => slotIds.has(o.slot_id) && o.override_date <= twoWeeksISO,
   );
 
   // Group slots by day_of_week
-  const slotsByDay = new Map<number, typeof slots>();
-  for (const s of slots) {
+  const slotsByDay = new Map<number, typeof resolvedSlots>();
+  for (const s of resolvedSlots) {
     const list = slotsByDay.get(s.day_of_week) ?? [];
     list.push(s);
     slotsByDay.set(s.day_of_week, list);
@@ -617,7 +645,7 @@ export default function Profile() {
 
       {/* Swimmer schedule (read-only) */}
       {showRecords && profile?.group_id ? (
-        <SwimmerScheduleSection groupId={profile.group_id} />
+        <SwimmerScheduleSection groupId={profile.group_id} userId={userId} />
       ) : null}
 
       {/* Logout */}
