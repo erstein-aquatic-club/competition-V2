@@ -36,6 +36,7 @@ export default function SwimmerFeedbackTab({ athleteId, athleteName }: Props) {
   const { setSelectedAthlete } = useAuth();
   const [limit, setLimit] = useState(20);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
 
   const { data: sessions = [], isLoading } = useQuery({
     queryKey: ["sessions", athleteId],
@@ -89,7 +90,7 @@ export default function SwimmerFeedbackTab({ athleteId, athleteName }: Props) {
           <button
             key={session.id}
             type="button"
-            onClick={() => setExpandedId(isExpanded ? null : session.id)}
+            onClick={() => { setActiveTooltip(null); setExpandedId(isExpanded ? null : session.id); }}
             className="w-full rounded-2xl border bg-card p-3 text-left hover:border-primary/20 transition-all"
           >
             <div className="flex items-center justify-between gap-2">
@@ -102,16 +103,35 @@ export default function SwimmerFeedbackTab({ athleteId, athleteName }: Props) {
               <div className="flex items-center gap-1">
                 {INDICATORS.map((ind) => {
                   const value = session[ind.key] as number | null | undefined;
+                  const tooltipId = `${session.id}-${ind.key}`;
+                  const isTooltipActive = activeTooltip === tooltipId;
                   return (
                     <span
                       key={ind.key}
-                      title={`${ind.label}: ${value ?? "\u2014"}`}
-                      className={cn(
-                        "inline-flex items-center justify-center h-6 w-6 rounded-lg text-[10px] font-bold",
-                        indicatorColor(ind.mode, value)
-                      )}
+                      className="relative group"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveTooltip(isTooltipActive ? null : tooltipId);
+                      }}
                     >
-                      {value ?? "\u2014"}
+                      <span
+                        className={cn(
+                          "inline-flex items-center justify-center h-6 w-6 rounded-lg text-[10px] font-bold cursor-pointer",
+                          indicatorColor(ind.mode, value)
+                        )}
+                      >
+                        {value ?? "\u2014"}
+                      </span>
+                      {/* Tooltip: hover on desktop, tap on mobile */}
+                      <span
+                        className={cn(
+                          "absolute -top-7 left-1/2 -translate-x-1/2 rounded-md bg-foreground text-background px-1.5 py-0.5 text-[9px] font-semibold whitespace-nowrap pointer-events-none transition-opacity",
+                          "opacity-0 group-hover:opacity-100",
+                          isTooltipActive && "opacity-100"
+                        )}
+                      >
+                        {ind.label}
+                      </span>
                     </span>
                   );
                 })}
