@@ -164,8 +164,43 @@ CREATE TRIGGER trg_auto_notify_competition_assignment
   EXECUTE FUNCTION auto_notify_competition_assignment();
 
 -- ============================================================================
--- 4. ENTRETIEN (interviews UPDATE — phase transitions)
--- Notify swimmer when coach sends, notify coach when athlete submits.
+-- 4a. ENTRETIEN CRÉÉ (interviews INSERT)
+-- Coach creates interview → notify athlete to fill in their sections.
+-- Flow: coach creates (draft_athlete) → athlete fills → submits (draft_coach)
+--       → coach fills & sends (sent) → athlete signs (signed)
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION auto_notify_interview_created()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  notif_id INTEGER;
+BEGIN
+  INSERT INTO notifications (title, body, type)
+  VALUES (
+    'Entretien à compléter',
+    'Un entretien individuel attend votre contribution.',
+    'message'
+  )
+  RETURNING id INTO notif_id;
+
+  INSERT INTO notification_targets (notification_id, target_user_id)
+  VALUES (notif_id, NEW.athlete_id);
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_auto_notify_interview_created
+  AFTER INSERT ON interviews
+  FOR EACH ROW
+  EXECUTE FUNCTION auto_notify_interview_created();
+
+-- ============================================================================
+-- 4b. ENTRETIEN ENVOYÉ (interviews UPDATE — draft_coach → sent)
+-- Coach sends final version → notify athlete to review & sign.
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION auto_notify_interview_transition()
@@ -175,37 +210,22 @@ SECURITY DEFINER
 AS $$
 DECLARE
   notif_id INTEGER;
-  notif_title TEXT;
-  notif_body TEXT;
-  target_uid INTEGER;
 BEGIN
-  -- Only fire on status changes
   IF OLD.status = NEW.status THEN RETURN NEW; END IF;
 
-  IF NEW.status = 'draft_athlete' AND OLD.status = 'draft_coach' THEN
-    -- Coach sent to athlete for review
-    notif_title := 'Entretien à compléter';
-    notif_body := 'Un entretien attend votre contribution.';
-    target_uid := NEW.athlete_id;
-  ELSIF NEW.status = 'sent' AND OLD.status = 'draft_athlete' THEN
-    -- Athlete submitted back to coach
-    notif_title := 'Entretien soumis';
-    notif_body := 'Un nageur a soumis son entretien pour validation.';
-    -- Notify all coaches (group_id-based is not available here, target coaches directly)
-    -- We'll use the coach who created the interview if available, or skip
-    target_uid := NULL;
-  ELSE
-    RETURN NEW;
+  IF OLD.status = 'draft_coach' AND NEW.status = 'sent' THEN
+    -- Coach sent the final version to athlete for review & signature
+    INSERT INTO notifications (title, body, type)
+    VALUES (
+      'Entretien à relire',
+      'Votre entretien est prêt pour relecture et signature.',
+      'message'
+    )
+    RETURNING id INTO notif_id;
+
+    INSERT INTO notification_targets (notification_id, target_user_id)
+    VALUES (notif_id, NEW.athlete_id);
   END IF;
-
-  IF target_uid IS NULL THEN RETURN NEW; END IF;
-
-  INSERT INTO notifications (title, body, type)
-  VALUES (notif_title, notif_body, 'message')
-  RETURNING id INTO notif_id;
-
-  INSERT INTO notification_targets (notification_id, target_user_id)
-  VALUES (notif_id, target_uid);
 
   RETURN NEW;
 END;
