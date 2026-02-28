@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
-import { Mail, ExternalLink } from "lucide-react";
+import { BellRing, SendHorizontal } from "lucide-react";
+import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import CoachSectionHeader from "./CoachSectionHeader";
 
@@ -17,17 +19,18 @@ type CoachMessagesScreenProps = {
 
 const CoachMessagesScreen = ({ onBack, athletes, groups, athletesLoading }: CoachMessagesScreenProps) => {
   const { toast } = useToast();
-  const [subject, setSubject] = useState("");
+  const [title, setTitle] = useState("");
+  const [message, setMessage] = useState("");
   const [targetValue, setTargetValue] = useState("");
+  const [sending, setSending] = useState(false);
 
   const athleteOptions = useMemo(
     () =>
       athletes
-        .filter((a) => a.id && a.email)
+        .filter((a) => a.id != null)
         .map((a) => ({
           value: `user:${a.id}`,
           label: a.group_label ? `${a.display_name} · ${a.group_label}` : a.display_name,
-          email: a.email!,
         })),
     [athletes],
   );
@@ -42,49 +45,99 @@ const CoachMessagesScreen = ({ onBack, athletes, groups, athletesLoading }: Coac
     [groups],
   );
 
-  const resolveEmails = (): string[] => {
-    if (!targetValue) return [];
-    if (targetValue.startsWith("user:")) {
-      const opt = athleteOptions.find((a) => a.value === targetValue);
-      return opt ? [opt.email] : [];
+  const selectedTarget = useMemo(() => {
+    if (!targetValue) {
+      return {
+        recipients: 0,
+        target: null as { target_user_id?: number | null; target_group_id?: number | null } | null,
+      };
     }
+
+    if (targetValue.startsWith("user:")) {
+      const userId = Number(targetValue.split(":")[1]);
+      const athlete = athletes.find((item) => item.id === userId);
+      if (!athlete?.id) {
+        return { recipients: 0, target: null };
+      }
+      return {
+        recipients: 1,
+        target: { target_user_id: athlete.id, target_group_id: null },
+      };
+    }
+
     if (targetValue.startsWith("group:")) {
       const groupId = Number(targetValue.split(":")[1]);
-      return athletes
-        .filter((a) => a.group_id === groupId && a.email)
-        .map((a) => a.email!);
+      const recipients = athletes.filter((athlete) => athlete.group_id === groupId && athlete.id != null).length;
+      return {
+        recipients,
+        target: { target_group_id: groupId, target_user_id: null },
+      };
     }
-    return [];
-  };
 
-  const handleOpenMailto = () => {
-    const emails = resolveEmails();
-    if (!emails.length) {
-      toast({ title: "Aucune adresse email", description: "Aucun nageur avec une adresse email dans cette sélection." });
+    return { recipients: 0, target: null };
+  }, [athletes, targetValue]);
+
+  const handleSendMessage = async () => {
+    if (!selectedTarget.target || selectedTarget.recipients === 0) {
+      toast({
+        title: "Aucun destinataire",
+        description: "Choisissez un groupe ou un nageur avec au moins un compte actif.",
+        variant: "destructive",
+      });
       return;
     }
-    const params = new URLSearchParams();
-    params.set("bcc", emails.join(","));
-    if (subject.trim()) {
-      params.set("subject", subject.trim());
+    if (!title.trim()) {
+      toast({
+        title: "Titre requis",
+        description: "Ajoutez un titre avant d'envoyer la notification.",
+        variant: "destructive",
+      });
+      return;
     }
-    window.location.href = `mailto:?${params.toString()}`;
-  };
 
-  const selectedEmails = resolveEmails();
+    setSending(true);
+    try {
+      await api.notifications_send({
+        title: title.trim(),
+        body: message.trim() || null,
+        type: "message",
+        targets: [selectedTarget.target],
+      });
+
+      toast({
+        title: "Notification envoyée",
+        description:
+          selectedTarget.recipients === 1
+            ? "Le nageur recevra la notification sur ses appareils abonnés."
+            : `${selectedTarget.recipients} nageurs ciblés recevront la notification sur leurs appareils abonnés.`,
+      });
+
+      setTitle("");
+      setMessage("");
+      setTargetValue("");
+    } catch (error) {
+      toast({
+        title: "Envoi impossible",
+        description: error instanceof Error ? error.message : "La notification n'a pas pu être envoyée.",
+        variant: "destructive",
+      });
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <div className="space-y-6 pb-24">
       <CoachSectionHeader
-        title="Contacter par email"
-        description="Ouvre votre application mail avec les destinataires en CCI."
+        title="Envoyer un message"
+        description="Crée une notification push (FCM) pour un groupe ou un nageur."
         onBack={onBack}
       />
 
       <Card className="border-l-4 border-l-primary">
         <CardHeader>
           <CardTitle>Destinataire</CardTitle>
-          <CardDescription>Sélectionnez un nageur ou un groupe.</CardDescription>
+          <CardDescription>Sélectionnez un groupe complet ou un nageur individuel.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -121,15 +174,14 @@ const CoachMessagesScreen = ({ onBack, athletes, groups, athletesLoading }: Coac
               </SelectContent>
             </Select>
           </div>
-          {targetValue && selectedEmails.length > 0 ? (
+          {targetValue && selectedTarget.recipients > 0 ? (
             <p className="text-xs text-muted-foreground">
-              {selectedEmails.length} adresse{selectedEmails.length > 1 ? "s" : ""} email
-              {selectedEmails.length > 1 ? " (envoi en CCI)" : ""}
+              {selectedTarget.recipients} nageur{selectedTarget.recipients > 1 ? "s" : ""} ciblé{selectedTarget.recipients > 1 ? "s" : ""}
             </p>
           ) : null}
-          {targetValue && selectedEmails.length === 0 ? (
+          {targetValue && selectedTarget.recipients === 0 ? (
             <p className="text-xs text-destructive">
-              Aucune adresse email disponible pour cette sélection.
+              Aucun nageur actif n'est rattaché à cette sélection.
             </p>
           ) : null}
         </CardContent>
@@ -137,27 +189,57 @@ const CoachMessagesScreen = ({ onBack, athletes, groups, athletesLoading }: Coac
 
       <Card>
         <CardHeader>
-          <CardTitle>Objet</CardTitle>
-          <CardDescription>Optionnel — pré-rempli dans votre application mail.</CardDescription>
+          <CardTitle>Notification</CardTitle>
+          <CardDescription>Le titre apparaît dans la push, le message reste optionnel.</CardDescription>
         </CardHeader>
-        <CardContent>
-          <Input
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            placeholder="Objet du mail…"
-          />
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="coach-message-title">Titre</Label>
+            <Input
+              id="coach-message-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Ex. Changement d'horaire demain"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="coach-message-body">Message</Label>
+            <Textarea
+              id="coach-message-body"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Ajoutez les détails à afficher dans la notification…"
+              rows={4}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-muted/20">
+        <CardContent className="pt-6">
+          <p className="text-sm text-muted-foreground">
+            L'envoi crée aussi une notification dans l'application. Les appareils avec les push activées la recevront immédiatement.
+          </p>
         </CardContent>
       </Card>
 
       <div className="sticky bottom-0 z-10 -mx-4 border-t bg-background/95 p-4 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:p-0">
         <Button
           className="w-full sm:w-auto"
-          onClick={handleOpenMailto}
-          disabled={!targetValue || selectedEmails.length === 0}
+          onClick={handleSendMessage}
+          disabled={!selectedTarget.target || selectedTarget.recipients === 0 || !title.trim() || sending}
         >
-          <Mail className="mr-2 h-4 w-4" />
-          Ouvrir dans l'app mail
-          <ExternalLink className="ml-2 h-3 w-3" />
+          {sending ? (
+            <>
+              <BellRing className="mr-2 h-4 w-4" />
+              Envoi...
+            </>
+          ) : (
+            <>
+              <SendHorizontal className="mr-2 h-4 w-4" />
+              Envoyer la notification
+            </>
+          )}
         </Button>
       </div>
     </div>

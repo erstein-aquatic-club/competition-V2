@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CalendarDays, Clock, Dumbbell, HeartPulse, Mail, MessageSquare, Target, Trophy, Users, UsersRound, Waves } from "lucide-react";
+import { BellRing, CalendarDays, Clock, Dumbbell, HeartPulse, MessageSquare, Target, Trophy, Users, UsersRound, Waves } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -164,8 +164,8 @@ const CoachHome = ({
           onClick={() => onNavigate("messaging")}
           className="flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-semibold active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
-          <Mail className="h-3.5 w-3.5" />
-          Email
+          <BellRing className="h-3.5 w-3.5" />
+          Message
         </button>
         <button
           type="button"
