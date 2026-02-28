@@ -945,6 +945,39 @@ const CoachTrainingSlotsScreen = ({
   const [selectedSlot, setSelectedSlot] = useState<TrainingSlot | null>(null);
   const [showDetail, setShowDetail] = useState(false);
 
+  // Week navigation state
+  const [weekMonday, setWeekMonday] = useState(() => getMonday(new Date()));
+
+  const weekNumber = useMemo(() => getISOWeek(weekMonday), [weekMonday]);
+  const weekSunday = useMemo(() => {
+    const d = new Date(weekMonday);
+    d.setDate(d.getDate() + 6);
+    return d;
+  }, [weekMonday]);
+
+  /** Dates for each day column (Mon=0 … Sun=6) */
+  const weekDates = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(weekMonday);
+      d.setDate(d.getDate() + i);
+      return d;
+    });
+  }, [weekMonday]);
+
+  const prevWeek = () =>
+    setWeekMonday((m) => {
+      const d = new Date(m);
+      d.setDate(d.getDate() - 7);
+      return d;
+    });
+  const nextWeek = () =>
+    setWeekMonday((m) => {
+      const d = new Date(m);
+      d.setDate(d.getDate() + 7);
+      return d;
+    });
+  const goToday = () => setWeekMonday(getMonday(new Date()));
+
   // Filter state
   const [filterMode, setFilterMode] = useState<"coach" | "group">("group");
   const [selectedCoachId, setSelectedCoachId] = useState("all");
@@ -956,10 +989,10 @@ const CoachTrainingSlotsScreen = ({
     queryFn: () => api.getTrainingSlots(),
   });
 
-  // Fetch upcoming overrides
-  const { data: upcomingOverrides = [] } = useQuery({
-    queryKey: ["training-slot-overrides", "upcoming"],
-    queryFn: () => api.getSlotOverrides({ fromDate: todayIso() }),
+  // Fetch all overrides (we filter client-side per week)
+  const { data: allOverrides = [] } = useQuery({
+    queryKey: ["training-slot-overrides"],
+    queryFn: () => api.getSlotOverrides(),
   });
 
   // Fetch coaches
@@ -999,16 +1032,35 @@ const CoachTrainingSlotsScreen = ({
     return map;
   }, [filteredSlots]);
 
-  // Overrides by slot_id
+  // Overrides scoped to the selected week
+  const weekMondayIso = toIsoDate(weekMonday);
+  const weekSundayIso = toIsoDate(weekSunday);
+
+  const weekOverrides = useMemo(() => {
+    return allOverrides.filter(
+      (o) => o.override_date >= weekMondayIso && o.override_date <= weekSundayIso,
+    );
+  }, [allOverrides, weekMondayIso, weekSundayIso]);
+
+  // Overrides indexed by slot_id for the selected week
   const overridesBySlot = useMemo(() => {
     const map = new Map<string, TrainingSlotOverride[]>();
-    for (const o of upcomingOverrides) {
+    for (const o of weekOverrides) {
       const list = map.get(o.slot_id) ?? [];
       list.push(o);
       map.set(o.slot_id, list);
     }
     return map;
-  }, [upcomingOverrides]);
+  }, [weekOverrides]);
+
+  /** Set of slot IDs cancelled this week */
+  const cancelledSlotIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const o of weekOverrides) {
+      if (o.status === "cancelled") set.add(o.slot_id);
+    }
+    return set;
+  }, [weekOverrides]);
 
   const deleteOverrideMutation = useMutation({
     mutationFn: (overrideId: string) => api.deleteSlotOverride(overrideId),
@@ -1075,53 +1127,79 @@ const CoachTrainingSlotsScreen = ({
         }
       />
 
-      {/* Filter bar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <ToggleGroup
-          type="single"
-          value={filterMode}
-          onValueChange={(v) => {
-            if (v === "coach" || v === "group") setFilterMode(v);
-          }}
-          className="shrink-0"
-        >
-          <ToggleGroupItem value="group" className="text-xs px-3">
-            Groupe
-          </ToggleGroupItem>
-          <ToggleGroupItem value="coach" className="text-xs px-3">
-            Coach
-          </ToggleGroupItem>
-        </ToggleGroup>
+      {/* Week navigation + filters */}
+      <div className="space-y-3">
+        {/* Week nav bar */}
+        <div className="flex items-center justify-between gap-2">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={prevWeek}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
 
-        {filterMode === "group" ? (
-          <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
-            <SelectTrigger className="w-full sm:w-56">
-              <SelectValue placeholder="Tous les groupes" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous les groupes</SelectItem>
-              {groups.map((g) => (
-                <SelectItem key={g.id} value={String(g.id)}>
-                  {g.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          <Select value={selectedCoachId} onValueChange={setSelectedCoachId}>
-            <SelectTrigger className="w-full sm:w-56">
-              <SelectValue placeholder="Tous les coachs" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous les coachs</SelectItem>
-              {coaches.map((c) => (
-                <SelectItem key={c.id} value={String(c.id)}>
-                  {c.display_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+          <button
+            type="button"
+            className="flex items-center gap-2 rounded-lg border bg-card px-3 py-1.5 text-sm font-semibold hover:bg-muted/50 transition-colors"
+            onClick={goToday}
+            title="Revenir a cette semaine"
+          >
+            <span className="text-primary">S{weekNumber}</span>
+            <span className="text-muted-foreground text-xs font-normal">
+              {formatDayMonth(weekMonday)} – {formatDayMonth(weekSunday)}
+            </span>
+          </button>
+
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={nextWeek}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <ToggleGroup
+            type="single"
+            value={filterMode}
+            onValueChange={(v) => {
+              if (v === "coach" || v === "group") setFilterMode(v);
+            }}
+            className="shrink-0"
+          >
+            <ToggleGroupItem value="group" className="text-xs px-3">
+              Groupe
+            </ToggleGroupItem>
+            <ToggleGroupItem value="coach" className="text-xs px-3">
+              Coach
+            </ToggleGroupItem>
+          </ToggleGroup>
+
+          {filterMode === "group" ? (
+            <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
+              <SelectTrigger className="w-full sm:w-56">
+                <SelectValue placeholder="Tous les groupes" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les groupes</SelectItem>
+                {groups.map((g) => (
+                  <SelectItem key={g.id} value={String(g.id)}>
+                    {g.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Select value={selectedCoachId} onValueChange={setSelectedCoachId}>
+              <SelectTrigger className="w-full sm:w-56">
+                <SelectValue placeholder="Tous les coachs" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les coachs</SelectItem>
+                {coaches.map((c) => (
+                  <SelectItem key={c.id} value={String(c.id)}>
+                    {c.display_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
       </div>
 
       {/* Weekly timeline */}
@@ -1156,16 +1234,23 @@ const CoachTrainingSlotsScreen = ({
           >
             {/* ── Day headers row ── */}
             <div /> {/* empty cell above time labels */}
-            {Array.from({ length: 7 }, (_, i) => (
-              <div key={i} className="text-center pb-1.5">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground sm:hidden">
-                  {DAYS_SHORT[i]}
-                </span>
-                <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground hidden sm:inline">
-                  {DAYS_FR[i]}
-                </span>
-              </div>
-            ))}
+            {weekDates.map((date, i) => {
+              const isToday = toIsoDate(date) === todayIso();
+              return (
+                <div key={i} className="text-center pb-1.5">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground sm:hidden">
+                    {DAYS_SHORT[i]}
+                  </span>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground hidden sm:inline">
+                    {DAYS_FR[i]}
+                  </span>
+                  <br />
+                  <span className={`text-[10px] ${isToday ? "text-primary font-bold" : "text-muted-foreground/60"}`}>
+                    {formatDayMonth(date)}
+                  </span>
+                </div>
+              );
+            })}
 
             {/* ── Time labels column ── */}
             <div className="relative" style={{ height: TIMELINE_HEIGHT }}>
@@ -1206,6 +1291,7 @@ const CoachTrainingSlotsScreen = ({
                       hasOverrides={
                         (overridesBySlot.get(slot.id) ?? []).length > 0
                       }
+                      cancelled={cancelledSlotIds.has(slot.id)}
                       onSelect={handleSelect}
                     />
                   ))}
