@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Lock, Pen, Trophy, LogOut, Save, AlertCircle, Download, Camera, Trash2, Brain, MessageSquare, Clock, Bell, BellOff, BellRing, CalendarRange, ChevronRight, type LucideIcon } from "lucide-react";
+import { Lock, Pen, Trophy, LogOut, Save, AlertCircle, Download, Camera, Trash2, Brain, Clock, Bell, BellOff, BellRing, ChevronRight, type LucideIcon } from "lucide-react";
 import { isPushSupported, hasActivePushSubscription, subscribeToPush, unsubscribeFromPush } from "@/lib/push";
 import { compressImage, isAcceptedImageType } from "@/lib/imageUtils";
 import AvatarCropDialog from "@/components/profile/AvatarCropDialog";
@@ -31,8 +31,6 @@ import { NeurotypQuiz } from "@/components/neurotype/NeurotypQuiz";
 import NeurotypResultView from "@/components/neurotype/NeurotypResult";
 import { NEUROTYPE_PROFILES } from "@/lib/neurotype-quiz-data";
 import type { NeurotypResult as NeurotypResultType, NeurotypCode } from "@/lib/api/types";
-
-declare const __BUILD_TIMESTAMP__: string;
 
 type ProfileSection =
   | "home"
@@ -59,6 +57,19 @@ function readProfileSectionFromHash(): ProfileSection {
       return requested;
     default:
       return "home";
+  }
+}
+
+function readDismissedNotificationIds(userId: number | null | undefined): number[] {
+  if (typeof window === "undefined" || !userId) return [];
+  try {
+    const raw = window.localStorage.getItem(`profile-notifications-dismissed:${userId}`);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed)
+      ? parsed.map((value) => Number(value)).filter((value) => Number.isFinite(value))
+      : [];
+  } catch {
+    return [];
   }
 }
 
@@ -90,7 +101,7 @@ function ProfileActionRow({
 }: {
   icon: LucideIcon;
   title: string;
-  description: string;
+  description?: string;
   onClick: () => void;
   accentClassName?: string;
   badgeLabel?: string | null;
@@ -106,7 +117,7 @@ function ProfileActionRow({
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold">{title}</p>
-        <p className="text-xs text-muted-foreground">{description}</p>
+        {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
       </div>
       {badgeLabel ? (
         <Badge variant="secondary" className="shrink-0 text-[10px] uppercase tracking-[0.08em]">
@@ -114,6 +125,43 @@ function ProfileActionRow({
         </Badge>
       ) : null}
       <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+    </button>
+  );
+}
+
+function ProfileActionTile({
+  icon: Icon,
+  title,
+  meta,
+  onClick,
+  accentClassName = "text-primary",
+  badgeLabel,
+}: {
+  icon: LucideIcon;
+  title: string;
+  meta?: string | null;
+  onClick: () => void;
+  accentClassName?: string;
+  badgeLabel?: string | null;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-3xl border border-border/70 bg-background/70 p-4 text-left transition hover:border-primary/25 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
+          <Icon className={`h-5 w-5 ${accentClassName}`} />
+        </div>
+        {badgeLabel ? (
+          <Badge variant="secondary" className="shrink-0 text-[10px] uppercase tracking-[0.08em]">
+            {badgeLabel}
+          </Badge>
+        ) : null}
+      </div>
+      <p className="mt-3 text-sm font-semibold">{title}</p>
+      {meta ? <p className="mt-1 text-xs text-muted-foreground">{meta}</p> : null}
     </button>
   );
 }
@@ -180,6 +228,7 @@ export default function Profile() {
   const [pendingNeurotypResult, setPendingNeurotypResult] = useState<NeurotypResultType | null>(null);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
+  const [dismissedTargetIds, setDismissedTargetIds] = useState<number[]>([]);
 
   // Reset view state when dock icon is tapped while already on this page
   useEffect(() => {
@@ -216,6 +265,10 @@ export default function Profile() {
       hasActivePushSubscription().then(setPushEnabled);
     }
   }, []);
+
+  useEffect(() => {
+    setDismissedTargetIds(readDismissedNotificationIds(userId));
+  }, [userId, activeSection]);
 
   const handleTogglePush = async () => {
     if (!userId) return;
@@ -320,12 +373,11 @@ export default function Profile() {
 
   const isSwimmerProfile = showRecords;
 
-  const { data: unreadNotifications } = useQuery({
-    queryKey: ["profile-notifications-unread", userId],
+  const { data: profileNotifications } = useQuery({
+    queryKey: ["profile-notifications-summary", userId],
     queryFn: () =>
       api.notifications_list({
         targetUserId: userId ?? null,
-        status: "unread",
         limit: 100,
       }),
     enabled: isSwimmerProfile && !!userId,
@@ -350,8 +402,19 @@ export default function Profile() {
     return "";
   }, [profile, user]);
 
-  const unreadMessageCount =
-    unreadNotifications?.pagination.total ?? unreadNotifications?.notifications.length ?? 0;
+  const visibleNotifications = useMemo(
+    () =>
+      (profileNotifications?.notifications ?? []).filter(
+        (notification) =>
+          notification.target_id == null || !dismissedTargetIds.includes(notification.target_id),
+      ),
+    [dismissedTargetIds, profileNotifications?.notifications],
+  );
+
+  const unreadMessageCount = useMemo(
+    () => visibleNotifications.filter((notification) => !notification.read).length,
+    [visibleNotifications],
+  );
 
   const pendingInterviewCount = useMemo(
     () =>
@@ -390,20 +453,6 @@ export default function Profile() {
     (unreadMessageCount > 0 ? 1 : 0)
     + (pendingInterviewCount > 0 ? 1 : 0)
     + (nextObjectiveCountdown !== null ? 1 : 0);
-
-  const followUpSummary = useMemo(() => {
-    const items: string[] = [];
-    if (activeObjectiveCount > 0) {
-      items.push(`${activeObjectiveCount} objectif${activeObjectiveCount > 1 ? "s" : ""} actif${activeObjectiveCount > 1 ? "s" : ""}`);
-    }
-    if (pendingInterviewCount > 0) {
-      items.push(`${pendingInterviewCount} entretien${pendingInterviewCount > 1 ? "s" : ""} à traiter`);
-    }
-    if (nextObjectiveCountdown !== null) {
-      items.push(`cap J-${nextObjectiveCountdown}`);
-    }
-    return items.join(" • ");
-  }, [activeObjectiveCount, pendingInterviewCount, nextObjectiveCountdown]);
 
   const updateProfile = useMutation({
     mutationFn: (data: ProfileEditForm) =>
@@ -667,138 +716,84 @@ export default function Profile() {
               <Badge variant="secondary" className="text-xs">{roleLabel}</Badge>
               <span className="text-sm opacity-80">{groupLabel}</span>
             </div>
-            {profile?.bio && (
-              <p className="text-xs opacity-70 mt-1.5 line-clamp-2">{profile.bio}</p>
-            )}
           </div>
         </div>
       </div>
 
       <div className="space-y-4">
-        {isSwimmerProfile ? (
-          <Card className="overflow-hidden border-primary/15 bg-gradient-to-br from-primary/[0.1] via-card to-amber-500/[0.08] shadow-sm">
-            <CardHeader className="gap-3 pb-3">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <CardTitle className="text-base uppercase tracking-[0.08em]">À faire maintenant</CardTitle>
-                  <CardDescription className="mt-1">
-                    Les actions utiles aujourd&apos;hui, sans passer par plusieurs menus.
-                  </CardDescription>
-                </div>
-                <Badge variant={quickActionCount > 0 ? "default" : "outline"} className="text-[10px] uppercase tracking-[0.08em]">
-                  {quickActionCount > 0 ? `${quickActionCount} action${quickActionCount > 1 ? "s" : ""}` : "rien d'urgent"}
-                </Badge>
+        {isSwimmerProfile && quickActionCount > 0 ? (
+          <Card className="overflow-hidden border-primary/15 bg-gradient-to-r from-primary/[0.08] via-card to-amber-500/[0.08] shadow-sm">
+            <CardContent className="space-y-3 py-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Maintenant</p>
+                <Badge className="text-[10px]">{quickActionCount}</Badge>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <ProfileActionRow
-                icon={BellRing}
-                title="Messages"
-                description={
-                  unreadMessageCount > 0
-                    ? `${unreadMessageCount} message${unreadMessageCount > 1 ? "s" : ""} à lire`
-                    : "Boîte de réception et historique des notifications"
-                }
-                badgeLabel={unreadMessageCount > 0 ? `${unreadMessageCount} non lu${unreadMessageCount > 1 ? "s" : ""}` : null}
-                onClick={() => setActiveSection("messages")}
-              />
-              {pendingInterviewCount > 0 ? (
-                <ProfileActionRow
-                  icon={MessageSquare}
-                  title="Entretien"
-                  description={
-                    pendingInterviewCount > 1
-                      ? `${pendingInterviewCount} entretiens demandent une action`
-                      : "Un entretien attend ta réponse ou ta signature"
-                  }
-                  badgeLabel={`${pendingInterviewCount} en attente`}
-                  onClick={() => setActiveSection("interviews")}
-                />
-              ) : null}
-              {nextObjectiveDate && nextObjectiveCountdown !== null ? (
-                <ProfileActionRow
-                  icon={CalendarRange}
-                  title="Prochaine échéance"
-                  description={`Objectif programmé le ${new Date(`${nextObjectiveDate}T00:00:00`).toLocaleDateString("fr-FR", {
-                    day: "numeric",
-                    month: "long",
-                  })}`}
-                  badgeLabel={`J-${nextObjectiveCountdown}`}
-                  onClick={() => setActiveSection("performance-hub")}
-                />
-              ) : null}
-              {quickActionCount === 0 ? (
-                <div className="rounded-2xl border border-dashed border-primary/20 bg-background/70 px-4 py-3">
-                  <p className="text-sm font-medium">Aucune urgence pour le moment.</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Tu peux consulter ton suivi complet quand tu veux, mais rien ne demande une action immédiate.
-                  </p>
-                </div>
-              ) : null}
+              <div className="flex flex-wrap gap-2">
+                {unreadMessageCount > 0 ? (
+                  <Button size="sm" variant="outline" className="rounded-full" onClick={() => setActiveSection("messages")}>
+                    {unreadMessageCount} message{unreadMessageCount > 1 ? "s" : ""}
+                  </Button>
+                ) : null}
+                {pendingInterviewCount > 0 ? (
+                  <Button size="sm" variant="outline" className="rounded-full" onClick={() => setActiveSection("interviews")}>
+                    {pendingInterviewCount} entretien{pendingInterviewCount > 1 ? "s" : ""}
+                  </Button>
+                ) : null}
+                {nextObjectiveCountdown !== null ? (
+                  <Button size="sm" variant="outline" className="rounded-full" onClick={() => setActiveSection("performance-hub")}>
+                    J-{nextObjectiveCountdown}
+                  </Button>
+                ) : null}
+              </div>
             </CardContent>
           </Card>
         ) : null}
 
         {showRecords ? (
           <Card className="overflow-hidden border-primary/15 bg-gradient-to-br from-card via-card to-primary/5 shadow-sm">
-            <CardHeader className="gap-3 pb-3">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <CardTitle className="text-base uppercase tracking-[0.08em]">Mon suivi</CardTitle>
-                  <CardDescription className="mt-1">
-                    Un seul point d&apos;entrée pour la progression, les entretiens et la planification.
-                  </CardDescription>
-                </div>
-                {followUpSummary ? (
-                  <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.08em]">
-                    {followUpSummary}
-                  </Badge>
-                ) : null}
-              </div>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base uppercase tracking-[0.08em]">Accès rapides</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <button
-                type="button"
+            <CardContent className="grid grid-cols-2 gap-3">
+              <ProfileActionTile
+                icon={BellRing}
+                title="Messages"
+                meta={unreadMessageCount > 0 ? `${unreadMessageCount} non lu${unreadMessageCount > 1 ? "s" : ""}` : "Boîte vide"}
+                badgeLabel={unreadMessageCount > 0 ? String(unreadMessageCount) : null}
+                onClick={() => setActiveSection("messages")}
+              />
+              <ProfileActionTile
+                icon={Clock}
+                title="Mon suivi"
+                meta={
+                  pendingInterviewCount > 0
+                    ? `${pendingInterviewCount} entretien${pendingInterviewCount > 1 ? "s" : ""}`
+                    : activeObjectiveCount > 0
+                      ? `${activeObjectiveCount} objectif${activeObjectiveCount > 1 ? "s" : ""}`
+                      : "Progression"
+                }
+                badgeLabel={nextObjectiveCountdown !== null ? `J-${nextObjectiveCountdown}` : null}
                 onClick={() => setActiveSection("performance-hub")}
-                className="flex w-full items-start gap-3 rounded-3xl border border-primary/20 bg-background/80 px-4 py-4 text-left transition hover:border-primary/35 hover:bg-primary/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
-                  <Clock className="h-5 w-5 text-primary" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold uppercase tracking-[0.08em] text-primary">Ouvrir mon suivi</p>
-                  <p className="mt-1 text-sm text-foreground/80">
-                    Retrouve ton plan d&apos;action, tes entretiens, tes ressentis et tes prochaines échéances au même endroit.
-                  </p>
-                  {followUpSummary ? (
-                    <p className="mt-2 text-xs text-muted-foreground">{followUpSummary}</p>
-                  ) : null}
-                </div>
-                <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
-              </button>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <ProfileActionRow
-                  icon={Trophy}
-                  title="Records"
-                  description="Consulter mes performances"
-                  onClick={() => navigate("/records")}
-                />
-                <ProfileActionRow
-                  icon={Brain}
-                  title={profile?.neurotype_result
-                    ? `${profile.neurotype_result.dominant} — ${getNeurotypName(profile.neurotype_result.dominant)}`
-                    : "Neurotype"}
-                  description={profile?.neurotype_result ? "Relire mon profil neurotype" : "Découvrir mon profil"}
-                  onClick={() => {
-                    if (profile?.neurotype_result) {
-                      setPendingNeurotypResult(profile.neurotype_result);
-                      setActiveSection("neurotype-result");
-                    } else {
-                      setActiveSection("neurotype-quiz");
-                    }
-                  }}
-                />
-              </div>
+              />
+              <ProfileActionTile
+                icon={Trophy}
+                title="Records"
+                meta="Performances"
+                onClick={() => navigate("/records")}
+              />
+              <ProfileActionTile
+                icon={Brain}
+                title="Neurotype"
+                meta={profile?.neurotype_result ? getNeurotypName(profile.neurotype_result.dominant) : "Découvrir"}
+                onClick={() => {
+                  if (profile?.neurotype_result) {
+                    setPendingNeurotypResult(profile.neurotype_result);
+                    setActiveSection("neurotype-result");
+                  } else {
+                    setActiveSection("neurotype-quiz");
+                  }
+                }}
+              />
             </CardContent>
           </Card>
         ) : null}
@@ -806,31 +801,25 @@ export default function Profile() {
         <Card className="overflow-hidden border-primary/15 bg-card shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-base uppercase tracking-[0.08em]">Mon compte</CardTitle>
-            <CardDescription>
-              Gère tes informations, la sécurité et cet appareil depuis un seul bloc.
-            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <ProfileActionRow
               icon={Pen}
               title="Mon profil"
-              description="Modifier mes informations personnelles"
               onClick={startEdit}
             />
             {canUpdatePassword ? (
               <ProfileActionRow
                 icon={Lock}
                 title="Sécurité"
-                description="Changer mon mot de passe"
                 onClick={() => setIsPasswordSheetOpen(true)}
               />
             ) : null}
             <ProfileActionRow
               icon={Download}
-              title="Mettre l'app à jour"
-              description="Force la vérification d'une nouvelle version sur cet appareil"
-              onClick={handleCheckUpdate}
+              title="Mettre à jour l'app"
               badgeLabel={isCheckingUpdate ? "en cours" : null}
+              onClick={handleCheckUpdate}
             />
             {isPushSupported() ? (
               <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-3">
@@ -845,7 +834,7 @@ export default function Profile() {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold">Notifications push</p>
                     <p className="text-xs text-muted-foreground">
-                      {pushEnabled ? "Activées sur cet appareil" : "Désactivées sur cet appareil"}
+                      {pushEnabled ? "Activées" : "Désactivées"}
                     </p>
                   </div>
                   <Button
@@ -854,17 +843,11 @@ export default function Profile() {
                     onClick={handleTogglePush}
                     disabled={pushLoading}
                   >
-                    {pushLoading ? "..." : pushEnabled ? "Désactiver" : "Activer"}
+                    {pushLoading ? "..." : pushEnabled ? "Off" : "On"}
                   </Button>
                 </div>
-                <p className="mt-2 text-[10px] text-muted-foreground/70">
-                  Les notifications sont gérées appareil par appareil. Réactive-les ici après une réinstallation.
-                </p>
               </div>
             ) : null}
-            <p className="text-[10px] text-center text-muted-foreground/60 pt-1">
-              Version du {new Date(__BUILD_TIMESTAMP__).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-            </p>
           </CardContent>
         </Card>
       </div>
