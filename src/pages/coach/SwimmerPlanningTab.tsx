@@ -33,6 +33,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Trash2, CalendarRange, Check, X, Pencil, Copy } from "lucide-react";
 import { weekTypeColor, weekTypeTextColor } from "@/lib/weekTypeColor";
+import { toISODate } from "@/lib/date";
+
+const TODAY_SENTINEL = "__today__";
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -175,13 +178,15 @@ const SwimmerPlanningTab = ({ athleteId }: Props) => {
   }, [weeks]);
 
   // Generate timeline entries (Mondays between start and end competition)
+  const effectiveStartDate = selectedCycle?.start_competition_date ?? selectedCycle?.start_date ?? null;
+
   const timelineMondays = useMemo(() => {
     if (!selectedCycle) return [];
-    const startDate = selectedCycle.start_competition_date;
+    const startDate = effectiveStartDate;
     const endDate = selectedCycle.end_competition_date;
     if (!startDate || !endDate) return [];
     return getMondays(startDate, endDate);
-  }, [selectedCycle]);
+  }, [selectedCycle, effectiveStartDate]);
 
   // Map weeks by week_start for quick lookup
   const weeksByStart = useMemo(() => {
@@ -198,10 +203,10 @@ const SwimmerPlanningTab = ({ athleteId }: Props) => {
     mutationFn: async (input: TrainingCycleInput) => {
       const cycle = await api.createTrainingCycle(input);
       // Generate Monday rows
-      const startComp = competitions.find((c) => c.id === input.start_competition_id);
+      const effectiveStart = input.start_date ?? competitions.find((c) => c.id === input.start_competition_id)?.date;
       const endComp = competitions.find((c) => c.id === input.end_competition_id);
-      if (startComp && endComp) {
-        const mondays = getMondays(startComp.date, endComp.date);
+      if (effectiveStart && endComp) {
+        const mondays = getMondays(effectiveStart, endComp.date);
         if (mondays.length > 0) {
           await api.bulkUpsertTrainingWeeks(
             mondays.map((m) => ({ cycle_id: cycle.id, week_start: m })),
@@ -294,20 +299,24 @@ const SwimmerPlanningTab = ({ athleteId }: Props) => {
       return;
     }
     if (!newCycleStartId || !newCycleEndId) {
-      toast({ title: "Competitions requises", description: "Selectionnez les competitions de debut et fin.", variant: "destructive" });
+      toast({ title: "Dates requises", description: "Selectionnez le debut et la fin du cycle.", variant: "destructive" });
       return;
     }
-    const startComp = competitions.find((c) => c.id === newCycleStartId);
+    const isToday = newCycleStartId === TODAY_SENTINEL;
+    const startDate = isToday ? toISODate(new Date()) : null;
+    const startComp = isToday ? null : competitions.find((c) => c.id === newCycleStartId);
     const endComp = competitions.find((c) => c.id === newCycleEndId);
-    if (startComp && endComp && endComp.date <= startComp.date) {
-      toast({ title: "Dates invalides", description: "La competition de fin doit etre apres celle de debut.", variant: "destructive" });
+    const effectiveStartDate = isToday ? startDate! : startComp?.date;
+    if (effectiveStartDate && endComp && endComp.date <= effectiveStartDate) {
+      toast({ title: "Dates invalides", description: "La competition de fin doit etre apres la date de debut.", variant: "destructive" });
       return;
     }
     createCycleMutation.mutate({
       athlete_id: athleteId,
       group_id: null,
-      start_competition_id: newCycleStartId,
+      start_competition_id: isToday ? null : newCycleStartId,
       end_competition_id: newCycleEndId,
+      start_date: startDate,
       name: newCycleName.trim(),
     });
   };
@@ -451,15 +460,19 @@ const SwimmerPlanningTab = ({ athleteId }: Props) => {
       {/* Timeline */}
       {selectedCycle && (
         <div className="space-y-0">
-          {/* Start competition */}
+          {/* Start competition or today */}
           <div className="flex items-center gap-2 py-2 px-1">
-            <span className="text-base" aria-hidden="true">&#x1F3CA;</span>
-            <span className="text-sm font-medium">
-              {selectedCycle.start_competition_name ?? "Competition"}
+            <span className="text-base" aria-hidden="true">
+              {selectedCycle.start_competition_id ? "\u{1F3CA}" : "\u{1F4C5}"}
             </span>
-            {selectedCycle.start_competition_date && (
+            <span className="text-sm font-medium">
+              {selectedCycle.start_competition_id
+                ? (selectedCycle.start_competition_name ?? "Competition")
+                : "Debut du cycle"}
+            </span>
+            {effectiveStartDate && (
               <span className="text-xs text-muted-foreground">
-                ({fmtDate(selectedCycle.start_competition_date)})
+                ({fmtDate(effectiveStartDate)})
               </span>
             )}
           </div>
@@ -759,12 +772,15 @@ const CycleCreateSheet = ({
           </div>
 
           <div className="space-y-2">
-            <Label>Competition de debut *</Label>
+            <Label>Date de debut *</Label>
             <Select value={startId} onValueChange={setStartId}>
               <SelectTrigger>
                 <SelectValue placeholder="Choisir..." />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value={TODAY_SENTINEL}>
+                  Aujourd'hui ({fmtDate(toISODate(new Date()))})
+                </SelectItem>
                 {competitions.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.name} ({fmtDate(c.date)})
@@ -792,10 +808,11 @@ const CycleCreateSheet = ({
 
           {/* Preview week count */}
           {startId && endId && (() => {
-            const startComp = competitions.find((c) => c.id === startId);
+            const isToday = startId === TODAY_SENTINEL;
+            const effectiveStart = isToday ? toISODate(new Date()) : competitions.find((c) => c.id === startId)?.date;
             const endComp = competitions.find((c) => c.id === endId);
-            if (startComp && endComp && endComp.date > startComp.date) {
-              const count = getMondays(startComp.date, endComp.date).length;
+            if (effectiveStart && endComp && endComp.date > effectiveStart) {
+              const count = getMondays(effectiveStart, endComp.date).length;
               return (
                 <p className="text-xs text-muted-foreground">
                   {count} semaine{count > 1 ? "s" : ""} seront generees.

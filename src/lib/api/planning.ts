@@ -15,7 +15,7 @@ export async function getTrainingCycles(opts?: {
   let query = supabase
     .from("training_cycles")
     .select("*, start_comp:competitions!start_competition_id(name, date), end_comp:competitions!end_competition_id(name, date)")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false }) as any;
   if (opts?.athleteId) query = query.eq("athlete_id", opts.athleteId);
   if (opts?.groupId) query = query.eq("group_id", opts.groupId);
   const { data, error } = await query;
@@ -26,6 +26,7 @@ export async function getTrainingCycles(opts?: {
     athlete_id: row.athlete_id,
     start_competition_id: row.start_competition_id,
     end_competition_id: row.end_competition_id,
+    start_date: row.start_date,
     name: row.name,
     notes: row.notes,
     created_by: row.created_by,

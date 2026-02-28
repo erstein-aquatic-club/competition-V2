@@ -485,8 +485,9 @@ export interface TrainingCycle {
   id: string;
   group_id?: number | null;
   athlete_id?: number | null;
-  start_competition_id: string;
+  start_competition_id?: string | null;
   end_competition_id: string;
+  start_date?: string | null;
   name: string;
   notes?: string | null;
   created_by?: string | null;
@@ -500,8 +501,9 @@ export interface TrainingCycle {
 export interface TrainingCycleInput {
   group_id?: number | null;
   athlete_id?: number | null;
-  start_competition_id: string;
+  start_competition_id?: string | null;
   end_competition_id: string;
+  start_date?: string | null;
   name: string;
   notes?: string | null;
 }
