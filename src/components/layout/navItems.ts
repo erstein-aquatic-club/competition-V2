@@ -29,11 +29,20 @@ export const getNavItemsForRole = (role: string | null): NavItem[] => {
       { href: "/profile", icon: User, label: "Profil" },
     ];
   }
-  return [
-    { href: "/", icon: Waves, label: "Séance" },
-    { href: "/progress", icon: TrendingUp, label: "Progression" },
-    { href: FEATURES.strength ? "/strength" : "/coming-soon", icon: Dumbbell, label: "Muscu" },
-    { href: FEATURES.hallOfFame ? "/hall-of-fame" : "/coming-soon", icon: Trophy, label: "H.O.F" },
-    { href: "/profile", icon: User, label: "Profil" },
+  const athleteItems: NavItem[] = [
+    { href: "/", icon: Waves, label: "Accueil" },
+    { href: "/progress", icon: TrendingUp, label: "Suivi" },
   ];
+
+  if (FEATURES.strength) {
+    athleteItems.push({ href: "/strength", icon: Dumbbell, label: "Muscu" });
+  }
+
+  if (FEATURES.hallOfFame) {
+    athleteItems.push({ href: "/hall-of-fame", icon: Trophy, label: "Club" });
+  }
+
+  athleteItems.push({ href: "/profile", icon: User, label: "Profil" });
+
+  return athleteItems;
 };

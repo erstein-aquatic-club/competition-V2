@@ -562,14 +562,13 @@ export default function Records() {
   return (
     <div className="min-h-[100dvh]">
       <div className="mx-auto max-w-lg">
-        <PageHeader className="-mx-0">
-          <div className="flex items-center gap-2.5">
-            <div className="flex items-center justify-center h-7 w-7 rounded-lg bg-primary text-primary-foreground">
-              <Trophy className="h-3.5 w-3.5" />
-            </div>
-            <h1 className="text-lg font-display font-bold uppercase italic tracking-tight text-primary">Mes Records</h1>
-          </div>
-        </PageHeader>
+        <PageHeader
+          className="-mx-0"
+          title="Mes Records"
+          icon={<Trophy className="h-3.5 w-3.5" />}
+          backHref="/profile"
+          backLabel="Retour au profil"
+        />
 
         <div className="px-3 pt-3">
           <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as "swim" | "1rm")}>

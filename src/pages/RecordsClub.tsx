@@ -18,6 +18,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 // ── Constants ──
 
@@ -315,27 +316,19 @@ export default function RecordsClub() {
   return (
     <div className="space-y-3">
       {/* Header */}
-      <div className="sticky top-0 z-overlay -mx-4 backdrop-blur-md bg-background/90 border-b border-primary/15">
-        <div className="px-4 py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="flex items-center justify-center h-7 w-7 rounded-lg bg-primary text-primary-foreground">
-              <Trophy className="h-3.5 w-3.5" />
-            </div>
-            <div>
-              <h1 className="text-lg font-display font-bold uppercase italic tracking-tight text-primary">
-                Records du club
-              </h1>
-              {lastImportLogs?.[0]?.status === "success" && (
-                <p className="text-[10px] text-muted-foreground -mt-0.5">
-                  MAJ :{" "}
-                  {formatLastUpdate(
-                    lastImportLogs[0].completed_at ??
-                      lastImportLogs[0].started_at,
-                  ) ?? "-"}
-                </p>
-              )}
-            </div>
-          </div>
+      <PageHeader
+        title="Records du club"
+        subtitle={
+          lastImportLogs?.[0]?.status === "success"
+            ? `MAJ : ${formatLastUpdate(
+                lastImportLogs[0].completed_at ?? lastImportLogs[0].started_at,
+              ) ?? "-"}`
+            : undefined
+        }
+        icon={<Trophy className="h-3.5 w-3.5" />}
+        backHref="/hall-of-fame"
+        backLabel="Retour aux classements"
+        action={(
           <Button
             variant="outline"
             size="sm"
@@ -346,8 +339,8 @@ export default function RecordsClub() {
             <Download className="h-4 w-4 mr-1" />
             {exporting ? "..." : "PDF"}
           </Button>
-        </div>
-      </div>
+        )}
+      />
 
       {/* Filter bar — single compact row */}
       <div className="flex items-center gap-2">

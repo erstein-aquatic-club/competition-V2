@@ -93,7 +93,7 @@ function DashboardHeaderContent({
         <div className="flex items-center justify-center h-7 w-7 rounded-lg bg-primary text-primary-foreground">
           <Waves className="h-3.5 w-3.5" />
         </div>
-        <h1 className="text-lg font-display font-bold uppercase italic tracking-tight text-primary">Suivi</h1>
+        <h1 className="text-lg font-display font-bold uppercase italic tracking-tight text-primary">Accueil</h1>
       </div>
       <div className="flex items-center gap-2">
         <span className="text-xs font-mono font-semibold text-muted-foreground tabular-nums">{globalKm} km</span>

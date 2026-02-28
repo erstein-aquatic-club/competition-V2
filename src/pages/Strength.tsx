@@ -14,6 +14,7 @@ import { HistoryTable } from "@/components/strength/HistoryTable";
 import { useStrengthState } from "@/hooks/useStrengthState";
 import { orderStrengthItems } from "@/components/strength/utils";
 import type { SetLogEntry, UpdateStrengthRunInput, OneRmEntry } from "@/lib/types";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 const normalizeStrengthCycle = (value?: string | null): StrengthCycleType => {
   if (value === "endurance" || value === "hypertrophie" || value === "force") {
@@ -635,16 +636,10 @@ export default function Strength() {
         )
       ) : (
         <>
-          <div className="sticky top-0 z-overlay -mx-4 backdrop-blur-md bg-background/90 border-b border-primary/15">
-            <div className="px-4 py-2.5 flex items-center">
-              <div className="flex items-center gap-2.5">
-                <div className="flex items-center justify-center h-7 w-7 rounded-lg bg-primary text-primary-foreground">
-                  <Dumbbell className="h-3.5 w-3.5" />
-                </div>
-                <h1 className="text-lg font-display font-bold uppercase italic tracking-tight text-primary">Séance</h1>
-              </div>
-            </div>
-          </div>
+          <PageHeader
+            title="Muscu"
+            icon={<Dumbbell className="h-3.5 w-3.5" />}
+          />
 
           <Tabs defaultValue="start" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
