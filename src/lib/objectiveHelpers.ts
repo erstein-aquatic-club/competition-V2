@@ -106,12 +106,12 @@ export function findBestTime(
  * baseline for the progress gauge, keyed by race distance.
  */
 const GAUGE_BASELINE_BY_DISTANCE: Record<number, number> = {
-  50: 5,
-  100: 10,
-  200: 20,
-  400: 45,
-  800: 60,
-  1500: 100,
+  50: 2,
+  100: 4,
+  200: 10,
+  400: 15,
+  800: 30,
+  1500: 45,
 };
 
 /** Extract race distance from event_code (e.g. "200PAP" → 200). */
