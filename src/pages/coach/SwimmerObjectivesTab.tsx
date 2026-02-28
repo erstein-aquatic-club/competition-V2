@@ -44,6 +44,7 @@ import {
   findBestPerformance,
   daysUntil,
   computeProgress,
+  progressBarColor,
 } from "@/lib/objectiveHelpers";
 import type { SwimmerPerformance } from "@/lib/api";
 
@@ -505,7 +506,7 @@ const ObjectiveCard = ({ objective, performances, onEdit }: ObjectiveCardProps) 
         <div className="pl-5 pr-1">
           <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all duration-500 ${progressPct >= 100 ? "bg-emerald-500" : "bg-primary"}`}
+              className={`h-full rounded-full transition-all duration-500 ${progressBarColor(progressPct)}`}
               style={{ width: `${Math.min(progressPct, 100)}%` }}
             />
           </div>

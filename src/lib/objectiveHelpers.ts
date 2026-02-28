@@ -106,12 +106,12 @@ export function findBestTime(
  * baseline for the progress gauge, keyed by race distance.
  */
 const GAUGE_BASELINE_BY_DISTANCE: Record<number, number> = {
-  50: 4,
+  50: 5,
   100: 10,
-  200: 25,
-  400: 35,
+  200: 20,
+  400: 45,
   800: 60,
-  1500: 120,
+  1500: 100,
 };
 
 /** Extract race distance from event_code (e.g. "200PAP" → 200). */
@@ -159,6 +159,15 @@ export function findBestPerformance(
     }
   }
   return best;
+}
+
+/** Color class for the progress gauge based on fill percentage. */
+export function progressBarColor(pct: number): string {
+  if (pct >= 100) return "bg-emerald-500";
+  if (pct >= 75) return "bg-green-500";
+  if (pct >= 50) return "bg-yellow-500";
+  if (pct >= 25) return "bg-orange-500";
+  return "bg-red-500";
 }
 
 /** Days until a date string (YYYY-MM-DD). Negative if past. */
