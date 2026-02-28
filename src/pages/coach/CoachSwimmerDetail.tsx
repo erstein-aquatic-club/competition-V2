@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Clock, Target, CalendarRange, MessageSquare } from "lucide-react";
 import SwimmerFeedbackTab from "./SwimmerFeedbackTab";
 import SwimmerObjectivesTab from "./SwimmerObjectivesTab";
+import SwimmerPlanningTab from "./SwimmerPlanningTab";
 
 export default function CoachSwimmerDetail() {
   const [, params] = useRoute("/coach/swimmer/:id");
@@ -98,11 +99,7 @@ export default function CoachSwimmerDetail() {
         </TabsContent>
 
         <TabsContent value="planification" className="mt-4">
-          <div className="rounded-2xl border border-dashed border-border p-6 text-center">
-            <CalendarRange className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
-            <p className="text-sm font-medium text-muted-foreground">Bientôt disponible</p>
-            <p className="text-xs text-muted-foreground mt-1">Macro-cycles (blocs entre compétitions) et micro-cycles (semaines typées).</p>
-          </div>
+          <SwimmerPlanningTab athleteId={athleteId} />
         </TabsContent>
 
         <TabsContent value="entretiens" className="mt-4">
