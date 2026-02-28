@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Lock, Pen, Target, Trophy, LogOut, Save, AlertCircle, Download, Camera, Trash2, Brain } from "lucide-react";
+import { Lock, Pen, Target, Trophy, LogOut, Save, AlertCircle, Download, Camera, Trash2, Brain, MessageSquare } from "lucide-react";
 import { compressImage, isAcceptedImageType } from "@/lib/imageUtils";
 import AvatarCropDialog from "@/components/profile/AvatarCropDialog";
 import { useForm } from "react-hook-form";
@@ -22,6 +22,7 @@ import { z } from "zod";
 import { motion } from "framer-motion";
 import { fadeIn } from "@/lib/animations";
 import SwimmerObjectivesView from "@/components/profile/SwimmerObjectivesView";
+import AthleteInterviewsSection from "@/components/profile/AthleteInterviewsSection";
 import { NeurotypQuiz } from "@/components/neurotype/NeurotypQuiz";
 import NeurotypResultView from "@/components/neurotype/NeurotypResult";
 import { NEUROTYPE_PROFILES } from "@/lib/neurotype-quiz-data";
@@ -97,7 +98,7 @@ export default function Profile() {
   const canUpdatePassword = role === "athlete" || role === "coach" || role === "admin";
   const roleLabel = getRoleLabel(role);
 
-  const [activeSection, setActiveSection] = useState<"home" | "objectives" | "neurotype-quiz" | "neurotype-result">("home");
+  const [activeSection, setActiveSection] = useState<"home" | "objectives" | "interviews" | "neurotype-quiz" | "neurotype-result">("home");
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
   const [isPasswordSheetOpen, setIsPasswordSheetOpen] = useState(false);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
@@ -387,6 +388,10 @@ export default function Profile() {
     );
   }
 
+  if (activeSection === "interviews") {
+    return <AthleteInterviewsSection onBack={() => setActiveSection("home")} />;
+  }
+
   if (activeSection === "objectives") {
     return <SwimmerObjectivesView onBack={() => setActiveSection("home")} />;
   }
@@ -447,6 +452,12 @@ export default function Profile() {
           <Target className="h-5 w-5 text-primary mb-2" />
           <p className="text-sm font-bold">Objectifs</p>
           <p className="text-xs text-muted-foreground">Mon plan</p>
+        </button>
+        <button type="button" onClick={() => setActiveSection("interviews")}
+          className="rounded-xl border bg-card p-4 text-left shadow-sm active:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <MessageSquare className="h-5 w-5 text-primary mb-2" />
+          <p className="text-sm font-bold">Entretiens</p>
+          <p className="text-xs text-muted-foreground">Mes entretiens individuels</p>
         </button>
         {showRecords && (
           <button type="button"
