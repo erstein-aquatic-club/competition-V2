@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type {
@@ -73,7 +73,7 @@ const TIMELINE_HEIGHT = TIMELINE_HOURS * PX_PER_HOUR; // 640px
 const HOUR_LABELS = Array.from({ length: TIMELINE_HOURS + 1 }, (_, i) => TIMELINE_START + i);
 
 /** Mobile compact timeline */
-const MOBILE_PX_PER_HOUR = 32;
+const MOBILE_PX_PER_HOUR = 40;
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -959,9 +959,14 @@ const MobileTimeline = ({
   onNextWeek,
   weekNumber,
 }: MobileTimelineProps) => {
+  const todayColRef = useRef<HTMLDivElement>(null);
   const rangeHours = mobileTimeRange.end - mobileTimeRange.start;
   const timelineH = rangeHours * MOBILE_PX_PER_HOUR;
   const hourLabels = Array.from({ length: rangeHours + 1 }, (_, i) => mobileTimeRange.start + i);
+
+  useEffect(() => {
+    todayColRef.current?.scrollIntoView({ inline: "center", block: "nearest" });
+  }, []);
 
   const mTimeToPx = (t: string) => {
     const mins = timeToMinutes(t);
@@ -998,17 +1003,17 @@ const MobileTimeline = ({
       </div>
 
       {/* Timeline grid */}
-      <div className="overflow-y-auto -mx-4 px-4" style={{ maxHeight: "calc(100vh - 220px)" }}>
+      <div className="overflow-x-auto overflow-y-auto no-scrollbar -mx-4 px-4" style={{ maxHeight: "calc(100vh - 220px)" }}>
         <div
-          className="grid"
-          style={{ gridTemplateColumns: "1.5rem repeat(7, 1fr)" }}
+          className="grid min-w-max"
+          style={{ gridTemplateColumns: "1.5rem repeat(7, 80px)" }}
         >
           {/* Day headers */}
           <div /> {/* empty corner */}
           {weekDates.map((date, i) => {
             const isToday = toIsoDate(date) === todayStr;
             return (
-              <div key={i} className="text-center pb-1.5 sticky top-0 bg-background z-10">
+              <div key={i} ref={isToday ? todayColRef : undefined} className="text-center pb-1.5 sticky top-0 bg-background z-10">
                 <span className={`text-[9px] font-semibold uppercase tracking-wider ${
                   isToday ? "text-primary" : "text-muted-foreground"
                 }`}>
