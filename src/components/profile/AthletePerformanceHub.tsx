@@ -347,7 +347,7 @@ export default function AthletePerformanceHub({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-display font-semibold uppercase italic text-foreground">
-                Suivi saison
+                Mon suivi
               </h1>
               <Badge className="border-primary/20 bg-primary/10 text-[10px] text-primary">
                 Vue nageur
@@ -359,31 +359,43 @@ export default function AthletePerformanceHub({
               )}
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              {athleteName}: tout ton suivi au même endroit.
+              {athleteName}: ton plan d&apos;action, tes entretiens et tes échéances au même endroit.
             </p>
           </div>
         </div>
       </div>
 
-      <Tabs defaultValue="ressentis" className="space-y-4">
+      <Tabs defaultValue="objectifs" className="space-y-4">
         <TabsList className="grid w-full grid-cols-4 rounded-2xl">
-          <TabsTrigger value="ressentis" className="gap-1 text-xs">
-            <Clock className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Ressentis</span>
-          </TabsTrigger>
           <TabsTrigger value="objectifs" className="gap-1 text-xs">
             <Target className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Objectifs</span>
-          </TabsTrigger>
-          <TabsTrigger value="planification" className="gap-1 text-xs">
-            <CalendarRange className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Planif.</span>
+            <span className="hidden sm:inline">Plan d'action</span>
           </TabsTrigger>
           <TabsTrigger value="entretiens" className="gap-1 text-xs">
             <MessageSquare className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Entretiens</span>
           </TabsTrigger>
+          <TabsTrigger value="planification" className="gap-1 text-xs">
+            <CalendarRange className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Planif.</span>
+          </TabsTrigger>
+          <TabsTrigger value="ressentis" className="gap-1 text-xs">
+            <Clock className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Ressentis</span>
+          </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="objectifs" className="mt-0">
+          <SwimmerObjectivesView embedded />
+        </TabsContent>
+
+        <TabsContent value="entretiens" className="mt-0">
+          <AthleteInterviewsSection embedded />
+        </TabsContent>
+
+        <TabsContent value="planification" className="mt-0">
+          <AthleteSeasonPlanning athleteId={athleteId} />
+        </TabsContent>
 
         <TabsContent value="ressentis" className="mt-0">
           <SwimmerFeedbackTab
@@ -391,18 +403,6 @@ export default function AthletePerformanceHub({
             athleteName={athleteName}
             onOpenProgression={() => navigate("/progress")}
           />
-        </TabsContent>
-
-        <TabsContent value="objectifs" className="mt-0">
-          <SwimmerObjectivesView embedded />
-        </TabsContent>
-
-        <TabsContent value="planification" className="mt-0">
-          <AthleteSeasonPlanning athleteId={athleteId} />
-        </TabsContent>
-
-        <TabsContent value="entretiens" className="mt-0">
-          <AthleteInterviewsSection embedded />
         </TabsContent>
       </Tabs>
     </div>

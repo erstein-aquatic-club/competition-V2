@@ -126,6 +126,15 @@ export default function SwimmerMessagesView({
     navigate(href);
   };
 
+  const handleNotificationPress = (notification: Notification) => {
+    void selectNotification(notification);
+
+    const href = resolveNotificationHref(notification);
+    if (href === "/profile?section=messages") return;
+
+    openNotificationDestination(notification);
+  };
+
   const handleClearAll = () => {
     const targetIds = notifications
       .map((notification) => notification.target_id)
@@ -136,8 +145,8 @@ export default function SwimmerMessagesView({
     setDismissedTargetIds((current) => Array.from(new Set([...current, ...targetIds])));
     setSelectedTargetId(null);
     toast({
-      title: "Notifications effacées",
-      description: "La boîte de réception a été vidée sur cet appareil.",
+      title: "Notifications masquées",
+      description: "La boîte de réception a été vidée sur cet appareil uniquement.",
     });
   };
 
@@ -164,7 +173,7 @@ export default function SwimmerMessagesView({
         {notifications.length > 0 ? (
           <Button variant="ghost" size="sm" className="-ml-1 w-fit" onClick={handleClearAll}>
             <Trash2 className="h-4 w-4" />
-            Effacer toutes les notifications
+            Masquer toutes les notifications sur cet appareil
           </Button>
         ) : null}
       </div>
@@ -218,7 +227,7 @@ export default function SwimmerMessagesView({
                 variant="outline"
                 className="w-full justify-between"
                 onClick={async () => {
-                  await selectNotification(selectedNotification);
+                  void selectNotification(selectedNotification);
                   openNotificationDestination(selectedNotification);
                 }}
               >
@@ -239,9 +248,7 @@ export default function SwimmerMessagesView({
               <button
                 key={notification.target_id ?? notification.id}
                 type="button"
-                onClick={() => {
-                  void selectNotification(notification);
-                }}
+                onClick={() => handleNotificationPress(notification)}
                 className={`w-full rounded-2xl border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   isSelected
                     ? "border-primary/35 bg-primary/5 shadow-sm"

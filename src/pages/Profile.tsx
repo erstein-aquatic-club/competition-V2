@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Lock, Pen, Target, Trophy, LogOut, Save, AlertCircle, Download, Camera, Trash2, Brain, MessageSquare, Clock, Bell, BellOff, BellRing, ChevronRight, type LucideIcon } from "lucide-react";
+import { Lock, Pen, Trophy, LogOut, Save, AlertCircle, Download, Camera, Trash2, Brain, MessageSquare, Clock, Bell, BellOff, BellRing, CalendarRange, ChevronRight, type LucideIcon } from "lucide-react";
 import { isPushSupported, hasActivePushSubscription, subscribeToPush, unsubscribeFromPush } from "@/lib/push";
 import { compressImage, isAcceptedImageType } from "@/lib/imageUtils";
 import AvatarCropDialog from "@/components/profile/AvatarCropDialog";
@@ -86,12 +86,14 @@ function ProfileActionRow({
   description,
   onClick,
   accentClassName = "text-primary",
+  badgeLabel,
 }: {
   icon: LucideIcon;
   title: string;
   description: string;
   onClick: () => void;
   accentClassName?: string;
+  badgeLabel?: string | null;
 }) {
   return (
     <button
@@ -106,6 +108,11 @@ function ProfileActionRow({
         <p className="text-sm font-semibold">{title}</p>
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
+      {badgeLabel ? (
+        <Badge variant="secondary" className="shrink-0 text-[10px] uppercase tracking-[0.08em]">
+          {badgeLabel}
+        </Badge>
+      ) : null}
       <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
     </button>
   );
@@ -311,12 +318,92 @@ export default function Profile() {
     refetchGroups();
   };
 
+  const isSwimmerProfile = showRecords;
+
+  const { data: unreadNotifications } = useQuery({
+    queryKey: ["profile-notifications-unread", userId],
+    queryFn: () =>
+      api.notifications_list({
+        targetUserId: userId ?? null,
+        status: "unread",
+        limit: 100,
+      }),
+    enabled: isSwimmerProfile && !!userId,
+  });
+
+  const { data: interviewSummary = [] } = useQuery({
+    queryKey: ["profile-interviews-summary"],
+    queryFn: () => api.getMyInterviews(),
+    enabled: isSwimmerProfile && !!user,
+  });
+
+  const { data: objectiveSummary = [] } = useQuery({
+    queryKey: ["profile-objectives-summary"],
+    queryFn: () => api.getAthleteObjectives(),
+    enabled: isSwimmerProfile && !!user,
+  });
+
   const avatarSrc = useMemo(() => {
     const src = profile?.avatar_url;
     if (src) return src;
     if (user) return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user)}`;
     return "";
   }, [profile, user]);
+
+  const unreadMessageCount =
+    unreadNotifications?.pagination.total ?? unreadNotifications?.notifications.length ?? 0;
+
+  const pendingInterviewCount = useMemo(
+    () =>
+      interviewSummary.filter(
+        (interview) => interview.status === "draft_athlete" || interview.status === "sent",
+      ).length,
+    [interviewSummary],
+  );
+
+  const activeObjectiveCount = objectiveSummary.length;
+
+  const nextObjectiveDate = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return objectiveSummary
+      .map((objective) => objective.competition_date ?? null)
+      .filter((value): value is string => Boolean(value))
+      .filter((value) => {
+        const date = new Date(`${value}T00:00:00`);
+        return !Number.isNaN(date.getTime()) && date >= today;
+      })
+      .sort((a, b) => a.localeCompare(b))[0] ?? null;
+  }, [objectiveSummary]);
+
+  const nextObjectiveCountdown = useMemo(() => {
+    if (!nextObjectiveDate) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(`${nextObjectiveDate}T00:00:00`);
+    const delta = target.getTime() - today.getTime();
+    return Math.max(0, Math.round(delta / (1000 * 60 * 60 * 24)));
+  }, [nextObjectiveDate]);
+
+  const quickActionCount =
+    (unreadMessageCount > 0 ? 1 : 0)
+    + (pendingInterviewCount > 0 ? 1 : 0)
+    + (nextObjectiveCountdown !== null ? 1 : 0);
+
+  const followUpSummary = useMemo(() => {
+    const items: string[] = [];
+    if (activeObjectiveCount > 0) {
+      items.push(`${activeObjectiveCount} objectif${activeObjectiveCount > 1 ? "s" : ""} actif${activeObjectiveCount > 1 ? "s" : ""}`);
+    }
+    if (pendingInterviewCount > 0) {
+      items.push(`${pendingInterviewCount} entretien${pendingInterviewCount > 1 ? "s" : ""} à traiter`);
+    }
+    if (nextObjectiveCountdown !== null) {
+      items.push(`cap J-${nextObjectiveCountdown}`);
+    }
+    return items.join(" • ");
+  }, [activeObjectiveCount, pendingInterviewCount, nextObjectiveCountdown]);
 
   const updateProfile = useMutation({
     mutationFn: (data: ProfileEditForm) =>
@@ -588,11 +675,139 @@ export default function Profile() {
       </div>
 
       <div className="space-y-4">
-        <Card className="overflow-hidden border-primary/15 bg-gradient-to-br from-card via-card to-primary/5 shadow-sm">
+        {isSwimmerProfile ? (
+          <Card className="overflow-hidden border-primary/15 bg-gradient-to-br from-primary/[0.1] via-card to-amber-500/[0.08] shadow-sm">
+            <CardHeader className="gap-3 pb-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base uppercase tracking-[0.08em]">À faire maintenant</CardTitle>
+                  <CardDescription className="mt-1">
+                    Les actions utiles aujourd&apos;hui, sans passer par plusieurs menus.
+                  </CardDescription>
+                </div>
+                <Badge variant={quickActionCount > 0 ? "default" : "outline"} className="text-[10px] uppercase tracking-[0.08em]">
+                  {quickActionCount > 0 ? `${quickActionCount} action${quickActionCount > 1 ? "s" : ""}` : "rien d'urgent"}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <ProfileActionRow
+                icon={BellRing}
+                title="Messages"
+                description={
+                  unreadMessageCount > 0
+                    ? `${unreadMessageCount} message${unreadMessageCount > 1 ? "s" : ""} à lire`
+                    : "Boîte de réception et historique des notifications"
+                }
+                badgeLabel={unreadMessageCount > 0 ? `${unreadMessageCount} non lu${unreadMessageCount > 1 ? "s" : ""}` : null}
+                onClick={() => setActiveSection("messages")}
+              />
+              {pendingInterviewCount > 0 ? (
+                <ProfileActionRow
+                  icon={MessageSquare}
+                  title="Entretien"
+                  description={
+                    pendingInterviewCount > 1
+                      ? `${pendingInterviewCount} entretiens demandent une action`
+                      : "Un entretien attend ta réponse ou ta signature"
+                  }
+                  badgeLabel={`${pendingInterviewCount} en attente`}
+                  onClick={() => setActiveSection("interviews")}
+                />
+              ) : null}
+              {nextObjectiveDate && nextObjectiveCountdown !== null ? (
+                <ProfileActionRow
+                  icon={CalendarRange}
+                  title="Prochaine échéance"
+                  description={`Objectif programmé le ${new Date(`${nextObjectiveDate}T00:00:00`).toLocaleDateString("fr-FR", {
+                    day: "numeric",
+                    month: "long",
+                  })}`}
+                  badgeLabel={`J-${nextObjectiveCountdown}`}
+                  onClick={() => setActiveSection("performance-hub")}
+                />
+              ) : null}
+              {quickActionCount === 0 ? (
+                <div className="rounded-2xl border border-dashed border-primary/20 bg-background/70 px-4 py-3">
+                  <p className="text-sm font-medium">Aucune urgence pour le moment.</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Tu peux consulter ton suivi complet quand tu veux, mais rien ne demande une action immédiate.
+                  </p>
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {showRecords ? (
+          <Card className="overflow-hidden border-primary/15 bg-gradient-to-br from-card via-card to-primary/5 shadow-sm">
+            <CardHeader className="gap-3 pb-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base uppercase tracking-[0.08em]">Mon suivi</CardTitle>
+                  <CardDescription className="mt-1">
+                    Un seul point d&apos;entrée pour la progression, les entretiens et la planification.
+                  </CardDescription>
+                </div>
+                {followUpSummary ? (
+                  <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.08em]">
+                    {followUpSummary}
+                  </Badge>
+                ) : null}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <button
+                type="button"
+                onClick={() => setActiveSection("performance-hub")}
+                className="flex w-full items-start gap-3 rounded-3xl border border-primary/20 bg-background/80 px-4 py-4 text-left transition hover:border-primary/35 hover:bg-primary/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
+                  <Clock className="h-5 w-5 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold uppercase tracking-[0.08em] text-primary">Ouvrir mon suivi</p>
+                  <p className="mt-1 text-sm text-foreground/80">
+                    Retrouve ton plan d&apos;action, tes entretiens, tes ressentis et tes prochaines échéances au même endroit.
+                  </p>
+                  {followUpSummary ? (
+                    <p className="mt-2 text-xs text-muted-foreground">{followUpSummary}</p>
+                  ) : null}
+                </div>
+                <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+              </button>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <ProfileActionRow
+                  icon={Trophy}
+                  title="Records"
+                  description="Consulter mes performances"
+                  onClick={() => navigate("/records")}
+                />
+                <ProfileActionRow
+                  icon={Brain}
+                  title={profile?.neurotype_result
+                    ? `${profile.neurotype_result.dominant} — ${getNeurotypName(profile.neurotype_result.dominant)}`
+                    : "Neurotype"}
+                  description={profile?.neurotype_result ? "Relire mon profil neurotype" : "Découvrir mon profil"}
+                  onClick={() => {
+                    if (profile?.neurotype_result) {
+                      setPendingNeurotypResult(profile.neurotype_result);
+                      setActiveSection("neurotype-result");
+                    } else {
+                      setActiveSection("neurotype-quiz");
+                    }
+                  }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        <Card className="overflow-hidden border-primary/15 bg-card shadow-sm">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base uppercase tracking-[0.08em]">Compte</CardTitle>
+            <CardTitle className="text-base uppercase tracking-[0.08em]">Mon compte</CardTitle>
             <CardDescription>
-              Regroupe les réglages essentiels au lieu de disperser plusieurs petites cartes.
+              Gère tes informations, la sécurité et cet appareil depuis un seul bloc.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -610,102 +825,46 @@ export default function Profile() {
                 onClick={() => setIsPasswordSheetOpen(true)}
               />
             ) : null}
+            <ProfileActionRow
+              icon={Download}
+              title="Mettre l'app à jour"
+              description="Force la vérification d'une nouvelle version sur cet appareil"
+              onClick={handleCheckUpdate}
+              badgeLabel={isCheckingUpdate ? "en cours" : null}
+            />
             {isPushSupported() ? (
-              <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/70 px-4 py-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
-                  {pushEnabled ? (
-                    <Bell className="h-5 w-5 text-primary" />
-                  ) : (
-                    <BellOff className="h-5 w-5 text-muted-foreground" />
-                  )}
+              <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
+                    {pushEnabled ? (
+                      <Bell className="h-5 w-5 text-primary" />
+                    ) : (
+                      <BellOff className="h-5 w-5 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold">Notifications push</p>
+                    <p className="text-xs text-muted-foreground">
+                      {pushEnabled ? "Activées sur cet appareil" : "Désactivées sur cet appareil"}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant={pushEnabled ? "outline" : "default"}
+                    onClick={handleTogglePush}
+                    disabled={pushLoading}
+                  >
+                    {pushLoading ? "..." : pushEnabled ? "Désactiver" : "Activer"}
+                  </Button>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold">Notifications push</p>
-                  <p className="text-xs text-muted-foreground">
-                    {pushEnabled ? "Activées sur cet appareil" : "Désactivées sur cet appareil"}
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  variant={pushEnabled ? "outline" : "default"}
-                  onClick={handleTogglePush}
-                  disabled={pushLoading}
-                >
-                  {pushLoading ? "..." : pushEnabled ? "Désactiver" : "Activer"}
-                </Button>
+                <p className="mt-2 text-[10px] text-muted-foreground/70">
+                  Les notifications sont gérées appareil par appareil. Réactive-les ici après une réinstallation.
+                </p>
               </div>
             ) : null}
-          </CardContent>
-        </Card>
-
-        {showRecords ? (
-          <Card className="overflow-hidden border-primary/15 bg-gradient-to-br from-card via-card to-primary/5 shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base uppercase tracking-[0.08em]">Suivi</CardTitle>
-              <CardDescription>
-                Concentre les outils d'analyse au même endroit: progression, records et neurotype.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <ProfileActionRow
-                  icon={Clock}
-                  title="Suivi saison"
-                  description="Vue complète sur la progression"
-                  onClick={() => setActiveSection("performance-hub")}
-                />
-                <ProfileActionRow
-                  icon={Trophy}
-                  title="Records"
-                  description="Consulter mes performances"
-                  onClick={() => navigate("/records")}
-                />
-              </div>
-              <ProfileActionRow
-                icon={Brain}
-                title={profile?.neurotype_result
-                  ? `${profile.neurotype_result.dominant} — ${getNeurotypName(profile.neurotype_result.dominant)}`
-                  : "Neurotype"}
-                description={profile?.neurotype_result ? "Relire mon profil neurotype" : "Découvrir mon profil"}
-                onClick={() => {
-                  if (profile?.neurotype_result) {
-                    setPendingNeurotypResult(profile.neurotype_result);
-                    setActiveSection("neurotype-result");
-                  } else {
-                    setActiveSection("neurotype-quiz");
-                  }
-                }}
-              />
-            </CardContent>
-          </Card>
-        ) : null}
-
-        <Card className="overflow-hidden border-primary/15 bg-card shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base uppercase tracking-[0.08em]">Espace Perso</CardTitle>
-            <CardDescription>
-              Trois accès utiles, regroupés en une seule zone au lieu de trois cartes séparées.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <ProfileActionRow
-              icon={BellRing}
-              title="Messages"
-              description="Notifications reçues et détails complets"
-              onClick={() => setActiveSection("messages")}
-            />
-            <ProfileActionRow
-              icon={MessageSquare}
-              title="Entretiens"
-              description="Mes échanges individuels avec le coach"
-              onClick={() => setActiveSection("interviews")}
-            />
-            <ProfileActionRow
-              icon={Target}
-              title="Objectifs"
-              description="Mon plan de progression"
-              onClick={() => setActiveSection("objectives")}
-            />
+            <p className="text-[10px] text-center text-muted-foreground/60 pt-1">
+              Version du {new Date(__BUILD_TIMESTAMP__).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -715,18 +874,6 @@ export default function Profile() {
         <LogOut className="h-4 w-4" />
         Se déconnecter
       </Button>
-
-      {/* Version info */}
-      <div className="space-y-1 pt-2">
-        <button type="button" onClick={handleCheckUpdate} disabled={isCheckingUpdate}
-          className="w-full flex items-center justify-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors py-2">
-          <Download className={["h-3 w-3", isCheckingUpdate ? "animate-bounce" : ""].join(" ")} />
-          {isCheckingUpdate ? "Recherche en cours..." : "Rechercher des mises à jour"}
-        </button>
-        <p className="text-[10px] text-center text-muted-foreground/60">
-          Version du {new Date(__BUILD_TIMESTAMP__).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-        </p>
-      </div>
 
       {/* Edit profile bottom sheet */}
       <Sheet open={isEditSheetOpen} onOpenChange={setIsEditSheetOpen}>
