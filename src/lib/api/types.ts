@@ -535,6 +535,10 @@ export interface Interview {
   coach_review?: string | null;
   coach_objectives?: string | null;
   coach_actions?: string | null;
+  coach_comment_successes?: string | null;
+  coach_comment_difficulties?: string | null;
+  coach_comment_goals?: string | null;
+  athlete_commitment_review?: string | null;
   current_cycle_id?: string | null;
   submitted_at?: string | null;
   sent_at?: string | null;
@@ -554,12 +558,16 @@ export interface InterviewAthleteInput {
   athlete_difficulties?: string | null;
   athlete_goals?: string | null;
   athlete_commitments?: string | null;
+  athlete_commitment_review?: string | null;
 }
 
 export interface InterviewCoachInput {
   coach_review?: string | null;
   coach_objectives?: string | null;
   coach_actions?: string | null;
+  coach_comment_successes?: string | null;
+  coach_comment_difficulties?: string | null;
+  coach_comment_goals?: string | null;
 }
 
 export interface NeurotypScores {

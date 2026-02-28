@@ -45,6 +45,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §72 Dashboard synthétique nageurs (coach) | ✅ Fait | 2026-02-27 |
 | §73 Fiche nageur coach (page onglets, ressentis, objectifs) | ✅ Fait | 2026-02-28 |
 | §74 Planification + Entretiens (fiche nageur coach) | ✅ Fait | 2026-02-28 |
+| §75 Refonte entretiens conversationnels + planif inline | ✅ Fait | 2026-02-28 |
 | §45 Audit UI/UX — header Strength + login mobile + fixes | ✅ Fait | 2026-02-16 |
 | §46 Harmonisation headers + Login mobile thème clair | ✅ Fait | 2026-02-16 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
@@ -5992,3 +5993,71 @@ Les onglets Planification et Entretiens de la fiche nageur coach (§73) étaient
 - Le panneau contextuel du coach charge les données à chaque ouverture d'entretien (pas de cache partagé)
 - Pas de notification push/email au nageur quand le coach initie un entretien (dépend d'une feature future)
 - `bulkUpsertTrainingWeeks` fait des upserts individuels (pas de batch SQL) — acceptable pour le volume (~20 semaines max)
+
+---
+
+## 2026-02-28 — Refonte Entretiens — Layout conversationnel + planification inline + suivi engagements
+
+**Branche** : `main`
+**Chantier ROADMAP** : §75 — Refonte entretiens conversationnels
+
+### Contexte — Pourquoi ce patch
+
+L'entretien individuel nageur/coach etait un formulaire en 2 blocs separes (4 champs nageur, 3 champs coach). Cette refonte transforme l'experience en un document d'entretien fluide qui alterne les sections nageur/coach, integre la planification visuelle, et assure la persistence des engagements entre entretiens.
+
+### Changements realises
+
+1. **Migration SQL** (`00037_interview_conversational_fields.sql`) :
+   - 3 nouveaux champs coach par section : `coach_comment_successes`, `coach_comment_difficulties`, `coach_comment_goals`
+   - 1 nouveau champ nageur : `athlete_commitment_review` (bilan des engagements precedents)
+   - Fix RLS `interviews_athlete_select` pour permettre au nageur de voir `draft_coach` (affichage "en preparation")
+
+2. **Types** (`types.ts`) : 4 champs ajoutes a `Interview`, `athlete_commitment_review` a `InterviewAthleteInput`, 3 champs a `InterviewCoachInput`
+
+3. **API** (`interviews.ts`) : Nouvelle fonction `getPreviousInterview(athleteId, beforeDate)` — retourne le dernier entretien signe
+
+4. **Helper partage** (`weekTypeColor.ts`) : Extraction de `hashColor`/`hashColorText` depuis SwimmerPlanningTab en helper reutilisable `weekTypeColor`/`weekTypeTextColor`
+
+5. **SwimmerInterviewsTab** (coach, rewrite complet) :
+   - Bilan du cycle precedent en haut du Sheet
+   - Layout conversationnel : sections alternees nageur (bleu) / coach (ambre) avec textareas editables
+   - Planification inline : detection de la prochaine competition assignee, affichage/creation de la timeline des semaines
+   - Engagements & actions en section prominente en bas
+
+6. **AthleteInterviewsSection** (nageur) :
+   - Phase `draft_athlete` : nouveau bloc "Bilan des engagements precedents" avec textarea `athlete_commitment_review`
+   - Phase `draft_coach` : nouveau statut d'attente visible ("En preparation") au lieu de masquer
+   - Phases `sent`/`signed` : layout conversationnel en lecture seule (meme structure alternee que le coach)
+
+### Fichiers modifies
+
+| Fichier | Nature |
+|---------|--------|
+| `supabase/migrations/00037_interview_conversational_fields.sql` | **Nouveau** — Migration SQL |
+| `src/lib/api/types.ts` | Modifie — 4 champs Interview, 2 inputs |
+| `src/lib/api/interviews.ts` | Modifie — getPreviousInterview |
+| `src/lib/api/index.ts` | Modifie — re-export |
+| `src/lib/api.ts` | Modifie — delegation stub |
+| `src/lib/weekTypeColor.ts` | **Nouveau** — Helper couleur semaine |
+| `src/pages/coach/SwimmerInterviewsTab.tsx` | Reecrit — Layout conversationnel complet |
+| `src/pages/coach/SwimmerPlanningTab.tsx` | Modifie — import helper partage |
+| `src/components/profile/AthleteInterviewsSection.tsx` | Reecrit — commitment review + draft_coach + conversationnel |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — 0 erreurs
+- [x] `npm run build` — succes (7.09s)
+- [x] Migration appliquee via Supabase MCP
+
+### Decisions prises
+
+- Les anciens champs `coach_review`/`coach_objectives` sont preserves pour retrocompatibilite — les vues en lecture seule font un fallback (`coach_comment_successes || coach_review`)
+- Le bilan des engagements est optionnel (n'apparait que si un entretien signe precedent existe)
+- La planification inline detecte automatiquement la prochaine competition assignee au nageur
+- Les couleurs conversationnelles : bleu (nageur, `border-l-blue-400`) / ambre (coach, `border-l-amber-400`)
+
+### Limites / dette
+
+- La planification inline cree un cycle avec la competition precedente la plus proche comme start — pas toujours ideal si aucune competition passee
+- Le bilan du nageur cote athlete utilise un import dynamique de supabase pour recuperer le `app_user_id` (pourrait etre passe en prop)
+- Les anciennes donnees d'entretiens (sans `coach_comment_*`) sont affichees via fallback sur `coach_review` — ok pour la transition

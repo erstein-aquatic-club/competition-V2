@@ -229,6 +229,7 @@ import {
   sendInterviewToAthlete as _sendInterviewToAthlete,
   signInterview as _signInterview,
   deleteInterview as _deleteInterview,
+  getPreviousInterview as _getPreviousInterview,
 } from './api/interviews';
 
 import {
@@ -664,6 +665,7 @@ export const api = {
   async sendInterviewToAthlete(id: string) { return _sendInterviewToAthlete(id); },
   async signInterview(id: string) { return _signInterview(id); },
   async deleteInterview(id: string) { return _deleteInterview(id); },
+  async getPreviousInterview(athleteId: number, beforeDate: string) { return _getPreviousInterview(athleteId, beforeDate); },
 
   // ══════════════════════════════════════════════════════════════════
   // DELEGATION STUBS — Users

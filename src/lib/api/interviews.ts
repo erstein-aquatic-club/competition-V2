@@ -124,6 +124,25 @@ export async function signInterview(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/** Get the previous signed interview for an athlete (before a given date) */
+export async function getPreviousInterview(
+  athleteId: number,
+  beforeDate: string,
+): Promise<Interview | null> {
+  if (!canUseSupabase()) return null;
+  const { data, error } = await supabase
+    .from("interviews")
+    .select("*")
+    .eq("athlete_id", athleteId)
+    .eq("status", "signed")
+    .lt("date", beforeDate)
+    .order("date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as Interview) ?? null;
+}
+
 /** Coach deletes an interview */
 export async function deleteInterview(id: string): Promise<void> {
   if (!canUseSupabase()) throw new Error("Supabase not available");

@@ -22,6 +22,8 @@ import {
   ChevronDown,
   ChevronUp,
   Target,
+  User,
+  GraduationCap,
 } from "lucide-react";
 
 type Props = { onBack: () => void };
@@ -63,7 +65,7 @@ export default function AthleteInterviewsSection({ onBack }: Props) {
       input: InterviewAthleteInput;
     }) => api.updateInterviewAthleteSections(id, input),
     onSuccess: () => {
-      toast({ title: "Sauvegardé" });
+      toast({ title: "Sauvegarde" });
       invalidate();
     },
     onError: (e: Error) =>
@@ -77,7 +79,7 @@ export default function AthleteInterviewsSection({ onBack }: Props) {
   const submitMut = useMutation({
     mutationFn: (id: string) => api.submitInterviewToCoach(id),
     onSuccess: () => {
-      toast({ title: "Envoyé au coach" });
+      toast({ title: "Envoye au coach" });
       invalidate();
     },
     onError: (e: Error) =>
@@ -91,7 +93,7 @@ export default function AthleteInterviewsSection({ onBack }: Props) {
   const signMut = useMutation({
     mutationFn: (id: string) => api.signInterview(id),
     onSuccess: () => {
-      toast({ title: "Entretien signé" });
+      toast({ title: "Entretien signe" });
       invalidate();
     },
     onError: (e: Error) =>
@@ -153,7 +155,7 @@ export default function AthleteInterviewsSection({ onBack }: Props) {
             onSubmit={(id) => {
               if (
                 window.confirm(
-                  "Envoyer votre préparation au coach ? Vous ne pourrez plus la modifier.",
+                  "Envoyer votre preparation au coach ? Vous ne pourrez plus la modifier.",
                 )
               ) {
                 submitMut.mutate(id);
@@ -197,6 +199,7 @@ function InterviewCard({
   isSigning: boolean;
 }) {
   const isDraft = interview.status === "draft_athlete";
+  const isDraftCoach = interview.status === "draft_coach";
   const isSent = interview.status === "sent";
   const isSigned = interview.status === "signed";
 
@@ -214,30 +217,51 @@ function InterviewCard({
   const [commitments, setCommitments] = useState(
     interview.athlete_commitments ?? "",
   );
+  const [commitmentReview, setCommitmentReview] = useState(
+    interview.athlete_commitment_review ?? "",
+  );
+
+  // Previous interview for commitment follow-up
+  const { data: prevInterview } = useQuery({
+    queryKey: ["my-previous-interview", interview.date],
+    queryFn: async () => {
+      // Use the athlete's own ID from auth context
+      const { data: { user } } = await (await import("@/lib/supabase")).supabase.auth.getUser();
+      const appUserId = (user?.app_metadata as any)?.app_user_id;
+      if (!appUserId) return null;
+      return api.getPreviousInterview(appUserId, interview.date);
+    },
+    enabled: isDraft || isSent || isSigned || isDraftCoach,
+  });
 
   // Track which interview we're saving to avoid cross-card conflicts
   const savingRef = useRef(false);
 
   const handleBlur = useCallback(() => {
-    if (savingRef.current) return;
+    if (savingRef.current || !isDraft) return;
     savingRef.current = true;
     onSave(interview.id, {
       athlete_successes: successes || null,
       athlete_difficulties: difficulties || null,
       athlete_goals: goals || null,
       athlete_commitments: commitments || null,
+      athlete_commitment_review: commitmentReview || null,
     });
-    // Reset after short delay to prevent double-save
     setTimeout(() => {
       savingRef.current = false;
     }, 500);
-  }, [interview.id, successes, difficulties, goals, commitments, onSave]);
+  }, [interview.id, successes, difficulties, goals, commitments, commitmentReview, onSave, isDraft]);
 
   // Status badge
   const statusBadge = isDraft ? (
     <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-amber-300 dark:border-amber-700">
       <Clock className="h-3 w-3 mr-1" />
       A preparer
+    </Badge>
+  ) : isDraftCoach ? (
+    <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-300 dark:border-blue-700">
+      <Clock className="h-3 w-3 mr-1" />
+      En preparation
     </Badge>
   ) : isSent ? (
     <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700">
@@ -251,9 +275,11 @@ function InterviewCard({
   // Card border highlight for actionable items
   const borderClass = isDraft
     ? "border-amber-300 dark:border-amber-700 border-l-4"
-    : isSent
-      ? "border-emerald-300 dark:border-emerald-700 border-l-4"
-      : "";
+    : isDraftCoach
+      ? "border-blue-300 dark:border-blue-700 border-l-4"
+      : isSent
+        ? "border-emerald-300 dark:border-emerald-700 border-l-4"
+        : "";
 
   return (
     <div className={`rounded-xl border bg-card shadow-sm ${borderClass}`}>
@@ -287,6 +313,40 @@ function InterviewCard({
           {/* ── Draft athlete: editable textareas ── */}
           {isDraft && (
             <>
+              {/* Commitment review from previous interview */}
+              {prevInterview && (prevInterview.athlete_commitments || prevInterview.coach_actions) && (
+                <div className="rounded-xl border bg-muted/30 p-3 space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                    Bilan des engagements precedents
+                  </p>
+                  {prevInterview.athlete_commitments && (
+                    <div className="border-l-4 border-blue-400 rounded-r-lg bg-blue-50/50 dark:bg-blue-950/20 p-2 space-y-0.5">
+                      <p className="text-[10px] font-semibold text-muted-foreground">Mes engagements</p>
+                      <p className="text-xs whitespace-pre-wrap">{prevInterview.athlete_commitments}</p>
+                    </div>
+                  )}
+                  {prevInterview.coach_actions && (
+                    <div className="border-l-4 border-amber-400 rounded-r-lg bg-amber-50/50 dark:bg-amber-950/20 p-2 space-y-0.5">
+                      <p className="text-[10px] font-semibold text-muted-foreground">Actions du coach</p>
+                      <p className="text-xs whitespace-pre-wrap">{prevInterview.coach_actions}</p>
+                    </div>
+                  )}
+                  <div className="space-y-1 pt-1">
+                    <Label htmlFor={`commitment-review-${interview.id}`} className="text-xs">
+                      Comment avez-vous tenu vos engagements ?
+                    </Label>
+                    <Textarea
+                      id={`commitment-review-${interview.id}`}
+                      placeholder="Mon bilan sur les engagements pris..."
+                      value={commitmentReview}
+                      onChange={(e) => setCommitmentReview(e.target.value)}
+                      onBlur={handleBlur}
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor={`successes-${interview.id}`}>
                   Mes reussites
@@ -324,7 +384,7 @@ function InterviewCard({
                 )}
                 <Textarea
                   id={`goals-${interview.id}`}
-                  placeholder="Objectifs supplémentaires ou commentaires..."
+                  placeholder="Objectifs supplementaires ou commentaires..."
                   value={goals}
                   onChange={(e) => setGoals(e.target.value)}
                   onBlur={handleBlur}
@@ -360,22 +420,65 @@ function InterviewCard({
             </>
           )}
 
-          {/* ── Sent / Signed: read-only sections ── */}
+          {/* ── Draft coach: waiting state ── */}
+          {isDraftCoach && (
+            <div className="rounded-xl border border-dashed border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-950/20 p-6 text-center space-y-2">
+              <Clock className="h-8 w-8 mx-auto text-blue-500" />
+              <p className="text-sm font-medium">Entretien envoye au coach</p>
+              <p className="text-xs text-muted-foreground">
+                Votre coach prepare l'entretien. Vous recevrez le compte-rendu complet apres l'entretien en presentiel.
+              </p>
+              {interview.submitted_at && (
+                <p className="text-xs text-muted-foreground">
+                  Envoye le {formatDate(interview.submitted_at.slice(0, 10))}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* ── Sent / Signed: conversational read-only layout ── */}
           {(isSent || isSigned) && (
             <>
-              {/* Athlete sections */}
-              <ReadOnlySection
-                label="Mes reussites"
-                value={interview.athlete_successes}
+              {/* Previous commitments summary */}
+              {prevInterview && (prevInterview.athlete_commitments || prevInterview.coach_actions) && (
+                <div className="rounded-xl border bg-muted/30 p-3 space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                    Bilan des engagements precedents
+                  </p>
+                  {prevInterview.athlete_commitments && (
+                    <div className="border-l-4 border-blue-400 rounded-r-lg bg-blue-50/50 dark:bg-blue-950/20 p-2">
+                      <p className="text-[10px] font-semibold text-muted-foreground">Engagements</p>
+                      <p className="text-xs whitespace-pre-wrap">{prevInterview.athlete_commitments}</p>
+                    </div>
+                  )}
+                  {prevInterview.coach_actions && (
+                    <div className="border-l-4 border-amber-400 rounded-r-lg bg-amber-50/50 dark:bg-amber-950/20 p-2">
+                      <p className="text-[10px] font-semibold text-muted-foreground">Actions coach</p>
+                      <p className="text-xs whitespace-pre-wrap">{prevInterview.coach_actions}</p>
+                    </div>
+                  )}
+                  {interview.athlete_commitment_review && (
+                    <div className="border-l-4 border-blue-400 rounded-r-lg bg-blue-50/80 dark:bg-blue-950/30 p-2">
+                      <p className="text-[10px] font-semibold text-muted-foreground">Mon bilan</p>
+                      <p className="text-xs whitespace-pre-wrap">{interview.athlete_commitment_review}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Conversational sections */}
+              <ConversationalSection
+                label="Reussites"
+                athleteText={interview.athlete_successes}
+                coachText={interview.coach_comment_successes || interview.coach_review}
               />
-              <ReadOnlySection
-                label="Mes difficultes"
-                value={interview.athlete_difficulties}
+              <ConversationalSection
+                label="Difficultes"
+                athleteText={interview.athlete_difficulties}
+                coachText={interview.coach_comment_difficulties}
               />
-              <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Mes objectifs
-                </p>
+              <div className="space-y-2">
+                <SectionLabel label="Objectifs" />
                 {objectives.length > 0 && (
                   <div className="space-y-1.5">
                     {objectives.map((obj) => (
@@ -383,31 +486,16 @@ function InterviewCard({
                     ))}
                   </div>
                 )}
-                {interview.athlete_goals && (
-                  <p className="text-sm whitespace-pre-wrap">{interview.athlete_goals}</p>
-                )}
-                {!interview.athlete_goals && objectives.length === 0 && (
-                  <p className="text-sm italic text-muted-foreground">Non renseigne</p>
-                )}
+                <AthleteBlock text={interview.athlete_goals} />
+                <CoachBlock text={interview.coach_comment_goals || interview.coach_objectives} />
               </div>
-              <ReadOnlySection
-                label="Mes engagements"
-                value={interview.athlete_commitments}
-              />
 
-              {/* Coach sections */}
-              <ReadOnlySection
-                label="Commentaires du coach"
-                value={interview.coach_review}
-              />
-              <ReadOnlySection
-                label="Objectifs ajoutes"
-                value={interview.coach_objectives}
-              />
-              <ReadOnlySection
-                label="Actions a suivre"
-                value={interview.coach_actions}
-              />
+              {/* Engagements & Actions */}
+              <div className="rounded-xl bg-card border shadow-sm p-3 space-y-2">
+                <SectionLabel label="Engagements & Actions" />
+                <AthleteBlock text={interview.athlete_commitments} label="Mes engagements" />
+                <CoachBlock text={interview.coach_actions} label="Actions du coach" />
+              </div>
 
               {/* Sign button for sent interviews */}
               {isSent && (
@@ -424,6 +512,67 @@ function InterviewCard({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Conversational section (athlete + coach read-only) ──
+
+function ConversationalSection({
+  label,
+  athleteText,
+  coachText,
+}: {
+  label: string;
+  athleteText?: string | null;
+  coachText?: string | null;
+}) {
+  return (
+    <div className="space-y-2">
+      <SectionLabel label={label} />
+      <AthleteBlock text={athleteText} />
+      <CoachBlock text={coachText} />
+    </div>
+  );
+}
+
+function SectionLabel({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="h-px flex-1 bg-border" />
+      <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{label}</span>
+      <div className="h-px flex-1 bg-border" />
+    </div>
+  );
+}
+
+function AthleteBlock({ text, label }: { text?: string | null; label?: string }) {
+  return (
+    <div className="border-l-4 border-blue-400 rounded-r-lg bg-blue-50/50 dark:bg-blue-950/20 p-2.5 space-y-0.5">
+      <div className="flex items-center gap-1.5">
+        <User className="h-3 w-3 text-blue-500" />
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+          {label ?? "Nageur"}
+        </p>
+      </div>
+      <p className="text-sm whitespace-pre-wrap">
+        {text?.trim() || <span className="italic text-muted-foreground">Non renseigne</span>}
+      </p>
+    </div>
+  );
+}
+
+function CoachBlock({ text, label }: { text?: string | null; label?: string }) {
+  if (!text?.trim()) return null;
+  return (
+    <div className="border-l-4 border-amber-400 rounded-r-lg bg-amber-50/50 dark:bg-amber-950/20 p-2.5 space-y-0.5">
+      <div className="flex items-center gap-1.5">
+        <GraduationCap className="h-3 w-3 text-amber-500" />
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+          {label ?? "Coach"}
+        </p>
+      </div>
+      <p className="text-sm whitespace-pre-wrap">{text}</p>
     </div>
   );
 }
@@ -460,29 +609,6 @@ function ObjectiveRow({ objective }: { objective: Objective }) {
           {objective.competition_name}
         </Badge>
       )}
-    </div>
-  );
-}
-
-// ── Read-only section helper ──
-
-function ReadOnlySection({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | null | undefined;
-}) {
-  return (
-    <div className="rounded-lg border bg-muted/30 p-3 space-y-1">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-        {label}
-      </p>
-      <p className="text-sm whitespace-pre-wrap">
-        {value || (
-          <span className="italic text-muted-foreground">Non renseigne</span>
-        )}
-      </p>
     </div>
   );
 }

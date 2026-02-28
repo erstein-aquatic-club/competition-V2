@@ -240,6 +240,7 @@ export {
   sendInterviewToAthlete,
   signInterview,
   deleteInterview,
+  getPreviousInterview,
 } from './interviews';
 
 export {

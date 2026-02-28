@@ -32,6 +32,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Plus, Trash2, CalendarRange, Check, X, Pencil, Copy } from "lucide-react";
+import { weekTypeColor, weekTypeTextColor } from "@/lib/weekTypeColor";
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -58,22 +59,6 @@ function getMondays(startDate: string, endDate: string): string[] {
     current.setDate(current.getDate() + 7);
   }
   return mondays;
-}
-
-/** Hash-based background color for week types. */
-function hashColor(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  const h = Math.abs(hash) % 360;
-  return `hsl(${h}, 70%, 85%)`;
-}
-
-/** Hash-based text color for week types. */
-function hashColorText(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  const h = Math.abs(hash) % 360;
-  return `hsl(${h}, 60%, 30%)`;
 }
 
 /** Format a date as DD/MM/YYYY. */
@@ -698,8 +683,8 @@ const WeekRow = ({
             <Badge
               className="text-[10px] px-1.5 py-0 border-0"
               style={{
-                backgroundColor: hashColor(week.week_type),
-                color: hashColorText(week.week_type),
+                backgroundColor: weekTypeColor(week.week_type),
+                color: weekTypeTextColor(week.week_type),
               }}
             >
               {week.week_type}

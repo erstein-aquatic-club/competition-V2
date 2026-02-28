@@ -81,6 +81,7 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 | `src/lib/neurotype-scoring.ts` | Calcul scores neurotype (points/maxPoints) + niveaux | ~40 lignes |
 | `src/components/neurotype/NeurotypQuiz.tsx` | Quiz 30 questions avec carousel + progress bar | ~250 lignes |
 | `src/components/neurotype/NeurotypResult.tsx` | Affichage résultat neurotype (barres, profil, accordéons) | ~250 lignes |
+| `src/lib/weekTypeColor.ts` | Helper partage couleur type semaine (hash-based) | ~15 lignes |
 
 ## Edge Functions Supabase
 
@@ -141,6 +142,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 36 | Quiz neurotype nageur (profil d'entraînement) | Moyenne | Fait (§71) |
 | 37 | Dashboard synthétique nageurs (coach) | Moyenne | Fait (§72) |
 | 38 | Fiche nageur coach (ressentis, objectifs, onglets) | Moyenne | Fait (§73) |
+| 39 | Refonte entretiens conversationnels + planif inline | Haute | Fait (§75) |
 
 Détail complet dans `docs/ROADMAP.md`.
 
