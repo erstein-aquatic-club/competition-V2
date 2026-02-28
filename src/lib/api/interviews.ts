@@ -124,21 +124,23 @@ export async function signInterview(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-/** Get the previous signed interview for an athlete (before a given date) */
+/** Get the previous signed interview for an athlete (before or on the same date, excluding current) */
 export async function getPreviousInterview(
   athleteId: number,
   beforeDate: string,
+  excludeId?: string,
 ): Promise<Interview | null> {
   if (!canUseSupabase()) return null;
-  const { data, error } = await supabase
+  let query = supabase
     .from("interviews")
     .select("*")
     .eq("athlete_id", athleteId)
     .eq("status", "signed")
-    .lt("date", beforeDate)
+    .lte("date", beforeDate)
     .order("date", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(1);
+  if (excludeId) query = query.neq("id", excludeId);
+  const { data, error } = await query.maybeSingle();
   if (error) throw new Error(error.message);
   return (data as Interview) ?? null;
 }

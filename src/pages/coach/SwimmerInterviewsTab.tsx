@@ -662,8 +662,8 @@ const InterviewDetailSheet = ({
 
   // Previous interview
   const { data: prevInterview } = useQuery({
-    queryKey: ["previous-interview", athleteId, interview?.date],
-    queryFn: () => api.getPreviousInterview(athleteId, interview!.date),
+    queryKey: ["previous-interview", athleteId, interview?.date, interview?.id],
+    queryFn: () => api.getPreviousInterview(athleteId, interview!.date, interview!.id),
     enabled: !!interview?.date,
   });
 

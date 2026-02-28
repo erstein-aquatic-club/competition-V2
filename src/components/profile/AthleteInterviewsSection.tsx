@@ -310,10 +310,10 @@ function InterviewCard({
 
   // Previous interview for commitment follow-up
   const { data: prevInterview } = useQuery({
-    queryKey: ["my-previous-interview", interview.date],
+    queryKey: ["my-previous-interview", interview.date, interview.id],
     queryFn: () => {
       if (!appUserId) return null;
-      return api.getPreviousInterview(appUserId, interview.date);
+      return api.getPreviousInterview(appUserId, interview.date, interview.id);
     },
     enabled: (isDraft || isSent || isSigned || isDraftCoach) && !!appUserId,
   });

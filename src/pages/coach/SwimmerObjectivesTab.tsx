@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { Objective, ObjectiveInput, Competition } from "@/lib/api";
@@ -33,8 +33,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Target } from "lucide-react";
-import { FFN_EVENTS, eventLabel, formatTime, parseTime } from "@/lib/objectiveHelpers";
+import { Plus, Target, Trash2 } from "lucide-react";
+import {
+  FFN_EVENTS,
+  eventLabel,
+  formatTime,
+  parseTime,
+  STROKE_COLORS,
+  strokeFromCode,
+  findBestPerformance,
+  daysUntil,
+  computeProgress,
+} from "@/lib/objectiveHelpers";
+import type { SwimmerPerformance } from "@/lib/api";
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -117,7 +128,7 @@ const ObjectiveFormSheet = ({
   const createMutation = useMutation({
     mutationFn: (input: ObjectiveInput) => api.createObjective(input),
     onSuccess: () => {
-      toast({ title: "Objectif cree" });
+      toast({ title: "Objectif créé" });
       void queryClient.invalidateQueries({ queryKey: ["objectives", athleteAuthId] });
       onOpenChange(false);
     },
@@ -134,7 +145,7 @@ const ObjectiveFormSheet = ({
     mutationFn: (input: Partial<ObjectiveInput>) =>
       api.updateObjective(objective!.id, input),
     onSuccess: () => {
-      toast({ title: "Objectif mis a jour" });
+      toast({ title: "Objectif mis à jour" });
       void queryClient.invalidateQueries({ queryKey: ["objectives", athleteAuthId] });
       onOpenChange(false);
     },
@@ -150,7 +161,7 @@ const ObjectiveFormSheet = ({
   const deleteMutation = useMutation({
     mutationFn: () => api.deleteObjective(objective!.id),
     onSuccess: () => {
-      toast({ title: "Objectif supprime" });
+      toast({ title: "Objectif supprimé" });
       void queryClient.invalidateQueries({ queryKey: ["objectives", athleteAuthId] });
       onOpenChange(false);
     },
@@ -169,8 +180,8 @@ const ObjectiveFormSheet = ({
   const handleSubmit = () => {
     if (showChrono && !eventCode) {
       toast({
-        title: "Epreuve requise",
-        description: "Veuillez selectionner une epreuve.",
+        title: "Épreuve requise",
+        description: "Veuillez sélectionner une épreuve.",
         variant: "destructive",
       });
       return;
@@ -180,7 +191,7 @@ const ObjectiveFormSheet = ({
       if (parsed === null) {
         toast({
           title: "Format invalide",
-          description: "Le temps doit etre au format m:ss:cc (ex: 1:05:30)",
+          description: "Le temps doit être au format m:ss:cc (ex: 1:05:30)",
           variant: "destructive",
         });
         return;
@@ -272,10 +283,10 @@ const ObjectiveFormSheet = ({
             {showChrono && (
               <>
                 <div className="space-y-2">
-                  <Label>Epreuve *</Label>
+                  <Label>Épreuve *</Label>
                   <Select value={eventCode} onValueChange={setEventCode}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Choisir une epreuve" />
+                      <SelectValue placeholder="Choisir une épreuve" />
                     </SelectTrigger>
                     <SelectContent>
                       {FFN_EVENTS.map((code) => (
@@ -301,7 +312,7 @@ const ObjectiveFormSheet = ({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Temps cible (min:sec:centiemes)</Label>
+                  <Label>Temps cible (min:sec:centièmes)</Label>
                   <Input
                     placeholder="Ex : 1:05:30"
                     value={targetTime}
@@ -316,7 +327,7 @@ const ObjectiveFormSheet = ({
               <div className="space-y-2">
                 <Label>Objectif texte *</Label>
                 <Textarea
-                  placeholder="Ex : Ameliorer la coulee de dos"
+                  placeholder="Ex : Améliorer la coulée de dos"
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   rows={3}
@@ -326,7 +337,7 @@ const ObjectiveFormSheet = ({
 
             {/* Competition link */}
             <div className="space-y-2">
-              <Label>Lier a une competition</Label>
+              <Label>Lier à une compétition</Label>
               <Select
                 value={competitionId}
                 onValueChange={setCompetitionId}
@@ -356,7 +367,7 @@ const ObjectiveFormSheet = ({
                   ? "Enregistrement..."
                   : isEdit
                     ? "Enregistrer"
-                    : "Creer"}
+                    : "Créer"}
               </Button>
 
               {isEdit && (
@@ -383,8 +394,8 @@ const ObjectiveFormSheet = ({
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer l'objectif</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action est irreversible. L'objectif sera supprime
-              definitivement.
+              Cette action est irréversible. L'objectif sera supprimé
+              définitivement.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -405,58 +416,115 @@ const ObjectiveFormSheet = ({
   );
 };
 
-// ── Objective Card ──────────────────────────────────────────────
+// ── Compact Objective Card (same design as interview view) ──
+
+function formatDate(d: string) {
+  const p = d.split("-");
+  if (p.length === 3) return `${p[2]}/${p[1]}/${p[0]}`;
+  return d;
+}
 
 type ObjectiveCardProps = {
   objective: Objective;
+  performances: SwimmerPerformance[];
   onEdit: (obj: Objective) => void;
 };
 
-const ObjectiveCard = ({ objective, onEdit }: ObjectiveCardProps) => {
-  const hasChrono = !!objective.event_code;
-  const hasText = !!objective.text;
+const ObjectiveCard = ({ objective, performances, onEdit }: ObjectiveCardProps) => {
+  const stroke = objective.event_code ? strokeFromCode(objective.event_code) : null;
+  const borderColor = stroke ? STROKE_COLORS[stroke] ?? "" : "";
+
+  const bestPerf = objective.event_code
+    ? findBestPerformance(performances, objective.event_code, objective.pool_length)
+    : null;
+
+  let delta: number | null = null;
+  let progressPct: number | null = null;
+  if (bestPerf && objective.target_time_seconds != null && objective.event_code) {
+    delta = bestPerf.time - objective.target_time_seconds;
+    progressPct = computeProgress(bestPerf.time, objective.target_time_seconds, objective.event_code);
+  }
+
+  const hasCompetition = !!objective.competition_name;
+  const leftDays = objective.competition_date ? daysUntil(objective.competition_date) : null;
 
   return (
     <button
       type="button"
-      className="w-full text-left rounded-xl border bg-card p-3 space-y-1.5 transition-colors hover:bg-muted/50"
+      className={`w-full text-left rounded-lg border bg-card p-3 text-sm space-y-1.5 transition-colors hover:bg-muted/50 ${borderColor ? `border-l-4 ${borderColor}` : ""}`}
       onClick={() => onEdit(objective)}
     >
-      {hasChrono && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-semibold">
-            {eventLabel(objective.event_code!)}
-          </span>
-          {objective.pool_length && (
-            <Badge
-              variant="secondary"
-              className="text-[10px] px-1.5 py-0"
-            >
-              {objective.pool_length}m
-            </Badge>
+      {/* Row 1: event info */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Target className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
+          {objective.event_code && (
+            <span className="font-medium">{eventLabel(objective.event_code)}</span>
+          )}
+          {objective.event_code && objective.pool_length && (
+            <span className="text-muted-foreground">({objective.pool_length}m)</span>
           )}
           {objective.target_time_seconds != null && (
-            <Badge
-              variant="outline"
-              className="text-[10px] px-1.5 py-0 font-mono"
-            >
+            <span className="font-mono text-xs text-primary">
               {formatTime(objective.target_time_seconds)}
-            </Badge>
+            </span>
+          )}
+        </div>
+        <Trash2 className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
+      </div>
+
+      {/* Text objective */}
+      {objective.text && (
+        <p className="text-muted-foreground text-xs pl-5 line-clamp-2">{objective.text}</p>
+      )}
+
+      {/* Best performance line */}
+      {objective.event_code && bestPerf && (
+        <div className="flex items-center gap-2 pl-5 text-xs text-muted-foreground flex-wrap">
+          <span>
+            Actuel : <span className="font-mono">{formatTime(bestPerf.time)}</span>
+          </span>
+          {bestPerf.date && (
+            <span className="text-muted-foreground/60">({formatDate(bestPerf.date)})</span>
+          )}
+          {delta != null && (
+            <span className={delta <= 0 ? "text-emerald-600 font-medium" : "text-amber-600"}>
+              {delta <= 0 ? "Objectif atteint !" : `+${delta.toFixed(1)}s`}
+            </span>
           )}
         </div>
       )}
-      {hasText && (
-        <p className="text-sm text-muted-foreground line-clamp-2">
-          {objective.text}
+      {objective.event_code && !bestPerf && (
+        <p className="text-[10px] text-muted-foreground italic pl-5">
+          Pas encore de temps enregistré
         </p>
       )}
-      {objective.competition_name && (
-        <Badge
-          variant="outline"
-          className="border-orange-300 text-orange-600 dark:text-orange-400 text-[10px] px-1.5 py-0"
-        >
-          {objective.competition_name}
-        </Badge>
+
+      {/* Progress bar */}
+      {progressPct != null && (
+        <div className="pl-5 pr-1">
+          <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${progressPct >= 100 ? "bg-emerald-500" : "bg-primary"}`}
+              style={{ width: `${Math.min(progressPct, 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Competition countdown */}
+      {hasCompetition && (
+        <div className="pl-5">
+          <Badge
+            variant="outline"
+            className="border-orange-300 text-orange-600 dark:text-orange-400 text-[10px] px-1.5 py-0"
+          >
+            {objective.competition_name}
+            {leftDays != null && leftDays > 0 && (
+              <span className="ml-1 font-bold">J-{leftDays}</span>
+            )}
+          </Badge>
+        </div>
       )}
     </button>
   );
@@ -486,6 +554,24 @@ const SwimmerObjectivesTab = ({ athleteId, athleteName }: Props) => {
     queryKey: ["objectives", athleteAuthId],
     queryFn: () => api.getObjectives(athleteAuthId!),
     enabled: !!athleteAuthId,
+  });
+
+  // Fetch athlete IUF for performance lookup
+  const { data: athleteProfile } = useQuery({
+    queryKey: ["profile", athleteId],
+    queryFn: () => api.getProfile({ userId: athleteId }),
+    enabled: !!athleteId,
+  });
+  const athleteIuf = athleteProfile?.ffn_iuf ?? null;
+  const perfFromDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 360);
+    return d.toISOString().slice(0, 10);
+  }, []);
+  const { data: performances = [] } = useQuery({
+    queryKey: ["swimmer-performances-recent", athleteIuf],
+    queryFn: () => api.getSwimmerPerformances({ iuf: athleteIuf!, fromDate: perfFromDate }),
+    enabled: !!athleteIuf,
   });
 
   const handleCreate = () => {
@@ -555,11 +641,11 @@ const SwimmerObjectivesTab = ({ athleteId, athleteName }: Props) => {
         <div className="text-center py-12 space-y-3">
           <Target className="h-10 w-10 text-muted-foreground mx-auto" />
           <p className="text-sm text-muted-foreground">
-            Aucun objectif defini pour {athleteName}.
+            Aucun objectif défini pour {athleteName}.
           </p>
           <Button variant="outline" size="sm" onClick={handleCreate}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Creer le premier objectif
+            Créer le premier objectif
           </Button>
         </div>
       )}
@@ -568,7 +654,7 @@ const SwimmerObjectivesTab = ({ athleteId, athleteName }: Props) => {
       {showObjectivesList && !objectivesLoading && objectives.length > 0 && (
         <div className="space-y-2">
           {objectives.map((obj) => (
-            <ObjectiveCard key={obj.id} objective={obj} onEdit={handleEdit} />
+            <ObjectiveCard key={obj.id} objective={obj} performances={performances} onEdit={handleEdit} />
           ))}
         </div>
       )}
