@@ -522,10 +522,6 @@ export default function Progress() {
   })();
 
   const topExerciseVolume = exerciseVolumeData.slice(0, 8);
-  const activeSwimPeriodLabel =
-    PERIOD_OPTIONS.find((option) => option.value === swimPeriodDays)?.label ?? `${swimPeriodDays}j`;
-  const activeStrengthPeriodLabel =
-    PERIOD_OPTIONS.find((option) => option.value === strengthPeriodDays)?.label ?? `${strengthPeriodDays}j`;
 
   const formatExerciseDate = (dateValue: string | null) => {
     if (!dateValue) return "-";
@@ -567,16 +563,8 @@ export default function Progress() {
         {/* ── Natation ──────────────────────────────────────────────────────── */}
 
         <TabsContent value="swim" className="space-y-4 mt-4">
-          <div className="rounded-2xl border border-border/70 bg-card/90 px-4 py-3 shadow-sm">
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                Période active
-              </p>
-              <p className="mt-1 text-sm font-semibold text-foreground">
-                Natation sur {activeSwimPeriodLabel}
-              </p>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
+          <div className="flex justify-end">
+            <div className="flex flex-wrap justify-end gap-2">
               {PERIOD_OPTIONS.map((option) => (
                 <button
                   key={option.value}
@@ -705,16 +693,8 @@ export default function Progress() {
         {/* ── Musculation ───────────────────────────────────────────────────── */}
 
         <TabsContent value="strength" className="space-y-4 mt-4">
-          <div className="rounded-2xl border border-border/70 bg-card/90 px-4 py-3 shadow-sm">
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                Période active
-              </p>
-              <p className="mt-1 text-sm font-semibold text-foreground">
-                Musculation sur {activeStrengthPeriodLabel}
-              </p>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
+          <div className="flex justify-end">
+            <div className="flex flex-wrap justify-end gap-2">
               {PERIOD_OPTIONS.map((option) => (
                 <button
                   key={option.value}

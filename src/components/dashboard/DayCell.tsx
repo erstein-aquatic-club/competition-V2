@@ -56,11 +56,11 @@ export const DayCell = memo(function DayCell({
   const ring = isSelected ? "ring-2 ring-primary/30" : "";
   const todayRing = isToday && !isSelected ? "ring-2 ring-primary/50" : "";
   const focusRing = isFocused ? "ring-2 ring-primary" : "";
-  const slotBadgeTone = (slot?: SlotStatus) => {
+  const slotPillTone = (slot?: SlotStatus) => {
     if (!slot?.expected) return "hidden";
-    if (slot.completed) return "bg-status-success text-white";
-    if (slot.absent) return "bg-muted-foreground/15 text-muted-foreground";
-    return "bg-muted text-muted-foreground";
+    if (slot.completed) return "bg-status-success";
+    if (slot.absent) return "bg-muted-foreground/15";
+    return "bg-muted-foreground/30";
   };
 
   const amSlot = slots.find((s) => s.slotKey === "AM");
@@ -103,20 +103,16 @@ export const DayCell = memo(function DayCell({
               <div className="flex items-center gap-1">
                 <span
                   className={cn(
-                    "inline-flex h-3.5 min-w-[14px] items-center justify-center rounded-md px-0.5 text-[8px] font-bold leading-none",
-                    slotBadgeTone(amSlot),
+                    "inline-flex h-2 w-4 rounded-full",
+                    slotPillTone(amSlot),
                   )}
-                >
-                  M
-                </span>
+                />
                 <span
                   className={cn(
-                    "inline-flex h-3.5 min-w-[14px] items-center justify-center rounded-md px-0.5 text-[8px] font-bold leading-none",
-                    slotBadgeTone(pmSlot),
+                    "inline-flex h-2 w-4 rounded-full",
+                    slotPillTone(pmSlot),
                   )}
-                >
-                  S
-                </span>
+                />
               </div>
               {strengthAssigned ? (
                 <span className="h-1.5 w-1.5 rounded-full bg-orange-400 shrink-0" />

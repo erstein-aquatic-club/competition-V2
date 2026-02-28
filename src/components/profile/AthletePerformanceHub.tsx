@@ -363,24 +363,24 @@ export default function AthletePerformanceHub({
       </div>
 
       <Tabs defaultValue="objectifs" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4 rounded-2xl">
-          <TabsTrigger value="objectifs" className="gap-1 text-[11px] sm:text-xs">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-2xl bg-transparent p-0 sm:grid-cols-4">
+          <TabsTrigger value="objectifs" className="gap-1 rounded-2xl border border-border bg-card px-3 py-2.5 text-xs data-[state=active]:border-primary/30 data-[state=active]:bg-primary/5 data-[state=active]:text-primary">
             <Target className="hidden h-3.5 w-3.5 sm:block" />
-            <span className="sm:hidden">Plan</span>
+            <span className="sm:hidden">Plan d&apos;action</span>
             <span className="hidden sm:inline">Plan d'action</span>
           </TabsTrigger>
-          <TabsTrigger value="entretiens" className="gap-1 text-[11px] sm:text-xs">
+          <TabsTrigger value="entretiens" className="gap-1 rounded-2xl border border-border bg-card px-3 py-2.5 text-xs data-[state=active]:border-primary/30 data-[state=active]:bg-primary/5 data-[state=active]:text-primary">
             <MessageSquare className="hidden h-3.5 w-3.5 sm:block" />
-            <span className="sm:hidden">Entr.</span>
+            <span className="sm:hidden">Entretiens</span>
             <span className="hidden sm:inline">Entretiens</span>
           </TabsTrigger>
-          <TabsTrigger value="planification" className="gap-1 text-[11px] sm:text-xs">
+          <TabsTrigger value="planification" className="gap-1 rounded-2xl border border-border bg-card px-3 py-2.5 text-xs data-[state=active]:border-primary/30 data-[state=active]:bg-primary/5 data-[state=active]:text-primary">
             <CalendarRange className="hidden h-3.5 w-3.5 sm:block" />
             <span>Planif.</span>
           </TabsTrigger>
-          <TabsTrigger value="ressentis" className="gap-1 text-[11px] sm:text-xs">
+          <TabsTrigger value="ressentis" className="gap-1 rounded-2xl border border-border bg-card px-3 py-2.5 text-xs data-[state=active]:border-primary/30 data-[state=active]:bg-primary/5 data-[state=active]:text-primary">
             <Clock className="hidden h-3.5 w-3.5 sm:block" />
-            <span className="sm:hidden">Ress.</span>
+            <span className="sm:hidden">Ressentis</span>
             <span className="hidden sm:inline">Ressentis</span>
           </TabsTrigger>
         </TabsList>

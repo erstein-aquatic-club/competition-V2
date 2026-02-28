@@ -17,7 +17,6 @@ import { InlineBanner } from "@/components/shared/InlineBanner";
 import {
   Settings2,
   Waves,
-  Info,
   Minus,
   Plus,
   AlertCircle,
@@ -80,11 +79,9 @@ function clampToStep(value: number, step: number) {
 /** Shared inner content for the Dashboard page header (mobile fixed + desktop inline). */
 function DashboardHeaderContent({
   globalKm,
-  onInfo,
   onSettings,
 }: {
   globalKm: string;
-  onInfo: () => void;
   onSettings: () => void;
 }) {
   return (
@@ -101,23 +98,12 @@ function DashboardHeaderContent({
           type="button"
           variant="outline"
           size="sm"
-          onClick={onInfo}
-          className="h-8 rounded-xl border-primary/20 bg-primary/5 px-2.5 text-xs font-semibold text-primary hover:bg-primary/10"
-          aria-label="Codes"
-        >
-          <Info className="mr-1 h-3.5 w-3.5" />
-          Codes
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
           onClick={onSettings}
           className="h-8 rounded-xl border-primary/20 bg-primary/5 px-2.5 text-xs font-semibold text-primary hover:bg-primary/10"
-          aria-label="Présences"
+          aria-label="Présence hebdo"
         >
           <Settings2 className="mr-1 h-3.5 w-3.5" />
-          Présence
+          Hebdo
         </Button>
       </div>
     </>
@@ -325,7 +311,6 @@ export default function Dashboard() {
     selectedISO,
     drawerOpen,
     settingsOpen,
-    infoOpen,
     activeSessionId,
     detailsOpen,
     selectedDayIndex,
@@ -346,7 +331,6 @@ export default function Dashboard() {
     setSelectedISO,
     setDrawerOpen,
     setSettingsOpen,
-    setInfoOpen,
     setActiveSessionId,
     setDetailsOpen,
     setSelectedDayIndex,
@@ -697,7 +681,6 @@ export default function Dashboard() {
         <div className="px-4 py-2.5 flex items-center justify-between">
           <DashboardHeaderContent
             globalKm={globalKm}
-            onInfo={() => setInfoOpen(true)}
             onSettings={() => setSettingsOpen(true)}
           />
         </div>
@@ -708,7 +691,6 @@ export default function Dashboard() {
         <div className="hidden sm:flex items-center justify-between">
           <DashboardHeaderContent
             globalKm={globalKm}
-            onInfo={() => setInfoOpen(true)}
             onSettings={() => setSettingsOpen(true)}
           />
         </div>
@@ -782,62 +764,11 @@ export default function Dashboard() {
           />
         )}
 
-        {/* Info Dialog */}
-        <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
-          <DialogContent className="max-w-sm rounded-2xl">
-            <DialogHeader>
-              <DialogTitle>Codes</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3 text-sm">
-              <div className="rounded-2xl border border-border bg-muted/30 px-3 py-3">
-                <div className="text-sm font-semibold text-foreground">Lecture rapide</div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  Vérifie la couleur du jour pour savoir s&apos;il te reste une action à faire.
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-orange-200 bg-orange-50 px-3 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-semibold text-orange-900">Orange</span>
-                  <span className="text-orange-900">Action attendue</span>
-                </div>
-                <div className="mt-1 text-xs text-orange-800/90">
-                  Il reste un ressenti ou une validation à compléter.
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-semibold text-emerald-900">Vert</span>
-                  <span className="text-emerald-900">Validé</span>
-                </div>
-                <div className="mt-1 text-xs text-emerald-800/90">
-                  La séance est confirmée et les kilomètres comptent.
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-semibold text-sky-900">Bleu</span>
-                  <span className="text-sky-900">Absent ou non prévu</span>
-                </div>
-                <div className="mt-1 text-xs text-sky-800/90">
-                  Aucun ressenti attendu pour ce créneau tant que tu ne l&apos;actives pas.
-                </div>
-              </div>
-
-              <div className="text-xs text-muted-foreground">
-                Les kilomètres ne sont ajoutés qu&apos;après validation finale.
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
         {/* Settings Dialog */}
         <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
           <DialogContent className="max-w-sm rounded-2xl">
             <DialogHeader>
-              <DialogTitle>Présence</DialogTitle>
+              <DialogTitle>Présence hebdo</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
               <div className="text-xs text-muted-foreground">
