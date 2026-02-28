@@ -1,7 +1,10 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { ChevronDown } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { Button } from "@/components/ui/button";
+import { BarChart3, ChevronDown } from "lucide-react";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -29,6 +32,8 @@ interface Props {
 }
 
 export default function SwimmerFeedbackTab({ athleteId, athleteName }: Props) {
+  const [, navigate] = useLocation();
+  const { setSelectedAthlete } = useAuth();
   const [limit, setLimit] = useState(20);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
@@ -61,8 +66,23 @@ export default function SwimmerFeedbackTab({ athleteId, athleteName }: Props) {
     );
   }
 
+  const handleOpenProgression = () => {
+    setSelectedAthlete({ id: athleteId, name: athleteName });
+    navigate("/progress");
+  };
+
   return (
     <div className="space-y-2">
+      <Button
+        variant="outline"
+        size="sm"
+        className="w-full text-xs gap-1.5"
+        onClick={handleOpenProgression}
+      >
+        <BarChart3 className="h-3.5 w-3.5" />
+        Voir la progression
+      </Button>
+
       {displayed.map((session) => {
         const isExpanded = expandedId === session.id;
         return (
