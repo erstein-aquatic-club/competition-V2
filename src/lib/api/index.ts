@@ -171,6 +171,7 @@ export {
   recalculateClubRecords,
   getClubRanking,
   syncClubRecordSwimmersFromUsers,
+  mergeClubRecordSwimmers,
   getAppSettings,
   updateAppSettings,
 } from './records';

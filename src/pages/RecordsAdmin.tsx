@@ -9,7 +9,8 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { AlertCircle, ChevronDown, Eye, Plus, RefreshCw, Settings } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertCircle, ArrowRight, ChevronDown, Eye, GitMerge, Plus, RefreshCw, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { InlineBanner } from "@/components/shared/InlineBanner";
 
@@ -75,10 +76,11 @@ type SwimmerCardProps = {
   swimmer: ClubRecordSwimmer;
   onUpdate: (payload: Record<string, unknown>) => void;
   onImport?: () => void;
+  onMerge?: () => void;
   importPending: boolean;
 };
 
-const SwimmerCard = ({ swimmer, onUpdate, onImport, importPending }: SwimmerCardProps) => {
+const SwimmerCard = ({ swimmer, onUpdate, onImport, onMerge, importPending }: SwimmerCardProps) => {
   const stale = isStale((swimmer as any).last_imported_at);
   const incomplete = swimmer.is_active && (!swimmer.iuf || !swimmer.sex || !swimmer.birthdate);
   const rowKey = swimmer.id ?? `user-${swimmer.user_id ?? "unknown"}`;
@@ -161,7 +163,7 @@ const SwimmerCard = ({ swimmer, onUpdate, onImport, importPending }: SwimmerCard
         />
       </div>
 
-      {/* Row 3: Last import + Import button */}
+      {/* Row 3: Last import + action buttons */}
       <div className="flex items-center justify-between">
         <span
           className={cn(
@@ -171,19 +173,32 @@ const SwimmerCard = ({ swimmer, onUpdate, onImport, importPending }: SwimmerCard
         >
           Maj : {formatDateOnly((swimmer as any).last_imported_at)}
         </span>
-        {swimmer.is_active && swimmer.iuf ? (
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 text-xs"
-            disabled={importPending}
-            onClick={onImport}
-          >
-            Importer
-          </Button>
-        ) : swimmer.is_active && !swimmer.iuf ? (
-          <span className="text-[11px] text-muted-foreground">IUF requis</span>
-        ) : null}
+        <div className="flex items-center gap-1.5">
+          {onMerge && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs"
+              onClick={onMerge}
+            >
+              <GitMerge className="h-3 w-3 mr-1" />
+              Fusionner
+            </Button>
+          )}
+          {swimmer.is_active && swimmer.iuf ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs"
+              disabled={importPending}
+              onClick={onImport}
+            >
+              Importer
+            </Button>
+          ) : swimmer.is_active && !swimmer.iuf ? (
+            <span className="text-[11px] text-muted-foreground">IUF requis</span>
+          ) : null}
+        </div>
       </div>
     </div>
   );
@@ -205,6 +220,8 @@ export default function RecordsAdmin() {
   const [showArchive, setShowArchive] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [rateLimits, setRateLimits] = useState<{ coach_monthly: number; athlete_monthly: number; admin_monthly: number } | null>(null);
+  const [mergeSource, setMergeSource] = useState<ClubRecordSwimmer | null>(null);
+  const [mergeTargetId, setMergeTargetId] = useState<number | null>(null);
 
   const canAccess = role === "coach" || role === "admin";
   const isAdmin = role === "admin";
@@ -361,6 +378,24 @@ export default function RecordsAdmin() {
     },
   });
 
+  const mergeSwimmers = useMutation({
+    mutationFn: ({ manualId, userSwimmerId }: { manualId: number; userSwimmerId: number }) =>
+      api.mergeClubRecordSwimmers(manualId, userSwimmerId),
+    onSuccess: (result) => {
+      toast({
+        title: "Profils fusionnés",
+        description: `IUF ${result.iuf_transferred ?? "—"} transféré, ${result.performances_reassigned} performance(s) rattachée(s).`,
+      });
+      setMergeSource(null);
+      setMergeTargetId(null);
+      void load();
+      void queryClient.invalidateQueries({ queryKey: ["club-records"] });
+    },
+    onError: (err: any) => {
+      toast({ title: err?.message || "Fusion impossible", variant: "destructive" });
+    },
+  });
+
   const { activeSwimmers, inactiveSwimmers } = useMemo(() => {
     const sorted = [...swimmers].sort((a, b) => {
       if (a.source_type !== b.source_type) return a.source_type.localeCompare(b.source_type);
@@ -371,6 +406,16 @@ export default function RecordsAdmin() {
       inactiveSwimmers: sorted.filter((s) => !s.is_active),
     };
   }, [swimmers]);
+
+  const userSwimmers = useMemo(
+    () => swimmers.filter((s) => s.source_type === "user" && s.is_active),
+    [swimmers],
+  );
+
+  const mergeTarget = useMemo(
+    () => (mergeTargetId ? swimmers.find((s) => s.id === mergeTargetId) ?? null : null),
+    [mergeTargetId, swimmers],
+  );
 
   const incompleteCount = useMemo(
     () => swimmers.filter((s) => s.is_active && (!s.iuf || !s.sex || !s.birthdate)).length,
@@ -550,6 +595,11 @@ export default function RecordsAdmin() {
                     ? () => importSingle.mutate({ iuf: swimmer.iuf!, name: swimmer.display_name })
                     : undefined
                 }
+                onMerge={
+                  swimmer.source_type === "manual" && swimmer.is_active
+                    ? () => { setMergeSource(swimmer); setMergeTargetId(null); }
+                    : undefined
+                }
                 importPending={importSingle.isPending}
               />
             ))}
@@ -621,6 +671,114 @@ export default function RecordsAdmin() {
           </div>
         )}
       </div>
+
+      {/* Merge Dialog */}
+      <Dialog open={!!mergeSource} onOpenChange={(open) => { if (!open) { setMergeSource(null); setMergeTargetId(null); } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Fusionner les profils</DialogTitle>
+            <DialogDescription>
+              Transférer l'IUF, le sexe et l'année de l'ancien profil vers le compte du nageur.
+            </DialogDescription>
+          </DialogHeader>
+
+          {mergeSource && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Left: manual (source) */}
+                <div className="rounded-xl border p-3 space-y-1.5 bg-muted/30">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Ancien</p>
+                  <p className="text-sm font-semibold">{mergeSource.display_name}</p>
+                  <div className="space-y-0.5 text-xs text-muted-foreground">
+                    <p>IUF : <span className="font-mono">{mergeSource.iuf ?? "—"}</span></p>
+                    <p>Sexe : {mergeSource.sex === "M" ? "Garçon" : mergeSource.sex === "F" ? "Fille" : "—"}</p>
+                    <p>Année : {mergeSource.birthdate ? new Date(mergeSource.birthdate).getFullYear() : "—"}</p>
+                  </div>
+                </div>
+
+                {/* Right: user (target) */}
+                <div className="rounded-xl border p-3 space-y-1.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Compte</p>
+                  <Select
+                    value={mergeTargetId ? String(mergeTargetId) : ""}
+                    onValueChange={(v) => setMergeTargetId(Number(v))}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Choisir un nageur inscrit…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {userSwimmers.map((s) => (
+                        <SelectItem key={s.id} value={String(s.id)}>
+                          {s.display_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {mergeTarget && (
+                    <div className="space-y-0.5 text-xs text-muted-foreground">
+                      <p>IUF : <span className="font-mono">{mergeTarget.iuf ?? "—"}</span></p>
+                      <p>Sexe : {mergeTarget.sex === "M" ? "Garçon" : mergeTarget.sex === "F" ? "Fille" : "—"}</p>
+                      <p>Année : {mergeTarget.birthdate ? new Date(mergeTarget.birthdate).getFullYear() : "—"}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Transfer indicators */}
+              {mergeTarget && (
+                <div className="rounded-lg bg-muted/50 p-2.5 space-y-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Transferts prévus</p>
+                  {mergeSource.iuf && !mergeTarget.iuf && (
+                    <p className="text-xs flex items-center gap-1.5">
+                      <ArrowRight className="h-3 w-3 text-primary shrink-0" />
+                      IUF <span className="font-mono text-primary">{mergeSource.iuf}</span>
+                    </p>
+                  )}
+                  {mergeSource.sex && !mergeTarget.sex && (
+                    <p className="text-xs flex items-center gap-1.5">
+                      <ArrowRight className="h-3 w-3 text-primary shrink-0" />
+                      Sexe : {mergeSource.sex === "M" ? "Garçon" : "Fille"}
+                    </p>
+                  )}
+                  {mergeSource.birthdate && !mergeTarget.birthdate && (
+                    <p className="text-xs flex items-center gap-1.5">
+                      <ArrowRight className="h-3 w-3 text-primary shrink-0" />
+                      Année : {new Date(mergeSource.birthdate).getFullYear()}
+                    </p>
+                  )}
+                  {mergeSource.iuf && (
+                    <p className="text-xs flex items-center gap-1.5">
+                      <ArrowRight className="h-3 w-3 text-primary shrink-0" />
+                      Performances FFN rattachées au compte
+                    </p>
+                  )}
+                  <p className="text-xs flex items-center gap-1.5 text-destructive">
+                    <ArrowRight className="h-3 w-3 shrink-0" />
+                    L'entrée « {mergeSource.display_name} » sera supprimée
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setMergeSource(null); setMergeTargetId(null); }}>
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!mergeSource || !mergeTargetId || mergeSwimmers.isPending}
+              onClick={() => {
+                if (mergeSource?.id && mergeTargetId) {
+                  mergeSwimmers.mutate({ manualId: mergeSource.id, userSwimmerId: mergeTargetId });
+                }
+              }}
+            >
+              {mergeSwimmers.isPending ? "Fusion…" : "Fusionner"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Admin settings */}
       {isAdmin && (

@@ -585,6 +585,20 @@ export async function getAppSettings(key: string): Promise<any> {
   return data?.value ?? null;
 }
 
+/** Merge a manual swimmer entry into a user swimmer entry (atomic RPC) */
+export async function mergeClubRecordSwimmers(
+  manualId: number,
+  userSwimmerId: number,
+): Promise<{ merged_into: number; iuf_transferred: string | null; performances_reassigned: number }> {
+  if (!canUseSupabase()) throw new Error("Supabase not configured");
+  const { data, error } = await supabase.rpc("merge_club_record_swimmers", {
+    p_manual_id: manualId,
+    p_user_swimmer_id: userSwimmerId,
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
 /** Update app settings by key */
 export async function updateAppSettings(key: string, value: any): Promise<void> {
   if (!canUseSupabase()) return;

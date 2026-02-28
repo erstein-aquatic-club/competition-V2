@@ -160,6 +160,7 @@ import {
   recalculateClubRecords as _recalculateClubRecords,
   getClubRanking as _getClubRanking,
   syncClubRecordSwimmersFromUsers as _syncClubRecordSwimmersFromUsers,
+  mergeClubRecordSwimmers as _mergeClubRecordSwimmers,
   getAppSettings as _getAppSettings,
   updateAppSettings as _updateAppSettings,
 } from "./api/records";
@@ -513,6 +514,7 @@ export const api = {
   async recalculateClubRecords() { return _recalculateClubRecords(); },
   async getClubRanking(filters: Parameters<typeof _getClubRanking>[0]) { return _getClubRanking(filters); },
   async syncClubRecordSwimmersFromUsers() { return _syncClubRecordSwimmersFromUsers(); },
+  async mergeClubRecordSwimmers(manualId: number, userSwimmerId: number) { return _mergeClubRecordSwimmers(manualId, userSwimmerId); },
   async getAppSettings(key: string) { return _getAppSettings(key); },
   async updateAppSettings(key: string, value: any) { return _updateAppSettings(key, value); },
 
