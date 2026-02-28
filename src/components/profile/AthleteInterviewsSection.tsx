@@ -1,12 +1,18 @@
 import { useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { Interview, InterviewAthleteInput } from "@/lib/api";
+import type { Interview, InterviewAthleteInput, Objective } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import {
+  eventLabel,
+  formatTime,
+  STROKE_COLORS,
+  strokeFromCode,
+} from "@/lib/objectiveHelpers";
 import {
   ArrowLeft,
   MessageSquare,
@@ -15,6 +21,7 @@ import {
   Clock,
   ChevronDown,
   ChevronUp,
+  Target,
 } from "lucide-react";
 
 type Props = { onBack: () => void };
@@ -35,6 +42,11 @@ export default function AthleteInterviewsSection({ onBack }: Props) {
   const { data: interviews = [], isLoading } = useQuery({
     queryKey: ["my-interviews"],
     queryFn: () => api.getMyInterviews(),
+  });
+
+  const { data: objectives = [] } = useQuery({
+    queryKey: ["athlete-objectives"],
+    queryFn: () => api.getAthleteObjectives(),
   });
 
   const invalidate = useCallback(
@@ -136,6 +148,7 @@ export default function AthleteInterviewsSection({ onBack }: Props) {
           <InterviewCard
             key={interview.id}
             interview={interview}
+            objectives={objectives}
             onSave={(id, input) => saveMut.mutate({ id, input })}
             onSubmit={(id) => {
               if (
@@ -166,6 +179,7 @@ export default function AthleteInterviewsSection({ onBack }: Props) {
 
 function InterviewCard({
   interview,
+  objectives,
   onSave,
   onSubmit,
   onSign,
@@ -174,6 +188,7 @@ function InterviewCard({
   isSigning,
 }: {
   interview: Interview;
+  objectives: Objective[];
   onSave: (id: string, input: InterviewAthleteInput) => void;
   onSubmit: (id: string) => void;
   onSign: (id: string) => void;
@@ -299,10 +314,17 @@ function InterviewCard({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor={`goals-${interview.id}`}>Mes objectifs</Label>
+                <Label>Mes objectifs</Label>
+                {objectives.length > 0 && (
+                  <div className="space-y-1.5">
+                    {objectives.map((obj) => (
+                      <ObjectiveRow key={obj.id} objective={obj} />
+                    ))}
+                  </div>
+                )}
                 <Textarea
                   id={`goals-${interview.id}`}
-                  placeholder="Ce que je veux atteindre..."
+                  placeholder="Objectifs supplémentaires ou commentaires..."
                   value={goals}
                   onChange={(e) => setGoals(e.target.value)}
                   onBlur={handleBlur}
@@ -350,10 +372,24 @@ function InterviewCard({
                 label="Mes difficultes"
                 value={interview.athlete_difficulties}
               />
-              <ReadOnlySection
-                label="Mes objectifs"
-                value={interview.athlete_goals}
-              />
+              <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Mes objectifs
+                </p>
+                {objectives.length > 0 && (
+                  <div className="space-y-1.5">
+                    {objectives.map((obj) => (
+                      <ObjectiveRow key={obj.id} objective={obj} />
+                    ))}
+                  </div>
+                )}
+                {interview.athlete_goals && (
+                  <p className="text-sm whitespace-pre-wrap">{interview.athlete_goals}</p>
+                )}
+                {!interview.athlete_goals && objectives.length === 0 && (
+                  <p className="text-sm italic text-muted-foreground">Non renseigne</p>
+                )}
+              </div>
               <ReadOnlySection
                 label="Mes engagements"
                 value={interview.athlete_commitments}
@@ -387,6 +423,42 @@ function InterviewCard({
             </>
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+// ── Objective row (compact card) ──
+
+function ObjectiveRow({ objective }: { objective: Objective }) {
+  const stroke = objective.event_code ? strokeFromCode(objective.event_code) : null;
+  const borderColor = stroke ? STROKE_COLORS[stroke] ?? "" : "";
+
+  return (
+    <div className={`flex items-center gap-2 rounded-lg border bg-card p-2 text-sm ${borderColor ? `border-l-4 ${borderColor}` : ""}`}>
+      <Target className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+      <div className="flex-1 min-w-0">
+        {objective.event_code && (
+          <span className="font-medium">{eventLabel(objective.event_code)}</span>
+        )}
+        {objective.event_code && objective.pool_length && (
+          <span className="text-muted-foreground"> ({objective.pool_length}m)</span>
+        )}
+        {objective.target_time_seconds != null && (
+          <span className="ml-1 font-mono text-xs text-primary">
+            {formatTime(objective.target_time_seconds)}
+          </span>
+        )}
+        {objective.text && (
+          <span className={objective.event_code ? " ml-1 text-muted-foreground" : ""}>
+            {objective.text}
+          </span>
+        )}
+      </div>
+      {objective.competition_name && (
+        <Badge variant="secondary" className="text-[10px] shrink-0">
+          {objective.competition_name}
+        </Badge>
       )}
     </div>
   );
