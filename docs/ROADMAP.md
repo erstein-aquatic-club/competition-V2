@@ -1,6 +1,6 @@
 # Roadmap de Développement
 
-*Dernière mise à jour : 2026-02-28 (§74 Planification & Entretiens fiche nageur coach)*
+*Dernière mise à jour : 2026-02-28 (§76 Créneaux d'entraînement récurrents)*
 
 Ce document décrit les fonctionnalités à implémenter. Il sert de référence pour reprendre le développement dans une future conversation.
 
@@ -48,6 +48,7 @@ Ce document décrit les fonctionnalités à implémenter. Il sert de référence
 | 35 | Fix désynchronisation group_members au changement de groupe | Haute | Faible | Fait (§67) |
 | 36 | Quiz neurotype nageur (profil d'entraînement) | Moyenne | Moyenne | Fait (§71) |
 | 37 | Planification & Entretiens (fiche nageur coach) | Haute | Haute | Fait (§74) |
+| 38 | Créneaux d'entraînement récurrents | Moyenne | Moyenne | Fait (§76) |
 
 ---
 

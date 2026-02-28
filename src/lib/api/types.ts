@@ -587,3 +587,62 @@ export interface NeurotypResult {
   scores: NeurotypScores;
   takenAt: string;
 }
+
+// ── Training Slots ──────────────────────────────────────────
+
+export interface TrainingSlot {
+  id: string;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  location: string;
+  is_active: boolean;
+  created_by: number | null;
+  created_at: string;
+  assignments: TrainingSlotAssignment[];
+}
+
+export interface TrainingSlotAssignment {
+  id: string;
+  slot_id: string;
+  group_id: number;
+  group_name: string;
+  coach_id: number;
+  coach_name: string;
+  lane_count: number | null;
+}
+
+export interface TrainingSlotOverride {
+  id: string;
+  slot_id: string;
+  override_date: string;
+  status: 'cancelled' | 'modified';
+  new_start_time: string | null;
+  new_end_time: string | null;
+  new_location: string | null;
+  reason: string | null;
+  created_by: number | null;
+  created_at: string;
+}
+
+export interface TrainingSlotInput {
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  location: string;
+  assignments: Array<{
+    group_id: number;
+    coach_id: number;
+    lane_count: number | null;
+  }>;
+}
+
+export interface TrainingSlotOverrideInput {
+  slot_id: string;
+  override_date: string;
+  status: 'cancelled' | 'modified';
+  new_start_time?: string | null;
+  new_end_time?: string | null;
+  new_location?: string | null;
+  reason?: string | null;
+}

@@ -55,6 +55,11 @@ export type {
   InterviewCreateInput,
   InterviewAthleteInput,
   InterviewCoachInput,
+  TrainingSlot,
+  TrainingSlotAssignment,
+  TrainingSlotOverride,
+  TrainingSlotInput,
+  TrainingSlotOverrideInput,
 } from "./api/types";
 
 import type {
@@ -233,6 +238,17 @@ import {
   deleteInterview as _deleteInterview,
   getPreviousInterview as _getPreviousInterview,
 } from './api/interviews';
+
+import {
+  getTrainingSlots as _getTrainingSlots,
+  getTrainingSlotsForGroup as _getTrainingSlotsForGroup,
+  createTrainingSlot as _createTrainingSlot,
+  updateTrainingSlot as _updateTrainingSlot,
+  deleteTrainingSlot as _deleteTrainingSlot,
+  getSlotOverrides as _getSlotOverrides,
+  createSlotOverride as _createSlotOverride,
+  deleteSlotOverride as _deleteSlotOverride,
+} from './api/training-slots';
 
 import {
   getExercises as _getExercises,
@@ -690,4 +706,16 @@ export const api = {
   async uploadAvatar(payload: Parameters<typeof _uploadAvatar>[0]) { return _uploadAvatar(payload); },
   async deleteAvatar(userId: number) { return _deleteAvatar(userId); },
   async getRecentSessionsAllAthletes(days?: number) { return _getRecentSessionsAllAthletes(days); },
+
+  // ══════════════════════════════════════════════════════════════════
+  // DELEGATION STUBS — Training Slots
+  // ══════════════════════════════════════════════════════════════════
+  async getTrainingSlots() { return _getTrainingSlots(); },
+  async getTrainingSlotsForGroup(groupId: number) { return _getTrainingSlotsForGroup(groupId); },
+  async createTrainingSlot(input: Parameters<typeof _createTrainingSlot>[0]) { return _createTrainingSlot(input); },
+  async updateTrainingSlot(slotId: string, input: Parameters<typeof _updateTrainingSlot>[1]) { return _updateTrainingSlot(slotId, input); },
+  async deleteTrainingSlot(slotId: string) { return _deleteTrainingSlot(slotId); },
+  async getSlotOverrides(options?: Parameters<typeof _getSlotOverrides>[0]) { return _getSlotOverrides(options); },
+  async createSlotOverride(input: Parameters<typeof _createSlotOverride>[0]) { return _createSlotOverride(input); },
+  async deleteSlotOverride(overrideId: string) { return _deleteSlotOverride(overrideId); },
 };

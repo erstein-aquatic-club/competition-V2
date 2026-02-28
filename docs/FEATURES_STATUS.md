@@ -1,6 +1,6 @@
 # État des fonctionnalités
 
-*Dernière mise à jour : 2026-02-28 (§74 Planification & Entretiens fiche nageur coach)*
+*Dernière mise à jour : 2026-02-28 (§76 Créneaux d'entraînement récurrents)*
 
 ## Légende
 
@@ -218,6 +218,17 @@ Tous les feature flags sont activés.
 | Panneau contextuel | ✅ | `SwimmerInterviewsTab.tsx` | Accordéon objectifs + planification + compétitions en phase draft_coach (§74) |
 | Signature nageur | ✅ | `AthleteInterviewsSection.tsx` | Bouton signer en statut sent, passe à signed (§74) |
 | Historique entretiens | ✅ | `SwimmerInterviewsTab.tsx`, `AthleteInterviewsSection.tsx` | Liste chronologique coach + archive collapsible nageur (§74) |
+
+### Créneaux d'entraînement récurrents
+
+| Fonctionnalité | Statut | Fichiers | Notes |
+|----------------|--------|----------|-------|
+| CRUD créneaux (jour + horaire + lieu) | ✅ | `CoachTrainingSlotsScreen.tsx`, `training-slots.ts` | Création, modification, soft delete (§76) |
+| Multi-groupes par créneau | ✅ | `CoachTrainingSlotsScreen.tsx`, `training-slots.ts` | N assignations groupe/coach/lignes par créneau (§76) |
+| Nombre de lignes d'eau par coach | ✅ | `CoachTrainingSlotsScreen.tsx` | Saisie manuelle dans le formulaire d'assignation (§76) |
+| Exceptions par date (annulation/modification) | ✅ | `CoachTrainingSlotsScreen.tsx`, `training-slots.ts` | Override avec statut cancelled/modified, motif optionnel (§76) |
+| Vue nageur "Mon planning" | ✅ | `Profile.tsx` | Liste compacte jour/horaire/lieu + exceptions à venir (§76) |
+| Navigation coach | ✅ | `Coach.tsx` | Bouton "Créneaux" dans la grille du dashboard coach (§76) |
 
 ### UI/UX & Design System (Phase 6)
 

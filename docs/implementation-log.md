@@ -46,6 +46,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §73 Fiche nageur coach (page onglets, ressentis, objectifs) | ✅ Fait | 2026-02-28 |
 | §74 Planification + Entretiens (fiche nageur coach) | ✅ Fait | 2026-02-28 |
 | §75 Refonte entretiens conversationnels + planif inline | ✅ Fait | 2026-02-28 |
+| §76 Créneaux d'entraînement récurrents | ✅ Fait | 2026-02-28 |
 | §45 Audit UI/UX — header Strength + login mobile + fixes | ✅ Fait | 2026-02-16 |
 | §46 Harmonisation headers + Login mobile thème clair | ✅ Fait | 2026-02-16 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
@@ -6061,3 +6062,53 @@ L'entretien individuel nageur/coach etait un formulaire en 2 blocs separes (4 ch
 - La planification inline cree un cycle avec la competition precedente la plus proche comme start — pas toujours ideal si aucune competition passee
 - Le bilan du nageur cote athlete utilise un import dynamique de supabase pour recuperer le `app_user_id` (pourrait etre passe en prop)
 - Les anciennes donnees d'entretiens (sans `coach_comment_*`) sont affichees via fallback sur `coach_review` — ok pour la transition
+
+---
+
+## §76 — 2026-02-28 — Créneaux d'entraînement récurrents
+
+**Branche** : `main`
+**Chantier ROADMAP** : §76 — Créneaux d'entraînement récurrents
+
+### Contexte — Pourquoi ce patch
+
+L'application n'avait aucune notion de planning hebdomadaire fixe. Le calendrier coach fonctionnait uniquement par assignation manuelle de sessions sur des dates. Les coaches avaient besoin de définir les créneaux récurrents : quel groupe s'entraîne quel jour, à quelle heure, dans quel lieu, avec quel coach, et combien de lignes d'eau. Les nageurs devaient aussi pouvoir consulter leur planning.
+
+### Changements réalisés
+
+| Fichier | Nature |
+|---------|--------|
+| `supabase/migrations/00041_training_slots.sql` | **Nouveau** — 3 tables (training_slots, training_slot_assignments, training_slot_overrides) + RLS + indexes |
+| `src/lib/api/types.ts` | Modifié — 5 interfaces (TrainingSlot, TrainingSlotAssignment, TrainingSlotOverride, TrainingSlotInput, TrainingSlotOverrideInput) |
+| `src/lib/api/training-slots.ts` | **Nouveau** — Module API CRUD (8 fonctions) |
+| `src/lib/api/index.ts` | Modifié — re-exports training-slots |
+| `src/lib/api.ts` | Modifié — imports, type re-exports, delegation stubs |
+| `src/pages/coach/CoachTrainingSlotsScreen.tsx` | **Nouveau** — Écran coach gestion créneaux (~560 lignes) |
+| `src/pages/Coach.tsx` | Modifié — navigation "Créneaux" + routing |
+| `src/pages/Profile.tsx` | Modifié — section "Mon planning" nageur (lecture seule) |
+
+### Décisions prises
+
+- **3 tables normalisées** (Approche A) : créneau séparé des assignations, évite la duplication des horaires quand plusieurs groupes partagent un créneau
+- **Soft delete** pour les créneaux (`is_active = false`) plutôt que suppression physique
+- **Overrides par date** : une seule exception par créneau par date, upsert sur conflit
+- **Lignes d'eau saisies manuellement** par le coach (pas de capacité totale par lieu)
+- **Coaches fetchés côté client** via `api.listUsers({ role: 'coach' })` dans l'écran coach
+- **RLS coach+admin** pour les mutations, lecture authentifiée pour tous
+
+### Tests
+
+- [x] `npx tsc --noEmit` — 0 erreurs nouvelles
+- [ ] `npm run build` — À vérifier
+- [ ] Migration à appliquer via dashboard Supabase ou `supabase db push`
+- [ ] Test manuel : coach → Créneaux → créer un créneau avec groupes/coachs/lignes
+- [ ] Test manuel : modifier un créneau, supprimer une assignation
+- [ ] Test manuel : ajouter une exception (annulée, modifiée)
+- [ ] Test manuel : nageur → Profil → section "Mon planning" visible
+
+### Limites / dette
+
+- La migration doit être appliquée manuellement (MCP Supabase n'avait pas les permissions)
+- Pas de validation front que `end_time > start_time` (la contrainte DB le fait)
+- Pas de notification aux nageurs quand un créneau est modifié/annulé
+- Les exceptions ne sont pas liées au calendrier des assignations (séparation volontaire)

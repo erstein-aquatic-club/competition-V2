@@ -246,6 +246,17 @@ export {
 } from './interviews';
 
 export {
+  getTrainingSlots,
+  getTrainingSlotsForGroup,
+  createTrainingSlot,
+  updateTrainingSlot,
+  deleteTrainingSlot,
+  getSlotOverrides,
+  createSlotOverride,
+  deleteSlotOverride,
+} from './training-slots';
+
+export {
   getExercises,
   createExercise,
   updateExercise,

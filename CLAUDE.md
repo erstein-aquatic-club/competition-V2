@@ -44,6 +44,7 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 | `src/lib/api/competitions.ts` | CRUD compétitions + assignations nageurs | ~105 lignes |
 | `src/lib/api/absences.ts` | CRUD absences planifiées nageur | ~90 lignes |
 | `src/lib/api/objectives.ts` | CRUD objectifs par nageur | ~90 lignes |
+| `src/lib/api/training-slots.ts` | CRUD créneaux d'entraînement récurrents | ~200 lignes |
 | `src/lib/swimTextParser.ts` | Parser texte → SwimBlock[], normaliseurs partagés | ~400 lignes |
 | `src/lib/swimConsultationUtils.ts` | Helpers partagés consultation séance (BlockGroup, groupItemsByBlock) | ~197 lignes |
 | `src/components/swim/SwimSessionTimeline.tsx` | Timeline verticale colorée, rail intensité, toggle 3 niveaux | ~555 lignes |
@@ -77,6 +78,7 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 | `src/lib/imageUtils.ts` | Compression image Canvas (avatar upload, WebP/JPEG ≤200KB) | ~95 lignes |
 | `src/components/profile/SwimmerObjectivesView.tsx` | Vue objectifs nageur (lecture coach + CRUD perso) | ~530 lignes |
 | `src/pages/coach/CoachSmsScreen.tsx` | Écran SMS généraliste coach (groupe/nageur) | ~190 lignes |
+| `src/pages/coach/CoachTrainingSlotsScreen.tsx` | Écran gestion créneaux d'entraînement (coach) | ~560 lignes |
 | `src/lib/neurotype-quiz-data.ts` | 30 questions quiz + 5 profils neurotype + couleurs | ~450 lignes |
 | `src/lib/neurotype-scoring.ts` | Calcul scores neurotype (points/maxPoints) + niveaux | ~40 lignes |
 | `src/components/neurotype/NeurotypQuiz.tsx` | Quiz 30 questions avec carousel + progress bar | ~250 lignes |
@@ -143,6 +145,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 37 | Dashboard synthétique nageurs (coach) | Moyenne | Fait (§72) |
 | 38 | Fiche nageur coach (ressentis, objectifs, onglets) | Moyenne | Fait (§73) |
 | 39 | Refonte entretiens conversationnels + planif inline | Haute | Fait (§75) |
+| 40 | Créneaux d'entraînement récurrents | Moyenne | Fait (§76) |
 
 Détail complet dans `docs/ROADMAP.md`.
 

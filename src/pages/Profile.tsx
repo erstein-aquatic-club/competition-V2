@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Lock, Pen, Target, Trophy, LogOut, Save, AlertCircle, Download, Camera, Trash2, Brain, MessageSquare } from "lucide-react";
+import { Lock, Pen, Target, Trophy, LogOut, Save, AlertCircle, Download, Camera, Trash2, Brain, MessageSquare, Clock, AlertTriangle } from "lucide-react";
 import { compressImage, isAcceptedImageType } from "@/lib/imageUtils";
 import AvatarCropDialog from "@/components/profile/AvatarCropDialog";
 import { useForm } from "react-hook-form";
@@ -29,6 +29,97 @@ import { NEUROTYPE_PROFILES } from "@/lib/neurotype-quiz-data";
 import type { NeurotypResult as NeurotypResultType, NeurotypCode } from "@/lib/api/types";
 
 declare const __BUILD_TIMESTAMP__: string;
+
+const DAYS_FR_SHORT = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+
+function formatSlotTime(time: string) {
+  // "06:00:00" or "06:00" → "06:00"
+  return time.slice(0, 5);
+}
+
+function SwimmerScheduleSection({ groupId }: { groupId: number }) {
+  const todayISO = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const twoWeeksISO = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 14);
+    return d.toISOString().split("T")[0];
+  }, []);
+
+  const { data: slots = [], isLoading: slotsLoading } = useQuery({
+    queryKey: ["training-slots", "group", groupId],
+    queryFn: () => api.getTrainingSlotsForGroup(groupId),
+  });
+
+  const { data: overrides = [] } = useQuery({
+    queryKey: ["training-slot-overrides", "upcoming"],
+    queryFn: () => api.getSlotOverrides({ fromDate: todayISO }),
+  });
+
+  if (slotsLoading || slots.length === 0) return null;
+
+  // Filter overrides relevant to these slots, within next 2 weeks
+  const slotIds = new Set(slots.map((s) => s.id));
+  const relevantOverrides = overrides.filter(
+    (o) => slotIds.has(o.slot_id) && o.override_date <= twoWeeksISO,
+  );
+
+  // Group slots by day_of_week
+  const slotsByDay = new Map<number, typeof slots>();
+  for (const s of slots) {
+    const list = slotsByDay.get(s.day_of_week) ?? [];
+    list.push(s);
+    slotsByDay.set(s.day_of_week, list);
+  }
+
+  return (
+    <div className="space-y-2">
+      <h2 className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground flex items-center gap-1.5">
+        <Clock className="h-3.5 w-3.5" />
+        Mon planning
+      </h2>
+      <div className="rounded-xl border bg-card p-3 space-y-1.5">
+        {Array.from({ length: 7 }, (_, i) => i + 1).map((dow) => {
+          const daySlots = slotsByDay.get(dow);
+          if (!daySlots) return null;
+          return daySlots.map((s) => (
+            <div key={s.id} className="flex items-center gap-2 text-sm">
+              <span className="font-semibold w-8 shrink-0">{DAYS_FR_SHORT[dow - 1]}</span>
+              <span className="tabular-nums text-muted-foreground">
+                {formatSlotTime(s.start_time)}–{formatSlotTime(s.end_time)}
+              </span>
+              <span className="truncate text-muted-foreground">{s.location}</span>
+            </div>
+          ));
+        })}
+      </div>
+      {relevantOverrides.length > 0 && (
+        <div className="space-y-1">
+          {relevantOverrides.map((o) => {
+            const slot = slots.find((s) => s.id === o.slot_id);
+            const dow = slot ? DAYS_FR_SHORT[slot.day_of_week - 1] : "?";
+            const dateLabel = new Date(o.override_date + "T00:00:00").toLocaleDateString("fr-FR", {
+              day: "numeric",
+              month: "short",
+            });
+            return (
+              <div key={o.id} className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                <span>
+                  {dow} {dateLabel}
+                  {" — "}
+                  {o.status === "cancelled"
+                    ? "Annule"
+                    : `Modifie : ${o.new_start_time ? formatSlotTime(o.new_start_time) + "–" + formatSlotTime(o.new_end_time!) : ""}${o.new_location ? " " + o.new_location : ""}`}
+                  {o.reason ? ` (${o.reason})` : ""}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export const shouldShowRecords = (role: string | null) => role !== "coach" && role !== "admin" && role !== "comite";
 
@@ -485,6 +576,11 @@ export default function Profile() {
           </button>
         )}
       </div>
+
+      {/* Swimmer schedule (read-only) */}
+      {showRecords && profile?.group_id ? (
+        <SwimmerScheduleSection groupId={profile.group_id} />
+      ) : null}
 
       {/* Logout */}
       <Button variant="destructive" onClick={logout} className="w-full gap-2">

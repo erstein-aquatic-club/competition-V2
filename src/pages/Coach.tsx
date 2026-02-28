@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CalendarDays, Dumbbell, HeartPulse, Mail, MessageSquare, Target, Trophy, Users, UsersRound, Waves } from "lucide-react";
+import { CalendarDays, Clock, Dumbbell, HeartPulse, Mail, MessageSquare, Target, Trophy, Users, UsersRound, Waves } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -17,6 +17,7 @@ import CoachCalendar from "./coach/CoachCalendar";
 import CoachGroupsScreen from "./coach/CoachGroupsScreen";
 import CoachCompetitionsScreen from "./coach/CoachCompetitionsScreen";
 import CoachObjectivesScreen from "./coach/CoachObjectivesScreen";
+import CoachTrainingSlotsScreen from "./coach/CoachTrainingSlotsScreen";
 import ComingSoon from "./ComingSoon";
 import { FEATURES } from "@/lib/features";
 import type { LocalStrengthRun } from "@/lib/types";
@@ -25,7 +26,7 @@ import type { LocalStrengthRun } from "@/lib/types";
 const StrengthCatalog = lazy(() => import("./coach/StrengthCatalog"));
 const SwimCatalog = lazy(() => import("./coach/SwimCatalog"));
 
-type CoachSection = "home" | "swim" | "strength" | "swimmers" | "messaging" | "sms" | "calendar" | "groups" | "competitions" | "objectives";
+type CoachSection = "home" | "swim" | "strength" | "swimmers" | "messaging" | "sms" | "calendar" | "groups" | "competitions" | "objectives" | "training-slots";
 type KpiLookbackPeriod = 7 | 30 | 365;
 
 type CoachHomeProps = {
@@ -252,6 +253,15 @@ const CoachHome = ({
           <p className="text-sm font-bold">Objectifs</p>
           <p className="text-xs text-muted-foreground">Temps cibles & objectifs</p>
         </button>
+        <button
+          type="button"
+          onClick={() => onNavigate("training-slots")}
+          className="rounded-xl border bg-card p-4 text-left shadow-sm active:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Clock className="h-5 w-5 text-primary mb-2" />
+          <p className="text-sm font-bold">Creneaux</p>
+          <p className="text-xs text-muted-foreground">Planning hebdo</p>
+        </button>
       </div>
 
       {/* Records club shortcut */}
@@ -336,7 +346,7 @@ export default function Coach() {
     activeSection === "calendar" ||
     activeSection === "groups" ||
     activeSection === "objectives";
-  const shouldLoadGroups = activeSection === "messaging" || activeSection === "sms" || activeSection === "calendar" || activeSection === "groups";
+  const shouldLoadGroups = activeSection === "messaging" || activeSection === "sms" || activeSection === "calendar" || activeSection === "groups" || activeSection === "training-slots";
   const shouldLoadBirthdays = activeSection === "home" || activeSection === "swimmers";
 
   // Queries
@@ -587,6 +597,13 @@ export default function Coach() {
           onBack={() => setActiveSection("home")}
           athletes={athletes}
           athletesLoading={athletesLoading}
+        />
+      ) : null}
+
+      {activeSection === "training-slots" ? (
+        <CoachTrainingSlotsScreen
+          onBack={() => setActiveSection("home")}
+          groups={groups}
         />
       ) : null}
     </div>
