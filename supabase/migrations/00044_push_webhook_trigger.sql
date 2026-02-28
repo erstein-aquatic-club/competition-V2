@@ -40,6 +40,7 @@ BEGIN
     ),
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
+      'apikey', api_key,
       'Authorization', 'Bearer ' || api_key
     )
   );

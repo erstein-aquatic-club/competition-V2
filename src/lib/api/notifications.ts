@@ -15,55 +15,6 @@ import type { Notification } from './types';
 import type { NotificationListResult } from './helpers';
 import { localStorageGet, localStorageSave } from './localStorage';
 
-type NotificationTargetRow = {
-  id: number;
-  notification_id: number;
-  target_user_id: number | null;
-  target_group_id: number | null;
-};
-
-export async function triggerPushForTargets(targets: NotificationTargetRow[]) {
-  if (!canUseSupabase() || targets.length === 0) {
-    return { pushTriggered: false, pushError: null as string | null };
-  }
-
-  const results = await Promise.allSettled(
-    targets.map(async (target) => {
-      const { error } = await supabase.functions.invoke("push-send", {
-        body: {
-          type: "INSERT",
-          record: {
-            id: target.id,
-            notification_id: target.notification_id,
-            target_user_id: target.target_user_id,
-            target_group_id: target.target_group_id,
-          },
-        },
-      });
-      if (error) {
-        throw new Error(error.message);
-      }
-    }),
-  );
-
-  const firstFailure = results.find(
-    (result): result is PromiseRejectedResult => result.status === "rejected",
-  );
-
-  if (firstFailure) {
-    console.warn("[push] direct invoke failed:", firstFailure.reason);
-    return {
-      pushTriggered: false,
-      pushError:
-        firstFailure.reason instanceof Error
-          ? firstFailure.reason.message
-          : String(firstFailure.reason),
-    };
-  }
-
-  return { pushTriggered: true, pushError: null as string | null };
-}
-
 export async function getNotifications(athleteName: string): Promise<Notification[]> {
   await delay(200);
   const notifs = (localStorageGet(STORAGE_KEYS.NOTIFICATIONS) || []) as any[];
@@ -90,9 +41,8 @@ export async function notifications_send(payload: {
       .select("id")
       .single();
     if (error) throw new Error(error.message);
-    let pushResult = { pushTriggered: false, pushError: null as string | null };
     if (notif && payload.targets.length > 0) {
-      const { data: createdTargets, error: targetError } = await supabase
+      const { error: targetError } = await supabase
         .from("notification_targets")
         .insert(
         payload.targets.map((target) => ({
@@ -100,12 +50,11 @@ export async function notifications_send(payload: {
           target_user_id: target.target_user_id ?? null,
           target_group_id: target.target_group_id ?? null,
         })),
-        )
-        .select("id, notification_id, target_user_id, target_group_id");
+        );
       if (targetError) throw new Error(targetError.message);
-      pushResult = await triggerPushForTargets((createdTargets ?? []) as NotificationTargetRow[]);
+      // Push delivery handled by pg_net trigger (00044)
     }
-    return { status: "sent", ...pushResult };
+    return { status: "sent" };
   }
   const notifs = (localStorageGet(STORAGE_KEYS.NOTIFICATIONS) || []) as any[];
   const baseNotif = {
