@@ -255,14 +255,39 @@ export default function Profile() {
   const handleTogglePush = async () => {
     if (!userId) return;
     setPushLoading(true);
-    if (pushEnabled) {
-      await unsubscribeFromPush(userId);
-      setPushEnabled(false);
-    } else {
-      const ok = await subscribeToPush(userId);
-      setPushEnabled(ok);
+    try {
+      if (pushEnabled) {
+        const ok = await unsubscribeFromPush(userId);
+        if (!ok) {
+          toast({
+            title: "Désactivation impossible",
+            description: "Le service worker push n'est pas disponible sur cet appareil.",
+            variant: "destructive",
+          });
+          return;
+        }
+        setPushEnabled(false);
+      } else {
+        const ok = await subscribeToPush(userId);
+        if (!ok) {
+          toast({
+            title: "Activation impossible",
+            description: "Vérifiez que l'app est installée, que les notifications sont autorisées et que la configuration push est disponible.",
+            variant: "destructive",
+          });
+          return;
+        }
+        setPushEnabled(true);
+      }
+    } catch (error) {
+      toast({
+        title: "Notifications push indisponibles",
+        description: error instanceof Error ? error.message : "Une erreur est survenue pendant l'activation.",
+        variant: "destructive",
+      });
+    } finally {
+      setPushLoading(false);
     }
-    setPushLoading(false);
   };
 
   const handleCheckUpdate = async () => {

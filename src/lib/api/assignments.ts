@@ -16,6 +16,7 @@ import type { Assignment, CoachAssignment } from './types';
 import { localStorageGet, localStorageSave } from './localStorage';
 import { getSwimCatalog } from './swim';
 import { getStrengthSessions } from './strength';
+import { triggerPushForTargets } from './notifications';
 
 export async function getAssignmentsForCoach(): Promise<Assignment[] | null> {
   if (canUseSupabase()) {
@@ -176,7 +177,18 @@ export async function assignments_create(
       const targetPayload: Record<string, unknown> = { notification_id: notif.id };
       if (data.target_user_id) targetPayload.target_user_id = data.target_user_id;
       if (data.target_group_id) targetPayload.target_group_id = data.target_group_id;
-      await supabase.from("notification_targets").insert(targetPayload);
+      const { data: createdTargets } = await supabase
+        .from("notification_targets")
+        .insert(targetPayload)
+        .select("id, notification_id, target_user_id, target_group_id");
+      if (createdTargets?.length) {
+        await triggerPushForTargets(createdTargets as Array<{
+          id: number;
+          notification_id: number;
+          target_user_id: number | null;
+          target_group_id: number | null;
+        }>);
+      }
     }
     return { status: "assigned" };
   }

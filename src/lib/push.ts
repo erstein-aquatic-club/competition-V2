@@ -20,16 +20,42 @@ export function getPushPermission(): NotificationPermission {
   return Notification.permission;
 }
 
+async function getPushRegistration(): Promise<ServiceWorkerRegistration | null> {
+  const cached = (window as any).__pwaRegistration as ServiceWorkerRegistration | undefined;
+  if (cached) return cached;
+
+  if (!("serviceWorker" in navigator)) return null;
+
+  const existing = await navigator.serviceWorker.getRegistration();
+  if (existing) {
+    (window as any).__pwaRegistration = existing;
+    return existing;
+  }
+
+  try {
+    const ready = await navigator.serviceWorker.ready;
+    if (ready) {
+      (window as any).__pwaRegistration = ready;
+      return ready;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 export async function subscribeToPush(userId: number): Promise<boolean> {
   if (!isPushSupported() || !VAPID_PUBLIC_KEY) return false;
 
   const permission = await Notification.requestPermission();
   if (permission !== "granted") return false;
 
-  const reg = (window as any).__pwaRegistration as ServiceWorkerRegistration | undefined;
+  const reg = await getPushRegistration();
   if (!reg) return false;
 
-  const subscription = await reg.pushManager.subscribe({
+  const existingSubscription = await reg.pushManager.getSubscription();
+  const subscription = existingSubscription ?? await reg.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
   });
@@ -53,7 +79,7 @@ export async function subscribeToPush(userId: number): Promise<boolean> {
 }
 
 export async function unsubscribeFromPush(userId: number): Promise<boolean> {
-  const reg = (window as any).__pwaRegistration as ServiceWorkerRegistration | undefined;
+  const reg = await getPushRegistration();
   if (!reg) return false;
 
   const subscription = await reg.pushManager.getSubscription();
@@ -69,7 +95,7 @@ export async function unsubscribeFromPush(userId: number): Promise<boolean> {
 }
 
 export async function hasActivePushSubscription(): Promise<boolean> {
-  const reg = (window as any).__pwaRegistration as ServiceWorkerRegistration | undefined;
+  const reg = await getPushRegistration();
   if (!reg) return false;
   const subscription = await reg.pushManager.getSubscription();
   return subscription !== null;

@@ -97,19 +97,24 @@ const CoachMessagesScreen = ({ onBack, athletes, groups, athletesLoading }: Coac
 
     setSending(true);
     try {
-      await api.notifications_send({
+      const result = await api.notifications_send({
         title: title.trim(),
         body: message.trim() || null,
         type: "message",
         targets: [selectedTarget.target],
       });
 
+      const pushTriggered = "pushTriggered" in result ? result.pushTriggered : false;
+
       toast({
-        title: "Notification envoyée",
+        title: pushTriggered === false ? "Message créé, push à vérifier" : "Notification envoyée",
         description:
-          selectedTarget.recipients === 1
-            ? "Le nageur recevra la notification sur ses appareils abonnés."
-            : `${selectedTarget.recipients} nageurs ciblés recevront la notification sur leurs appareils abonnés.`,
+          pushTriggered === false
+            ? "La notification in-app est bien créée, mais l'envoi push n'a pas pu être confirmé."
+            : selectedTarget.recipients === 1
+              ? "Le nageur recevra la notification sur ses appareils abonnés."
+              : `${selectedTarget.recipients} nageurs ciblés recevront la notification sur leurs appareils abonnés.`,
+        variant: pushTriggered === false ? "destructive" : "default",
       });
 
       setTitle("");
