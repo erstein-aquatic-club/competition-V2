@@ -176,6 +176,11 @@ export default function NeurotypResult({
         <p className="italic text-muted-foreground text-sm">
           &laquo;&nbsp;{profile.motto}&nbsp;&raquo;
         </p>
+
+        <p className="text-xs text-muted-foreground/70 leading-relaxed normal-case not-italic mt-1">
+          Ces résultats sont donnés à titre indicatif pour t'aider à réfléchir
+          sur tes préférences d'entraînement.
+        </p>
       </div>
 
       {/* ---- Score bars ---- */}
@@ -238,12 +243,6 @@ export default function NeurotypResult({
       <CollapsibleSection
         title="Traits de personnalité"
         items={profile.traits}
-      />
-
-      {/* ---- Pool Training (collapsible, default closed) ---- */}
-      <CollapsibleSection
-        title="Entraînement en Piscine"
-        items={profile.poolTraining}
       />
 
       {/* ---- Action buttons ---- */}
