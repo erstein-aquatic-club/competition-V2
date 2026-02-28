@@ -103,13 +103,13 @@ export const DayCell = memo(function DayCell({
               <div className="flex items-center gap-1">
                 <span
                   className={cn(
-                    "inline-flex h-2 w-4 rounded-full",
+                    "inline-flex h-2 w-3 rounded-full",
                     slotPillTone(amSlot),
                   )}
                 />
                 <span
                   className={cn(
-                    "inline-flex h-2 w-4 rounded-full",
+                    "inline-flex h-2 w-3 rounded-full",
                     slotPillTone(pmSlot),
                   )}
                 />
