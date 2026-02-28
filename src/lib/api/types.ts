@@ -126,6 +126,7 @@ export interface Assignment {
 
 export interface Notification {
   id: number;
+  notification_id?: number | null;
   target_id?: number;
   target_user_id?: number | null;
   target_group_id?: number | null;
@@ -143,6 +144,7 @@ export interface Notification {
   type: string;
   read: boolean;
   date: string;
+  metadata?: Record<string, unknown> | null;
   related_id?: number;
 }
 

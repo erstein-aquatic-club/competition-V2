@@ -18,6 +18,37 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function resolveNotificationUrl(payload: {
+  type?: string | null;
+  title?: string | null;
+  body?: string | null;
+  metadata?: Record<string, unknown> | null;
+}): string {
+  const metadataUrl = payload.metadata?.url;
+  if (typeof metadataUrl === "string" && metadataUrl.trim()) {
+    return metadataUrl;
+  }
+
+  const type = String(payload.type || "").toLowerCase();
+  const title = String(payload.title || "").toLowerCase();
+  const body = String(payload.body || "").toLowerCase();
+  const haystack = `${title} ${body}`;
+
+  if (type === "interview" || haystack.includes("entretien")) {
+    return "#/profile?section=interviews";
+  }
+
+  if (type === "assignment") {
+    return "#/";
+  }
+
+  if (type === "objective" || haystack.includes("objectif")) {
+    return "#/profile?section=objectives";
+  }
+
+  return "#/profile?section=messages";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") {
@@ -41,7 +72,7 @@ Deno.serve(async (req) => {
 
       const { data: notif } = await supabase
         .from("notifications")
-        .select("title, body, type")
+        .select("title, body, type, metadata")
         .eq("id", notifId)
         .single();
 
@@ -54,7 +85,7 @@ Deno.serve(async (req) => {
 
       title = notif.title;
       body = notif.body || "";
-      url = "#/";
+      url = resolveNotificationUrl(notif);
 
       if (target.target_user_id) {
         targetUserIds = [target.target_user_id];
@@ -68,7 +99,7 @@ Deno.serve(async (req) => {
     } else {
       title = payload.title || "EAC Natation";
       body = payload.body || "";
-      url = payload.url;
+      url = payload.url || resolveNotificationUrl(payload);
       targetUserIds = payload.target_user_ids || [];
     }
 

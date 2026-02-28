@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Lock, Pen, Target, Trophy, LogOut, Save, AlertCircle, Download, Camera, Trash2, Brain, MessageSquare, Clock, AlertTriangle, Bell, BellOff } from "lucide-react";
+import { Lock, Pen, Target, Trophy, LogOut, Save, AlertCircle, Download, Camera, Trash2, Brain, MessageSquare, Clock, AlertTriangle, Bell, BellOff, BellRing } from "lucide-react";
 import { isPushSupported, hasActivePushSubscription, subscribeToPush, unsubscribeFromPush } from "@/lib/push";
 import { compressImage, isAcceptedImageType } from "@/lib/imageUtils";
 import AvatarCropDialog from "@/components/profile/AvatarCropDialog";
@@ -25,6 +25,7 @@ import { fadeIn } from "@/lib/animations";
 import SwimmerObjectivesView from "@/components/profile/SwimmerObjectivesView";
 import AthleteInterviewsSection from "@/components/profile/AthleteInterviewsSection";
 import AthletePerformanceHub from "@/components/profile/AthletePerformanceHub";
+import SwimmerMessagesView from "@/components/profile/SwimmerMessagesView";
 import { NeurotypQuiz } from "@/components/neurotype/NeurotypQuiz";
 import NeurotypResultView from "@/components/neurotype/NeurotypResult";
 import { NEUROTYPE_PROFILES } from "@/lib/neurotype-quiz-data";
@@ -33,6 +34,33 @@ import type { NeurotypResult as NeurotypResultType, NeurotypCode } from "@/lib/a
 declare const __BUILD_TIMESTAMP__: string;
 
 const DAYS_FR_SHORT = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+type ProfileSection =
+  | "home"
+  | "messages"
+  | "performance-hub"
+  | "objectives"
+  | "interviews"
+  | "neurotype-quiz"
+  | "neurotype-result";
+
+function readProfileSectionFromHash(): ProfileSection {
+  if (typeof window === "undefined") return "home";
+  const hash = window.location.hash;
+  const match = hash.match(/[?&]section=([^&]+)/);
+  const requested = match?.[1];
+
+  switch (requested) {
+    case "messages":
+    case "performance-hub":
+    case "objectives":
+    case "interviews":
+    case "neurotype-quiz":
+    case "neurotype-result":
+      return requested;
+    default:
+      return "home";
+  }
+}
 
 function formatSlotTime(time: string) {
   // "06:00:00" or "06:00" → "06:00"
@@ -222,9 +250,7 @@ export default function Profile() {
   const canUpdatePassword = role === "athlete" || role === "coach" || role === "admin";
   const roleLabel = getRoleLabel(role);
 
-  const [activeSection, setActiveSection] = useState<
-    "home" | "performance-hub" | "objectives" | "interviews" | "neurotype-quiz" | "neurotype-result"
-  >("home");
+  const [activeSection, setActiveSection] = useState<ProfileSection>(() => readProfileSectionFromHash());
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
   const [isPasswordSheetOpen, setIsPasswordSheetOpen] = useState(false);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
@@ -245,6 +271,23 @@ export default function Profile() {
     window.addEventListener("nav:reset", reset);
     return () => window.removeEventListener("nav:reset", reset);
   }, []);
+
+  useEffect(() => {
+    const syncSection = () => {
+      setActiveSection(readProfileSectionFromHash());
+    };
+    window.addEventListener("hashchange", syncSection);
+    return () => window.removeEventListener("hashchange", syncSection);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const nextHash =
+      activeSection === "home" ? "#/profile" : `#/profile?section=${activeSection}`;
+    if (window.location.hash === nextHash) return;
+    const nextUrl = `${window.location.pathname}${window.location.search}${nextHash}`;
+    window.history.replaceState(null, "", nextUrl);
+  }, [activeSection]);
 
   useEffect(() => {
     if (isPushSupported()) {
@@ -581,6 +624,16 @@ export default function Profile() {
     return <SwimmerObjectivesView onBack={() => setActiveSection("home")} />;
   }
 
+  if (activeSection === "messages") {
+    return (
+      <SwimmerMessagesView
+        userId={userId ?? 0}
+        onBack={() => setActiveSection("home")}
+        onOpenProfileSection={(section) => setActiveSection(section)}
+      />
+    );
+  }
+
   if (activeSection === "performance-hub") {
     return (
       <AthletePerformanceHub
@@ -656,6 +709,12 @@ export default function Profile() {
           <Target className="h-5 w-5 text-primary mb-2" />
           <p className="text-sm font-bold">Objectifs</p>
           <p className="text-xs text-muted-foreground">Mon plan</p>
+        </button>
+        <button type="button" onClick={() => setActiveSection("messages")}
+          className="rounded-xl border bg-card p-4 text-left shadow-sm active:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <BellRing className="h-5 w-5 text-primary mb-2" />
+          <p className="text-sm font-bold">Messages</p>
+          <p className="text-xs text-muted-foreground">Notifications & détails</p>
         </button>
         <button type="button" onClick={() => setActiveSection("interviews")}
           className="rounded-xl border bg-card p-4 text-left shadow-sm active:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">

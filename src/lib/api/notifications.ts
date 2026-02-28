@@ -133,10 +133,11 @@ export async function notifications_list(options: {
     }
     const { data: rawTargets, error } = await query;
     if (error) throw new Error(error.message);
-    const mapped = (rawTargets ?? []).map((t: any) => {
+      const mapped = (rawTargets ?? []).map((t: any) => {
       const notif = t.notifications || {};
       return {
         id: safeInt(t.id, Date.now()),
+        notification_id: safeOptionalInt(notif.id) ?? null,
         target_id: safeOptionalInt(t.id) ?? undefined,
         target_user_id: safeOptionalInt(t.target_user_id) ?? null,
         sender_id: safeOptionalInt(notif.created_by) ?? null,
@@ -154,6 +155,7 @@ export async function notifications_list(options: {
         type: String(notif.type || "message"),
         read: Boolean(t.read_at),
         date: notif.created_at || new Date().toISOString(),
+        metadata: notif.metadata && typeof notif.metadata === "object" ? notif.metadata : null,
       };
     });
     const total = mapped.length;
@@ -187,6 +189,7 @@ export async function notifications_list(options: {
   const page = sorted.slice(offset, offset + limit);
   const notifications = page.map((notif: any) => ({
     id: safeInt(notif.id, Date.now()),
+    notification_id: safeOptionalInt(notif.notification_id) ?? null,
     target_user_id: safeOptionalInt(notif.target_user_id) ?? null,
     sender_id: safeOptionalInt(notif.sender_id) ?? null,
     sender_email: notif.sender_email ? String(notif.sender_email) : null,
@@ -196,6 +199,7 @@ export async function notifications_list(options: {
     type: String(notif.type || "message"),
     read: Boolean(notif.read),
     date: notif.date || new Date().toISOString(),
+    metadata: notif.metadata && typeof notif.metadata === "object" ? notif.metadata : null,
     related_id: notif.related_id ?? undefined,
   }));
   return { notifications, pagination: { limit, offset, total } };
