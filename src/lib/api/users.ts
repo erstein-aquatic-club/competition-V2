@@ -52,6 +52,7 @@ export async function getProfile(options: {
 export async function updateProfile(payload: {
   userId?: number | null;
   profile: {
+    display_name?: string | null;
     group_id?: number | null;
     group_label?: string | null;
     birthdate?: string | null;
@@ -94,6 +95,16 @@ export async function updateProfile(payload: {
     { onConflict: "user_id" },
   );
   if (error) throw new Error(error.message);
+
+  // Sync display_name to the users table if provided
+  if (payload.profile.display_name) {
+    const { error: nameErr } = await supabase
+      .from("users")
+      .update({ display_name: payload.profile.display_name })
+      .eq("id", userId);
+    if (nameErr) throw new Error(nameErr.message);
+  }
+
   return { status: "updated" };
 }
 

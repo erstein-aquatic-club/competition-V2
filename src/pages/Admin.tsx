@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Redirect } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ShieldCheck, UserMinus, UserPlus, Search, CheckCircle, XCircle, Clock } from "lucide-react";
+import { AlertCircle, ShieldCheck, UserMinus, UserPlus, Search, CheckCircle, XCircle, Clock, Pen, Save } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -12,11 +12,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const userRoleOptions = ["athlete", "coach", "comite", "admin"] as const;
 type UserRole = (typeof userRoleOptions)[number];
@@ -41,6 +44,32 @@ const coachCreationSchema = z.object({
 
 type CoachCreationForm = z.infer<typeof coachCreationSchema>;
 
+const adminProfileEditSchema = z.object({
+  display_name: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
+  group_id: z.string().optional(),
+  bio: z.string().optional(),
+  birthdate: z.string().optional().refine(
+    (val) => {
+      if (!val) return true;
+      const date = new Date(val);
+      if (isNaN(date.getTime())) return false;
+      const age = (new Date().getTime() - date.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+      return age >= 3 && age <= 100;
+    },
+    { message: "L'âge doit être entre 3 et 100 ans" }
+  ),
+  ffn_iuf: z.string().optional().refine(
+    (val) => {
+      if (!val) return true;
+      return /^\d+$/.test(val);
+    },
+    { message: "L'IUF FFN doit être un nombre" }
+  ),
+  phone: z.string().optional(),
+});
+
+type AdminProfileEditForm = z.infer<typeof adminProfileEditSchema>;
+
 export const updateUserRoleInList = (users: UserSummary[], userId: number, role: UserRole) =>
   users.map((user) => (user.id === userId ? { ...user, role } : user));
 
@@ -60,6 +89,8 @@ export default function Admin() {
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
 
   const [createdCoachPassword, setCreatedCoachPassword] = useState<string | null>(null);
+  const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
+  const [ficheSearch, setFicheSearch] = useState("");
 
   const {
     register,
@@ -169,6 +200,58 @@ export default function Admin() {
     },
   });
 
+  const profileEditForm = useForm<AdminProfileEditForm>({
+    resolver: zodResolver(adminProfileEditSchema),
+    defaultValues: { display_name: "", group_id: "", bio: "", birthdate: "", ffn_iuf: "", phone: "" },
+  });
+
+  const { data: selectedProfile, isLoading: profileLoading } = useQuery({
+    queryKey: ["admin-user-profile", selectedUserId],
+    queryFn: () => api.getProfile({ userId: selectedUserId }),
+    enabled: !!selectedUserId,
+  });
+
+  const { data: groups = [] } = useQuery({
+    queryKey: ["admin-groups"],
+    queryFn: () => api.getGroups(),
+    enabled: isAdmin,
+  });
+
+  const updateProfileMutation = useMutation({
+    mutationFn: (data: AdminProfileEditForm) =>
+      api.updateProfile({
+        userId: selectedUserId,
+        profile: {
+          display_name: data.display_name.trim(),
+          group_id: data.group_id ? Number(data.group_id) : null,
+          group_label: data.group_id
+            ? groups.find((g) => g.id === Number(data.group_id))?.name ?? null
+            : null,
+          birthdate: data.birthdate || null,
+          bio: data.bio || null,
+          ffn_iuf: (data.ffn_iuf || "").trim() || null,
+          phone: data.phone || null,
+        },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-user-profile", selectedUserId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      setIsProfileEditOpen(false);
+      toast({ title: "Fiche mise à jour" });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: "Erreur mise à jour",
+        description: parseErrorMessage(error, "Impossible de mettre à jour la fiche."),
+      });
+    },
+  });
+
+  const startProfileEditFor = (uid: number) => {
+    setSelectedUserId(uid);
+    setIsProfileEditOpen(true);
+  };
+
   const existingAdminId = useMemo(() => {
     const existingAdmin = users.find((user) => user.role === "admin");
     return existingAdmin?.id ?? null;
@@ -193,6 +276,28 @@ export default function Admin() {
     if (!selectedUserId) return null;
     return users.find((user) => user.id === selectedUserId) ?? null;
   }, [selectedUserId, users]);
+
+  const ficheFilteredUsers = useMemo(() => {
+    const q = ficheSearch.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter((u) =>
+      (u.display_name?.toLowerCase() ?? "").includes(q) ||
+      (u.email?.toLowerCase() ?? "").includes(q),
+    );
+  }, [users, ficheSearch]);
+
+  // Populate form when profile data arrives while sheet is open
+  React.useEffect(() => {
+    if (!isProfileEditOpen || !selectedProfile || !selectedUser) return;
+    profileEditForm.reset({
+      display_name: selectedUser.display_name || "",
+      group_id: selectedProfile.group_id ? String(selectedProfile.group_id) : "",
+      bio: selectedProfile.bio || "",
+      birthdate: selectedProfile.birthdate ? String(selectedProfile.birthdate).split("T")[0] : "",
+      ffn_iuf: selectedProfile.ffn_iuf ? String(selectedProfile.ffn_iuf) : "",
+      phone: selectedProfile.phone || "",
+    });
+  }, [isProfileEditOpen, selectedProfile, selectedUser]);
 
   if (!isAdmin) {
     if (typeof window === "undefined") {
@@ -510,65 +615,132 @@ export default function Admin() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Fiche utilisateur</CardTitle>
-          <CardDescription>Sélectionnez un compte pour afficher les détails.</CardDescription>
+          <CardTitle>Fiches utilisateurs</CardTitle>
+          <CardDescription>Tapez sur un compte pour voir et modifier sa fiche.</CardDescription>
         </CardHeader>
-        <CardContent>
-          {selectedUser ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">Nom affiché</p>
-                <p className="text-lg font-semibold">{selectedUser.display_name}</p>
-                <p className="text-sm text-muted-foreground">Email</p>
-                <p>{selectedUser.email || "-"}</p>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm text-muted-foreground">Rôle</p>
-                  <Select
-                    value={selectedUser.role}
-                    onValueChange={(value) => {
-                      if (!userRoleOptions.includes(value as UserRole)) return;
-                      if (!selectedUser.id) return;
-                      if (value === selectedUser.role) return;
-                      updateUserRole.mutate({ userId: selectedUser.id, role: value as UserRole });
-                    }}
-                    disabled={!isActiveUser(selectedUser.is_active) || updateUserRole.isPending}
-                  >
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="athlete">Athlète</SelectItem>
-                      <SelectItem value="coach">Entraineur EAC</SelectItem>
-                      <SelectItem value="comite">Comité</SelectItem>
-                      <SelectItem value="admin" disabled={existingAdminId !== null && existingAdminId !== selectedUser.id}>
-                        Admin
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Statut</p>
-                  {isActiveUser(selectedUser.is_active) ? (
-                    <Badge variant="secondary">Actif</Badge>
-                  ) : (
-                    <Badge variant="outline">Désactivé</Badge>
-                  )}
-                </div>
-                {selectedUser.group_label ? (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Groupe</p>
-                    <p>{selectedUser.group_label}</p>
-                  </div>
-                ) : null}
-              </div>
+        <CardContent className="space-y-3">
+          {/* Search within fiches */}
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={ficheSearch}
+              onChange={(e) => setFicheSearch(e.target.value)}
+              placeholder="Rechercher un nom..."
+              className="pl-9"
+            />
+          </div>
+
+          {usersLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={`fiche-sk-${i}`} className="h-14 w-full rounded-lg" />
+              ))}
             </div>
+          ) : ficheFilteredUsers.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Aucun résultat.</p>
           ) : (
-            <p className="text-sm text-muted-foreground">Aucun utilisateur sélectionné.</p>
+            <div className="space-y-1.5">
+              {ficheFilteredUsers.map((u) => (
+                <button
+                  key={u.id}
+                  type="button"
+                  className="w-full flex items-center gap-3 rounded-lg border bg-card p-3 text-left hover:bg-muted/50 transition-colors"
+                  onClick={() => { setSelectedUserId(u.id); startProfileEditFor(u.id); }}
+                >
+                  <Avatar className="h-9 w-9 shrink-0">
+                    <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(u.display_name)}`} alt={u.display_name} />
+                    <AvatarFallback className="text-xs">{(u.display_name || "?").slice(0, 2).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{u.display_name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{u.email || "-"}</p>
+                  </div>
+                  <Badge variant="outline" className="shrink-0 text-[10px] capitalize">{u.role}</Badge>
+                  <Pen className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                </button>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Profile edit bottom sheet */}
+      <Sheet open={isProfileEditOpen} onOpenChange={setIsProfileEditOpen}>
+        <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Modifier la fiche — {selectedUser?.display_name}</SheetTitle>
+            <SheetDescription>Modifiez les informations du profil utilisateur.</SheetDescription>
+          </SheetHeader>
+          <form
+            onSubmit={profileEditForm.handleSubmit((data) => updateProfileMutation.mutate(data))}
+            className="space-y-4 mt-4"
+          >
+            <div className="grid gap-2">
+              <Label>Nom affiché</Label>
+              <Input {...profileEditForm.register("display_name")} />
+              {profileEditForm.formState.errors.display_name && (
+                <p className="text-xs text-destructive">{profileEditForm.formState.errors.display_name.message}</p>
+              )}
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Groupe</Label>
+              <Select
+                value={profileEditForm.watch("group_id")}
+                onValueChange={(value) => profileEditForm.setValue("group_id", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choisir un groupe" />
+                </SelectTrigger>
+                <SelectContent>
+                  {groups.map((group) => (
+                    <SelectItem key={group.id} value={String(group.id)}>
+                      {group.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-2">
+                <Label>Date de naissance</Label>
+                <Input type="date" {...profileEditForm.register("birthdate")} />
+                {profileEditForm.formState.errors.birthdate && (
+                  <p className="text-xs text-destructive">{profileEditForm.formState.errors.birthdate.message}</p>
+                )}
+              </div>
+              <div className="grid gap-2">
+                <Label>Téléphone</Label>
+                <Input type="tel" placeholder="06 12 34 56 78" {...profileEditForm.register("phone")} />
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label>IUF FFN</Label>
+              <Input placeholder="879576" inputMode="numeric" {...profileEditForm.register("ffn_iuf")} />
+              {profileEditForm.formState.errors.ffn_iuf && (
+                <p className="text-xs text-destructive">{profileEditForm.formState.errors.ffn_iuf.message}</p>
+              )}
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Bio</Label>
+              <Textarea {...profileEditForm.register("bio")} rows={3} />
+            </div>
+
+            <div className="flex gap-2">
+              <Button type="submit" disabled={updateProfileMutation.isPending} className="w-full">
+                <Save className="mr-2 h-4 w-4" />
+                {updateProfileMutation.isPending ? "Enregistrement..." : "Enregistrer"}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setIsProfileEditOpen(false)} disabled={updateProfileMutation.isPending}>
+                Annuler
+              </Button>
+            </div>
+          </form>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
