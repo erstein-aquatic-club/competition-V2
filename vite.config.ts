@@ -18,6 +18,7 @@ export default defineConfig(({ mode }) => ({
     VitePWA({
       registerType: 'prompt',
       workbox: {
+        importScripts: ['push-handler.js'],
         globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2}'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
