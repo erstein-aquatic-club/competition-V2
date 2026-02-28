@@ -703,10 +703,11 @@ const OverrideFormSheet = ({
 type TimelineSlotProps = {
   slot: TrainingSlot;
   hasOverrides: boolean;
+  cancelled?: boolean;
   onSelect: (slot: TrainingSlot) => void;
 };
 
-const TimelineSlot = ({ slot, hasOverrides, onSelect }: TimelineSlotProps) => {
+const TimelineSlot = ({ slot, hasOverrides, cancelled = false, onSelect }: TimelineSlotProps) => {
   const top = timeToPx(slot.start_time);
   const height = durationPx(slot.start_time, slot.end_time);
   const isShort = height < 50;

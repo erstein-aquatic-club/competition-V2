@@ -4,6 +4,7 @@ import { api } from "@/lib/api";
 import type { SwimExerciseLog, SwimExerciseLogInput } from "@/lib/api";
 import { Timer, Activity, Hash, FileText, ChevronRight, Pencil, Check, X, Trash2, Plus } from "lucide-react";
 import { formatSwimTime, parseSwimTime } from "@/lib/swimConsultationUtils";
+import { SwimTimeInput } from "@/components/swim/SwimTimeInput";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -276,14 +277,11 @@ function LogEntry({ log, onSave, onDelete, saving }: LogEntryProps) {
               {draft.split_times.map((s, i) => (
                 <div key={i} className="flex items-center gap-1">
                   <span className="text-[10px] text-muted-foreground w-4 text-right">{s.rep}</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
+                  <SwimTimeInput
                     value={splitTexts[i] ?? ""}
-                    onChange={(e) => handleSplitTextChange(i, e.target.value)}
+                    onChange={(nextValue) => handleSplitTextChange(i, nextValue)}
                     onBlur={() => handleSplitBlur(i)}
-                    placeholder="ss:cc"
-                    className="w-16 rounded-lg border border-border bg-background px-1.5 py-1 text-xs text-center outline-none focus:ring-2 focus:ring-foreground/10"
+                    size="compact"
                   />
                   <button
                     type="button"

@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { formatSwimTime, parseSwimTime } from "@/lib/swimConsultationUtils";
 import type { SwimSessionItem, SwimExerciseLogInput, SplitTimeEntry, StrokeCountEntry } from "@/lib/api/types";
 import type { SwimPayloadFields } from "@/lib/types";
+import { SwimTimeInput } from "./SwimTimeInput";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -155,17 +156,11 @@ export function ExerciseLogInline({ item, log, onChange, onCollapse }: ExerciseL
               <tr key={s.rep} className="border-t border-border/30">
                 <td className="py-1 pr-2 text-xs font-medium text-muted-foreground">{s.rep}</td>
                 <td className="py-1 px-1">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="ss:cc"
+                  <SwimTimeInput
                     value={splitTexts[i] ?? ""}
-                    onChange={(e) => handleSplitTextChange(i, e.target.value)}
+                    onChange={(nextValue) => handleSplitTextChange(i, nextValue)}
                     onBlur={() => handleSplitBlur(i)}
-                    className={cn(
-                      "h-8 w-full rounded-md border border-input bg-background px-2 text-sm text-center",
-                      "focus:outline-none focus:ring-1 focus:ring-ring",
-                    )}
+                    className="w-full justify-center"
                   />
                 </td>
                 <td className="py-1 pl-1">
