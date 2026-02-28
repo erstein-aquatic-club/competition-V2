@@ -5,9 +5,9 @@ import { api } from "@/lib/api";
 import type { Competition } from "@/lib/api/types";
 import { computeTrainingDaysRemaining } from "@/lib/date";
 import { Card, CardContent } from "@/components/ui/card";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import {
   BarChart,
@@ -34,7 +34,7 @@ import { getContrastTextColor } from "@/lib/design-tokens";
 import type { LocalStrengthRun, SetLogEntry } from "@/lib/types";
 import { motion } from "framer-motion";
 import { slideUp } from "@/lib/animations";
-import { ChevronDown, TrendingUp, TrendingDown, BarChart3, Trophy } from "lucide-react";
+import { ChevronDown, TrendingUp, TrendingDown, BarChart3, Trophy, SlidersHorizontal } from "lucide-react";
 import { InlineBanner } from "@/components/shared/InlineBanner";
 import { PageHeader } from "@/components/shared/PageHeader";
 
@@ -150,6 +150,11 @@ function CollapsibleSection({ title, children }: { title: string; children: Reac
 }
 
 const tooltipStyle = { borderRadius: "8px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" };
+const PERIOD_OPTIONS = [
+  { value: 7, label: "7j" },
+  { value: 30, label: "30j" },
+  { value: 365, label: "1 an" },
+] as const;
 
 // ─── Main Component ─────────────────────────────────────────────────────────
 
@@ -170,6 +175,8 @@ export default function Progress() {
   const [historyTo] = useState("");
   const [swimPeriodDays, setSwimPeriodDays] = useState(30);
   const [strengthPeriodDays, setStrengthPeriodDays] = useState(30);
+  const [isSwimPeriodSheetOpen, setIsSwimPeriodSheetOpen] = useState(false);
+  const [isStrengthPeriodSheetOpen, setIsStrengthPeriodSheetOpen] = useState(false);
 
   // Reset view state when dock icon is tapped while already on this page
   useEffect(() => {
@@ -518,6 +525,10 @@ export default function Progress() {
   })();
 
   const topExerciseVolume = exerciseVolumeData.slice(0, 8);
+  const activeSwimPeriodLabel =
+    PERIOD_OPTIONS.find((option) => option.value === swimPeriodDays)?.label ?? `${swimPeriodDays}j`;
+  const activeStrengthPeriodLabel =
+    PERIOD_OPTIONS.find((option) => option.value === strengthPeriodDays)?.label ?? `${strengthPeriodDays}j`;
 
   const formatExerciseDate = (dateValue: string | null) => {
     if (!dateValue) return "-";
@@ -559,21 +570,61 @@ export default function Progress() {
         {/* ── Natation ──────────────────────────────────────────────────────── */}
 
         <TabsContent value="swim" className="space-y-4 mt-4">
-          {/* Period selector */}
-          <div className="flex justify-end">
-            <ToggleGroup
-              type="single"
-              size="sm"
-              variant="outline"
-              value={String(swimPeriodDays)}
-              onValueChange={(v) => v && setSwimPeriodDays(Number(v))}
-              className="gap-1"
-            >
-              <ToggleGroupItem value="7" className="h-8 px-3 text-xs">7j</ToggleGroupItem>
-              <ToggleGroupItem value="30" className="h-8 px-3 text-xs">30j</ToggleGroupItem>
-              <ToggleGroupItem value="365" className="h-8 px-3 text-xs">1 an</ToggleGroupItem>
-            </ToggleGroup>
+          <div className="rounded-2xl border border-border/70 bg-card/90 px-4 py-3 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                  Période active
+                </p>
+                <p className="mt-1 text-sm font-semibold text-foreground">
+                  Natation sur {activeSwimPeriodLabel}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsSwimPeriodSheetOpen(true)}
+                className="gap-1.5 border-primary/20 text-primary hover:bg-primary/5"
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Période
+              </Button>
+            </div>
           </div>
+
+          <Sheet open={isSwimPeriodSheetOpen} onOpenChange={setIsSwimPeriodSheetOpen}>
+            <SheetContent side="bottom" className="max-h-[70vh] overflow-y-auto rounded-t-3xl">
+              <SheetHeader className="text-left">
+                <SheetTitle>Filtrer la progression natation</SheetTitle>
+                <SheetDescription>
+                  Change la fenêtre d&apos;analyse sans charger la vue avec des contrôles permanents.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="grid grid-cols-2 gap-3 pt-5">
+                {PERIOD_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => {
+                      setSwimPeriodDays(option.value);
+                      setIsSwimPeriodSheetOpen(false);
+                    }}
+                    className={`rounded-2xl border px-4 py-4 text-left transition-colors ${
+                      swimPeriodDays === option.value
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "border-border hover:border-primary/30"
+                    }`}
+                  >
+                    <div className="text-sm font-semibold">{option.label}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Tendances et ressentis sur {option.label}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </SheetContent>
+          </Sheet>
 
           {/* Hero KPI — Volume */}
           <HeroKpi
@@ -686,21 +737,61 @@ export default function Progress() {
         {/* ── Musculation ───────────────────────────────────────────────────── */}
 
         <TabsContent value="strength" className="space-y-4 mt-4">
-          {/* Period selector */}
-          <div className="flex justify-end">
-            <ToggleGroup
-              type="single"
-              size="sm"
-              variant="outline"
-              value={String(strengthPeriodDays)}
-              onValueChange={(v) => v && setStrengthPeriodDays(Number(v))}
-              className="gap-1"
-            >
-              <ToggleGroupItem value="7" className="h-8 px-3 text-xs">7j</ToggleGroupItem>
-              <ToggleGroupItem value="30" className="h-8 px-3 text-xs">30j</ToggleGroupItem>
-              <ToggleGroupItem value="365" className="h-8 px-3 text-xs">1 an</ToggleGroupItem>
-            </ToggleGroup>
+          <div className="rounded-2xl border border-border/70 bg-card/90 px-4 py-3 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                  Période active
+                </p>
+                <p className="mt-1 text-sm font-semibold text-foreground">
+                  Musculation sur {activeStrengthPeriodLabel}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsStrengthPeriodSheetOpen(true)}
+                className="gap-1.5 border-primary/20 text-primary hover:bg-primary/5"
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Période
+              </Button>
+            </div>
           </div>
+
+          <Sheet open={isStrengthPeriodSheetOpen} onOpenChange={setIsStrengthPeriodSheetOpen}>
+            <SheetContent side="bottom" className="max-h-[70vh] overflow-y-auto rounded-t-3xl">
+              <SheetHeader className="text-left">
+                <SheetTitle>Filtrer la progression musculation</SheetTitle>
+                <SheetDescription>
+                  Ajuste la période analysée pour le tonnage, le volume et le ressenti.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="grid grid-cols-2 gap-3 pt-5">
+                {PERIOD_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => {
+                      setStrengthPeriodDays(option.value);
+                      setIsStrengthPeriodSheetOpen(false);
+                    }}
+                    className={`rounded-2xl border px-4 py-4 text-left transition-colors ${
+                      strengthPeriodDays === option.value
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "border-border hover:border-primary/30"
+                    }`}
+                  >
+                    <div className="text-sm font-semibold">{option.label}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Analyse du travail sur {option.label}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </SheetContent>
+          </Sheet>
 
           {/* Hero KPI — Tonnage */}
           <HeroKpi

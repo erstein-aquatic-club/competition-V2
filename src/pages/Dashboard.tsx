@@ -96,23 +96,29 @@ function DashboardHeaderContent({
         <h1 className="text-lg font-display font-bold uppercase italic tracking-tight text-primary">Accueil</h1>
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-xs font-mono font-semibold text-muted-foreground tabular-nums">{globalKm} km</span>
-        <button
+        <span className="hidden sm:inline text-xs font-mono font-semibold text-muted-foreground tabular-nums">{globalKm} km</span>
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={onInfo}
-          className="inline-flex items-center justify-center rounded-xl border border-primary/20 bg-primary/5 p-2 transition hover:bg-primary/10"
-          aria-label="Infos"
+          className="h-8 rounded-xl border-primary/20 bg-primary/5 px-2.5 text-xs font-semibold text-primary hover:bg-primary/10"
+          aria-label="Codes"
         >
-          <Info className="h-5 w-5 text-primary" />
-        </button>
-        <button
+          <Info className="mr-1 h-3.5 w-3.5" />
+          Codes
+        </Button>
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={onSettings}
-          className="inline-flex items-center justify-center rounded-xl border border-primary/20 bg-primary/5 p-2 transition hover:bg-primary/10"
-          aria-label="Paramètres"
+          className="h-8 rounded-xl border-primary/20 bg-primary/5 px-2.5 text-xs font-semibold text-primary hover:bg-primary/10"
+          aria-label="Présences"
         >
-          <Settings2 className="h-5 w-5 text-primary" />
-        </button>
+          <Settings2 className="mr-1 h-3.5 w-3.5" />
+          Présence
+        </Button>
       </div>
     </>
   );
@@ -787,37 +793,58 @@ export default function Dashboard() {
               <DialogTitle>Présence</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
-              <div className="text-xs text-muted-foreground">Toggle hebdo (séances attendues).</div>
+              <div className="text-xs text-muted-foreground">
+                Définis les créneaux attendus chaque semaine. Tu peux ensuite ajuster un jour précis dans le calendrier.
+              </div>
 
-              <div className="overflow-hidden rounded-2xl border border-border bg-card">
-                <div className="grid grid-cols-[1fr_110px_110px] bg-muted border-b border-border px-3 py-2 text-xs font-semibold text-muted-foreground">
-                  <div>Jour</div>
-                  <div className="text-center">Matin</div>
-                  <div className="text-center">Soir</div>
-                </div>
-                {WEEKDAYS_FR.map((wd, idx) => (
-                  <div key={wd} className={cn("grid grid-cols-[1fr_110px_110px] items-center px-3 py-2", idx !== 6 && "border-b border-border")}>
-                    <div className="text-sm font-medium text-foreground">{wd}</div>
-                    {SLOTS.map((s) => {
-                      const on = Boolean(presenceDefaults?.[idx]?.[s.key]);
-                      return (
-                        <div key={s.key} className="flex justify-center">
-                          <button
-                            type="button"
-                            onClick={() => toggleDefaultPresence(idx, s.key)}
-                            className={cn(
-                              "w-24 rounded-2xl border px-3 py-2 text-sm font-semibold transition",
-                              on ? "bg-foreground text-background border-foreground" : "bg-card text-foreground border-border hover:bg-muted"
-                            )}
-                            aria-label={`${wd} ${s.label}`}
-                          >
-                            {on ? "On" : "Off"}
-                          </button>
+              <div className="space-y-2">
+                {WEEKDAYS_FR.map((wd, idx) => {
+                  const activeCount = SLOTS.filter((slot) => Boolean(presenceDefaults?.[idx]?.[slot.key])).length;
+                  return (
+                    <div key={wd} className="rounded-2xl border border-border bg-card px-3 py-3">
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-semibold text-foreground">{wd}</div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {activeCount === 0
+                              ? "Aucun créneau prévu"
+                              : `${activeCount} créneau${activeCount > 1 ? "x" : ""} attendu${activeCount > 1 ? "s" : ""}`}
+                          </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                ))}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        {SLOTS.map((s) => {
+                          const on = Boolean(presenceDefaults?.[idx]?.[s.key]);
+                          return (
+                            <button
+                              key={s.key}
+                              type="button"
+                              onClick={() => toggleDefaultPresence(idx, s.key)}
+                              className={cn(
+                                "rounded-2xl border px-3 py-3 text-left transition",
+                                on
+                                  ? "border-foreground bg-foreground text-background"
+                                  : "border-border bg-card text-foreground hover:bg-muted",
+                              )}
+                              aria-label={`${wd} ${s.label}`}
+                            >
+                              <div className="text-sm font-semibold">{s.label}</div>
+                              <div
+                                className={cn(
+                                  "mt-1 text-[11px]",
+                                  on ? "text-background/80" : "text-muted-foreground",
+                                )}
+                              >
+                                {on ? "Prévu" : "Non prévu"}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Stable duration (backend requirement) */}

@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { useLocation } from "wouter";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { TrainingWeek } from "@/lib/api";
@@ -331,8 +330,6 @@ export default function AthletePerformanceHub({
   groupLabel,
   onBack,
 }: Props) {
-  const [, navigate] = useLocation();
-
   return (
     <div className="mx-auto max-w-4xl space-y-4 pb-24">
       <div className="rounded-[1.75rem] border bg-gradient-to-br from-primary/[0.12] via-background to-amber-500/[0.08] p-4 shadow-sm">
@@ -401,7 +398,7 @@ export default function AthletePerformanceHub({
           <SwimmerFeedbackTab
             athleteId={athleteId}
             athleteName={athleteName}
-            onOpenProgression={() => navigate("/progress")}
+            showProgressAction={false}
           />
         </TabsContent>
       </Tabs>

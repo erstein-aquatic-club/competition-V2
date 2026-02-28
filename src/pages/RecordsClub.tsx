@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, type ClubRecord, type ClubPerformanceRanked } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   Select,
   SelectContent,
@@ -15,6 +16,7 @@ import {
   ChevronRight,
   ChevronUp,
   Download,
+  SlidersHorizontal,
   Trophy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -178,8 +180,12 @@ export default function RecordsClub() {
   const [expandedEvent, setExpandedEvent] = useState<string | null>(null);
   const [expandedAgeKey, setExpandedAgeKey] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
 
   const ageValue = ageFilter === "ALL" ? null : Number(ageFilter);
+  const activePoolLabel = POOLS.find((option) => option.key === pool)?.label ?? `${pool}m`;
+  const activeSexLabel = SEXES.find((option) => option.key === sex)?.label ?? sex;
+  const activeAgeLabel = AGE_OPTIONS.find((option) => option.key === ageFilter)?.label ?? ageFilter;
 
   // Reset expansion on filter change
   const handlePoolChange = useCallback((val: string) => {
@@ -342,31 +348,84 @@ export default function RecordsClub() {
         )}
       />
 
-      {/* Filter bar — single compact row */}
-      <div className="flex items-center gap-2">
-        <SegmentedControl
-          options={POOLS}
-          value={pool}
-          onChange={handlePoolChange}
-        />
-        <SegmentedControl
-          options={SEXES}
-          value={sex}
-          onChange={handleSexChange}
-        />
-        <Select value={ageFilter} onValueChange={handleAgeChange}>
-          <SelectTrigger className="h-8 flex-1 min-w-0 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {AGE_OPTIONS.map((o) => (
-              <SelectItem key={o.key} value={o.key}>
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="rounded-2xl border border-border/70 bg-card/90 px-4 py-3 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              Vue active
+            </p>
+            <p className="mt-1 truncate text-sm font-semibold text-foreground">
+              {activePoolLabel} · {activeSexLabel} · {activeAgeLabel}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsFilterSheetOpen(true)}
+            className="gap-1.5 border-primary/20 text-primary hover:bg-primary/5"
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            Filtres
+          </Button>
+        </div>
       </div>
+
+      <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
+        <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-3xl">
+          <SheetHeader className="text-left">
+            <SheetTitle>Filtrer les records du club</SheetTitle>
+            <SheetDescription>
+              Ajuste le bassin, le sexe et la tranche d&apos;âge sans surcharger l&apos;écran principal.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="space-y-5 pt-5">
+            <section className="space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Bassin</p>
+                <p className="text-xs text-muted-foreground">Choisis le format de compétition à afficher.</p>
+              </div>
+              <SegmentedControl
+                options={POOLS}
+                value={pool}
+                onChange={handlePoolChange}
+              />
+            </section>
+
+            <section className="space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Catégorie</p>
+                <p className="text-xs text-muted-foreground">Bascule entre garçons et filles.</p>
+              </div>
+              <SegmentedControl
+                options={SEXES}
+                value={sex}
+                onChange={handleSexChange}
+              />
+            </section>
+
+            <section className="space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Âge</p>
+                <p className="text-xs text-muted-foreground">Affiche une génération précise ou tous les âges.</p>
+              </div>
+              <Select value={ageFilter} onValueChange={handleAgeChange}>
+                <SelectTrigger className="h-11 w-full text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {AGE_OPTIONS.map((o) => (
+                    <SelectItem key={o.key} value={o.key}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </section>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Loading */}
       {isLoading && (

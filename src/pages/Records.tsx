@@ -8,11 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { shouldShowRecords } from "@/pages/Profile";
-import { Check, ChevronDown, Clock, Dumbbell, Edit2, Download, RefreshCw, StickyNote, Trophy, Waves, X, AlertCircle } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Dumbbell, Edit2, Download, RefreshCw, SlidersHorizontal, StickyNote, Trophy, Waves, X, AlertCircle } from "lucide-react";
 import { InlineBanner } from "@/components/shared/InlineBanner";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { motion, useReducedMotion } from "framer-motion";
@@ -180,6 +181,7 @@ export default function Records() {
   const [swimMode, setSwimMode] = useState<SwimMode>("training");
   const [poolLen, setPoolLen] = useState<25 | 50>(25);
   const [swimEditorOpenFor, setSwimEditorOpenFor] = useState<SwimEditorOpenFor>(null);
+  const [isSwimControlsOpen, setIsSwimControlsOpen] = useState(false);
 
   const [editingExerciseId, setEditingExerciseId] = useState<number | null>(null);
   const [editingOneRmValue, setEditingOneRmValue] = useState<string>("");
@@ -350,6 +352,11 @@ export default function Records() {
       }));
   }, [histExpandedEvent, groupedPerformances]);
 
+  const selectedHistoryGroup = useMemo(
+    () => groupedPerformances.find((group) => group.eventCode === histExpandedEvent) ?? null,
+    [groupedPerformances, histExpandedEvent],
+  );
+
   const { data: oneRMs, isLoading: oneRmLoading, isError: oneRmIsError } = oneRmQuery;
   const { data: exercises, isLoading: exercisesLoading, isError: exercisesIsError } = exercisesQuery;
   const {
@@ -372,6 +379,14 @@ export default function Records() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [swimMode]);
+
+  const activePoolLen = swimMode === "history" ? histPoolLen : poolLen;
+  const swimModeLabel =
+    swimMode === "training"
+      ? "Entraînement"
+      : swimMode === "comp"
+        ? "Compétition"
+        : "Historique";
 
   // --- SOURCE OF TRUTH: mutations / invalidateQueries unchanged ---
   const update1RM = useMutation({
@@ -596,176 +611,234 @@ export default function Records() {
             </TabsList>
 
             {mainTab === "swim" ? (
-              <div className="mt-2.5 space-y-2">
-                {/* Mode toggle */}
-                <div className="flex rounded-xl bg-muted/20 border border-border/50 p-0.5">
-                  {(["training", "comp", "history"] as const).map((mode) => {
-                    const label = mode === "training" ? "Entraîn." : mode === "comp" ? "Compétition" : "Historique";
-                    const Icon = mode === "training" ? Trophy : mode === "comp" ? Waves : Clock;
-                    return (
-                      <button
-                        key={mode}
-                        type="button"
-                        onClick={() => setModeSafe(mode)}
-                        className={cx(
-                          "flex-1 rounded-lg px-2 py-1.5 text-xs max-[360px]:text-[10px] font-bold transition inline-flex items-center justify-center gap-1 whitespace-nowrap",
-                          swimMode === mode
-                            ? "bg-background text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                        aria-pressed={swimMode === mode}
-                      >
-                        <Icon className="h-3.5 w-3.5 max-[360px]:hidden" />
-                        {label}
-                      </button>
-                    );
-                  })}
+              <div className="mt-2.5 flex items-center justify-between gap-2 rounded-2xl border border-border/60 bg-muted/20 px-3 py-2">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    Vue active
+                  </p>
+                  <p className="truncate text-sm font-semibold text-foreground">
+                    {swimModeLabel} · {activePoolLen}m
+                  </p>
                 </div>
 
-                {/* Controls row: unified pool toggle + contextual action */}
-                <div className="flex items-center justify-between">
-                  <div className="inline-flex rounded-xl border border-border bg-muted/30 p-0.5">
-                    {([25, 50] as const).map((v) => (
-                      <button
-                        key={v}
+                <div className="flex items-center gap-2">
+                  {swimMode === "training" ? (
+                    <Button type="button" size="sm" onClick={openAddSwim} className="rounded-xl text-xs h-8 gap-1">
+                      Ajouter
+                    </Button>
+                  ) : null}
+                  {swimMode === "history" ? (
+                    <motion.div variants={successBounce} animate={importSuccess ? "visible" : "hidden"}>
+                      <Button
                         type="button"
-                        onClick={() => {
-                          if (swimMode === "history") {
-                            setHistPoolLen(v);
-                          } else {
-                            setPoolLen(v);
-                            closeSwimEditor();
-                          }
-                        }}
-                        className={cx(
-                          "px-3 py-1 text-xs font-bold rounded-lg tabular-nums transition",
-                          (swimMode === "history" ? histPoolLen : poolLen) === v
-                            ? "bg-background text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground"
+                        size="sm"
+                        onClick={() => importPerformances.mutate()}
+                        disabled={importPerformances.isPending || !userIuf}
+                        className="rounded-xl text-xs h-8 gap-1"
+                      >
+                        {importPerformances.isPending ? (
+                          <RefreshCw className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Download className="h-3 w-3" />
                         )}
-                      >
-                        {v}m
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {swimMode === "training" && (
-                      <Button type="button" size="sm" onClick={openAddSwim} className="rounded-xl text-xs h-8 gap-1">
-                        Ajouter
+                        {importPerformances.isPending ? "Import..." : "Importer"}
                       </Button>
-                    )}
-                    {swimMode === "comp" && (
-                      <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">
-                        Données FFN
-                      </span>
-                    )}
-                    {swimMode === "history" && (
-                      <motion.div
-                        variants={successBounce}
-                        animate={importSuccess ? "visible" : "hidden"}
-                      >
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => importPerformances.mutate()}
-                          disabled={importPerformances.isPending || !userIuf}
-                          className="rounded-xl text-xs h-8 gap-1"
-                        >
-                          {importPerformances.isPending ? (
-                            <RefreshCw className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Download className="h-3 w-3" />
-                          )}
-                          {importPerformances.isPending ? "Import..." : "Importer FFN"}
-                        </Button>
-                      </motion.div>
-                    )}
-                  </div>
+                    </motion.div>
+                  ) : null}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsSwimControlsOpen(true)}
+                    className="rounded-xl text-xs h-8 gap-1"
+                  >
+                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                    Filtres
+                  </Button>
                 </div>
               </div>
             ) : null}
+
+            <Sheet open={isSwimControlsOpen} onOpenChange={setIsSwimControlsOpen}>
+              <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-3xl">
+                <SheetHeader className="text-left">
+                  <SheetTitle>Filtres natation</SheetTitle>
+                  <SheetDescription>
+                    Choisis le type de records et le bassin sans surcharger l&apos;écran principal.
+                  </SheetDescription>
+                </SheetHeader>
+
+                <div className="mt-5 space-y-5">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                      Type
+                    </Label>
+                    <div className="grid grid-cols-1 gap-2">
+                      {(["training", "comp", "history"] as const).map((mode) => {
+                        const label = mode === "training" ? "Entraînement" : mode === "comp" ? "Compétition" : "Historique FFN";
+                        const helper =
+                          mode === "training"
+                            ? "Tes meilleurs temps saisis dans l'app"
+                            : mode === "comp"
+                              ? "Les performances validées en compétition"
+                              : "Historique détaillé importé depuis la FFN";
+                        return (
+                          <button
+                            key={mode}
+                            type="button"
+                            onClick={() => {
+                              setModeSafe(mode);
+                              if (mode !== "history") {
+                                setHistExpandedEvent(null);
+                              }
+                              setIsSwimControlsOpen(false);
+                            }}
+                            className={cx(
+                              "rounded-2xl border px-4 py-3 text-left transition",
+                              swimMode === mode
+                                ? "border-primary/30 bg-primary/5"
+                                : "border-border bg-background hover:bg-muted/40"
+                            )}
+                            aria-pressed={swimMode === mode}
+                          >
+                            <p className="text-sm font-semibold">{label}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{helper}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                      Bassin
+                    </Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {([25, 50] as const).map((v) => (
+                        <button
+                          key={v}
+                          type="button"
+                          onClick={() => {
+                            if (swimMode === "history") {
+                              setHistPoolLen(v);
+                            } else {
+                              setPoolLen(v);
+                              closeSwimEditor();
+                            }
+                            setIsSwimControlsOpen(false);
+                          }}
+                          className={cx(
+                            "rounded-2xl border px-4 py-3 text-sm font-semibold transition",
+                            activePoolLen === v
+                              ? "border-primary/30 bg-primary/5 text-foreground"
+                              : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                          )}
+                        >
+                          {v}m
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {swimMode === "comp" ? (
+                    <div className="rounded-2xl border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
+                      Les records compétition sont affichés à partir des données synchronisées FFN.
+                    </div>
+                  ) : null}
+                </div>
+              </SheetContent>
+            </Sheet>
+
+            <Sheet
+              open={swimMode === "training" && swimEditorOpenFor === "add"}
+              onOpenChange={(open) => {
+                if (!open && swimEditorOpenFor === "add") {
+                  closeSwimEditor();
+                }
+              }}
+            >
+              <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto rounded-t-3xl">
+                <SheetHeader className="text-left">
+                  <SheetTitle>Ajouter un record</SheetTitle>
+                  <SheetDescription>
+                    Saisis rapidement un meilleur temps d&apos;entraînement sans quitter la liste.
+                  </SheetDescription>
+                </SheetHeader>
+
+                <form onSubmit={handleSwimSubmit} className="mt-5">
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="col-span-2">
+                        <Label className="text-xs mb-1.5 block">Épreuve</Label>
+                        <Input
+                          value={swimForm.event_name}
+                          onChange={(e) => setSwimForm({ ...swimForm, event_name: e.target.value })}
+                          placeholder="Ex: 100 NL, 200 Dos"
+                          className="h-10 rounded-xl"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs mb-1.5 block">Bassin</Label>
+                        <Select
+                          value={swimForm.pool_length}
+                          onValueChange={(value) => setSwimForm({ ...swimForm, pool_length: value })}
+                        >
+                          <SelectTrigger className="h-10 rounded-xl">
+                            <SelectValue placeholder="—" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="25">25m</SelectItem>
+                            <SelectItem value="50">50m</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-xs mb-1.5 block">Temps</Label>
+                        <Input
+                          value={swimForm.time_seconds}
+                          inputMode="decimal"
+                          placeholder="1:02.34"
+                          onChange={(e) => setSwimForm({ ...swimForm, time_seconds: e.target.value })}
+                          className="h-10 rounded-xl"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs mb-1.5 block">Date</Label>
+                        <Input
+                          type="date"
+                          value={swimForm.record_date}
+                          onChange={(e) => setSwimForm({ ...swimForm, record_date: e.target.value })}
+                          className="h-10 rounded-xl"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs mb-1.5 block">Notes</Label>
+                        <Input
+                          value={swimForm.notes}
+                          onChange={(e) => setSwimForm({ ...swimForm, notes: e.target.value })}
+                          placeholder="Optionnel"
+                          className="h-10 rounded-xl"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pb-2">
+                      <Button type="button" variant="outline" onClick={closeSwimEditor} className="rounded-xl">
+                        Annuler
+                      </Button>
+                      <Button type="submit" disabled={upsertSwimRecord.isPending} className="rounded-xl">
+                        {upsertSwimRecord.isPending ? "Ajout..." : "Ajouter"}
+                      </Button>
+                    </div>
+                  </div>
+                </form>
+              </SheetContent>
+            </Sheet>
 
             <TabsContent value="swim" className="mt-0">
               {swimMode !== "history" ? (
               <>
               <div className="mt-3">
-
-              {/* Add form (training, above list) */}
-              {swimMode === "training" && swimEditorOpenFor === "add" ? (
-                <motion.div variants={fadeIn} initial="hidden" animate="visible" className="mb-3">
-                  <form onSubmit={handleSwimSubmit}>
-                    <Card className="rounded-2xl">
-                      <CardContent className="p-3 space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="col-span-2">
-                            <Label className="text-xs mb-1.5 block">Épreuve</Label>
-                            <Input
-                              value={swimForm.event_name}
-                              onChange={(e) => setSwimForm({ ...swimForm, event_name: e.target.value })}
-                              placeholder="Ex: 100 NL, 200 Dos"
-                              className="h-9 rounded-lg"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs mb-1.5 block">Bassin</Label>
-                            <Select
-                              value={swimForm.pool_length}
-                              onValueChange={(value) => setSwimForm({ ...swimForm, pool_length: value })}
-                            >
-                              <SelectTrigger className="h-9 rounded-lg">
-                                <SelectValue placeholder="—" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="25">25m</SelectItem>
-                                <SelectItem value="50">50m</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <Label className="text-xs mb-1.5 block">Temps</Label>
-                            <Input
-                              value={swimForm.time_seconds}
-                              inputMode="decimal"
-                              placeholder="1:02.34"
-                              onChange={(e) => setSwimForm({ ...swimForm, time_seconds: e.target.value })}
-                              className="h-9 rounded-lg"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs mb-1.5 block">Date</Label>
-                            <Input
-                              type="date"
-                              value={swimForm.record_date}
-                              onChange={(e) => setSwimForm({ ...swimForm, record_date: e.target.value })}
-                              className="h-9 rounded-lg"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs mb-1.5 block">Notes</Label>
-                            <Input
-                              value={swimForm.notes}
-                              onChange={(e) => setSwimForm({ ...swimForm, notes: e.target.value })}
-                              placeholder="Optionnel"
-                              className="h-9 rounded-lg"
-                            />
-                          </div>
-                        </div>
-                        <div className="flex justify-end gap-2">
-                          <Button type="button" size="sm" variant="outline" onClick={closeSwimEditor} className="rounded-xl h-8 text-xs gap-1">
-                            <X className="h-3 w-3" />
-                            Annuler
-                          </Button>
-                          <Button type="submit" size="sm" disabled={upsertSwimRecord.isPending} className="rounded-xl h-8 text-xs gap-1">
-                            <Check className="h-3 w-3" />
-                            Ajouter
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </form>
-                </motion.div>
-              ) : null}
 
               <Card className="w-full min-w-0 rounded-2xl">
                 <CardContent className="p-0">
@@ -983,132 +1056,46 @@ export default function Records() {
                       animate={prefersReducedMotion ? false : "visible"}
                     >
                       {groupedPerformances.map((group) => {
-                        const isExpanded = histExpandedEvent === group.eventCode;
-                        const toggleExpand = () =>
-                          setHistExpandedEvent(isExpanded ? null : group.eventCode);
+                        const bestPerformance =
+                          group.performances.find((perf) => perf.id === group.bestId) ?? group.performances[0];
+                        const latestPerformance = group.performances[0];
 
                         return (
                           <motion.div key={group.eventCode} variants={listItem}>
                             <Card className="rounded-2xl">
                               <CardContent className="p-0">
-                                {/* Collapsed header */}
                                 <button
                                   type="button"
-                                  onClick={toggleExpand}
-                                  className="w-full flex items-center justify-between gap-2 px-3 py-3 text-left cursor-pointer"
+                                  onClick={() => setHistExpandedEvent(group.eventCode)}
+                                  className="w-full flex items-center justify-between gap-3 px-3 py-3 text-left cursor-pointer"
                                 >
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <ChevronDown
-                                      className={cx(
-                                        "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-                                        isExpanded && "rotate-180"
-                                      )}
-                                    />
-                                    <span className="text-sm font-semibold truncate">
-                                      {group.eventCode}
-                                    </span>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <span className="text-sm font-semibold truncate">
+                                        {group.eventCode}
+                                      </span>
+                                      <span className="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-muted text-xs font-semibold tabular-nums text-muted-foreground">
+                                        {group.performances.length}
+                                      </span>
+                                    </div>
+                                    <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+                                      <span>
+                                        Meilleur: {formatDateShort(bestPerformance?.competition_date)}
+                                      </span>
+                                      {latestPerformance?.competition_date && latestPerformance.id !== bestPerformance?.id ? (
+                                        <span>
+                                          Dernier: {formatDateShort(latestPerformance.competition_date)}
+                                        </span>
+                                      ) : null}
+                                    </div>
                                   </div>
                                   <div className="flex items-center gap-2 shrink-0">
                                     <span className="font-mono text-primary font-bold tabular-nums text-sm">
                                       {formatTimeSeconds(group.bestTime)}
                                     </span>
-                                    <span className="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-muted text-xs font-semibold tabular-nums text-muted-foreground">
-                                      {group.performances.length}
-                                    </span>
+                                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
                                   </div>
                                 </button>
-
-                                {/* Expanded content */}
-                                {isExpanded ? (
-                                  <div className="border-t border-border">
-                                    {/* Chart */}
-                                    {chartData.length > 1 ? (
-                                      <div className="px-2 pt-3 pb-1">
-                                        <div className="text-xs text-muted-foreground mb-2 px-2">
-                                          Progression ({histPoolLen}m)
-                                        </div>
-                                        <ResponsiveContainer width="100%" height={160}>
-                                          <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                                            <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                                            <XAxis dataKey="date" tick={{ fontSize: 10 }} className="text-muted-foreground" />
-                                            <YAxis
-                                              domain={["auto", "auto"]}
-                                              tick={{ fontSize: 10 }}
-                                              className="text-muted-foreground"
-                                              reversed
-                                              tickFormatter={(v: number) => {
-                                                const min = Math.floor(v / 60);
-                                                const sec = Math.floor(v % 60);
-                                                const cs = Math.round((v % 1) * 100);
-                                                return min > 0 ? `${min}:${String(sec).padStart(2, "0")}` : `${sec}.${String(cs).padStart(2, "0")}`;
-                                              }}
-                                            />
-                                            <Tooltip
-                                              formatter={(value: number) => {
-                                                const min = Math.floor(value / 60);
-                                                const sec = Math.floor(value % 60);
-                                                const cs = Math.round((value % 1) * 100);
-                                                const display = min > 0
-                                                  ? `${min}:${String(sec).padStart(2, "0")}.${String(cs).padStart(2, "0")}`
-                                                  : `${sec}.${String(cs).padStart(2, "0")}`;
-                                                return [display, "Temps"];
-                                              }}
-                                              labelStyle={{ fontSize: 11 }}
-                                              contentStyle={{ borderRadius: 12, fontSize: 12 }}
-                                            />
-                                            <Line
-                                              type="monotone"
-                                              dataKey="time"
-                                              stroke="hsl(var(--primary))"
-                                              strokeWidth={2}
-                                              dot={{ r: 3 }}
-                                              activeDot={{ r: 5 }}
-                                            />
-                                          </LineChart>
-                                        </ResponsiveContainer>
-                                      </div>
-                                    ) : null}
-
-                                    {/* Performance list */}
-                                    <div className="divide-y divide-border">
-                                      {group.performances.map((perf) => {
-                                        const isBest = perf.id === group.bestId;
-                                        return (
-                                          <div
-                                            key={perf.id}
-                                            className={cx(
-                                              "px-3 py-2.5",
-                                              isBest && "bg-primary/5"
-                                            )}
-                                          >
-                                            <div className="flex items-center justify-between gap-2">
-                                              <div className="flex items-center gap-1.5 min-w-0">
-                                                {isBest && <Trophy className="h-3.5 w-3.5 text-primary shrink-0" />}
-                                                <span className="text-xs text-muted-foreground tabular-nums">
-                                                  {formatDateShort(perf.competition_date)}
-                                                </span>
-                                              </div>
-                                              <span className={cx(
-                                                "font-mono tabular-nums text-sm shrink-0",
-                                                isBest ? "text-primary font-bold" : "font-medium"
-                                              )}>
-                                                {perf.time_display ?? formatTimeSeconds(perf.time_seconds)}
-                                              </span>
-                                            </div>
-                                            <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
-                                              {perf.ffn_points != null && (
-                                                <span className="tabular-nums">{String(perf.ffn_points)} pts</span>
-                                              )}
-                                              {perf.competition_name && (
-                                                <span className="truncate">{perf.competition_name}</span>
-                                              )}
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                ) : null}
                               </CardContent>
                             </Card>
                           </motion.div>
@@ -1116,6 +1103,116 @@ export default function Records() {
                       })}
                     </motion.div>
                   )}
+
+                  <Sheet
+                    open={Boolean(selectedHistoryGroup)}
+                    onOpenChange={(open) => {
+                      if (!open) {
+                        setHistExpandedEvent(null);
+                      }
+                    }}
+                  >
+                    <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto rounded-t-3xl">
+                      <SheetHeader className="text-left">
+                        <SheetTitle>{selectedHistoryGroup?.eventCode ?? "Historique"}</SheetTitle>
+                        <SheetDescription>
+                          {selectedHistoryGroup
+                            ? `${selectedHistoryGroup.performances.length} performance${selectedHistoryGroup.performances.length > 1 ? "s" : ""} en bassin ${histPoolLen}m`
+                            : "Historique détaillé"}
+                        </SheetDescription>
+                      </SheetHeader>
+
+                      {selectedHistoryGroup ? (
+                        <div className="mt-5 space-y-4">
+                          {chartData.length > 1 ? (
+                            <div className="rounded-2xl border border-border bg-muted/20 px-2 pt-3 pb-1">
+                              <div className="text-xs text-muted-foreground mb-2 px-2">
+                                Courbe de progression
+                              </div>
+                              <ResponsiveContainer width="100%" height={180}>
+                                <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                                  <XAxis dataKey="date" tick={{ fontSize: 10 }} className="text-muted-foreground" />
+                                  <YAxis
+                                    domain={["auto", "auto"]}
+                                    tick={{ fontSize: 10 }}
+                                    className="text-muted-foreground"
+                                    reversed
+                                    tickFormatter={(v: number) => {
+                                      const min = Math.floor(v / 60);
+                                      const sec = Math.floor(v % 60);
+                                      const cs = Math.round((v % 1) * 100);
+                                      return min > 0 ? `${min}:${String(sec).padStart(2, "0")}` : `${sec}.${String(cs).padStart(2, "0")}`;
+                                    }}
+                                  />
+                                  <Tooltip
+                                    formatter={(value: number) => {
+                                      const min = Math.floor(value / 60);
+                                      const sec = Math.floor(value % 60);
+                                      const cs = Math.round((value % 1) * 100);
+                                      const display = min > 0
+                                        ? `${min}:${String(sec).padStart(2, "0")}.${String(cs).padStart(2, "0")}`
+                                        : `${sec}.${String(cs).padStart(2, "0")}`;
+                                      return [display, "Temps"];
+                                    }}
+                                    labelStyle={{ fontSize: 11 }}
+                                    contentStyle={{ borderRadius: 12, fontSize: 12 }}
+                                  />
+                                  <Line
+                                    type="monotone"
+                                    dataKey="time"
+                                    stroke="hsl(var(--primary))"
+                                    strokeWidth={2}
+                                    dot={{ r: 3 }}
+                                    activeDot={{ r: 5 }}
+                                  />
+                                </LineChart>
+                              </ResponsiveContainer>
+                            </div>
+                          ) : null}
+
+                          <div className="overflow-hidden rounded-2xl border border-border">
+                            <div className="divide-y divide-border">
+                              {selectedHistoryGroup.performances.map((perf) => {
+                                const isBest = perf.id === selectedHistoryGroup.bestId;
+                                return (
+                                  <div
+                                    key={perf.id}
+                                    className={cx("px-3 py-2.5", isBest && "bg-primary/5")}
+                                  >
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="flex items-center gap-1.5 min-w-0">
+                                        {isBest ? <Trophy className="h-3.5 w-3.5 text-primary shrink-0" /> : null}
+                                        <span className="text-xs text-muted-foreground tabular-nums">
+                                          {formatDateShort(perf.competition_date)}
+                                        </span>
+                                      </div>
+                                      <span
+                                        className={cx(
+                                          "font-mono tabular-nums text-sm shrink-0",
+                                          isBest ? "text-primary font-bold" : "font-medium",
+                                        )}
+                                      >
+                                        {perf.time_display ?? formatTimeSeconds(perf.time_seconds)}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
+                                      {perf.ffn_points != null ? (
+                                        <span className="tabular-nums">{String(perf.ffn_points)} pts</span>
+                                      ) : null}
+                                      {perf.competition_name ? (
+                                        <span className="truncate">{perf.competition_name}</span>
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
+                    </SheetContent>
+                  </Sheet>
                 </div>
               ) : null}
 

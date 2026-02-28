@@ -30,12 +30,14 @@ interface Props {
   athleteId: number;
   athleteName: string;
   onOpenProgression?: () => void;
+  showProgressAction?: boolean;
 }
 
 export default function SwimmerFeedbackTab({
   athleteId,
   athleteName,
   onOpenProgression,
+  showProgressAction = true,
 }: Props) {
   const [, navigate] = useLocation();
   const { setSelectedAthlete } = useAuth();
@@ -83,15 +85,17 @@ export default function SwimmerFeedbackTab({
 
   return (
     <div className="space-y-2">
-      <Button
-        variant="outline"
-        size="sm"
-        className="w-full text-xs gap-1.5"
-        onClick={handleOpenProgression}
-      >
-        <BarChart3 className="h-3.5 w-3.5" />
-        Voir la progression
-      </Button>
+      {showProgressAction ? (
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full text-xs gap-1.5"
+          onClick={handleOpenProgression}
+        >
+          <BarChart3 className="h-3.5 w-3.5" />
+          Voir la progression
+        </Button>
+      ) : null}
 
       {displayed.map((session) => {
         const isExpanded = expandedId === session.id;
