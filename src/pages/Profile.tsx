@@ -13,7 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Lock, Pen, Target, Trophy, LogOut, Save, AlertCircle, Download, Camera, Trash2, Brain, MessageSquare, Clock, AlertTriangle } from "lucide-react";
+import { Lock, Pen, Target, Trophy, LogOut, Save, AlertCircle, Download, Camera, Trash2, Brain, MessageSquare, Clock, AlertTriangle, Bell, BellOff } from "lucide-react";
+import { isPushSupported, hasActivePushSubscription, subscribeToPush, unsubscribeFromPush } from "@/lib/push";
 import { compressImage, isAcceptedImageType } from "@/lib/imageUtils";
 import AvatarCropDialog from "@/components/profile/AvatarCropDialog";
 import { useForm } from "react-hook-form";
@@ -229,6 +230,8 @@ export default function Profile() {
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [cropDialogSrc, setCropDialogSrc] = useState<string | null>(null);
   const [pendingNeurotypResult, setPendingNeurotypResult] = useState<NeurotypResultType | null>(null);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
 
   // Reset view state when dock icon is tapped while already on this page
   useEffect(() => {
@@ -242,6 +245,25 @@ export default function Profile() {
     window.addEventListener("nav:reset", reset);
     return () => window.removeEventListener("nav:reset", reset);
   }, []);
+
+  useEffect(() => {
+    if (isPushSupported()) {
+      hasActivePushSubscription().then(setPushEnabled);
+    }
+  }, []);
+
+  const handleTogglePush = async () => {
+    if (!userId) return;
+    setPushLoading(true);
+    if (pushEnabled) {
+      await unsubscribeFromPush(userId);
+      setPushEnabled(false);
+    } else {
+      const ok = await subscribeToPush(userId);
+      setPushEnabled(ok);
+    }
+    setPushLoading(false);
+  };
 
   const handleCheckUpdate = async () => {
     setIsCheckingUpdate(true);
@@ -642,6 +664,33 @@ export default function Profile() {
           </button>
         )}
       </div>
+
+      {/* Push notifications toggle */}
+      {isPushSupported() && (
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
+                {pushEnabled ? <Bell className="h-4.5 w-4.5 text-primary" /> : <BellOff className="h-4.5 w-4.5 text-muted-foreground" />}
+              </div>
+              <div>
+                <p className="text-sm font-bold">Notifications push</p>
+                <p className="text-xs text-muted-foreground">
+                  {pushEnabled ? "Activees" : "Desactivees"}
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant={pushEnabled ? "outline" : "default"}
+              onClick={handleTogglePush}
+              disabled={pushLoading}
+            >
+              {pushLoading ? "..." : pushEnabled ? "Desactiver" : "Activer"}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Swimmer schedule (read-only) */}
       {showRecords && profile?.group_id ? (
