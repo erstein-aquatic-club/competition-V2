@@ -43,9 +43,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Clock,
   MapPin,
-  Users,
   Plus,
-  Pencil,
   Trash2,
   AlertTriangle,
 } from "lucide-react";
@@ -64,6 +62,14 @@ const DAYS_FR = [
 
 const DAYS_SHORT = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
+/** Timeline range */
+const TIMELINE_START = 6; // 06:00
+const TIMELINE_END = 22; // 22:00
+const TIMELINE_HOURS = TIMELINE_END - TIMELINE_START; // 16h
+const PX_PER_HOUR = 40;
+const TIMELINE_HEIGHT = TIMELINE_HOURS * PX_PER_HOUR; // 640px
+const HOUR_LABELS = Array.from({ length: TIMELINE_HOURS + 1 }, (_, i) => TIMELINE_START + i);
+
 // ── Helpers ──────────────────────────────────────────────────────
 
 function formatTime(t: string): string {
@@ -73,6 +79,23 @@ function formatTime(t: string): string {
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+/** Convert "HH:MM" or "HH:MM:SS" to minutes since midnight */
+function timeToMinutes(t: string): number {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+/** Convert time to pixel offset from timeline top */
+function timeToPx(t: string): number {
+  const mins = timeToMinutes(t);
+  return ((mins - TIMELINE_START * 60) / 60) * PX_PER_HOUR;
+}
+
+/** Duration in px between two time strings */
+function durationPx(start: string, end: string): number {
+  return timeToPx(end) - timeToPx(start);
 }
 
 // ── Types ────────────────────────────────────────────────────────
@@ -675,114 +698,188 @@ const OverrideFormSheet = ({
   );
 };
 
-// ── Slot Card (used inside weekly grid columns) ─────────────────
+// ── Timeline Slot Block (positioned absolutely on the timeline) ──
 
-type SlotCardProps = {
+type TimelineSlotProps = {
   slot: TrainingSlot;
+  hasOverrides: boolean;
+  onSelect: (slot: TrainingSlot) => void;
+};
+
+const TimelineSlot = ({ slot, hasOverrides, onSelect }: TimelineSlotProps) => {
+  const top = timeToPx(slot.start_time);
+  const height = durationPx(slot.start_time, slot.end_time);
+  const isShort = height < 50;
+
+  return (
+    <button
+      type="button"
+      className="absolute left-0.5 right-0.5 rounded-md border bg-primary/10 border-primary/30 px-1.5 py-0.5 text-left overflow-hidden cursor-pointer hover:bg-primary/20 transition-colors group"
+      style={{ top, height, minHeight: 24 }}
+      onClick={() => onSelect(slot)}
+      title={`${formatTime(slot.start_time)}–${formatTime(slot.end_time)} · ${slot.location}`}
+    >
+      <div className={`flex flex-col gap-0.5 ${isShort ? "flex-row items-center" : ""}`}>
+        {/* Location */}
+        <div className="flex items-center gap-1 min-w-0">
+          <MapPin className="h-2.5 w-2.5 text-primary shrink-0" />
+          <span className="text-[10px] font-medium text-foreground truncate">
+            {slot.location}
+          </span>
+          {hasOverrides && (
+            <AlertTriangle className="h-2.5 w-2.5 text-orange-500 shrink-0" />
+          )}
+        </div>
+
+        {/* Group badges */}
+        {!isShort && slot.assignments.length > 0 && (
+          <div className="flex flex-wrap gap-0.5">
+            {slot.assignments.map((a) => (
+              <Badge
+                key={a.id}
+                variant="secondary"
+                className="text-[9px] px-1 py-0 leading-tight"
+              >
+                {a.group_name}
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        {/* Coach names for taller slots */}
+        {!isShort && height >= 70 && slot.assignments.length > 0 && (
+          <span className="text-[9px] text-muted-foreground truncate">
+            {[...new Set(slot.assignments.map((a) => a.coach_name))].join(", ")}
+          </span>
+        )}
+      </div>
+    </button>
+  );
+};
+
+// ── Slot Detail Sheet (bottom sheet on tap) ─────────────────────
+
+type SlotDetailSheetProps = {
+  slot: TrainingSlot | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   overrides: TrainingSlotOverride[];
-  onEdit: (slot: TrainingSlot) => void;
-  onOverride: (slot: TrainingSlot) => void;
+  onEdit: () => void;
+  onOverride: () => void;
   onDeleteOverride: (id: string) => void;
 };
 
-const SlotCard = ({
+const SlotDetailSheet = ({
   slot,
+  open,
+  onOpenChange,
   overrides,
   onEdit,
   onOverride,
   onDeleteOverride,
-}: SlotCardProps) => (
-  <div className="rounded-lg border bg-card p-2 space-y-1.5 text-xs">
-    {/* Time + actions */}
-    <div className="flex items-center justify-between gap-1">
-      <div className="flex items-center gap-1 min-w-0">
-        <Clock className="h-3 w-3 text-primary shrink-0" />
-        <span className="font-semibold whitespace-nowrap">
-          {formatTime(slot.start_time)}–{formatTime(slot.end_time)}
-        </span>
-      </div>
-      <div className="flex items-center shrink-0">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6"
-          onClick={() => onEdit(slot)}
-          title="Modifier"
-        >
-          <Pencil className="h-3 w-3" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6"
-          onClick={() => onOverride(slot)}
-          title="Exception"
-        >
-          <AlertTriangle className="h-3 w-3" />
-        </Button>
-      </div>
-    </div>
+}: SlotDetailSheetProps) => {
+  if (!slot) return null;
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="bottom"
+        className="max-h-[60vh] overflow-y-auto rounded-t-2xl"
+      >
+        <SheetHeader className="pb-2">
+          <SheetTitle className="text-left text-base">
+            {DAYS_FR[slot.day_of_week - 1]} · {formatTime(slot.start_time)}–
+            {formatTime(slot.end_time)}
+          </SheetTitle>
+          <SheetDescription className="sr-only">
+            Details du creneau
+          </SheetDescription>
+        </SheetHeader>
 
-    {/* Location */}
-    <div className="flex items-center gap-1 text-muted-foreground">
-      <MapPin className="h-2.5 w-2.5 shrink-0" />
-      <span className="truncate text-[10px]">{slot.location}</span>
-    </div>
-
-    {/* Assignments */}
-    {slot.assignments.length > 0 && (
-      <div className="space-y-1 pt-0.5">
-        {slot.assignments.map((a) => (
-          <div key={a.id} className="flex items-center gap-1 flex-wrap">
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-              {a.group_name}
-            </Badge>
-            <span className="text-[10px] text-muted-foreground truncate">
-              {a.coach_name}
-              {a.lane_count != null &&
-                ` · ${a.lane_count}L`}
-            </span>
+        <div className="space-y-3">
+          {/* Location */}
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <MapPin className="h-3.5 w-3.5 shrink-0" />
+            {slot.location}
           </div>
-        ))}
-      </div>
-    )}
 
-    {/* Upcoming overrides */}
-    {overrides.length > 0 && (
-      <div className="space-y-0.5 pt-1 border-t border-dashed">
-        {overrides.map((ovr) => (
-          <div
-            key={ovr.id}
-            className="flex items-center gap-1 text-[10px]"
-          >
-            <AlertTriangle className="h-2.5 w-2.5 text-orange-500 shrink-0" />
-            <span className="text-muted-foreground">
-              {new Date(ovr.override_date + "T00:00:00").toLocaleDateString(
-                "fr-FR",
-                { day: "2-digit", month: "2-digit" },
-              )}
-            </span>
-            <Badge
-              variant={ovr.status === "cancelled" ? "destructive" : "outline"}
-              className="text-[9px] px-1 py-0"
-            >
-              {ovr.status === "cancelled" ? "Annule" : "Modifie"}
-            </Badge>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-4 w-4 ml-auto shrink-0 text-muted-foreground hover:text-destructive"
-              onClick={() => onDeleteOverride(ovr.id)}
-              title="Supprimer"
-            >
-              <Trash2 className="h-2 w-2" />
+          {/* Assignments */}
+          {slot.assignments.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {slot.assignments.map((a) => (
+                <div key={a.id} className="flex items-center gap-1">
+                  <Badge variant="secondary" className="text-xs px-2 py-0.5">
+                    {a.group_name}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {a.coach_name}
+                    {a.lane_count != null &&
+                      ` · ${a.lane_count} ligne${a.lane_count > 1 ? "s" : ""}`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Overrides */}
+          {overrides.length > 0 && (
+            <div className="space-y-1.5 pt-1 border-t border-dashed">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Exceptions
+              </span>
+              {overrides.map((ovr) => (
+                <div
+                  key={ovr.id}
+                  className="flex items-center gap-1.5 text-xs"
+                >
+                  <AlertTriangle className="h-3 w-3 text-orange-500 shrink-0" />
+                  <span className="text-muted-foreground">
+                    {new Date(
+                      ovr.override_date + "T00:00:00",
+                    ).toLocaleDateString("fr-FR", {
+                      day: "2-digit",
+                      month: "2-digit",
+                    })}
+                  </span>
+                  <Badge
+                    variant={
+                      ovr.status === "cancelled" ? "destructive" : "outline"
+                    }
+                    className="text-[10px] px-1 py-0"
+                  >
+                    {ovr.status === "cancelled" ? "Annule" : "Modifie"}
+                  </Badge>
+                  {ovr.reason && (
+                    <span className="text-muted-foreground truncate flex-1">
+                      {ovr.reason}
+                    </span>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 ml-auto shrink-0 text-muted-foreground hover:text-destructive"
+                    onClick={() => onDeleteOverride(ovr.id)}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" size="sm" className="flex-1" onClick={onEdit}>
+              Modifier
+            </Button>
+            <Button variant="outline" size="sm" className="flex-1" onClick={onOverride}>
+              Exception
             </Button>
           </div>
-        ))}
-      </div>
-    )}
-  </div>
-);
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+};
 
 // ── Main Component ──────────────────────────────────────────────
 
@@ -797,6 +894,8 @@ const CoachTrainingSlotsScreen = ({
   const [editingSlot, setEditingSlot] = useState<TrainingSlot | null>(null);
   const [overrideSlot, setOverrideSlot] = useState<TrainingSlot | null>(null);
   const [showOverrideForm, setShowOverrideForm] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<TrainingSlot | null>(null);
+  const [showDetail, setShowDetail] = useState(false);
 
   // Filter state
   const [filterMode, setFilterMode] = useState<"coach" | "group">("group");
@@ -885,13 +984,22 @@ const CoachTrainingSlotsScreen = ({
     setShowSlotForm(true);
   };
 
-  const handleEdit = (slot: TrainingSlot) => {
-    setEditingSlot(slot);
+  const handleSelect = (slot: TrainingSlot) => {
+    setSelectedSlot(slot);
+    setShowDetail(true);
+  };
+
+  const handleEditFromDetail = () => {
+    if (!selectedSlot) return;
+    setShowDetail(false);
+    setEditingSlot(selectedSlot);
     setShowSlotForm(true);
   };
 
-  const handleOverride = (slot: TrainingSlot) => {
-    setOverrideSlot(slot);
+  const handleOverrideFromDetail = () => {
+    if (!selectedSlot) return;
+    setShowDetail(false);
+    setOverrideSlot(selectedSlot);
     setShowOverrideForm(true);
   };
 
@@ -968,13 +1076,13 @@ const CoachTrainingSlotsScreen = ({
         )}
       </div>
 
-      {/* Weekly grid */}
+      {/* Weekly timeline */}
       {slotsLoading ? (
         <div className="grid grid-cols-7 gap-2">
           {Array.from({ length: 7 }, (_, i) => (
             <div key={i} className="space-y-2">
               <div className="h-4 w-12 rounded bg-muted animate-pulse motion-reduce:animate-none" />
-              <div className="h-20 rounded-lg bg-muted animate-pulse motion-reduce:animate-none" />
+              <div className="h-40 rounded-lg bg-muted animate-pulse motion-reduce:animate-none" />
             </div>
           ))}
         </div>
@@ -992,52 +1100,86 @@ const CoachTrainingSlotsScreen = ({
       ) : (
         <div className="overflow-x-auto -mx-4 px-4">
           <div
-            className="grid grid-cols-7 gap-2"
-            style={{ minWidth: "700px" }}
+            className="grid"
+            style={{
+              minWidth: "760px",
+              gridTemplateColumns: "2rem repeat(7, 1fr)",
+            }}
           >
+            {/* ── Day headers row ── */}
+            <div /> {/* empty cell above time labels */}
+            {Array.from({ length: 7 }, (_, i) => (
+              <div key={i} className="text-center pb-1.5">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground sm:hidden">
+                  {DAYS_SHORT[i]}
+                </span>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground hidden sm:inline">
+                  {DAYS_FR[i]}
+                </span>
+              </div>
+            ))}
+
+            {/* ── Time labels column ── */}
+            <div className="relative" style={{ height: TIMELINE_HEIGHT }}>
+              {HOUR_LABELS.map((h) => (
+                <span
+                  key={h}
+                  className="absolute right-1 text-[9px] text-muted-foreground/70 leading-none -translate-y-1/2"
+                  style={{ top: (h - TIMELINE_START) * PX_PER_HOUR }}
+                >
+                  {h}h
+                </span>
+              ))}
+            </div>
+
+            {/* ── 7 day columns ── */}
             {Array.from({ length: 7 }, (_, i) => i + 1).map((day) => {
               const daySlots = slotsByDay.get(day) ?? [];
               return (
-                <div key={day} className="min-w-0">
-                  {/* Day header */}
-                  <div className="text-center mb-2">
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground sm:hidden">
-                      {DAYS_SHORT[day - 1]}
-                    </span>
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground hidden sm:inline">
-                      {DAYS_FR[day - 1]}
-                    </span>
-                  </div>
+                <div
+                  key={day}
+                  className="relative border-l border-border/40"
+                  style={{ height: TIMELINE_HEIGHT }}
+                >
+                  {/* Hour grid lines */}
+                  {HOUR_LABELS.map((h) => (
+                    <div
+                      key={h}
+                      className="absolute left-0 right-0 border-t border-border/20"
+                      style={{ top: (h - TIMELINE_START) * PX_PER_HOUR }}
+                    />
+                  ))}
 
-                  {/* Slots column */}
-                  <div className="space-y-2 min-h-[60px]">
-                    {daySlots.length === 0 ? (
-                      <div className="rounded-lg border border-dashed p-2 text-center">
-                        <span className="text-[10px] text-muted-foreground/50">
-                          —
-                        </span>
-                      </div>
-                    ) : (
-                      daySlots.map((slot) => (
-                        <SlotCard
-                          key={slot.id}
-                          slot={slot}
-                          overrides={overridesBySlot.get(slot.id) ?? []}
-                          onEdit={handleEdit}
-                          onOverride={handleOverride}
-                          onDeleteOverride={(id) =>
-                            deleteOverrideMutation.mutate(id)
-                          }
-                        />
-                      ))
-                    )}
-                  </div>
+                  {/* Slot blocks */}
+                  {daySlots.map((slot) => (
+                    <TimelineSlot
+                      key={slot.id}
+                      slot={slot}
+                      hasOverrides={
+                        (overridesBySlot.get(slot.id) ?? []).length > 0
+                      }
+                      onSelect={handleSelect}
+                    />
+                  ))}
                 </div>
               );
             })}
           </div>
         </div>
       )}
+
+      {/* Slot Detail Sheet (tap on timeline) */}
+      <SlotDetailSheet
+        slot={selectedSlot}
+        open={showDetail}
+        onOpenChange={setShowDetail}
+        overrides={
+          selectedSlot ? (overridesBySlot.get(selectedSlot.id) ?? []) : []
+        }
+        onEdit={handleEditFromDetail}
+        onOverride={handleOverrideFromDetail}
+        onDeleteOverride={(id) => deleteOverrideMutation.mutate(id)}
+      />
 
       {/* Slot Form Sheet */}
       <SlotFormSheet
