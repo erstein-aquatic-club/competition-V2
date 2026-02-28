@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type {
@@ -6,17 +6,15 @@ import type {
   InterviewStatus,
   InterviewCoachInput,
   Objective,
-  TrainingCycle,
   TrainingWeek,
   TrainingWeekInput,
-  Competition,
+  SwimmerPerformance,
 } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Sheet,
@@ -46,7 +44,14 @@ import {
   Trophy,
   Target,
 } from "lucide-react";
-import { eventLabel, formatTime } from "@/lib/objectiveHelpers";
+import {
+  eventLabel,
+  formatTime,
+  findBestPerformance,
+  computeProgress,
+  STROKE_COLORS,
+  strokeFromCode,
+} from "@/lib/objectiveHelpers";
 import { weekTypeColor, weekTypeTextColor } from "@/lib/weekTypeColor";
 
 // ── Types ───────────────────────────────────────────────────────
@@ -111,17 +116,17 @@ const STATUS_CONFIG: Record<InterviewStatus, { label: string; variant: "default"
     className: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-200 dark:border-amber-800",
   },
   draft_coach: {
-    label: "Preparation coach",
+    label: "Préparation coach",
     variant: "secondary",
     className: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border-blue-200 dark:border-blue-800",
   },
   sent: {
-    label: "Envoye",
+    label: "Envoyé",
     variant: "secondary",
     className: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 border-green-200 dark:border-green-800",
   },
   signed: {
-    label: "Signe",
+    label: "Signé",
     variant: "secondary",
     className: "bg-slate-100 text-slate-600 dark:bg-slate-800/40 dark:text-slate-300 border-slate-200 dark:border-slate-700",
   },
@@ -172,7 +177,7 @@ const AthleteSection = ({ label, text }: { label: string; text?: string | null }
       <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
     </div>
     <p className="text-sm whitespace-pre-wrap">
-      {text?.trim() || <span className="italic text-muted-foreground">Non renseigne</span>}
+      {text?.trim() || <span className="italic text-muted-foreground">Non renseigné</span>}
     </p>
   </div>
 );
@@ -184,7 +189,7 @@ const CoachSectionReadOnly = ({ label, text }: { label: string; text?: string | 
       <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
     </div>
     <p className="text-sm whitespace-pre-wrap">
-      {text?.trim() || <span className="italic text-muted-foreground">Non renseigne</span>}
+      {text?.trim() || <span className="italic text-muted-foreground">Non renseigné</span>}
     </p>
   </div>
 );
@@ -225,32 +230,63 @@ const SectionDivider = ({ label }: { label: string }) => (
   </div>
 );
 
-// ── Objective Row ──────────────────────────────────────────────
+// ── Objective Row (with best perf + delta) ──────────────────────
 
-const ObjectiveRow = ({ objective }: { objective: Objective }) => {
+const ObjectiveRow = ({ objective, performances = [] }: { objective: Objective; performances?: SwimmerPerformance[] }) => {
   const hasChrono = !!objective.event_code;
   const hasText = !!objective.text;
+  const stroke = hasChrono ? strokeFromCode(objective.event_code!) : null;
+  const borderColor = stroke ? STROKE_COLORS[stroke] ?? "" : "";
+
+  const bestPerf = hasChrono
+    ? findBestPerformance(performances, objective.event_code!, objective.pool_length)
+    : null;
+
+  let delta: number | null = null;
+  let progressPct: number | null = null;
+  if (bestPerf && objective.target_time_seconds != null && objective.event_code) {
+    delta = bestPerf.time - objective.target_time_seconds;
+    progressPct = computeProgress(bestPerf.time, objective.target_time_seconds, objective.event_code);
+  }
 
   return (
-    <div className="rounded-lg border bg-card p-2.5 text-sm space-y-0.5">
-      {hasChrono && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <Target className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-          <span className="font-medium">{eventLabel(objective.event_code!)}</span>
-          {objective.pool_length && (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-              {objective.pool_length}m
-            </Badge>
+    <div className={`rounded-lg border bg-card p-2.5 text-sm space-y-1 ${hasChrono ? `border-l-4 ${borderColor}` : ""}`}>
+      <div className="flex items-center gap-2 flex-wrap">
+        <Target className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <span className="font-medium">{hasChrono ? eventLabel(objective.event_code!) : ""}</span>
+        {objective.pool_length && (
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+            {objective.pool_length}m
+          </Badge>
+        )}
+        {objective.target_time_seconds != null && (
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono">
+            {formatTime(objective.target_time_seconds)}
+          </Badge>
+        )}
+      </div>
+      {hasText && (
+        <p className="text-muted-foreground line-clamp-2 pl-5">{objective.text}</p>
+      )}
+      {bestPerf && (
+        <div className="flex items-center gap-2 pl-5 text-xs text-muted-foreground flex-wrap">
+          <span>
+            Actuel : <span className="font-mono">{formatTime(bestPerf.time)}</span>
+          </span>
+          {bestPerf.date && (
+            <span className="text-muted-foreground/60">({formatDate(bestPerf.date)})</span>
           )}
-          {objective.target_time_seconds != null && (
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono">
-              {formatTime(objective.target_time_seconds)}
-            </Badge>
+          {delta != null && (
+            <span className={delta <= 0 ? "text-emerald-600 font-medium" : "text-amber-600"}>
+              {delta <= 0 ? "Objectif atteint !" : `+${delta.toFixed(1)}s`}
+            </span>
           )}
         </div>
       )}
-      {hasText && (
-        <p className="text-muted-foreground line-clamp-2">{objective.text}</p>
+      {!bestPerf && hasChrono && objective.target_time_seconds != null && (
+        <p className="text-[10px] text-muted-foreground italic pl-5">
+          Pas encore de temps enregistré
+        </p>
       )}
     </div>
   );
@@ -266,7 +302,7 @@ const PreviousCycleSummary = ({
   <div className="rounded-xl border bg-muted/30 p-4 space-y-3">
     <div className="flex items-center gap-2">
       <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-        Bilan du cycle precedent
+        Bilan du cycle précédent
       </span>
       <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
         {formatDate(prevInterview.date)}
@@ -295,7 +331,7 @@ const PreviousCycleSummary = ({
     )}
 
     {!prevInterview.athlete_commitments && !prevInterview.coach_actions && (
-      <p className="text-xs text-muted-foreground italic">Aucun engagement enregistre.</p>
+      <p className="text-xs text-muted-foreground italic">Aucun engagement enregistré.</p>
     )}
   </div>
 );
@@ -384,7 +420,7 @@ const InlinePlanning = ({
   // Create cycle mutation
   const createCycleMutation = useMutation({
     mutationFn: async () => {
-      if (!nextCompetition) throw new Error("Pas de competition");
+      if (!nextCompetition) throw new Error("Pas de compétition");
       // Find a start competition (closest before interview date, or use interviewDate as anchor)
       const startComps = competitions
         .filter((c) => c.date <= interviewDate)
@@ -396,7 +432,7 @@ const InlinePlanning = ({
         group_id: null,
         start_competition_id: startComp.id,
         end_competition_id: nextCompetition.id,
-        name: `Preparation ${nextCompetition.name}`,
+        name: `Préparation ${nextCompetition.name}`,
       });
       // Auto-generate weeks
       const mondays = getMondays(interviewDate, nextCompetition.date);
@@ -408,7 +444,7 @@ const InlinePlanning = ({
       return cycle;
     },
     onSuccess: () => {
-      toast({ title: "Planification creee" });
+      toast({ title: "Planification créée" });
       void queryClient.invalidateQueries({ queryKey: ["training-cycles"] });
       void queryClient.invalidateQueries({ queryKey: ["training-weeks"] });
     },
@@ -433,7 +469,7 @@ const InlinePlanning = ({
     return (
       <div className="text-center py-4">
         <p className="text-xs text-muted-foreground italic">
-          Aucune competition assignee a venir — planification non disponible.
+          Aucune compétition assignée à venir — planification non disponible.
         </p>
       </div>
     );
@@ -458,7 +494,7 @@ const InlinePlanning = ({
           onClick={() => createCycleMutation.mutate()}
           disabled={createCycleMutation.isPending}
         >
-          {createCycleMutation.isPending ? "Creation..." : "Creer la planification"}
+          {createCycleMutation.isPending ? "Création..." : "Créer la planification"}
         </Button>
       </div>
     );
@@ -495,7 +531,7 @@ const InlinePlanning = ({
                 </div>
                 <Input
                   className="h-7 text-sm"
-                  placeholder="Foncier, Techni., Affutage..."
+                  placeholder="Foncier, Techni., Affûtage..."
                   list={datalistId}
                   value={editWeekType}
                   onChange={(e) => setEditWeekType(e.target.value)}
@@ -638,6 +674,26 @@ const InterviewDetailSheet = ({
     enabled: !!athleteAuthId,
   });
 
+  // Athlete profile for IUF + performances (360 days)
+  const { data: athleteProfile } = useQuery({
+    queryKey: ["athlete-profile", athleteId],
+    queryFn: () => api.getProfile({ userId: athleteId }),
+    enabled: !!athleteId,
+  });
+  const athleteIuf = athleteProfile?.ffn_iuf ?? null;
+
+  const perfFromDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 360);
+    return d.toISOString().slice(0, 10);
+  }, []);
+
+  const { data: performances = [] } = useQuery({
+    queryKey: ["swimmer-performances-recent", athleteIuf],
+    queryFn: () => api.getSwimmerPerformances({ iuf: athleteIuf!, fromDate: perfFromDate }),
+    enabled: !!athleteIuf,
+  });
+
   // ── Mutations ──
 
   const buildCoachInput = (): InterviewCoachInput => ({
@@ -652,7 +708,7 @@ const InterviewDetailSheet = ({
   const saveMutation = useMutation({
     mutationFn: () => api.updateInterviewCoachSections(interview!.id, buildCoachInput()),
     onSuccess: () => {
-      toast({ title: "Enregistre" });
+      toast({ title: "Enregistré" });
       void queryClient.invalidateQueries({ queryKey: ["interviews", athleteId] });
     },
     onError: (err: Error) => {
@@ -666,7 +722,7 @@ const InterviewDetailSheet = ({
       return api.sendInterviewToAthlete(interview!.id);
     },
     onSuccess: () => {
-      toast({ title: "Entretien envoye au nageur" });
+      toast({ title: "Entretien envoyé au nageur" });
       void queryClient.invalidateQueries({ queryKey: ["interviews", athleteId] });
       onOpenChange(false);
     },
@@ -678,7 +734,7 @@ const InterviewDetailSheet = ({
   const deleteMutation = useMutation({
     mutationFn: () => api.deleteInterview(interview!.id),
     onSuccess: () => {
-      toast({ title: "Entretien supprime" });
+      toast({ title: "Entretien supprimé" });
       void queryClient.invalidateQueries({ queryKey: ["interviews", athleteId] });
       onOpenChange(false);
     },
@@ -709,7 +765,7 @@ const InterviewDetailSheet = ({
             {status === "draft_athlete" && (
               <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50/50 dark:bg-amber-950/20 p-6 text-center space-y-2">
                 <Clock className="h-8 w-8 mx-auto text-amber-500" />
-                <p className="text-sm font-medium">En attente de la preparation du nageur</p>
+                <p className="text-sm font-medium">En attente de la préparation du nageur</p>
                 <p className="text-xs text-muted-foreground">
                   Le contenu n'est pas encore visible. Le nageur doit d'abord remplir ses sections.
                 </p>
@@ -722,24 +778,24 @@ const InterviewDetailSheet = ({
                 {/* Previous cycle summary */}
                 {prevInterview && <PreviousCycleSummary prevInterview={prevInterview} />}
 
-                {/* ── Reussites ── */}
-                <SectionDivider label="Reussites" />
+                {/* ── Réussites ── */}
+                <SectionDivider label="Réussites" />
                 <AthleteSection label="Nageur" text={interview.athlete_successes} />
                 <CoachSectionEditable
                   label="Coach"
                   value={coachCommentSuccesses}
                   onChange={setCoachCommentSuccesses}
-                  placeholder="Votre commentaire sur les reussites..."
+                  placeholder="Votre commentaire sur les réussites..."
                 />
 
-                {/* ── Difficultes ── */}
-                <SectionDivider label="Difficultes" />
+                {/* ── Difficultés ── */}
+                <SectionDivider label="Difficultés" />
                 <AthleteSection label="Nageur" text={interview.athlete_difficulties} />
                 <CoachSectionEditable
                   label="Coach"
                   value={coachCommentDifficulties}
                   onChange={setCoachCommentDifficulties}
-                  placeholder="Votre commentaire sur les difficultes..."
+                  placeholder="Votre commentaire sur les difficultés..."
                 />
 
                 {/* ── Objectifs ── */}
@@ -747,7 +803,7 @@ const InterviewDetailSheet = ({
                 {objectives.length > 0 && (
                   <div className="space-y-1.5">
                     {objectives.map((obj) => (
-                      <ObjectiveRow key={obj.id} objective={obj} />
+                      <ObjectiveRow key={obj.id} objective={obj} performances={performances} />
                     ))}
                   </div>
                 )}
@@ -756,7 +812,7 @@ const InterviewDetailSheet = ({
                   label="Coach"
                   value={coachCommentGoals}
                   onChange={setCoachCommentGoals}
-                  placeholder="Objectifs complementaires, commentaires..."
+                  placeholder="Objectifs complémentaires, commentaires..."
                 />
 
                 {/* ── Planification inline ── */}
@@ -778,7 +834,7 @@ const InterviewDetailSheet = ({
                     </div>
                     <p className="text-sm whitespace-pre-wrap">
                       {interview.athlete_commitments?.trim() || (
-                        <span className="italic text-muted-foreground">Non renseigne</span>
+                        <span className="italic text-muted-foreground">Non renseigné</span>
                       )}
                     </p>
                   </div>
@@ -786,7 +842,7 @@ const InterviewDetailSheet = ({
                     label="Actions du coach"
                     value={coachActions}
                     onChange={setCoachActions}
-                    placeholder="Actions concretes, points de suivi..."
+                    placeholder="Actions concrètes, points de suivi..."
                   />
                 </div>
               </>
@@ -797,11 +853,11 @@ const InterviewDetailSheet = ({
               <>
                 {prevInterview && <PreviousCycleSummary prevInterview={prevInterview} />}
 
-                <SectionDivider label="Reussites" />
+                <SectionDivider label="Réussites" />
                 <AthleteSection label="Nageur" text={interview.athlete_successes} />
                 <CoachSectionReadOnly label="Coach" text={interview.coach_comment_successes || interview.coach_review} />
 
-                <SectionDivider label="Difficultes" />
+                <SectionDivider label="Difficultés" />
                 <AthleteSection label="Nageur" text={interview.athlete_difficulties} />
                 <CoachSectionReadOnly label="Coach" text={interview.coach_comment_difficulties} />
 
@@ -809,7 +865,7 @@ const InterviewDetailSheet = ({
                 {objectives.length > 0 && (
                   <div className="space-y-1.5">
                     {objectives.map((obj) => (
-                      <ObjectiveRow key={obj.id} objective={obj} />
+                      <ObjectiveRow key={obj.id} objective={obj} performances={performances} />
                     ))}
                   </div>
                 )}
@@ -828,7 +884,7 @@ const InterviewDetailSheet = ({
                 {status === "signed" && interview.signed_at && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    <span>Signe le {formatDate(interview.signed_at.slice(0, 10))}</span>
+                    <span>Signé le {formatDate(interview.signed_at.slice(0, 10))}</span>
                   </div>
                 )}
               </>
@@ -876,7 +932,7 @@ const InterviewDetailSheet = ({
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer l'entretien</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action est irreversible. L'entretien du {interview.date ? formatDate(interview.date) : ""} sera supprime definitivement.
+              Cette action est irréversible. L'entretien du {interview.date ? formatDate(interview.date) : ""} sera supprimé définitivement.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -900,7 +956,7 @@ const InterviewDetailSheet = ({
           <AlertDialogHeader>
             <AlertDialogTitle>Envoyer au nageur</AlertDialogTitle>
             <AlertDialogDescription>
-              L'entretien sera envoye au nageur pour consultation. Les sections coach seront enregistrees automatiquement.
+              L'entretien sera envoyé au nageur pour consultation. Les sections coach seront enregistrées automatiquement.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -976,7 +1032,7 @@ const SwimmerInterviewsTab = ({ athleteId, athleteName }: Props) => {
     mutationFn: () =>
       api.createInterview({ athlete_id: athleteId }),
     onSuccess: (newInterview) => {
-      toast({ title: "Entretien cree" });
+      toast({ title: "Entretien créé" });
       void queryClient.invalidateQueries({ queryKey: ["interviews", athleteId] });
       setSelectedInterview(newInterview);
       setSheetOpen(true);
@@ -1030,7 +1086,7 @@ const SwimmerInterviewsTab = ({ athleteId, athleteName }: Props) => {
           disabled={createMutation.isPending}
         >
           <Plus className="mr-1.5 h-3.5 w-3.5" />
-          {createMutation.isPending ? "Creation..." : "Nouvel entretien"}
+          {createMutation.isPending ? "Création..." : "Nouvel entretien"}
         </Button>
       </div>
     );
@@ -1053,7 +1109,7 @@ const SwimmerInterviewsTab = ({ athleteId, athleteName }: Props) => {
           disabled={createMutation.isPending}
         >
           <Plus className="mr-1.5 h-3.5 w-3.5" />
-          {createMutation.isPending ? "Creation..." : "Nouvel entretien"}
+          {createMutation.isPending ? "Création..." : "Nouvel entretien"}
         </Button>
       </div>
 

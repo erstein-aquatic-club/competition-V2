@@ -1,7 +1,7 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { Interview, InterviewAthleteInput, Objective } from "@/lib/api";
+import type { Interview, InterviewAthleteInput, Objective, SwimmerPerformance } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,7 +12,10 @@ import {
   formatTime,
   STROKE_COLORS,
   strokeFromCode,
+  findBestPerformance,
+  computeProgress,
 } from "@/lib/objectiveHelpers";
+import { weekTypeColor, weekTypeTextColor } from "@/lib/weekTypeColor";
 import {
   Collapsible,
   CollapsibleTrigger,
@@ -30,6 +33,7 @@ import {
   Target,
   User,
   GraduationCap,
+  Trophy,
 } from "lucide-react";
 
 type Props = { onBack: () => void };
@@ -43,9 +47,60 @@ function formatDate(dateStr: string): string {
   });
 }
 
+function fmtShort(iso: string): string {
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
+}
+
+function getSunday(mondayIso: string): string {
+  const d = new Date(mondayIso + "T00:00:00");
+  d.setDate(d.getDate() + 6);
+  return d.toISOString().split("T")[0];
+}
+
+function isCurrentWeek(mondayIso: string): boolean {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const monday = new Date(mondayIso + "T00:00:00");
+  const sunday = new Date(mondayIso + "T00:00:00");
+  sunday.setDate(sunday.getDate() + 6);
+  return today >= monday && today <= sunday;
+}
+
+function getMondays(startDate: string, endDate: string): string[] {
+  const mondays: string[] = [];
+  const start = new Date(startDate + "T00:00:00");
+  const end = new Date(endDate + "T00:00:00");
+  const current = new Date(start);
+  const day = current.getDay();
+  const diffToMonday = day === 0 ? 1 : day === 1 ? 0 : 8 - day;
+  current.setDate(current.getDate() + diffToMonday);
+  while (current <= end) {
+    mondays.push(current.toISOString().split("T")[0]);
+    current.setDate(current.getDate() + 7);
+  }
+  return mondays;
+}
+
+function daysBetween(dateA: string, dateB: string): number {
+  const a = new Date(dateA + "T00:00:00");
+  const b = new Date(dateB + "T00:00:00");
+  return Math.round((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
+}
+
 export default function AthleteInterviewsSection({ onBack }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Resolve athlete's own app_user_id from auth
+  const { data: authUser } = useQuery({
+    queryKey: ["auth-user"],
+    queryFn: async () => {
+      const { data } = await (await import("@/lib/supabase")).supabase.auth.getUser();
+      return data.user;
+    },
+  });
+  const appUserId = (authUser?.app_metadata as any)?.app_user_id as number | undefined;
 
   const { data: interviews = [], isLoading } = useQuery({
     queryKey: ["my-interviews"],
@@ -55,6 +110,26 @@ export default function AthleteInterviewsSection({ onBack }: Props) {
   const { data: objectives = [] } = useQuery({
     queryKey: ["athlete-objectives"],
     queryFn: () => api.getAthleteObjectives(),
+  });
+
+  // Fetch profile for IUF + performances (360 days)
+  const { data: profile } = useQuery({
+    queryKey: ["my-profile-iuf"],
+    queryFn: () => api.getProfile({ userId: appUserId }),
+    enabled: !!appUserId,
+  });
+  const iuf = profile?.ffn_iuf ?? null;
+
+  const perfFromDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 360);
+    return d.toISOString().slice(0, 10);
+  }, []);
+
+  const { data: performances = [] } = useQuery({
+    queryKey: ["swimmer-performances-recent", iuf],
+    queryFn: () => api.getSwimmerPerformances({ iuf: iuf!, fromDate: perfFromDate }),
+    enabled: !!iuf,
   });
 
   const invalidate = useCallback(
@@ -71,7 +146,7 @@ export default function AthleteInterviewsSection({ onBack }: Props) {
       input: InterviewAthleteInput;
     }) => api.updateInterviewAthleteSections(id, input),
     onSuccess: () => {
-      toast({ title: "Sauvegarde" });
+      toast({ title: "Sauvegardé" });
       invalidate();
     },
     onError: (e: Error) =>
@@ -85,7 +160,7 @@ export default function AthleteInterviewsSection({ onBack }: Props) {
   const submitMut = useMutation({
     mutationFn: (id: string) => api.submitInterviewToCoach(id),
     onSuccess: () => {
-      toast({ title: "Envoye au coach" });
+      toast({ title: "Envoyé au coach" });
       invalidate();
     },
     onError: (e: Error) =>
@@ -99,7 +174,7 @@ export default function AthleteInterviewsSection({ onBack }: Props) {
   const signMut = useMutation({
     mutationFn: (id: string) => api.signInterview(id),
     onSuccess: () => {
-      toast({ title: "Entretien signe" });
+      toast({ title: "Entretien signé" });
       invalidate();
     },
     onError: (e: Error) =>
@@ -157,11 +232,13 @@ export default function AthleteInterviewsSection({ onBack }: Props) {
             key={interview.id}
             interview={interview}
             objectives={objectives}
+            performances={performances}
+            appUserId={appUserId ?? null}
             onSave={(id, input) => saveMut.mutate({ id, input })}
             onSubmit={(id) => {
               if (
                 window.confirm(
-                  "Envoyer votre preparation au coach ? Vous ne pourrez plus la modifier.",
+                  "Envoyer votre préparation au coach ? Vous ne pourrez plus la modifier.",
                 )
               ) {
                 submitMut.mutate(id);
@@ -188,6 +265,8 @@ export default function AthleteInterviewsSection({ onBack }: Props) {
 function InterviewCard({
   interview,
   objectives,
+  performances,
+  appUserId,
   onSave,
   onSubmit,
   onSign,
@@ -197,6 +276,8 @@ function InterviewCard({
 }: {
   interview: Interview;
   objectives: Objective[];
+  performances: SwimmerPerformance[];
+  appUserId: number | null;
   onSave: (id: string, input: InterviewAthleteInput) => void;
   onSubmit: (id: string) => void;
   onSign: (id: string) => void;
@@ -230,14 +311,11 @@ function InterviewCard({
   // Previous interview for commitment follow-up
   const { data: prevInterview } = useQuery({
     queryKey: ["my-previous-interview", interview.date],
-    queryFn: async () => {
-      // Use the athlete's own ID from auth context
-      const { data: { user } } = await (await import("@/lib/supabase")).supabase.auth.getUser();
-      const appUserId = (user?.app_metadata as any)?.app_user_id;
+    queryFn: () => {
       if (!appUserId) return null;
       return api.getPreviousInterview(appUserId, interview.date);
     },
-    enabled: isDraft || isSent || isSigned || isDraftCoach,
+    enabled: (isDraft || isSent || isSigned || isDraftCoach) && !!appUserId,
   });
 
   // Track which interview we're saving to avoid cross-card conflicts
@@ -262,20 +340,20 @@ function InterviewCard({
   const statusBadge = isDraft ? (
     <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-amber-300 dark:border-amber-700">
       <Clock className="h-3 w-3 mr-1" />
-      A preparer
+      À préparer
     </Badge>
   ) : isDraftCoach ? (
     <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-300 dark:border-blue-700">
       <Clock className="h-3 w-3 mr-1" />
-      En preparation
+      En préparation
     </Badge>
   ) : isSent ? (
     <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700">
       <CheckCircle2 className="h-3 w-3 mr-1" />
-      A signer
+      À signer
     </Badge>
   ) : (
-    <Badge variant="secondary">Signe</Badge>
+    <Badge variant="secondary">Signé</Badge>
   );
 
   // Card border highlight for actionable items
@@ -323,7 +401,7 @@ function InterviewCard({
               {prevInterview && (prevInterview.athlete_commitments || prevInterview.coach_actions) && (
                 <div className="rounded-xl border bg-muted/30 p-3 space-y-2">
                   <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    Bilan des engagements precedents
+                    Bilan des engagements précédents
                   </p>
                   {prevInterview.athlete_commitments && (
                     <div className="border-l-4 border-blue-400 rounded-r-lg bg-blue-50/50 dark:bg-blue-950/20 p-2 space-y-0.5">
@@ -355,11 +433,11 @@ function InterviewCard({
 
               <div className="space-y-2">
                 <Label htmlFor={`successes-${interview.id}`}>
-                  Mes reussites
+                  Mes réussites
                 </Label>
                 <Textarea
                   id={`successes-${interview.id}`}
-                  placeholder="Ce dont je suis fier/fiere cette saison..."
+                  placeholder="Ce dont je suis fier/fière cette saison..."
                   value={successes}
                   onChange={(e) => setSuccesses(e.target.value)}
                   onBlur={handleBlur}
@@ -368,11 +446,11 @@ function InterviewCard({
               </div>
               <div className="space-y-2">
                 <Label htmlFor={`difficulties-${interview.id}`}>
-                  Mes difficultes
+                  Mes difficultés
                 </Label>
                 <Textarea
                   id={`difficulties-${interview.id}`}
-                  placeholder="Les points que je souhaite ameliorer..."
+                  placeholder="Les points que je souhaite améliorer..."
                   value={difficulties}
                   onChange={(e) => setDifficulties(e.target.value)}
                   onBlur={handleBlur}
@@ -384,13 +462,13 @@ function InterviewCard({
                 {objectives.length > 0 && (
                   <div className="space-y-1.5">
                     {objectives.map((obj) => (
-                      <ObjectiveRow key={obj.id} objective={obj} />
+                      <ObjectiveRow key={obj.id} objective={obj} performances={performances} />
                     ))}
                   </div>
                 )}
                 <Textarea
                   id={`goals-${interview.id}`}
-                  placeholder="Objectifs supplementaires ou commentaires..."
+                  placeholder="Objectifs supplémentaires ou commentaires..."
                   value={goals}
                   onChange={(e) => setGoals(e.target.value)}
                   onBlur={handleBlur}
@@ -403,7 +481,7 @@ function InterviewCard({
                 </Label>
                 <Textarea
                   id={`commitments-${interview.id}`}
-                  placeholder="Ce que je m'engage a faire..."
+                  placeholder="Ce que je m'engage à faire..."
                   value={commitments}
                   onChange={(e) => setCommitments(e.target.value)}
                   onBlur={handleBlur}
@@ -426,20 +504,38 @@ function InterviewCard({
             </>
           )}
 
-          {/* ── Draft coach: waiting state ── */}
+          {/* ── Draft coach: waiting state + previous commitments + planning ── */}
           {isDraftCoach && (
-            <div className="rounded-xl border border-dashed border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-950/20 p-6 text-center space-y-2">
-              <Clock className="h-8 w-8 mx-auto text-blue-500" />
-              <p className="text-sm font-medium">Entretien envoye au coach</p>
-              <p className="text-xs text-muted-foreground">
-                Votre coach prepare l'entretien. Vous recevrez le compte-rendu complet apres l'entretien en presentiel.
-              </p>
-              {interview.submitted_at && (
+            <>
+              <div className="rounded-xl border border-dashed border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-950/20 p-6 text-center space-y-2">
+                <Clock className="h-8 w-8 mx-auto text-blue-500" />
+                <p className="text-sm font-medium">Entretien envoyé au coach</p>
                 <p className="text-xs text-muted-foreground">
-                  Envoye le {formatDate(interview.submitted_at.slice(0, 10))}
+                  Votre coach prépare l'entretien. Vous recevrez le compte-rendu complet après l'entretien en présentiel.
                 </p>
+                {interview.submitted_at && (
+                  <p className="text-xs text-muted-foreground">
+                    Envoyé le {formatDate(interview.submitted_at.slice(0, 10))}
+                  </p>
+                )}
+              </div>
+
+              {/* Collapsible previous commitments */}
+              {prevInterview && (prevInterview.athlete_commitments || prevInterview.coach_actions) && (
+                <CollapsiblePreviousCommitments
+                  prevInterview={prevInterview}
+                  commitmentReview={interview.athlete_commitment_review}
+                />
               )}
-            </div>
+
+              {/* Read-only planning */}
+              {appUserId && (
+                <>
+                  <SectionLabel label="Planification" />
+                  <ReadOnlyPlanning athleteId={appUserId} interviewDate={interview.date} />
+                </>
+              )}
+            </>
           )}
 
           {/* ── Sent / Signed: conversational read-only layout ── */}
@@ -455,12 +551,12 @@ function InterviewCard({
 
               {/* Conversational sections */}
               <ConversationalSection
-                label="Reussites"
+                label="Réussites"
                 athleteText={interview.athlete_successes}
                 coachText={interview.coach_comment_successes || interview.coach_review}
               />
               <ConversationalSection
-                label="Difficultes"
+                label="Difficultés"
                 athleteText={interview.athlete_difficulties}
                 coachText={interview.coach_comment_difficulties}
               />
@@ -469,13 +565,21 @@ function InterviewCard({
                 {objectives.length > 0 && (
                   <div className="space-y-1.5">
                     {objectives.map((obj) => (
-                      <ObjectiveRow key={obj.id} objective={obj} />
+                      <ObjectiveRow key={obj.id} objective={obj} performances={performances} />
                     ))}
                   </div>
                 )}
                 <AthleteBlock text={interview.athlete_goals} />
                 <CoachBlock text={interview.coach_comment_goals || interview.coach_objectives} />
               </div>
+
+              {/* Read-only planning */}
+              {appUserId && (
+                <>
+                  <SectionLabel label="Planification" />
+                  <ReadOnlyPlanning athleteId={appUserId} interviewDate={interview.date} />
+                </>
+              )}
 
               {/* Engagements & Actions */}
               <div className="rounded-xl bg-card border shadow-sm p-3 space-y-2">
@@ -525,7 +629,7 @@ function CollapsiblePreviousCommitments({
             className={`h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform ${open ? "rotate-90" : ""}`}
           />
           <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-            Rappel engagements precedents
+            Rappel engagements précédents
           </span>
           <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-auto">
             {formatDate(prevInterview.date)}
@@ -555,6 +659,146 @@ function CollapsiblePreviousCommitments({
         </div>
       </CollapsibleContent>
     </Collapsible>
+  );
+}
+
+// ── Read-only planning (athlete view) ──
+
+function ReadOnlyPlanning({
+  athleteId,
+  interviewDate,
+}: {
+  athleteId: number;
+  interviewDate: string;
+}) {
+  const { data: competitions = [] } = useQuery({
+    queryKey: ["competitions"],
+    queryFn: () => api.getCompetitions(),
+  });
+
+  const { data: assignedIds = [] } = useQuery({
+    queryKey: ["my-competition-ids", athleteId],
+    queryFn: () => api.getMyCompetitionIds(athleteId),
+  });
+
+  const nextCompetition = useMemo(() => {
+    const assignedSet = new Set(assignedIds);
+    const upcoming = competitions
+      .filter((c) => assignedSet.has(c.id) && c.date >= interviewDate)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    return upcoming[0] ?? null;
+  }, [competitions, assignedIds, interviewDate]);
+
+  const { data: cycles = [] } = useQuery({
+    queryKey: ["training-cycles", "athlete", athleteId],
+    queryFn: () => api.getTrainingCycles({ athleteId }),
+  });
+
+  const matchingCycle = useMemo(() => {
+    if (!nextCompetition) return null;
+    return cycles.find(
+      (c) =>
+        c.end_competition_id === nextCompetition.id ||
+        (c.end_competition_date && c.end_competition_date >= interviewDate),
+    ) ?? null;
+  }, [cycles, nextCompetition, interviewDate]);
+
+  const { data: weeks = [] } = useQuery({
+    queryKey: ["training-weeks", matchingCycle?.id],
+    queryFn: () => api.getTrainingWeeks(matchingCycle!.id),
+    enabled: !!matchingCycle,
+  });
+
+  const weeksByStart = useMemo(() => {
+    const map = new Map<string, (typeof weeks)[number]>();
+    weeks.forEach((w) => map.set(w.week_start, w));
+    return map;
+  }, [weeks]);
+
+  const timelineMondays = useMemo(() => {
+    if (!nextCompetition) return [];
+    return getMondays(interviewDate, nextCompetition.date);
+  }, [nextCompetition, interviewDate]);
+
+  const daysToComp = nextCompetition ? daysBetween(new Date().toISOString().split("T")[0], nextCompetition.date) : null;
+
+  if (!nextCompetition) {
+    return (
+      <p className="text-xs text-muted-foreground italic text-center py-2">
+        Aucune compétition assignée à venir.
+      </p>
+    );
+  }
+
+  if (!matchingCycle || timelineMondays.length === 0) {
+    return (
+      <div className="flex items-center gap-2 text-sm">
+        <Trophy className="h-4 w-4 text-amber-500" />
+        <span className="font-medium">{nextCompetition.name}</span>
+        <span className="text-xs text-muted-foreground">({formatDate(nextCompetition.date)})</span>
+        {daysToComp != null && (
+          <Badge variant="secondary" className="text-[10px]">J-{daysToComp}</Badge>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-sm flex-wrap">
+        <Trophy className="h-4 w-4 text-amber-500 shrink-0" />
+        <span className="font-medium">{nextCompetition.name}</span>
+        <span className="text-xs text-muted-foreground">({formatDate(nextCompetition.date)})</span>
+        {daysToComp != null && (
+          <Badge variant="secondary" className="text-[10px]">J-{daysToComp}</Badge>
+        )}
+      </div>
+
+      <div className="relative ml-2 border-l-2 border-border pl-3 space-y-1">
+        {timelineMondays.map((monday, idx) => {
+          const week = weeksByStart.get(monday);
+          const isCurrent = isCurrentWeek(monday);
+          const sunday = getSunday(monday);
+
+          return (
+            <div
+              key={monday}
+              className={`rounded-lg px-2 py-1.5 flex items-center gap-2 text-xs ${
+                isCurrent ? "ring-2 ring-primary bg-primary/5" : ""
+              }`}
+            >
+              <span
+                className={`h-2 w-2 rounded-full shrink-0 ${
+                  isCurrent ? "bg-primary" : week?.week_type ? "bg-muted-foreground/40" : "bg-muted-foreground/20"
+                }`}
+              />
+              <span className="text-muted-foreground whitespace-nowrap">
+                Sem. {idx + 1}
+              </span>
+              <span className="text-muted-foreground/60 whitespace-nowrap">
+                {fmtShort(monday)} - {fmtShort(sunday)}
+              </span>
+              {week?.week_type && (
+                <Badge
+                  className="text-[10px] px-1.5 py-0 border-0 ml-auto"
+                  style={{
+                    backgroundColor: weekTypeColor(week.week_type),
+                    color: weekTypeTextColor(week.week_type),
+                  }}
+                >
+                  {week.week_type}
+                </Badge>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center gap-2 ml-2 pl-3 text-xs">
+        <Trophy className="h-3.5 w-3.5 text-amber-500" />
+        <span className="font-semibold">{nextCompetition.name}</span>
+      </div>
+    </div>
   );
 }
 
@@ -598,7 +842,7 @@ function AthleteBlock({ text, label }: { text?: string | null; label?: string })
         </p>
       </div>
       <p className="text-sm whitespace-pre-wrap">
-        {text?.trim() || <span className="italic text-muted-foreground">Non renseigne</span>}
+        {text?.trim() || <span className="italic text-muted-foreground">Non renseigné</span>}
       </p>
     </div>
   );
@@ -619,37 +863,68 @@ function CoachBlock({ text, label }: { text?: string | null; label?: string }) {
   );
 }
 
-// ── Objective row (compact card) ──
+// ── Objective row (compact card with best perf + delta) ──
 
-function ObjectiveRow({ objective }: { objective: Objective }) {
+function ObjectiveRow({ objective, performances }: { objective: Objective; performances: SwimmerPerformance[] }) {
   const stroke = objective.event_code ? strokeFromCode(objective.event_code) : null;
   const borderColor = stroke ? STROKE_COLORS[stroke] ?? "" : "";
 
+  const bestPerf = objective.event_code
+    ? findBestPerformance(performances, objective.event_code, objective.pool_length)
+    : null;
+
+  let delta: number | null = null;
+  let progressPct: number | null = null;
+  if (bestPerf && objective.target_time_seconds != null && objective.event_code) {
+    delta = bestPerf.time - objective.target_time_seconds;
+    progressPct = computeProgress(bestPerf.time, objective.target_time_seconds, objective.event_code);
+  }
+
   return (
-    <div className={`flex items-center gap-2 rounded-lg border bg-card p-2 text-sm ${borderColor ? `border-l-4 ${borderColor}` : ""}`}>
-      <Target className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-      <div className="flex-1 min-w-0">
-        {objective.event_code && (
-          <span className="font-medium">{eventLabel(objective.event_code)}</span>
-        )}
-        {objective.event_code && objective.pool_length && (
-          <span className="text-muted-foreground"> ({objective.pool_length}m)</span>
-        )}
-        {objective.target_time_seconds != null && (
-          <span className="ml-1 font-mono text-xs text-primary">
-            {formatTime(objective.target_time_seconds)}
-          </span>
-        )}
-        {objective.text && (
-          <span className={objective.event_code ? " ml-1 text-muted-foreground" : ""}>
-            {objective.text}
-          </span>
+    <div className={`rounded-lg border bg-card p-2 text-sm space-y-1 ${borderColor ? `border-l-4 ${borderColor}` : ""}`}>
+      <div className="flex items-center gap-2 flex-wrap">
+        <Target className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <div className="flex-1 min-w-0 flex items-center gap-1 flex-wrap">
+          {objective.event_code && (
+            <span className="font-medium">{eventLabel(objective.event_code)}</span>
+          )}
+          {objective.event_code && objective.pool_length && (
+            <span className="text-muted-foreground">({objective.pool_length}m)</span>
+          )}
+          {objective.target_time_seconds != null && (
+            <span className="font-mono text-xs text-primary">
+              {formatTime(objective.target_time_seconds)}
+            </span>
+          )}
+        </div>
+        {objective.competition_name && (
+          <Badge variant="secondary" className="text-[10px] shrink-0">
+            {objective.competition_name}
+          </Badge>
         )}
       </div>
-      {objective.competition_name && (
-        <Badge variant="secondary" className="text-[10px] shrink-0">
-          {objective.competition_name}
-        </Badge>
+      {objective.text && (
+        <p className="text-muted-foreground text-xs pl-5">{objective.text}</p>
+      )}
+      {bestPerf && (
+        <div className="flex items-center gap-2 pl-5 text-xs text-muted-foreground flex-wrap">
+          <span>
+            Actuel : <span className="font-mono">{formatTime(bestPerf.time)}</span>
+          </span>
+          {bestPerf.date && (
+            <span className="text-muted-foreground/60">({formatDate(bestPerf.date)})</span>
+          )}
+          {delta != null && (
+            <span className={delta <= 0 ? "text-emerald-600 font-medium" : "text-amber-600"}>
+              {delta <= 0 ? "Objectif atteint !" : `+${delta.toFixed(1)}s`}
+            </span>
+          )}
+        </div>
+      )}
+      {!bestPerf && objective.event_code && objective.target_time_seconds != null && (
+        <p className="text-[10px] text-muted-foreground italic pl-5">
+          Pas encore de temps enregistré
+        </p>
       )}
     </div>
   );

@@ -138,6 +138,29 @@ export function computeProgress(
   return Math.round(((baseline - bestTime) / (baseline - targetTime)) * 100);
 }
 
+/**
+ * Like findBestTime but also returns the competition date of the best performance.
+ */
+export function findBestPerformance(
+  performances: Array<{ event_code: string; pool_length?: number | null; time_seconds?: number | null; competition_date?: string | null }>,
+  objectiveEventCode: string,
+  poolLength?: number | null,
+): { time: number; date: string | null } | null {
+  const names = EVENT_CODE_TO_NAMES[objectiveEventCode];
+  if (!names) return null;
+  const lowerNames = names.map((n) => n.toLowerCase());
+  let best: { time: number; date: string | null } | null = null;
+  for (const p of performances) {
+    if (p.time_seconds == null) continue;
+    if (!lowerNames.includes(p.event_code.toLowerCase())) continue;
+    if (poolLength != null && p.pool_length != null && p.pool_length !== poolLength) continue;
+    if (best === null || p.time_seconds < best.time) {
+      best = { time: p.time_seconds, date: p.competition_date ?? null };
+    }
+  }
+  return best;
+}
+
 /** Days until a date string (YYYY-MM-DD). Negative if past. */
 export function daysUntil(dateStr: string): number {
   const today = new Date();
