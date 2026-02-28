@@ -63,6 +63,7 @@ const DAYS_FR = [
 ];
 
 const DAYS_SHORT = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+const DAYS_LETTER = ["L", "M", "M", "J", "V", "S", "D"];
 
 /** Timeline range */
 const TIMELINE_START = 6; // 06:00
@@ -128,6 +129,12 @@ function formatDayMonth(date: Date): string {
 function toIsoDate(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** Day of week (1=Mon..7=Sun) for today */
+function todayDayOfWeek(): number {
+  const d = new Date().getDay(); // 0=Sun..6=Sat
+  return d === 0 ? 7 : d;
 }
 
 /** True if slot is a swimming session (vs PPG/muscu) based on location */
@@ -929,6 +936,121 @@ const SlotDetailSheet = ({
   );
 };
 
+// ── Mobile Day Selector ─────────────────────────────────────────
+
+type DaySelectorProps = {
+  selectedDay: number;
+  onSelectDay: (day: number) => void;
+  weekDates: Date[];
+  todayIso: string;
+};
+
+const DaySelector = ({ selectedDay, onSelectDay, weekDates, todayIso: todayStr }: DaySelectorProps) => (
+  <div className="flex items-center justify-between gap-1 px-1">
+    {weekDates.map((date, i) => {
+      const day = i + 1;
+      const isSelected = day === selectedDay;
+      const isToday = toIsoDate(date) === todayStr;
+      return (
+        <button
+          key={day}
+          type="button"
+          className={`flex flex-col items-center justify-center rounded-xl py-1.5 flex-1 min-w-0 transition-all active:scale-95 ${
+            isSelected
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:bg-muted"
+          }`}
+          onClick={() => onSelectDay(day)}
+        >
+          <span className="text-[10px] font-semibold uppercase">
+            {DAYS_LETTER[i]}
+          </span>
+          <span className={`text-sm font-bold leading-tight ${isSelected ? "" : "text-foreground"}`}>
+            {date.getDate()}
+          </span>
+          {isToday && !isSelected && (
+            <span className="h-1 w-1 rounded-full bg-primary mt-0.5" />
+          )}
+          {isToday && isSelected && (
+            <span className="h-1 w-1 rounded-full bg-primary-foreground mt-0.5" />
+          )}
+          {!isToday && <span className="h-1 mt-0.5" />}
+        </button>
+      );
+    })}
+  </div>
+);
+
+// ── Mobile Slot Card ────────────────────────────────────────────
+
+type MobileSlotCardProps = {
+  slot: TrainingSlot;
+  cancelled: boolean;
+  hasOverrides: boolean;
+  onSelect: (slot: TrainingSlot) => void;
+};
+
+const MobileSlotCard = ({ slot, cancelled, hasOverrides, onSelect }: MobileSlotCardProps) => {
+  const swim = isSwimSlot(slot.location);
+  const borderClass = cancelled
+    ? "border-l-muted-foreground/30"
+    : swim
+      ? "border-l-blue-500"
+      : "border-l-amber-500";
+
+  return (
+    <button
+      type="button"
+      className={`w-full text-left rounded-xl border bg-card p-3 border-l-[3px] ${borderClass} transition-all active:scale-[0.98] hover:shadow-md ${
+        cancelled ? "opacity-50" : ""
+      }`}
+      onClick={() => onSelect(slot)}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1 space-y-1.5">
+          {/* Time + Location */}
+          <div className="flex items-center gap-2">
+            <span className={`text-sm font-bold tabular-nums ${cancelled ? "line-through" : ""}`}>
+              {formatTime(slot.start_time)} – {formatTime(slot.end_time)}
+            </span>
+            {hasOverrides && !cancelled && (
+              <AlertTriangle className="h-3 w-3 text-orange-500 shrink-0" />
+            )}
+            {cancelled && (
+              <Badge variant="destructive" className="text-[9px] px-1.5 py-0">
+                Annule
+              </Badge>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <MapPin className={`h-3 w-3 shrink-0 ${swim ? "text-blue-500" : "text-amber-500"}`} />
+            <span className="truncate">{slot.location}</span>
+          </div>
+
+          {/* Assignments */}
+          {slot.assignments.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {slot.assignments.map((a) => (
+                <div key={a.id} className="flex items-center gap-1">
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                    {a.group_name}
+                  </Badge>
+                  <span className="text-[10px] text-muted-foreground">
+                    {a.coach_name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <ChevronRight className="h-4 w-4 text-muted-foreground/40 shrink-0 mt-0.5" />
+      </div>
+    </button>
+  );
+};
+
 // ── Main Component ──────────────────────────────────────────────
 
 const CoachTrainingSlotsScreen = ({
@@ -944,6 +1066,9 @@ const CoachTrainingSlotsScreen = ({
   const [showOverrideForm, setShowOverrideForm] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<TrainingSlot | null>(null);
   const [showDetail, setShowDetail] = useState(false);
+
+  // Mobile day selector (1=Mon..7=Sun)
+  const [selectedDay, setSelectedDay] = useState(() => todayDayOfWeek());
 
   // Week navigation state
   const [weekMonday, setWeekMonday] = useState(() => getMonday(new Date()));
@@ -1202,7 +1327,7 @@ const CoachTrainingSlotsScreen = ({
         </div>
       </div>
 
-      {/* Weekly timeline */}
+      {/* ── Content ── */}
       {slotsLoading ? (
         <div className="grid grid-cols-7 gap-2">
           {Array.from({ length: 7 }, (_, i) => (
@@ -1224,82 +1349,116 @@ const CoachTrainingSlotsScreen = ({
           </Button>
         </div>
       ) : (
-        <div className="overflow-x-auto -mx-4 px-4">
-          <div
-            className="grid"
-            style={{
-              minWidth: "760px",
-              gridTemplateColumns: "2rem repeat(7, 1fr)",
-            }}
-          >
-            {/* ── Day headers row ── */}
-            <div /> {/* empty cell above time labels */}
-            {weekDates.map((date, i) => {
-              const isToday = toIsoDate(date) === todayIso();
+        <>
+          {/* ── Mobile view ── */}
+          <div className="sm:hidden space-y-3">
+            <DaySelector
+              selectedDay={selectedDay}
+              onSelectDay={setSelectedDay}
+              weekDates={weekDates}
+              todayIso={todayIso()}
+            />
+
+            {(() => {
+              const daySlots = slotsByDay.get(selectedDay) ?? [];
+              if (daySlots.length === 0) {
+                return (
+                  <p className="text-center text-sm text-muted-foreground py-8">
+                    Aucun créneau {DAYS_FR[selectedDay - 1].toLowerCase()}.
+                  </p>
+                );
+              }
               return (
-                <div key={i} className="text-center pb-1.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground sm:hidden">
-                    {DAYS_SHORT[i]}
-                  </span>
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground hidden sm:inline">
-                    {DAYS_FR[i]}
-                  </span>
-                  <br />
-                  <span className={`text-[10px] ${isToday ? "text-primary font-bold" : "text-muted-foreground/60"}`}>
-                    {formatDayMonth(date)}
-                  </span>
-                </div>
-              );
-            })}
-
-            {/* ── Time labels column ── */}
-            <div className="relative" style={{ height: TIMELINE_HEIGHT }}>
-              {HOUR_LABELS.map((h) => (
-                <span
-                  key={h}
-                  className="absolute right-1 text-[9px] text-muted-foreground/70 leading-none -translate-y-1/2"
-                  style={{ top: (h - TIMELINE_START) * PX_PER_HOUR }}
-                >
-                  {h}h
-                </span>
-              ))}
-            </div>
-
-            {/* ── 7 day columns ── */}
-            {Array.from({ length: 7 }, (_, i) => i + 1).map((day) => {
-              const daySlots = slotsByDay.get(day) ?? [];
-              return (
-                <div
-                  key={day}
-                  className="relative border-l border-border/40"
-                  style={{ height: TIMELINE_HEIGHT }}
-                >
-                  {/* Hour grid lines */}
-                  {HOUR_LABELS.map((h) => (
-                    <div
-                      key={h}
-                      className="absolute left-0 right-0 border-t border-border/20"
-                      style={{ top: (h - TIMELINE_START) * PX_PER_HOUR }}
-                    />
-                  ))}
-
-                  {/* Slot blocks */}
+                <div className="space-y-2">
                   {daySlots.map((slot) => (
-                    <TimelineSlot
+                    <MobileSlotCard
                       key={slot.id}
                       slot={slot}
-                      hasOverrides={
-                        (overridesBySlot.get(slot.id) ?? []).length > 0
-                      }
                       cancelled={cancelledSlotIds.has(slot.id)}
+                      hasOverrides={(overridesBySlot.get(slot.id) ?? []).length > 0}
                       onSelect={handleSelect}
                     />
                   ))}
                 </div>
               );
-            })}
+            })()}
           </div>
-        </div>
+
+          {/* ── Desktop timeline ── */}
+          <div className="hidden sm:block overflow-x-auto -mx-4 px-4">
+            <div
+              className="grid"
+              style={{
+                minWidth: "760px",
+                gridTemplateColumns: "2rem repeat(7, 1fr)",
+              }}
+            >
+              {/* ── Day headers row ── */}
+              <div /> {/* empty cell above time labels */}
+              {weekDates.map((date, i) => {
+                const isToday = toIsoDate(date) === todayIso();
+                return (
+                  <div key={i} className="text-center pb-1.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                      {DAYS_FR[i]}
+                    </span>
+                    <br />
+                    <span className={`text-[10px] ${isToday ? "text-primary font-bold" : "text-muted-foreground/60"}`}>
+                      {formatDayMonth(date)}
+                    </span>
+                  </div>
+                );
+              })}
+
+              {/* ── Time labels column ── */}
+              <div className="relative" style={{ height: TIMELINE_HEIGHT }}>
+                {HOUR_LABELS.map((h) => (
+                  <span
+                    key={h}
+                    className="absolute right-1 text-[9px] text-muted-foreground/70 leading-none -translate-y-1/2"
+                    style={{ top: (h - TIMELINE_START) * PX_PER_HOUR }}
+                  >
+                    {h}h
+                  </span>
+                ))}
+              </div>
+
+              {/* ── 7 day columns ── */}
+              {Array.from({ length: 7 }, (_, i) => i + 1).map((day) => {
+                const daySlots = slotsByDay.get(day) ?? [];
+                return (
+                  <div
+                    key={day}
+                    className="relative border-l border-border/40"
+                    style={{ height: TIMELINE_HEIGHT }}
+                  >
+                    {/* Hour grid lines */}
+                    {HOUR_LABELS.map((h) => (
+                      <div
+                        key={h}
+                        className="absolute left-0 right-0 border-t border-border/20"
+                        style={{ top: (h - TIMELINE_START) * PX_PER_HOUR }}
+                      />
+                    ))}
+
+                    {/* Slot blocks */}
+                    {daySlots.map((slot) => (
+                      <TimelineSlot
+                        key={slot.id}
+                        slot={slot}
+                        hasOverrides={
+                          (overridesBySlot.get(slot.id) ?? []).length > 0
+                        }
+                        cancelled={cancelledSlotIds.has(slot.id)}
+                        onSelect={handleSelect}
+                      />
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
       )}
 
       {/* Slot Detail Sheet (tap on timeline) */}
