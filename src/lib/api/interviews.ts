@@ -75,18 +75,13 @@ export async function updateInterviewAthleteSections(
   return data as Interview;
 }
 
-/** Athlete submits their preparation -> moves to draft_coach */
-export async function submitInterviewToCoach(id: string): Promise<Interview> {
+/** Athlete submits their preparation -> moves to draft_coach (via RPC to bypass SELECT RLS) */
+export async function submitInterviewToCoach(id: string): Promise<void> {
   if (!canUseSupabase()) throw new Error("Supabase not available");
-  const { data, error } = await supabase
-    .from("interviews")
-    .update({ status: "draft_coach", submitted_at: new Date().toISOString() })
-    .eq("id", id)
-    .eq("status", "draft_athlete")
-    .select()
-    .single();
+  const { error } = await supabase.rpc("submit_interview_to_coach", {
+    p_interview_id: id,
+  });
   if (error) throw new Error(error.message);
-  return data as Interview;
 }
 
 /** Coach updates their sections (phase 2) */
@@ -120,18 +115,13 @@ export async function sendInterviewToAthlete(id: string): Promise<Interview> {
   return data as Interview;
 }
 
-/** Athlete signs the interview -> moves to signed */
-export async function signInterview(id: string): Promise<Interview> {
+/** Athlete signs the interview -> moves to signed (via RPC to bypass SELECT RLS) */
+export async function signInterview(id: string): Promise<void> {
   if (!canUseSupabase()) throw new Error("Supabase not available");
-  const { data, error } = await supabase
-    .from("interviews")
-    .update({ status: "signed", signed_at: new Date().toISOString() })
-    .eq("id", id)
-    .eq("status", "sent")
-    .select()
-    .single();
+  const { error } = await supabase.rpc("sign_interview", {
+    p_interview_id: id,
+  });
   if (error) throw new Error(error.message);
-  return data as Interview;
 }
 
 /** Coach deletes an interview */
