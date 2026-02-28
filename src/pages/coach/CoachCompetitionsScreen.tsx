@@ -34,7 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trophy, Users } from "lucide-react";
+import { Plus, Trophy, Users, ChevronDown } from "lucide-react";
 
 // ── Helpers ─────────────────────────────────────────────────────
 
@@ -461,7 +461,9 @@ const CompetitionTimeline = ({
   competitions: Competition[];
   onEdit: (c: Competition) => void;
 }) => {
-  const items = useMemo(() => {
+  const [pastOpen, setPastOpen] = useState(false);
+
+  const { items, todayIdx } = useMemo(() => {
     const sorted = [...competitions].sort((a, b) => a.date.localeCompare(b.date));
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -482,7 +484,6 @@ const CompetitionTimeline = ({
         .replace(".", "")
         .toUpperCase();
 
-      // Insert today marker before first upcoming competition
       if (!todayInserted && !isPast) {
         if (prevEnd) {
           const w = weeksBetween(prevEnd, todayStr);
@@ -502,7 +503,6 @@ const CompetitionTimeline = ({
       prevMonth = compMonth;
     }
 
-    // If today wasn't inserted (all past), add at end
     if (!todayInserted) {
       if (prevEnd) {
         const w = weeksBetween(prevEnd, todayStr);
@@ -511,107 +511,126 @@ const CompetitionTimeline = ({
       result.push({ kind: "today" });
     }
 
-    return result;
+    return { items: result, todayIdx: result.findIndex((n) => n.kind === "today") };
   }, [competitions]);
 
   if (competitions.length === 0) return null;
+
+  const pastItems = todayIdx > 0 ? items.slice(0, todayIdx) : [];
+  const upcomingItems = todayIdx >= 0 ? items.slice(todayIdx) : items;
+  const pastCount = pastItems.filter((n) => n.kind === "comp").length;
+
+  // ── Shared node renderer ──
+  const renderNode = (item: TimelineNode, i: number) => {
+    if (item.kind === "gap") {
+      return (
+        <div key={`g${i}`} className="relative" style={{ height: item.height }}>
+          {item.weeks >= 2 && (
+            <span className="absolute left-[-0.8rem] -translate-x-1/2 top-1/2 -translate-y-1/2 text-[9px] tabular-nums font-medium text-muted-foreground/30 bg-background px-1 select-none">
+              {item.weeks}s
+            </span>
+          )}
+        </div>
+      );
+    }
+
+    if (item.kind === "today") {
+      return (
+        <div key="today" className="relative flex items-center h-7 -ml-14">
+          <div className="absolute left-0 right-0 h-[2px] bg-emerald-500/60" />
+          <span className="relative text-[10px] font-bold tracking-widest text-emerald-600 dark:text-emerald-400 bg-background pl-2 pr-1.5 select-none">
+            AUJOURD&apos;HUI
+          </span>
+        </div>
+      );
+    }
+
+    const { comp, isPast, days, isNewMonth, monthLabel } = item;
+    const dateLabel = (() => {
+      const ds = new Date(comp.date + "T00:00:00");
+      if (!comp.end_date || comp.end_date === comp.date) {
+        return ds.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }).replace(".", "");
+      }
+      const de = new Date(comp.end_date + "T00:00:00");
+      const endFmt = de.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }).replace(".", "");
+      return ds.getMonth() === de.getMonth()
+        ? `${ds.getDate()}\u2013${endFmt}`
+        : `${ds.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }).replace(".", "")} \u2192 ${endFmt}`;
+    })();
+
+    return (
+      <button
+        key={comp.id}
+        type="button"
+        className={cn(
+          "relative w-full flex items-start text-left py-1.5 group transition-opacity",
+          isPast ? "opacity-40 hover:opacity-70" : "hover:opacity-80",
+        )}
+        onClick={() => onEdit(comp)}
+      >
+        {isNewMonth && (
+          <span className="absolute left-[-3.25rem] top-[3px] w-[2rem] text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 text-right select-none">
+            {monthLabel}
+          </span>
+        )}
+
+        <div
+          className={cn(
+            "absolute left-[-0.8rem] top-[5px] h-[10px] w-[10px] rounded-full -translate-x-1/2 z-10 border-2 border-background transition-transform group-hover:scale-150",
+            isPast
+              ? "bg-muted-foreground/30"
+              : "bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]",
+          )}
+        />
+
+        <div className="min-w-0 flex-1 pl-1">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className={cn(
+              "text-[13px] font-semibold truncate flex-1 min-w-0",
+              isPast ? "text-muted-foreground" : "text-foreground",
+            )}>
+              {comp.name}
+            </span>
+            {!isPast && days >= 0 && (
+              <span className="text-[10px] font-bold tabular-nums shrink-0 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                J-{days}
+              </span>
+            )}
+          </div>
+          <p className={cn(
+            "text-[11px] truncate",
+            isPast ? "text-muted-foreground/60" : "text-muted-foreground",
+          )}>
+            {dateLabel}
+            {comp.location && comp.location !== "??" && ` \u00b7 ${comp.location}`}
+          </p>
+        </div>
+      </button>
+    );
+  };
 
   return (
     <div className="relative pl-14">
       {/* Vertical rail */}
       <div className="absolute left-[2.625rem] top-1 bottom-1 w-[2px] rounded-full bg-gradient-to-b from-border/10 via-border/40 to-border/10" />
 
-      {items.map((item, i) => {
-        if (item.kind === "gap") {
-          return (
-            <div key={`g${i}`} className="relative" style={{ height: item.height }}>
-              {item.weeks >= 2 && (
-                <span className="absolute left-[-0.8rem] -translate-x-1/2 top-1/2 -translate-y-1/2 text-[9px] tabular-nums font-medium text-muted-foreground/30 bg-background px-1 select-none">
-                  {item.weeks}s
-                </span>
-              )}
-            </div>
-          );
-        }
+      {/* Collapsed past toggle */}
+      {pastCount > 0 && (
+        <button
+          type="button"
+          className="relative flex items-center gap-1.5 py-2 text-[11px] font-medium text-muted-foreground/50 hover:text-muted-foreground transition-colors select-none"
+          onClick={() => setPastOpen((o) => !o)}
+        >
+          <ChevronDown className={cn("h-3 w-3 shrink-0 transition-transform", pastOpen && "rotate-180")} />
+          <span>Pass\u00e9es ({pastCount})</span>
+        </button>
+      )}
 
-        if (item.kind === "today") {
-          return (
-            <div key="today" className="relative flex items-center h-7 -ml-14">
-              <div className="absolute left-0 right-0 h-[2px] bg-emerald-500/60" />
-              <span className="relative text-[10px] font-bold tracking-widest text-emerald-600 dark:text-emerald-400 bg-background pl-2 pr-1.5 select-none">
-                AUJOURD&apos;HUI
-              </span>
-            </div>
-          );
-        }
+      {/* Past items (collapsible) */}
+      {pastOpen && pastItems.map((item, i) => renderNode(item, i))}
 
-        // Competition node
-        const { comp, isPast, days, isNewMonth, monthLabel } = item;
-        const dateLabel = (() => {
-          const ds = new Date(comp.date + "T00:00:00");
-          if (!comp.end_date || comp.end_date === comp.date) {
-            return ds.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }).replace(".", "");
-          }
-          const de = new Date(comp.end_date + "T00:00:00");
-          const endFmt = de.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }).replace(".", "");
-          return ds.getMonth() === de.getMonth()
-            ? `${ds.getDate()}\u2013${endFmt}`
-            : `${ds.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }).replace(".", "")} \u2192 ${endFmt}`;
-        })();
-
-        return (
-          <button
-            key={comp.id}
-            type="button"
-            className={cn(
-              "relative w-full flex items-start text-left py-1.5 group transition-opacity",
-              isPast ? "opacity-40 hover:opacity-70" : "hover:opacity-80",
-            )}
-            onClick={() => onEdit(comp)}
-          >
-            {/* Month label */}
-            {isNewMonth && (
-              <span className="absolute left-[-3.25rem] top-[3px] w-[2rem] text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 text-right select-none">
-                {monthLabel}
-              </span>
-            )}
-
-            {/* Dot on rail */}
-            <div
-              className={cn(
-                "absolute left-[-0.8rem] top-[5px] h-[10px] w-[10px] rounded-full -translate-x-1/2 z-10 border-2 border-background transition-transform group-hover:scale-150",
-                isPast
-                  ? "bg-muted-foreground/30"
-                  : "bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]",
-              )}
-            />
-
-            {/* Content */}
-            <div className="min-w-0 flex-1 pl-1">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className={cn(
-                  "text-[13px] font-semibold truncate",
-                  isPast ? "text-muted-foreground" : "text-foreground",
-                )}>
-                  {comp.name}
-                </span>
-                {!isPast && days >= 0 && (
-                  <span className="text-[10px] font-bold tabular-nums shrink-0 text-amber-600 dark:text-amber-400">
-                    J-{days}
-                  </span>
-                )}
-              </div>
-              <p className={cn(
-                "text-[11px] truncate",
-                isPast ? "text-muted-foreground/60" : "text-muted-foreground",
-              )}>
-                {dateLabel}
-                {comp.location && comp.location !== "??" && ` \u00b7 ${comp.location}`}
-              </p>
-            </div>
-          </button>
-        );
-      })}
+      {/* Today + upcoming items */}
+      {upcomingItems.map((item, i) => renderNode(item, pastItems.length + i))}
     </div>
   );
 };
