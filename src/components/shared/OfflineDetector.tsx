@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react"
 import { WifiOff, Wifi } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 
 /**
- * OfflineDetector shows a fixed banner at the top when the user goes offline.
- * Auto-hides when back online. Detects both navigator.onLine changes and
- * actual Supabase connectivity issues.
+ * OfflineDetector shows a floating pill at the top when the user goes offline.
+ * Auto-hides when back online after a brief "reconnected" animation.
  */
 export function OfflineDetector() {
   const [isOffline, setIsOffline] = useState(!navigator.onLine)
@@ -14,7 +14,6 @@ export function OfflineDetector() {
   useEffect(() => {
     const handleOnline = () => {
       setIsTransitioning(true)
-      // Show "reconnected" state briefly before hiding
       setTimeout(() => {
         setIsOffline(false)
         setIsTransitioning(false)
@@ -35,39 +34,39 @@ export function OfflineDetector() {
     }
   }, [])
 
-  if (!isOffline && !isTransitioning) {
-    return null
-  }
+  const show = isOffline || isTransitioning
 
   return (
-    <div
-      className={cn(
-        "fixed top-0 left-0 right-0 z-[var(--z-index-toast)] transform transition-transform duration-300",
-        isOffline && !isTransitioning ? "translate-y-0" : "-translate-y-full"
+    <AnimatePresence>
+      {show && (
+        <div className="fixed top-3 left-0 right-0 z-[var(--z-index-toast)] pointer-events-none flex justify-center px-4">
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -12, scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            role="alert"
+            aria-live="assertive"
+            className={cn(
+              "pointer-events-auto inline-flex items-center gap-2 rounded-full px-4 py-2",
+              "shadow-lg shadow-black/10 dark:shadow-black/30",
+              "backdrop-blur-xl border",
+              isTransitioning
+                ? "bg-emerald-500/90 text-white border-emerald-400/30"
+                : "bg-red-500/90 text-white border-red-400/30",
+            )}
+          >
+            {isTransitioning ? (
+              <Wifi className="h-3.5 w-3.5" />
+            ) : (
+              <WifiOff className="h-3.5 w-3.5" />
+            )}
+            <span className="text-xs font-semibold">
+              {isTransitioning ? "Reconnecté" : "Hors ligne"}
+            </span>
+          </motion.div>
+        </div>
       )}
-      role="alert"
-      aria-live="assertive"
-    >
-      <div
-        className={cn(
-          "flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium",
-          isTransitioning
-            ? "bg-status-success text-white"
-            : "bg-destructive text-destructive-foreground"
-        )}
-      >
-        {isTransitioning ? (
-          <>
-            <Wifi className="h-4 w-4" />
-            <span>Connexion rétablie</span>
-          </>
-        ) : (
-          <>
-            <WifiOff className="h-4 w-4" />
-            <span>Vous êtes hors ligne. Certaines fonctionnalités peuvent être limitées.</span>
-          </>
-        )}
-      </div>
-    </div>
+    </AnimatePresence>
   )
 }

@@ -35,6 +35,7 @@ import type { LocalStrengthRun, SetLogEntry } from "@/lib/types";
 import { motion } from "framer-motion";
 import { slideUp } from "@/lib/animations";
 import { ChevronDown, TrendingUp, TrendingDown, BarChart3, Trophy } from "lucide-react";
+import { InlineBanner } from "@/components/shared/InlineBanner";
 
 // ─── Helper Components ──────────────────────────────────────────────────────
 
@@ -524,31 +525,19 @@ export default function Progress() {
       </div>
 
       {/* ── Prochaine compétition ────────────────────────────────────── */}
-      {nextCompetition && daysUntilNextComp != null && (
-        <motion.div variants={slideUp} initial="hidden" animate="visible">
-          <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/30 dark:bg-amber-950/20 p-3">
-            <div className="flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-amber-500" />
-              <span className="text-sm font-semibold truncate">{nextCompetition.name}</span>
-              <span className="text-xs text-amber-600 dark:text-amber-400 font-bold ml-auto shrink-0">
-                {daysUntilNextComp === 0 ? "Aujourd'hui" : `J-${daysUntilNextComp}`}
-              </span>
-            </div>
-            {(nextCompetition.location || (trainingDaysRemaining != null && trainingDaysRemaining > 0)) && (
-              <div className="flex items-center gap-2 mt-0.5">
-                {nextCompetition.location && (
-                  <p className="text-xs text-muted-foreground truncate">{nextCompetition.location}</p>
-                )}
-                {trainingDaysRemaining != null && trainingDaysRemaining > 0 && (
-                  <span className="text-xs text-amber-600 dark:text-amber-400 font-medium ml-auto shrink-0">
-                    {trainingDaysRemaining} séance{trainingDaysRemaining > 1 ? "s" : ""} d'ici là
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        </motion.div>
-      )}
+      <InlineBanner
+        variant="amber"
+        icon={<Trophy />}
+        label={nextCompetition?.name}
+        badge={daysUntilNextComp === 0 ? "Aujourd'hui" : `J-${daysUntilNextComp}`}
+        sublabel={nextCompetition?.location}
+        subbadge={
+          trainingDaysRemaining != null && trainingDaysRemaining > 0
+            ? `${trainingDaysRemaining} séance${trainingDaysRemaining > 1 ? "s" : ""}`
+            : undefined
+        }
+        visible={!!nextCompetition && daysUntilNextComp != null}
+      />
 
       <Tabs defaultValue="swim" className="w-full">
         <TabsList className="grid w-full max-w-[280px] grid-cols-2">

@@ -1,6 +1,4 @@
 import React, { useCallback, useEffect, useMemo } from "react";
-import { motion } from "framer-motion";
-import { slideUp } from "@/lib/animations";
 import { computeTrainingDaysRemaining } from "@/lib/date";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -15,6 +13,7 @@ import { CalendarHeader } from "@/components/dashboard/CalendarHeader";
 import { CalendarGrid } from "@/components/dashboard/CalendarGrid";
 import { FeedbackDrawer } from "@/components/dashboard/FeedbackDrawer";
 import { SwimExerciseLogsHistory } from "@/components/dashboard/SwimExerciseLogsHistory";
+import { InlineBanner } from "@/components/shared/InlineBanner";
 import {
   Settings2,
   Waves,
@@ -704,31 +703,20 @@ export default function Dashboard() {
         </div>
 
         {/* Next competition banner */}
-        {nextCompetition && daysUntilNextCompetition != null && (
-          <motion.div className="mt-4" variants={slideUp} initial="hidden" animate="visible">
-            <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/30 dark:bg-amber-950/20 p-3">
-              <div className="flex items-center gap-2">
-                <Trophy className="h-4 w-4 text-amber-500" />
-                <span className="text-sm font-semibold truncate">{nextCompetition.name}</span>
-                <span className="text-xs text-amber-600 dark:text-amber-400 font-bold ml-auto shrink-0">
-                  {daysUntilNextCompetition === 0 ? "Aujourd'hui" : `J-${daysUntilNextCompetition}`}
-                </span>
-              </div>
-              {(nextCompetition.location || (trainingDaysRemaining != null && trainingDaysRemaining > 0)) && (
-                <div className="flex items-center gap-2 mt-0.5">
-                  {nextCompetition.location && (
-                    <p className="text-xs text-muted-foreground truncate">{nextCompetition.location}</p>
-                  )}
-                  {trainingDaysRemaining != null && trainingDaysRemaining > 0 && (
-                    <span className="text-xs text-amber-600 dark:text-amber-400 font-medium ml-auto shrink-0">
-                      {trainingDaysRemaining} séance{trainingDaysRemaining > 1 ? "s" : ""} d'ici là
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
+        <InlineBanner
+          variant="amber"
+          icon={<Trophy />}
+          label={nextCompetition?.name}
+          badge={daysUntilNextCompetition === 0 ? "Aujourd'hui" : `J-${daysUntilNextCompetition}`}
+          sublabel={nextCompetition?.location}
+          subbadge={
+            trainingDaysRemaining != null && trainingDaysRemaining > 0
+              ? `${trainingDaysRemaining} séance${trainingDaysRemaining > 1 ? "s" : ""}`
+              : undefined
+          }
+          visible={!!nextCompetition && daysUntilNextCompetition != null}
+          className="mt-4"
+        />
 
         {/* Calendar */}
         <div className="mt-4 rounded-3xl border border-border bg-card overflow-hidden">

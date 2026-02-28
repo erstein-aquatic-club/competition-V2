@@ -13,9 +13,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { shouldShowRecords } from "@/pages/Profile";
 import { Check, ChevronDown, Clock, Dumbbell, Edit2, Download, RefreshCw, StickyNote, Trophy, Waves, X, AlertCircle } from "lucide-react";
+import { InlineBanner } from "@/components/shared/InlineBanner";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { staggerChildren, listItem, successBounce, fadeIn } from "@/lib/animations";
+import { compareSwimEvents } from "@/lib/swim-sort";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 type OneRmRecord = {
   exercise_id: number;
@@ -150,6 +153,7 @@ export default function Records() {
   const { user, userId, role } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const prefersReducedMotion = useReducedMotion();
 
   const emptySwimForm = {
     id: null as number | null,
@@ -486,44 +490,9 @@ export default function Records() {
         if (swimMode === "comp") return type === "comp";
         return type === "training";
       })
-      .sort((a: SwimRecordWithPool, b: SwimRecordWithPool) => {
-        const nameA = String(a.event_name ?? "");
-        const nameB = String(b.event_name ?? "");
-
-        const norm = (s: string) =>
-          String(s ?? "")
-            .toLowerCase()
-            .replace(/\./g, "")
-            .replace(/\s+/g, " ")
-            .trim();
-
-        const strokeKey = (s: string) => {
-          const n = norm(s);
-          // Order: NL > Dos > Brasse > Pap > 4N
-          if (n.includes("nl") || n.includes("nage libre")) return 0;
-          if (n.includes("dos")) return 1;
-          if (n.includes("bra") || n.includes("brasse")) return 2;
-          if (n.includes("pap") || n.includes("papillon")) return 3;
-          if (n.includes("4n") || n.includes("4 n") || n.includes("4 nages")) return 4;
-          return 99;
-        };
-
-        const distance = (s: string) => {
-          const m = String(s ?? "").match(/^(\d+)/);
-          return m ? Number(m[1]) : Number.POSITIVE_INFINITY;
-        };
-
-        const sa = strokeKey(nameA);
-        const sb = strokeKey(nameB);
-        if (sa !== sb) return sa - sb;
-
-        const da = distance(nameA);
-        const db = distance(nameB);
-        if (da !== db) return da - db;
-
-        // deterministic fallback (should rarely matter)
-        return norm(nameA).localeCompare(norm(nameB), "fr");
-      });
+      .sort((a: SwimRecordWithPool, b: SwimRecordWithPool) =>
+        compareSwimEvents(String(a.event_name ?? ""), String(b.event_name ?? ""))
+      );
 
     return filtered;
   }, [swimRecords, poolLen, swimMode]);
@@ -591,14 +560,14 @@ export default function Records() {
   return (
     <div className="min-h-[100dvh]">
       <div className="mx-auto max-w-lg">
-        <div className="sticky top-0 z-overlay backdrop-blur-md bg-background/90 border-b border-primary/15">
-          <div className="px-4 py-2.5 flex items-center gap-2.5">
+        <PageHeader className="-mx-0">
+          <div className="flex items-center gap-2.5">
             <div className="flex items-center justify-center h-7 w-7 rounded-lg bg-primary text-primary-foreground">
               <Trophy className="h-3.5 w-3.5" />
             </div>
             <h1 className="text-lg font-display font-bold uppercase italic tracking-tight text-primary">Mes Records</h1>
           </div>
-        </div>
+        </PageHeader>
 
         <div className="px-3 pt-3">
           <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as "swim" | "1rm")}>
@@ -824,9 +793,9 @@ export default function Records() {
                   ) : (
                     <motion.div
                       className="divide-y divide-border motion-reduce:animate-none"
-                      variants={staggerChildren}
-                      initial="hidden"
-                      animate="visible"
+                      variants={prefersReducedMotion ? undefined : staggerChildren}
+                      initial={prefersReducedMotion ? false : "hidden"}
+                      animate={prefersReducedMotion ? false : "visible"}
                     >
                       {filteredSwimRecords.map((record) => {
                         const isEditing = swimEditorOpenFor === record.id;
@@ -966,22 +935,22 @@ export default function Records() {
               {swimMode === "history" ? (
                 <div className="mt-3 space-y-3">
                   {/* Alerts */}
-                  {profileQuery.isError ? (
-                    <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
-                      Impossible de charger votre profil.
-                    </div>
-                  ) : null}
+                  <InlineBanner
+                    variant="destructive"
+                    icon={<AlertCircle />}
+                    label="Impossible de charger votre profil"
+                    visible={profileQuery.isError}
+                    animate={false}
+                  />
 
-                  {!profileQuery.isError && !userIuf && !profileQuery.isLoading ? (
-                    <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-3 text-xs text-yellow-700 dark:text-yellow-400">
-                      <p className="font-semibold mb-0.5">IUF FFN non renseigné</p>
-                      <p>
-                        Renseignez votre numéro IUF dans{" "}
-                        <a href="/#/profile" className="underline font-medium hover:text-foreground">votre profil</a>
-                        {" "}pour importer vos performances.
-                      </p>
-                    </div>
-                  ) : null}
+                  <InlineBanner
+                    variant="yellow"
+                    icon={<AlertCircle />}
+                    label="IUF FFN non renseigné"
+                    sublabel={<>Renseignez votre numéro dans <a href="/#/profile" className="underline font-medium hover:text-foreground">votre profil</a></>}
+                    visible={!profileQuery.isError && !userIuf && !profileQuery.isLoading}
+                    animate={false}
+                  />
 
                   {/* Event-grouped performance cards */}
                   {perfLoading ? (
@@ -1008,9 +977,9 @@ export default function Records() {
                   ) : (
                     <motion.div
                       className="space-y-2 motion-reduce:animate-none"
-                      variants={staggerChildren}
-                      initial="hidden"
-                      animate="visible"
+                      variants={prefersReducedMotion ? undefined : staggerChildren}
+                      initial={prefersReducedMotion ? false : "hidden"}
+                      animate={prefersReducedMotion ? false : "visible"}
                     >
                       {groupedPerformances.map((group) => {
                         const isExpanded = histExpandedEvent === group.eventCode;
@@ -1169,9 +1138,9 @@ export default function Records() {
                   ) : (
                     <motion.div
                       className="divide-y divide-border motion-reduce:animate-none"
-                      variants={staggerChildren}
-                      initial="hidden"
-                      animate="visible"
+                      variants={prefersReducedMotion ? undefined : staggerChildren}
+                      initial={prefersReducedMotion ? false : "hidden"}
+                      animate={prefersReducedMotion ? false : "visible"}
                     >
                       {(exercises as Exercise[])
                         ?.filter((e) => e.exercise_type !== "warmup")

@@ -9,8 +9,9 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronDown, Eye, Plus, RefreshCw, Settings } from "lucide-react";
+import { AlertCircle, ChevronDown, Eye, Plus, RefreshCw, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { InlineBanner } from "@/components/shared/InlineBanner";
 
 const SEX_OPTIONS = [
   { value: "M", label: "Garçon" },
@@ -500,12 +501,14 @@ export default function RecordsAdmin() {
         </div>
 
         {/* Incomplete warning */}
-        {!isLoading && incompleteCount > 0 && (
-          <div className="rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-800 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
-            <strong>{incompleteCount} nageur{incompleteCount > 1 ? "s" : ""} incomplet{incompleteCount > 1 ? "s" : ""}</strong>
-            {" "}— IUF, sexe et année de naissance requis pour les records.
-          </div>
-        )}
+        <InlineBanner
+          variant="amber"
+          icon={<AlertCircle />}
+          label={`${incompleteCount} nageur${incompleteCount > 1 ? "s" : ""} incomplet${incompleteCount > 1 ? "s" : ""}`}
+          sublabel="IUF, sexe et année de naissance requis pour les records"
+          visible={!isLoading && incompleteCount > 0}
+          animate={false}
+        />
 
         {/* Loading skeleton */}
         {isLoading && (

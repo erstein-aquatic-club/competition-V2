@@ -9,8 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { Dumbbell, Waves, Trash2, RefreshCw } from "lucide-react";
+import { AlertCircle, Dumbbell, Waves, Trash2, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
+import { InlineBanner } from "@/components/shared/InlineBanner";
 
 type FilterMode = "group" | "user";
 
@@ -204,11 +205,13 @@ export default function CoachCalendar({ onBack, athletes, groups, swimSessions, 
           </SheetHeader>
 
           <div className="space-y-3">
-            {absenceDates.has(selectedISO) && (
-              <div className="rounded-xl border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900/40 px-3 py-2 flex items-center gap-2">
-                <span className="text-[10px] font-bold text-red-500 uppercase tracking-wide">Absence prévue</span>
-              </div>
-            )}
+            <InlineBanner
+              variant="red"
+              icon={<AlertCircle />}
+              label="Absence prévue"
+              visible={absenceDates.has(selectedISO)}
+              animate={false}
+            />
             {slotsForSelectedDay.map((slot) => {
               const isGroupAssignment = slot.assignment?.targetType === "group";
               const isUserMode = filterMode === "user";
