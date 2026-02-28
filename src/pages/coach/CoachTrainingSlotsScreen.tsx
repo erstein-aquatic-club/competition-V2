@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Clock,
   MapPin,
@@ -60,6 +61,8 @@ const DAYS_FR = [
   "Samedi",
   "Dimanche",
 ];
+
+const DAYS_SHORT = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -672,6 +675,115 @@ const OverrideFormSheet = ({
   );
 };
 
+// ── Slot Card (used inside weekly grid columns) ─────────────────
+
+type SlotCardProps = {
+  slot: TrainingSlot;
+  overrides: TrainingSlotOverride[];
+  onEdit: (slot: TrainingSlot) => void;
+  onOverride: (slot: TrainingSlot) => void;
+  onDeleteOverride: (id: string) => void;
+};
+
+const SlotCard = ({
+  slot,
+  overrides,
+  onEdit,
+  onOverride,
+  onDeleteOverride,
+}: SlotCardProps) => (
+  <div className="rounded-lg border bg-card p-2 space-y-1.5 text-xs">
+    {/* Time + actions */}
+    <div className="flex items-center justify-between gap-1">
+      <div className="flex items-center gap-1 min-w-0">
+        <Clock className="h-3 w-3 text-primary shrink-0" />
+        <span className="font-semibold whitespace-nowrap">
+          {formatTime(slot.start_time)}–{formatTime(slot.end_time)}
+        </span>
+      </div>
+      <div className="flex items-center shrink-0">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          onClick={() => onEdit(slot)}
+          title="Modifier"
+        >
+          <Pencil className="h-3 w-3" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          onClick={() => onOverride(slot)}
+          title="Exception"
+        >
+          <AlertTriangle className="h-3 w-3" />
+        </Button>
+      </div>
+    </div>
+
+    {/* Location */}
+    <div className="flex items-center gap-1 text-muted-foreground">
+      <MapPin className="h-2.5 w-2.5 shrink-0" />
+      <span className="truncate text-[10px]">{slot.location}</span>
+    </div>
+
+    {/* Assignments */}
+    {slot.assignments.length > 0 && (
+      <div className="space-y-1 pt-0.5">
+        {slot.assignments.map((a) => (
+          <div key={a.id} className="flex items-center gap-1 flex-wrap">
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+              {a.group_name}
+            </Badge>
+            <span className="text-[10px] text-muted-foreground truncate">
+              {a.coach_name}
+              {a.lane_count != null &&
+                ` · ${a.lane_count}L`}
+            </span>
+          </div>
+        ))}
+      </div>
+    )}
+
+    {/* Upcoming overrides */}
+    {overrides.length > 0 && (
+      <div className="space-y-0.5 pt-1 border-t border-dashed">
+        {overrides.map((ovr) => (
+          <div
+            key={ovr.id}
+            className="flex items-center gap-1 text-[10px]"
+          >
+            <AlertTriangle className="h-2.5 w-2.5 text-orange-500 shrink-0" />
+            <span className="text-muted-foreground">
+              {new Date(ovr.override_date + "T00:00:00").toLocaleDateString(
+                "fr-FR",
+                { day: "2-digit", month: "2-digit" },
+              )}
+            </span>
+            <Badge
+              variant={ovr.status === "cancelled" ? "destructive" : "outline"}
+              className="text-[9px] px-1 py-0"
+            >
+              {ovr.status === "cancelled" ? "Annule" : "Modifie"}
+            </Badge>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-4 w-4 ml-auto shrink-0 text-muted-foreground hover:text-destructive"
+              onClick={() => onDeleteOverride(ovr.id)}
+              title="Supprimer"
+            >
+              <Trash2 className="h-2 w-2" />
+            </Button>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+);
+
 // ── Main Component ──────────────────────────────────────────────
 
 const CoachTrainingSlotsScreen = ({
@@ -685,6 +797,11 @@ const CoachTrainingSlotsScreen = ({
   const [editingSlot, setEditingSlot] = useState<TrainingSlot | null>(null);
   const [overrideSlot, setOverrideSlot] = useState<TrainingSlot | null>(null);
   const [showOverrideForm, setShowOverrideForm] = useState(false);
+
+  // Filter state
+  const [filterMode, setFilterMode] = useState<"coach" | "group">("group");
+  const [selectedCoachId, setSelectedCoachId] = useState("all");
+  const [selectedGroupId, setSelectedGroupId] = useState("all");
 
   // Fetch slots
   const { data: slots = [], isLoading: slotsLoading } = useQuery({
@@ -704,19 +821,36 @@ const CoachTrainingSlotsScreen = ({
     queryFn: () => api.listUsers({ role: "coach" }),
   });
 
-  // Group slots by day
+  // Filter slots
+  const filteredSlots = useMemo(() => {
+    if (filterMode === "coach" && selectedCoachId !== "all") {
+      const cid = Number(selectedCoachId);
+      return slots.filter((s) =>
+        s.assignments.some((a) => a.coach_id === cid),
+      );
+    }
+    if (filterMode === "group" && selectedGroupId !== "all") {
+      const gid = Number(selectedGroupId);
+      return slots.filter((s) =>
+        s.assignments.some((a) => a.group_id === gid),
+      );
+    }
+    return slots;
+  }, [slots, filterMode, selectedCoachId, selectedGroupId]);
+
+  // Group filtered slots by day, sorted by start_time
   const slotsByDay = useMemo(() => {
     const map = new Map<number, TrainingSlot[]>();
-    for (let d = 1; d <= 7; d++) {
-      map.set(d, []);
+    for (let d = 1; d <= 7; d++) map.set(d, []);
+    for (const s of filteredSlots) {
+      map.get(s.day_of_week)!.push(s);
     }
-    for (const s of slots) {
-      const list = map.get(s.day_of_week) ?? [];
-      list.push(s);
-      map.set(s.day_of_week, list);
+    // Sort each day by start_time
+    for (const list of map.values()) {
+      list.sort((a, b) => a.start_time.localeCompare(b.start_time));
     }
     return map;
-  }, [slots]);
+  }, [filteredSlots]);
 
   // Overrides by slot_id
   const overridesBySlot = useMemo(() => {
@@ -772,7 +906,7 @@ const CoachTrainingSlotsScreen = ({
       : `${slots.length} creneau${slots.length > 1 ? "x" : ""}`;
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-4 pb-24">
       <CoachSectionHeader
         title="Creneaux"
         description={description}
@@ -780,22 +914,67 @@ const CoachTrainingSlotsScreen = ({
         actions={
           <Button variant="outline" size="sm" onClick={handleCreate}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Nouveau creneau
+            Nouveau
           </Button>
         }
       />
 
+      {/* Filter bar */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <ToggleGroup
+          type="single"
+          value={filterMode}
+          onValueChange={(v) => {
+            if (v === "coach" || v === "group") setFilterMode(v);
+          }}
+          className="shrink-0"
+        >
+          <ToggleGroupItem value="group" className="text-xs px-3">
+            Groupe
+          </ToggleGroupItem>
+          <ToggleGroupItem value="coach" className="text-xs px-3">
+            Coach
+          </ToggleGroupItem>
+        </ToggleGroup>
+
+        {filterMode === "group" ? (
+          <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
+            <SelectTrigger className="w-full sm:w-56">
+              <SelectValue placeholder="Tous les groupes" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les groupes</SelectItem>
+              {groups.map((g) => (
+                <SelectItem key={g.id} value={String(g.id)}>
+                  {g.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <Select value={selectedCoachId} onValueChange={setSelectedCoachId}>
+            <SelectTrigger className="w-full sm:w-56">
+              <SelectValue placeholder="Tous les coachs" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les coachs</SelectItem>
+              {coaches.map((c) => (
+                <SelectItem key={c.id} value={String(c.id)}>
+                  {c.display_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+
+      {/* Weekly grid */}
       {slotsLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="rounded-xl border p-3 animate-pulse motion-reduce:animate-none"
-            >
-              <div className="flex items-center gap-3">
-                <div className="h-4 w-40 rounded bg-muted" />
-                <div className="ml-auto h-5 w-12 rounded bg-muted" />
-              </div>
+        <div className="grid grid-cols-7 gap-2">
+          {Array.from({ length: 7 }, (_, i) => (
+            <div key={i} className="space-y-2">
+              <div className="h-4 w-12 rounded bg-muted animate-pulse motion-reduce:animate-none" />
+              <div className="h-20 rounded-lg bg-muted animate-pulse motion-reduce:animate-none" />
             </div>
           ))}
         </div>
@@ -811,149 +990,52 @@ const CoachTrainingSlotsScreen = ({
           </Button>
         </div>
       ) : (
-        <div className="space-y-4">
-          {Array.from({ length: 7 }, (_, i) => i + 1).map((day) => {
-            const daySlots = slotsByDay.get(day) ?? [];
-            return (
-              <div key={day}>
-                {/* Day separator */}
-                <h3 className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-2">
-                  {DAYS_FR[day - 1]}
-                </h3>
-
-                {daySlots.length === 0 ? (
-                  <p className="text-xs text-muted-foreground/60 ml-1 mb-3">
-                    Aucun entrainement
-                  </p>
-                ) : (
-                  <div className="space-y-2 mb-3">
-                    {daySlots.map((slot) => {
-                      const slotOverrides = overridesBySlot.get(slot.id) ?? [];
-                      return (
-                        <div
-                          key={slot.id}
-                          className="rounded-xl border bg-card p-3 space-y-2"
-                        >
-                          {/* Header: time + location */}
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5">
-                                <Clock className="h-3.5 w-3.5 text-primary shrink-0" />
-                                <span className="text-sm font-semibold">
-                                  {formatTime(slot.start_time)} –{" "}
-                                  {formatTime(slot.end_time)}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-1 mt-0.5">
-                                <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
-                                <span className="text-xs text-muted-foreground truncate">
-                                  {slot.location}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                onClick={() => handleEdit(slot)}
-                                title="Modifier"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                onClick={() => handleOverride(slot)}
-                                title="Exception"
-                              >
-                                <AlertTriangle className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </div>
-
-                          {/* Assignments */}
-                          {slot.assignments.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5">
-                              {slot.assignments.map((a) => (
-                                <div
-                                  key={a.id}
-                                  className="flex items-center gap-1"
-                                >
-                                  <Badge
-                                    variant="secondary"
-                                    className="text-[10px] px-1.5 py-0"
-                                  >
-                                    {a.group_name}
-                                  </Badge>
-                                  <span className="text-[10px] text-muted-foreground">
-                                    {a.coach_name}
-                                    {a.lane_count != null &&
-                                      ` · ${a.lane_count} ligne${a.lane_count > 1 ? "s" : ""}`}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Upcoming overrides */}
-                          {slotOverrides.length > 0 && (
-                            <div className="space-y-1 pt-1 border-t border-dashed">
-                              {slotOverrides.map((ovr) => (
-                                <div
-                                  key={ovr.id}
-                                  className="flex items-center gap-1.5 text-[10px]"
-                                >
-                                  <AlertTriangle className="h-3 w-3 text-orange-500 shrink-0" />
-                                  <span className="text-muted-foreground">
-                                    {new Date(
-                                      ovr.override_date + "T00:00:00",
-                                    ).toLocaleDateString("fr-FR", {
-                                      day: "2-digit",
-                                      month: "2-digit",
-                                    })}
-                                  </span>
-                                  <Badge
-                                    variant={
-                                      ovr.status === "cancelled"
-                                        ? "destructive"
-                                        : "outline"
-                                    }
-                                    className="text-[9px] px-1 py-0"
-                                  >
-                                    {ovr.status === "cancelled"
-                                      ? "Annule"
-                                      : "Modifie"}
-                                  </Badge>
-                                  {ovr.reason && (
-                                    <span className="text-muted-foreground truncate">
-                                      {ovr.reason}
-                                    </span>
-                                  )}
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-5 w-5 ml-auto shrink-0 text-muted-foreground hover:text-destructive"
-                                    onClick={() =>
-                                      deleteOverrideMutation.mutate(ovr.id)
-                                    }
-                                    title="Supprimer l'exception"
-                                  >
-                                    <Trash2 className="h-2.5 w-2.5" />
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+        <div className="overflow-x-auto -mx-4 px-4">
+          <div
+            className="grid grid-cols-7 gap-2"
+            style={{ minWidth: "700px" }}
+          >
+            {Array.from({ length: 7 }, (_, i) => i + 1).map((day) => {
+              const daySlots = slotsByDay.get(day) ?? [];
+              return (
+                <div key={day} className="min-w-0">
+                  {/* Day header */}
+                  <div className="text-center mb-2">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground sm:hidden">
+                      {DAYS_SHORT[day - 1]}
+                    </span>
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground hidden sm:inline">
+                      {DAYS_FR[day - 1]}
+                    </span>
                   </div>
-                )}
-              </div>
-            );
-          })}
+
+                  {/* Slots column */}
+                  <div className="space-y-2 min-h-[60px]">
+                    {daySlots.length === 0 ? (
+                      <div className="rounded-lg border border-dashed p-2 text-center">
+                        <span className="text-[10px] text-muted-foreground/50">
+                          —
+                        </span>
+                      </div>
+                    ) : (
+                      daySlots.map((slot) => (
+                        <SlotCard
+                          key={slot.id}
+                          slot={slot}
+                          overrides={overridesBySlot.get(slot.id) ?? []}
+                          onEdit={handleEdit}
+                          onOverride={handleOverride}
+                          onDeleteOverride={(id) =>
+                            deleteOverrideMutation.mutate(id)
+                          }
+                        />
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
