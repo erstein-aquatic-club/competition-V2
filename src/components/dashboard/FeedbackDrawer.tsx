@@ -413,8 +413,14 @@ export function FeedbackDrawer({
                   </IconButton>
                 </div>
 
+                {!activeSession ? (
+                  <div className="mt-3 rounded-2xl border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+                    Choisis un créneau pour saisir ton ressenti. Une fois ouvert, la saisie prend toute la place.
+                  </div>
+                ) : null}
+
                 {/* Planned absence */}
-                {onMarkDayAbsent && onRemoveDayAbsence && (
+                {!activeSession && onMarkDayAbsent && onRemoveDayAbsence && (
                   isAbsent ? (
                     <div className="rounded-xl border border-muted bg-muted/30 p-3 mt-3 mb-1">
                       <div className="flex items-center justify-between">
@@ -433,7 +439,7 @@ export function FeedbackDrawer({
                 )}
 
                 {/* Liste séances (compacte) */}
-                {(() => {
+                {!activeSession && (() => {
                   const expectedSessions: PlannedSession[] = [];
                   const unexpectedSessions: PlannedSession[] = [];
                   for (const s of sessionsForSelectedDay) {
@@ -615,6 +621,9 @@ export function FeedbackDrawer({
                           <>
                             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                               <div className="min-w-0">
+                                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                                  Créneau sélectionné
+                                </div>
                                 <div className="truncate text-sm font-semibold text-foreground">{activeSession.title}</div>
                                 <div className="mt-1 flex items-center gap-2">
                                   {activeSession.isEmpty ? <Chip>Vide</Chip> : <Chip>{fmtKm(activeSession.km)} km</Chip>}
@@ -637,9 +646,13 @@ export function FeedbackDrawer({
                                 </div>
                               </div>
 
-                              <IconButton onClick={onCloseSession} label="Retour">
-                                <X className="h-5 w-5" />
-                              </IconButton>
+                              <button
+                                type="button"
+                                onClick={onCloseSession}
+                                className="rounded-2xl border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted"
+                              >
+                                Retour aux créneaux
+                              </button>
                             </div>
 
                             <div className="grid grid-cols-2 gap-2 p-3">

@@ -68,17 +68,26 @@ export function SwimExerciseLogsHistory({ userId, expanded, onToggle }: SwimExer
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between rounded-2xl border border-border px-3 py-2.5 text-sm font-semibold text-foreground hover:bg-muted transition"
+        className="flex w-full items-center justify-between rounded-2xl border border-dashed border-border/80 bg-background px-3 py-2.5 text-left transition hover:bg-muted/40"
       >
-        <span className="flex items-center gap-2">
-          <FileText className="h-4 w-4" />
-          Historique notes techniques
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+            <FileText className="h-4 w-4" />
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-semibold text-foreground">
+              Notes techniques
+            </span>
+            <span className="block truncate text-[11px] text-muted-foreground">
+              Repères détaillés, consultation optionnelle
+            </span>
+          </span>
         </span>
         <ChevronRight className={cn("h-4 w-4 transition-transform", expanded && "rotate-90")} />
       </button>
 
       {expanded && (
-        <div className="mt-3 space-y-3">
+        <div className="mt-2 space-y-3 rounded-2xl border border-border/60 bg-card/60 p-2">
           {isLoading && (
             <div className="text-sm text-muted-foreground text-center py-4">Chargement...</div>
           )}
