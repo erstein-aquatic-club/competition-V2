@@ -44,10 +44,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Dumbbell,
   MapPin,
   Plus,
   Trash2,
   AlertTriangle,
+  Users,
+  Waves,
 } from "lucide-react";
 
 // ── Constants ────────────────────────────────────────────────────
@@ -63,7 +66,6 @@ const DAYS_FR = [
 ];
 
 const DAYS_SHORT = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
-const DAYS_LETTER = ["L", "M", "M", "J", "V", "S", "D"];
 
 /** Timeline range */
 const TIMELINE_START = 6; // 06:00
@@ -943,41 +945,99 @@ type DaySelectorProps = {
   onSelectDay: (day: number) => void;
   weekDates: Date[];
   todayIso: string;
+  onPrevWeek: () => void;
+  onNextWeek: () => void;
+  weekNumber: number;
+  slotsCountByDay: Map<number, number>;
 };
 
-const DaySelector = ({ selectedDay, onSelectDay, weekDates, todayIso: todayStr }: DaySelectorProps) => (
-  <div className="flex items-center justify-between gap-1 px-1">
-    {weekDates.map((date, i) => {
-      const day = i + 1;
-      const isSelected = day === selectedDay;
-      const isToday = toIsoDate(date) === todayStr;
-      return (
-        <button
-          key={day}
-          type="button"
-          className={`flex flex-col items-center justify-center rounded-xl py-1.5 flex-1 min-w-0 transition-all active:scale-95 ${
-            isSelected
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "text-muted-foreground hover:bg-muted"
-          }`}
-          onClick={() => onSelectDay(day)}
-        >
-          <span className="text-[10px] font-semibold uppercase">
-            {DAYS_LETTER[i]}
-          </span>
-          <span className={`text-sm font-bold leading-tight ${isSelected ? "" : "text-foreground"}`}>
-            {date.getDate()}
-          </span>
-          {isToday && !isSelected && (
-            <span className="h-1 w-1 rounded-full bg-primary mt-0.5" />
-          )}
-          {isToday && isSelected && (
-            <span className="h-1 w-1 rounded-full bg-primary-foreground mt-0.5" />
-          )}
-          {!isToday && <span className="h-1 mt-0.5" />}
-        </button>
-      );
-    })}
+const DaySelector = ({
+  selectedDay,
+  onSelectDay,
+  weekDates,
+  todayIso: todayStr,
+  onPrevWeek,
+  onNextWeek,
+  weekNumber,
+  slotsCountByDay,
+}: DaySelectorProps) => (
+  <div className="space-y-2">
+    {/* Week nav row */}
+    <div className="flex items-center justify-between px-1">
+      <button
+        type="button"
+        className="flex items-center justify-center h-8 w-8 rounded-full text-muted-foreground hover:bg-muted active:scale-90 transition-all"
+        onClick={onPrevWeek}
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </button>
+      <div className="flex items-baseline gap-1.5">
+        <span className="text-xs font-bold text-primary uppercase tracking-wider font-display">
+          S{weekNumber}
+        </span>
+        <span className="text-[11px] text-muted-foreground">
+          {formatDayMonth(weekDates[0])} – {formatDayMonth(weekDates[6])}
+        </span>
+      </div>
+      <button
+        type="button"
+        className="flex items-center justify-center h-8 w-8 rounded-full text-muted-foreground hover:bg-muted active:scale-90 transition-all"
+        onClick={onNextWeek}
+      >
+        <ChevronRight className="h-4 w-4" />
+      </button>
+    </div>
+
+    {/* Day pills */}
+    <div className="grid grid-cols-7 gap-1 px-0.5">
+      {weekDates.map((date, i) => {
+        const day = i + 1;
+        const isSelected = day === selectedDay;
+        const isToday = toIsoDate(date) === todayStr;
+        const count = slotsCountByDay.get(day) ?? 0;
+        return (
+          <button
+            key={day}
+            type="button"
+            className={`relative flex flex-col items-center justify-center rounded-2xl py-2 transition-all active:scale-90 ${
+              isSelected
+                ? "bg-foreground text-background shadow-lg shadow-foreground/10"
+                : isToday
+                  ? "bg-primary/8 text-foreground ring-1 ring-primary/20"
+                  : "text-muted-foreground hover:bg-muted/60"
+            }`}
+            onClick={() => onSelectDay(day)}
+          >
+            <span className={`text-[10px] font-medium uppercase leading-none ${
+              isSelected ? "text-background/70" : "text-muted-foreground"
+            }`}>
+              {DAYS_SHORT[i]}
+            </span>
+            <span className={`text-base font-bold leading-tight mt-0.5 tabular-nums ${
+              isSelected ? "" : "text-foreground"
+            }`}>
+              {date.getDate()}
+            </span>
+            {/* Slot count dot */}
+            {count > 0 && !isSelected && (
+              <div className="flex gap-0.5 mt-1">
+                {Array.from({ length: Math.min(count, 3) }, (_, j) => (
+                  <span key={j} className="h-1 w-1 rounded-full bg-primary/50" />
+                ))}
+              </div>
+            )}
+            {count > 0 && isSelected && (
+              <div className="flex gap-0.5 mt-1">
+                {Array.from({ length: Math.min(count, 3) }, (_, j) => (
+                  <span key={j} className="h-1 w-1 rounded-full bg-background/50" />
+                ))}
+              </div>
+            )}
+            {count === 0 && <div className="h-1 mt-1" />}
+          </button>
+        );
+      })}
+    </div>
   </div>
 );
 
@@ -988,64 +1048,110 @@ type MobileSlotCardProps = {
   cancelled: boolean;
   hasOverrides: boolean;
   onSelect: (slot: TrainingSlot) => void;
+  index: number;
 };
 
-const MobileSlotCard = ({ slot, cancelled, hasOverrides, onSelect }: MobileSlotCardProps) => {
+const MobileSlotCard = ({ slot, cancelled, hasOverrides, onSelect, index }: MobileSlotCardProps) => {
   const swim = isSwimSlot(slot.location);
-  const borderClass = cancelled
-    ? "border-l-muted-foreground/30"
+  const accentColor = cancelled
+    ? "bg-muted-foreground/20"
     : swim
-      ? "border-l-blue-500"
-      : "border-l-amber-500";
+      ? "bg-blue-500"
+      : "bg-amber-500";
+
+  const startMins = timeToMinutes(slot.start_time);
+  const endMins = timeToMinutes(slot.end_time);
+  const durationMins = endMins - startMins;
+  const durationStr = durationMins >= 60
+    ? `${Math.floor(durationMins / 60)}h${durationMins % 60 > 0 ? String(durationMins % 60).padStart(2, "0") : ""}`
+    : `${durationMins}min`;
 
   return (
     <button
       type="button"
-      className={`w-full text-left rounded-xl border bg-card p-3 border-l-[3px] ${borderClass} transition-all active:scale-[0.98] hover:shadow-md ${
-        cancelled ? "opacity-50" : ""
+      className={`group w-full text-left transition-all active:scale-[0.97] ${
+        cancelled ? "opacity-40" : ""
       }`}
       onClick={() => onSelect(slot)}
+      style={{ animationDelay: `${index * 50}ms` }}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1 space-y-1.5">
-          {/* Time + Location */}
-          <div className="flex items-center gap-2">
-            <span className={`text-sm font-bold tabular-nums ${cancelled ? "line-through" : ""}`}>
-              {formatTime(slot.start_time)} – {formatTime(slot.end_time)}
-            </span>
-            {hasOverrides && !cancelled && (
-              <AlertTriangle className="h-3 w-3 text-orange-500 shrink-0" />
-            )}
-            {cancelled && (
-              <Badge variant="destructive" className="text-[9px] px-1.5 py-0">
-                Annule
-              </Badge>
-            )}
-          </div>
-
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <MapPin className={`h-3 w-3 shrink-0 ${swim ? "text-blue-500" : "text-amber-500"}`} />
-            <span className="truncate">{slot.location}</span>
-          </div>
-
-          {/* Assignments */}
-          {slot.assignments.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {slot.assignments.map((a) => (
-                <div key={a.id} className="flex items-center gap-1">
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                    {a.group_name}
-                  </Badge>
-                  <span className="text-[10px] text-muted-foreground">
-                    {a.coach_name}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+      <div className="flex gap-3">
+        {/* Left: Time column */}
+        <div className="flex flex-col items-end shrink-0 w-14 pt-0.5">
+          <span className={`text-sm font-bold tabular-nums leading-tight ${
+            cancelled ? "line-through text-muted-foreground" : "text-foreground"
+          }`}>
+            {formatTime(slot.start_time)}
+          </span>
+          <span className="text-[10px] text-muted-foreground tabular-nums leading-tight">
+            {formatTime(slot.end_time)}
+          </span>
         </div>
 
-        <ChevronRight className="h-4 w-4 text-muted-foreground/40 shrink-0 mt-0.5" />
+        {/* Center: Accent bar */}
+        <div className="relative flex flex-col items-center shrink-0 py-1">
+          <div className={`w-2 h-2 rounded-full ${accentColor}`} />
+          <div className={`flex-1 w-0.5 ${accentColor} opacity-30 my-0.5`} />
+          <div className={`w-1.5 h-1.5 rounded-full ${accentColor} opacity-40`} />
+        </div>
+
+        {/* Right: Content */}
+        <div className="flex-1 min-w-0 pb-4">
+          <div className="rounded-xl bg-card border border-border/60 p-3 group-hover:shadow-md group-hover:border-border transition-all">
+            {/* Header row */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                {swim ? (
+                  <Waves className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                ) : (
+                  <Dumbbell className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                )}
+                <span className={`text-sm font-semibold truncate ${
+                  cancelled ? "line-through text-muted-foreground" : "text-foreground"
+                }`}>
+                  {slot.location}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                {hasOverrides && !cancelled && (
+                  <span className="flex items-center gap-0.5 rounded-full bg-orange-500/10 text-orange-600 px-1.5 py-0.5 text-[9px] font-medium">
+                    <AlertTriangle className="h-2.5 w-2.5" />
+                  </span>
+                )}
+                {cancelled && (
+                  <span className="rounded-full bg-destructive/10 text-destructive px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide">
+                    Annulé
+                  </span>
+                )}
+                <span className="text-[10px] text-muted-foreground tabular-nums">
+                  {durationStr}
+                </span>
+              </div>
+            </div>
+
+            {/* Assignments */}
+            {slot.assignments.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                {slot.assignments.map((a) => (
+                  <div key={a.id} className="flex items-center gap-1">
+                    <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium ${
+                      swim
+                        ? "bg-blue-500/8 text-blue-700"
+                        : "bg-amber-500/8 text-amber-700"
+                    }`}>
+                      <Users className="h-2.5 w-2.5" />
+                      {a.group_name}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {a.coach_name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </button>
   );
@@ -1233,27 +1339,125 @@ const CoachTrainingSlotsScreen = ({
     display_name: c.display_name,
   }));
 
+  // Slots count per day for the day selector dots
+  const slotsCountByDay = useMemo(() => {
+    const map = new Map<number, number>();
+    for (let d = 1; d <= 7; d++) map.set(d, (slotsByDay.get(d) ?? []).length);
+    return map;
+  }, [slotsByDay]);
+
   const description =
     slots.length === 0
       ? "Planning hebdomadaire des entrainements."
       : `${slots.length} creneau${slots.length > 1 ? "x" : ""}`;
 
+  // Build filter chips for mobile
+  type FilterChip = { id: string; label: string; mode: "group" | "coach"; value: string };
+  const filterChips = useMemo(() => {
+    const chips: FilterChip[] = [{ id: "all", label: "Tous", mode: "group", value: "all" }];
+    for (const g of groups) {
+      chips.push({ id: `g-${g.id}`, label: String(g.name), mode: "group", value: String(g.id) });
+    }
+    for (const c of coaches) {
+      chips.push({ id: `c-${c.id}`, label: c.display_name, mode: "coach", value: String(c.id) });
+    }
+    return chips;
+  }, [groups, coaches]);
+
+  const activeChipId = useMemo(() => {
+    if (filterMode === "group" && selectedGroupId === "all") return "all";
+    if (filterMode === "group") return `g-${selectedGroupId}`;
+    if (filterMode === "coach" && selectedCoachId === "all") return "all";
+    return `c-${selectedCoachId}`;
+  }, [filterMode, selectedGroupId, selectedCoachId]);
+
+  const handleChipSelect = (chip: FilterChip) => {
+    if (chip.id === "all") {
+      setFilterMode("group");
+      setSelectedGroupId("all");
+      setSelectedCoachId("all");
+    } else if (chip.mode === "group") {
+      setFilterMode("group");
+      setSelectedGroupId(chip.value);
+    } else {
+      setFilterMode("coach");
+      setSelectedCoachId(chip.value);
+    }
+  };
+
   return (
     <div className="space-y-4 pb-24">
-      <CoachSectionHeader
-        title="Creneaux"
-        description={description}
-        onBack={onBack}
-        actions={
-          <Button variant="outline" size="sm" onClick={handleCreate}>
-            <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Nouveau
-          </Button>
-        }
-      />
+      {/* ── Mobile header ── */}
+      <div className="sm:hidden">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2" onClick={onBack}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div>
+              <h2 className="text-lg font-display font-semibold uppercase italic text-primary leading-tight">
+                Créneaux
+              </h2>
+              {slots.length > 0 && (
+                <p className="text-[11px] text-muted-foreground">
+                  {slots.length} créneau{slots.length > 1 ? "x" : ""} actif{slots.length > 1 ? "s" : ""}
+                </p>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            className="flex items-center justify-center h-9 w-9 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/20 active:scale-90 transition-all"
+            onClick={handleCreate}
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
 
-      {/* Week navigation + filters */}
-      <div className="space-y-3">
+      {/* ── Desktop header ── */}
+      <div className="hidden sm:block">
+        <CoachSectionHeader
+          title="Creneaux"
+          description={description}
+          onBack={onBack}
+          actions={
+            <Button variant="outline" size="sm" onClick={handleCreate}>
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              Nouveau
+            </Button>
+          }
+        />
+      </div>
+
+      {/* ── Mobile filter chips ── */}
+      {!slotsLoading && slots.length > 0 && (
+        <div className="sm:hidden -mx-4 px-4 overflow-x-auto no-scrollbar">
+          <div className="flex gap-1.5 pb-1">
+            {filterChips.map((chip) => {
+              const isActive = chip.id === activeChipId;
+              const isCoach = chip.mode === "coach";
+              return (
+                <button
+                  key={chip.id}
+                  type="button"
+                  className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-all active:scale-95 ${
+                    isActive
+                      ? "bg-foreground text-background shadow-sm"
+                      : "bg-muted/60 text-muted-foreground hover:bg-muted"
+                  }`}
+                  onClick={() => handleChipSelect(chip)}
+                >
+                  {isCoach && chip.id !== "all" ? `${chip.label}` : chip.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Desktop week navigation + filters ── */}
+      <div className="hidden sm:block space-y-3">
         {/* Week nav bar */}
         <div className="flex items-center justify-between gap-2">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={prevWeek}>
@@ -1278,7 +1482,7 @@ const CoachTrainingSlotsScreen = ({
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-row items-center gap-3">
           <ToggleGroup
             type="single"
             value={filterMode}
@@ -1297,7 +1501,7 @@ const CoachTrainingSlotsScreen = ({
 
           {filterMode === "group" ? (
             <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
-              <SelectTrigger className="w-full sm:w-56">
+              <SelectTrigger className="w-56">
                 <SelectValue placeholder="Tous les groupes" />
               </SelectTrigger>
               <SelectContent>
@@ -1311,7 +1515,7 @@ const CoachTrainingSlotsScreen = ({
             </Select>
           ) : (
             <Select value={selectedCoachId} onValueChange={setSelectedCoachId}>
-              <SelectTrigger className="w-full sm:w-56">
+              <SelectTrigger className="w-56">
                 <SelectValue placeholder="Tous les coachs" />
               </SelectTrigger>
               <SelectContent>
@@ -1329,54 +1533,88 @@ const CoachTrainingSlotsScreen = ({
 
       {/* ── Content ── */}
       {slotsLoading ? (
-        <div className="grid grid-cols-7 gap-2">
-          {Array.from({ length: 7 }, (_, i) => (
-            <div key={i} className="space-y-2">
-              <div className="h-4 w-12 rounded bg-muted animate-pulse motion-reduce:animate-none" />
-              <div className="h-40 rounded-lg bg-muted animate-pulse motion-reduce:animate-none" />
+        <>
+          {/* Mobile skeleton */}
+          <div className="sm:hidden space-y-3">
+            <div className="grid grid-cols-7 gap-1 px-0.5">
+              {Array.from({ length: 7 }, (_, i) => (
+                <div key={i} className="h-16 rounded-2xl bg-muted animate-pulse motion-reduce:animate-none" />
+              ))}
             </div>
-          ))}
-        </div>
+            {Array.from({ length: 3 }, (_, i) => (
+              <div key={i} className="flex gap-3">
+                <div className="w-14 h-10 rounded bg-muted animate-pulse motion-reduce:animate-none" />
+                <div className="flex-1 h-20 rounded-xl bg-muted animate-pulse motion-reduce:animate-none" />
+              </div>
+            ))}
+          </div>
+          {/* Desktop skeleton */}
+          <div className="hidden sm:grid grid-cols-7 gap-2">
+            {Array.from({ length: 7 }, (_, i) => (
+              <div key={i} className="space-y-2">
+                <div className="h-4 w-12 rounded bg-muted animate-pulse motion-reduce:animate-none" />
+                <div className="h-40 rounded-lg bg-muted animate-pulse motion-reduce:animate-none" />
+              </div>
+            ))}
+          </div>
+        </>
       ) : slots.length === 0 ? (
-        <div className="text-center py-12 space-y-3">
-          <Clock className="h-10 w-10 text-muted-foreground mx-auto" />
-          <p className="text-sm text-muted-foreground">
-            Aucun creneau defini.
-          </p>
+        <div className="text-center py-16 space-y-4">
+          <div className="mx-auto w-16 h-16 rounded-2xl bg-muted/60 flex items-center justify-center">
+            <Clock className="h-7 w-7 text-muted-foreground" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-foreground">
+              Aucun créneau défini
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Créez votre premier créneau d'entraînement.
+            </p>
+          </div>
           <Button variant="outline" size="sm" onClick={handleCreate}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Creer le premier creneau
+            Créer un créneau
           </Button>
         </div>
       ) : (
         <>
           {/* ── Mobile view ── */}
-          <div className="sm:hidden space-y-3">
+          <div className="sm:hidden space-y-1">
             <DaySelector
               selectedDay={selectedDay}
               onSelectDay={setSelectedDay}
               weekDates={weekDates}
               todayIso={todayIso()}
+              onPrevWeek={prevWeek}
+              onNextWeek={nextWeek}
+              weekNumber={weekNumber}
+              slotsCountByDay={slotsCountByDay}
             />
 
             {(() => {
               const daySlots = slotsByDay.get(selectedDay) ?? [];
               if (daySlots.length === 0) {
                 return (
-                  <p className="text-center text-sm text-muted-foreground py-8">
-                    Aucun créneau {DAYS_FR[selectedDay - 1].toLowerCase()}.
-                  </p>
+                  <div className="flex flex-col items-center justify-center py-12 space-y-2">
+                    <div className="w-10 h-10 rounded-xl bg-muted/50 flex items-center justify-center">
+                      <Clock className="h-4.5 w-4.5 text-muted-foreground/60" />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Aucun créneau {DAYS_FR[selectedDay - 1].toLowerCase()}
+                    </p>
+                  </div>
                 );
               }
               return (
-                <div className="space-y-2">
-                  {daySlots.map((slot) => (
+                <div className="pt-3 pl-0.5">
+                  {daySlots.map((slot, idx) => (
                     <MobileSlotCard
                       key={slot.id}
                       slot={slot}
                       cancelled={cancelledSlotIds.has(slot.id)}
                       hasOverrides={(overridesBySlot.get(slot.id) ?? []).length > 0}
                       onSelect={handleSelect}
+                      index={idx}
                     />
                   ))}
                 </div>
