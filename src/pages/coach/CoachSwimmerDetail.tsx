@@ -8,6 +8,7 @@ import { ArrowLeft, Clock, Target, CalendarRange, MessageSquare } from "lucide-r
 import SwimmerFeedbackTab from "./SwimmerFeedbackTab";
 import SwimmerObjectivesTab from "./SwimmerObjectivesTab";
 import SwimmerPlanningTab from "./SwimmerPlanningTab";
+import SwimmerInterviewsTab from "./SwimmerInterviewsTab";
 
 export default function CoachSwimmerDetail() {
   const [, params] = useRoute("/coach/swimmer/:id");
@@ -103,11 +104,7 @@ export default function CoachSwimmerDetail() {
         </TabsContent>
 
         <TabsContent value="entretiens" className="mt-4">
-          <div className="rounded-2xl border border-dashed border-border p-6 text-center">
-            <MessageSquare className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
-            <p className="text-sm font-medium text-muted-foreground">Bientôt disponible</p>
-            <p className="text-xs text-muted-foreground mt-1">Comptes-rendus structurés d'entretiens individuels avec liens vers objectifs et planification.</p>
-          </div>
+          <SwimmerInterviewsTab athleteId={athleteId} athleteName={displayName} />
         </TabsContent>
       </Tabs>
     </div>
