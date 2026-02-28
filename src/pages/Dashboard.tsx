@@ -272,22 +272,41 @@ export default function Dashboard() {
   const absenceMutation = useMutation({
     mutationFn: ({ date, reason }: { date: string; reason?: string }) =>
       api.setPlannedAbsence(date, reason),
+    onMutate: async ({ date, reason }) => {
+      await queryClient.cancelQueries({ queryKey: ["my-planned-absences"] });
+      const previous = queryClient.getQueryData<PlannedAbsence[]>(["my-planned-absences"]);
+      queryClient.setQueryData<PlannedAbsence[]>(["my-planned-absences"], (old) => [
+        ...(old ?? []),
+        { date, reason: reason ?? null } as PlannedAbsence,
+      ]);
+      return { previous };
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["my-planned-absences"] });
       toast({ title: "Jour marqué indisponible" });
     },
-    onError: () => {
+    onError: (_err, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(["my-planned-absences"], context.previous);
       toast({ title: "Erreur", description: "Impossible de marquer ce jour indisponible.", variant: "destructive" });
     },
   });
 
   const removeAbsenceMutation = useMutation({
     mutationFn: (date: string) => api.removePlannedAbsence(date),
+    onMutate: async (date) => {
+      await queryClient.cancelQueries({ queryKey: ["my-planned-absences"] });
+      const previous = queryClient.getQueryData<PlannedAbsence[]>(["my-planned-absences"]);
+      queryClient.setQueryData<PlannedAbsence[]>(["my-planned-absences"], (old) =>
+        (old ?? []).filter((a) => a.date !== date),
+      );
+      return { previous };
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["my-planned-absences"] });
       toast({ title: "Disponibilité restaurée" });
     },
-    onError: () => {
+    onError: (_err, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(["my-planned-absences"], context.previous);
       toast({ title: "Erreur", description: "Impossible de restaurer la disponibilité.", variant: "destructive" });
     },
   });
