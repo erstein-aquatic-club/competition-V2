@@ -35,11 +35,11 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   ChevronLeft,
   ChevronRight,
@@ -1190,9 +1190,7 @@ const CoachTrainingSlotsScreen = ({
   const goToday = () => setWeekMonday(getMonday(new Date()));
 
   // Filter state
-  const [filterMode, setFilterMode] = useState<"coach" | "group">("group");
-  const [selectedCoachId, setSelectedCoachId] = useState("all");
-  const [selectedGroupId, setSelectedGroupId] = useState("all");
+  const [filterValue, setFilterValue] = useState<string>("all");
 
   // Fetch slots
   const { data: slots = [], isLoading: slotsLoading } = useQuery({
@@ -1214,20 +1212,21 @@ const CoachTrainingSlotsScreen = ({
 
   // Filter slots
   const filteredSlots = useMemo(() => {
-    if (filterMode === "coach" && selectedCoachId !== "all") {
-      const cid = Number(selectedCoachId);
-      return slots.filter((s) =>
-        s.assignments.some((a) => a.coach_id === cid),
-      );
-    }
-    if (filterMode === "group" && selectedGroupId !== "all") {
-      const gid = Number(selectedGroupId);
+    if (filterValue === "all") return slots;
+    if (filterValue.startsWith("group:")) {
+      const gid = Number(filterValue.split(":")[1]);
       return slots.filter((s) =>
         s.assignments.some((a) => a.group_id === gid),
       );
     }
+    if (filterValue.startsWith("coach:")) {
+      const cid = Number(filterValue.split(":")[1]);
+      return slots.filter((s) =>
+        s.assignments.some((a) => a.coach_id === cid),
+      );
+    }
     return slots;
-  }, [slots, filterMode, selectedCoachId, selectedGroupId]);
+  }, [slots, filterValue]);
 
   // Group filtered slots by day, sorted by start_time
   const slotsByDay = useMemo(() => {
@@ -1341,39 +1340,6 @@ const CoachTrainingSlotsScreen = ({
       ? "Planning hebdomadaire des entrainements."
       : `${slots.length} creneau${slots.length > 1 ? "x" : ""}`;
 
-  // Build filter chips for mobile
-  type FilterChip = { id: string; label: string; mode: "group" | "coach"; value: string };
-  const filterChips = useMemo(() => {
-    const chips: FilterChip[] = [{ id: "all", label: "Tous", mode: "group", value: "all" }];
-    for (const g of groups) {
-      chips.push({ id: `g-${g.id}`, label: String(g.name), mode: "group", value: String(g.id) });
-    }
-    for (const c of coaches) {
-      chips.push({ id: `c-${c.id}`, label: c.display_name, mode: "coach", value: String(c.id) });
-    }
-    return chips;
-  }, [groups, coaches]);
-
-  const activeChipId = useMemo(() => {
-    if (filterMode === "group" && selectedGroupId === "all") return "all";
-    if (filterMode === "group") return `g-${selectedGroupId}`;
-    if (filterMode === "coach" && selectedCoachId === "all") return "all";
-    return `c-${selectedCoachId}`;
-  }, [filterMode, selectedGroupId, selectedCoachId]);
-
-  const handleChipSelect = (chip: FilterChip) => {
-    if (chip.id === "all") {
-      setFilterMode("group");
-      setSelectedGroupId("all");
-      setSelectedCoachId("all");
-    } else if (chip.mode === "group") {
-      setFilterMode("group");
-      setSelectedGroupId(chip.value);
-    } else {
-      setFilterMode("coach");
-      setSelectedCoachId(chip.value);
-    }
-  };
 
   return (
     <div className="space-y-4 pb-24">
@@ -1420,29 +1386,23 @@ const CoachTrainingSlotsScreen = ({
         />
       </div>
 
-      {/* ── Mobile filter chips ── */}
+      {/* ── Mobile filter ── */}
       {!slotsLoading && slots.length > 0 && (
-        <div className="sm:hidden -mx-4 px-4 overflow-x-auto no-scrollbar">
-          <div className="flex gap-1.5 pb-1">
-            {filterChips.map((chip) => {
-              const isActive = chip.id === activeChipId;
-              const isCoach = chip.mode === "coach";
-              return (
-                <button
-                  key={chip.id}
-                  type="button"
-                  className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-all active:scale-95 ${
-                    isActive
-                      ? "bg-foreground text-background shadow-sm"
-                      : "bg-muted/60 text-muted-foreground hover:bg-muted"
-                  }`}
-                  onClick={() => handleChipSelect(chip)}
-                >
-                  {isCoach && chip.id !== "all" ? `${chip.label}` : chip.label}
-                </button>
-              );
-            })}
-          </div>
+        <div className="sm:hidden">
+          <Select value={filterValue} onValueChange={setFilterValue}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Filtrer..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les créneaux</SelectItem>
+              <SelectSeparator />
+              {groups.map((g) => (
+                <SelectItem key={g.id} value={`group:${g.id}`}>
+                  {g.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       )}
 
@@ -1473,51 +1433,26 @@ const CoachTrainingSlotsScreen = ({
 
         {/* Filters */}
         <div className="flex flex-row items-center gap-3">
-          <ToggleGroup
-            type="single"
-            value={filterMode}
-            onValueChange={(v) => {
-              if (v === "coach" || v === "group") setFilterMode(v);
-            }}
-            className="shrink-0"
-          >
-            <ToggleGroupItem value="group" className="text-xs px-3">
-              Groupe
-            </ToggleGroupItem>
-            <ToggleGroupItem value="coach" className="text-xs px-3">
-              Coach
-            </ToggleGroupItem>
-          </ToggleGroup>
-
-          {filterMode === "group" ? (
-            <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
-              <SelectTrigger className="w-56">
-                <SelectValue placeholder="Tous les groupes" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les groupes</SelectItem>
-                {groups.map((g) => (
-                  <SelectItem key={g.id} value={String(g.id)}>
-                    {g.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <Select value={selectedCoachId} onValueChange={setSelectedCoachId}>
-              <SelectTrigger className="w-56">
-                <SelectValue placeholder="Tous les coachs" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les coachs</SelectItem>
-                {coaches.map((c) => (
-                  <SelectItem key={c.id} value={String(c.id)}>
-                    {c.display_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <Select value={filterValue} onValueChange={setFilterValue}>
+            <SelectTrigger className="w-56">
+              <SelectValue placeholder="Filtrer..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les créneaux</SelectItem>
+              <SelectSeparator />
+              {groups.map((g) => (
+                <SelectItem key={g.id} value={`group:${g.id}`}>
+                  {g.name}
+                </SelectItem>
+              ))}
+              {coaches.length > 0 && <SelectSeparator />}
+              {coaches.map((c) => (
+                <SelectItem key={c.id} value={`coach:${c.id}`}>
+                  {c.display_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
