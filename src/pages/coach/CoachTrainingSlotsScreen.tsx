@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type {
@@ -72,8 +72,6 @@ const PX_PER_HOUR = 40;
 const TIMELINE_HEIGHT = TIMELINE_HOURS * PX_PER_HOUR; // 640px
 const HOUR_LABELS = Array.from({ length: TIMELINE_HOURS + 1 }, (_, i) => TIMELINE_START + i);
 
-/** Mobile compact timeline */
-const MOBILE_PX_PER_HOUR = 40;
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -932,52 +930,78 @@ const SlotDetailSheet = ({
   );
 };
 
-// ── Mobile Week Timeline ─────────────────────────────────────────
+// ── Mobile View: Week Strip + Day Detail ────────────────────────
 
-type MobileTimelineProps = {
+type MobileViewProps = {
   slotsByDay: Map<number, TrainingSlot[]>;
   weekDates: Date[];
   todayStr: string;
   overridesBySlot: Map<string, TrainingSlotOverride[]>;
   cancelledSlotIds: Set<string>;
   onSelect: (slot: TrainingSlot) => void;
-  mobileTimeRange: { start: number; end: number };
   onPrevWeek: () => void;
   onNextWeek: () => void;
   weekNumber: number;
 };
 
-const MobileTimeline = ({
+/** Compute duration string from two time strings */
+function durationLabel(start: string, end: string): string {
+  const diff = timeToMinutes(end) - timeToMinutes(start);
+  const h = Math.floor(diff / 60);
+  const m = diff % 60;
+  if (h === 0) return `${m}min`;
+  if (m === 0) return `${h}h`;
+  return `${h}h${String(m).padStart(2, "0")}`;
+}
+
+const MobileView = ({
   slotsByDay,
   weekDates,
   todayStr,
   overridesBySlot,
   cancelledSlotIds,
   onSelect,
-  mobileTimeRange,
   onPrevWeek,
   onNextWeek,
   weekNumber,
-}: MobileTimelineProps) => {
-  const todayColRef = useRef<HTMLDivElement>(null);
-  const rangeHours = mobileTimeRange.end - mobileTimeRange.start;
-  const timelineH = rangeHours * MOBILE_PX_PER_HOUR;
-  const hourLabels = Array.from({ length: rangeHours + 1 }, (_, i) => mobileTimeRange.start + i);
+}: MobileViewProps) => {
+  // Auto-select today's day (1=Mon...7=Sun), or Monday if today isn't in this week
+  const [selectedDay, setSelectedDay] = useState<number>(() => {
+    const todayIdx = weekDates.findIndex((d) => toIsoDate(d) === todayStr);
+    return todayIdx >= 0 ? todayIdx + 1 : 1;
+  });
 
+  // Re-sync selectedDay when week changes
   useEffect(() => {
-    todayColRef.current?.scrollIntoView({ inline: "center", block: "nearest" });
-  }, []);
+    const todayIdx = weekDates.findIndex((d) => toIsoDate(d) === todayStr);
+    if (todayIdx >= 0) setSelectedDay(todayIdx + 1);
+    else setSelectedDay(1);
+  }, [weekDates, todayStr]);
 
-  const mTimeToPx = (t: string) => {
-    const mins = timeToMinutes(t);
-    return ((mins - mobileTimeRange.start * 60) / 60) * MOBILE_PX_PER_HOUR;
-  };
-  const mDurationPx = (start: string, end: string) => mTimeToPx(end) - mTimeToPx(start);
+  const selectedDaySlots = slotsByDay.get(selectedDay) ?? [];
+
+  // Compute the smart time range for the mini-strip visualization
+  const stripRange = useMemo(() => {
+    let minH = 22;
+    let maxH = 6;
+    slotsByDay.forEach((daySlots) => {
+      for (const s of daySlots) {
+        const startH = Math.floor(timeToMinutes(s.start_time) / 60);
+        const endH = Math.ceil(timeToMinutes(s.end_time) / 60);
+        if (startH < minH) minH = startH;
+        if (endH > maxH) maxH = endH;
+      }
+    });
+    if (minH >= maxH) return { start: 6, end: 22 };
+    return { start: Math.max(0, minH), end: Math.min(24, maxH) };
+  }, [slotsByDay]);
+
+  const stripTotalMin = (stripRange.end - stripRange.start) * 60;
 
   return (
-    <div className="space-y-2">
-      {/* Week nav row */}
-      <div className="flex items-center justify-between px-1">
+    <div className="space-y-3">
+      {/* ── Week nav ── */}
+      <div className="flex items-center justify-between">
         <button
           type="button"
           className="flex items-center justify-center h-8 w-8 rounded-full text-muted-foreground hover:bg-muted active:scale-90 transition-all"
@@ -1002,139 +1026,196 @@ const MobileTimeline = ({
         </button>
       </div>
 
-      {/* Timeline grid */}
-      <div className="overflow-x-auto overflow-y-auto no-scrollbar -mx-4 px-4" style={{ maxHeight: "calc(100vh - 220px)" }}>
-        <div
-          className="grid min-w-max"
-          style={{ gridTemplateColumns: "1.5rem repeat(7, 80px)" }}
-        >
-          {/* Day headers */}
-          <div /> {/* empty corner */}
-          {weekDates.map((date, i) => {
-            const isToday = toIsoDate(date) === todayStr;
-            return (
-              <div key={i} ref={isToday ? todayColRef : undefined} className="text-center pb-1.5 sticky top-0 bg-background z-10">
-                <span className={`text-[9px] font-semibold uppercase tracking-wider ${
-                  isToday ? "text-primary" : "text-muted-foreground"
-                }`}>
-                  {DAYS_SHORT[i]}
-                </span>
-                <br />
-                <span className={`text-[10px] font-bold tabular-nums ${
-                  isToday ? "text-primary" : "text-foreground"
-                }`}>
-                  {date.getDate()}
-                </span>
-              </div>
-            );
-          })}
+      {/* ── Week strip: 7 day columns with mini slot indicators ── */}
+      <div className="grid grid-cols-7 gap-0 rounded-xl border border-border bg-card overflow-hidden">
+        {weekDates.map((date, i) => {
+          const dow = i + 1;
+          const isToday = toIsoDate(date) === todayStr;
+          const isSelected = dow === selectedDay;
+          const daySlots = slotsByDay.get(dow) ?? [];
 
-          {/* Time labels column */}
-          <div className="relative sticky top-0" style={{ height: timelineH }}>
-            {hourLabels.map((h) => (
-              <span
-                key={h}
-                className="absolute right-0.5 text-[8px] text-muted-foreground/60 leading-none -translate-y-1/2 tabular-nums"
-                style={{ top: (h - mobileTimeRange.start) * MOBILE_PX_PER_HOUR }}
-              >
-                {h}
+          return (
+            <button
+              key={dow}
+              type="button"
+              className={`flex flex-col items-center py-2 transition-colors relative ${
+                isSelected
+                  ? "bg-primary/8"
+                  : "hover:bg-muted/50 active:bg-muted"
+              }`}
+              onClick={() => setSelectedDay(dow)}
+            >
+              {/* Day label */}
+              <span className={`text-[10px] font-semibold uppercase tracking-wider ${
+                isToday ? "text-primary" : "text-muted-foreground"
+              }`}>
+                {DAYS_SHORT[i]}
               </span>
-            ))}
-          </div>
 
-          {/* 7 day columns */}
-          {Array.from({ length: 7 }, (_, i) => i + 1).map((day) => {
-            const daySlots = slotsByDay.get(day) ?? [];
-            const isToday = toIsoDate(weekDates[day - 1]) === todayStr;
-            return (
-              <div
-                key={day}
-                className={`relative border-l ${
-                  isToday ? "border-primary/20 bg-primary/3" : "border-border/30"
-                }`}
-                style={{ height: timelineH }}
-              >
-                {/* Hour grid lines */}
-                {hourLabels.map((h) => (
-                  <div
-                    key={h}
-                    className="absolute left-0 right-0 border-t border-border/15"
-                    style={{ top: (h - mobileTimeRange.start) * MOBILE_PX_PER_HOUR }}
-                  />
-                ))}
+              {/* Date number */}
+              <span className={`text-sm font-bold tabular-nums mt-0.5 h-7 w-7 flex items-center justify-center rounded-full ${
+                isToday
+                  ? "bg-primary text-primary-foreground"
+                  : isSelected
+                    ? "text-foreground"
+                    : "text-foreground/80"
+              }`}>
+                {date.getDate()}
+              </span>
 
-                {/* Slot blocks */}
+              {/* Mini slot bars — proportional to time range */}
+              <div className="w-full px-1 mt-1.5 h-8 relative">
                 {daySlots.map((slot) => {
-                  const top = mTimeToPx(slot.start_time);
-                  const height = mDurationPx(slot.start_time, slot.end_time);
+                  const startMin = timeToMinutes(slot.start_time) - stripRange.start * 60;
+                  const endMin = timeToMinutes(slot.end_time) - stripRange.start * 60;
+                  const topPct = Math.max(0, (startMin / stripTotalMin) * 100);
+                  const heightPct = Math.max(8, ((endMin - startMin) / stripTotalMin) * 100);
                   const swim = isSwimSlot(slot.location);
                   const cancelled = cancelledSlotIds.has(slot.id);
-                  const hasOverrides = (overridesBySlot.get(slot.id) ?? []).length > 0;
-                  const isShort = height < 40;
-
-                  const bgClass = cancelled
-                    ? "bg-muted/40 border-muted-foreground/15"
-                    : swim
-                      ? "bg-blue-500/12 border-blue-400/30 active:bg-blue-500/25"
-                      : "bg-amber-400/12 border-amber-400/30 active:bg-amber-400/25";
 
                   return (
-                    <button
+                    <div
                       key={slot.id}
-                      type="button"
-                      className={`absolute left-0.5 right-0.5 rounded-md border overflow-hidden text-left transition-colors ${bgClass} ${
-                        cancelled ? "opacity-50" : ""
+                      className={`absolute left-1 right-1 rounded-sm ${
+                        cancelled
+                          ? "bg-muted-foreground/20"
+                          : swim
+                            ? "bg-blue-500/40"
+                            : "bg-amber-400/50"
                       }`}
-                      style={{ top, height: Math.max(height, 20), minHeight: 20 }}
-                      onClick={() => onSelect(slot)}
-                    >
-                      <div className="px-1 py-0.5 h-full flex flex-col justify-center">
-                        {/* Time */}
-                        <span className={`text-[8px] font-bold tabular-nums leading-none ${
-                          cancelled
-                            ? "line-through text-muted-foreground"
-                            : swim ? "text-blue-700" : "text-amber-700"
-                        }`}>
-                          {formatTime(slot.start_time)}
-                        </span>
-
-                        {/* Location (only if enough height) */}
-                        {!isShort && (
-                          <span className="text-[7px] text-muted-foreground leading-tight mt-0.5 truncate">
-                            {slot.location.replace(/Piscine |Salle /i, "")}
-                          </span>
-                        )}
-
-                        {/* Group badges (only for tall blocks) */}
-                        {!isShort && height >= 55 && slot.assignments.length > 0 && (
-                          <div className="flex flex-wrap gap-0.5 mt-0.5">
-                            {slot.assignments.slice(0, 2).map((a) => (
-                              <span
-                                key={a.id}
-                                className={`text-[6px] font-medium px-1 py-0 rounded leading-tight ${
-                                  swim ? "bg-blue-500/10 text-blue-600" : "bg-amber-400/10 text-amber-600"
-                                }`}
-                              >
-                                {a.group_name}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Override warning dot */}
-                        {hasOverrides && !cancelled && (
-                          <div className="absolute top-0.5 right-0.5">
-                            <span className="block h-1.5 w-1.5 rounded-full bg-orange-500" />
-                          </div>
-                        )}
-                      </div>
-                    </button>
+                      style={{
+                        top: `${topPct}%`,
+                        height: `${heightPct}%`,
+                        minHeight: "3px",
+                      }}
+                    />
                   );
                 })}
               </div>
-            );
-          })}
-        </div>
+
+              {/* Selection indicator line */}
+              {isSelected && (
+                <div className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-primary" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Day detail: slot cards ── */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-semibold text-foreground px-0.5">
+          {DAYS_FR[selectedDay - 1]} {weekDates[selectedDay - 1]?.getDate()}{" "}
+          <span className="font-normal text-muted-foreground">
+            {weekDates[selectedDay - 1]?.toLocaleDateString("fr-FR", { month: "long" })}
+          </span>
+        </h3>
+
+        {selectedDaySlots.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 py-8 text-center">
+            <p className="text-sm text-muted-foreground">Aucun créneau</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {selectedDaySlots.map((slot) => {
+              const swim = isSwimSlot(slot.location);
+              const cancelled = cancelledSlotIds.has(slot.id);
+              const slotOverrides = overridesBySlot.get(slot.id) ?? [];
+              const hasOverrides = slotOverrides.length > 0;
+
+              return (
+                <button
+                  key={slot.id}
+                  type="button"
+                  className={`w-full text-left rounded-xl border bg-card transition-all active:scale-[0.98] ${
+                    cancelled ? "opacity-50 border-border" : "border-border hover:border-border/80"
+                  }`}
+                  onClick={() => onSelect(slot)}
+                >
+                  <div className="flex">
+                    {/* Color accent bar */}
+                    <div className={`w-1 rounded-l-xl flex-shrink-0 ${
+                      cancelled
+                        ? "bg-muted-foreground/30"
+                        : swim
+                          ? "bg-blue-500"
+                          : "bg-amber-400"
+                    }`} />
+
+                    <div className="flex-1 px-3 py-2.5 min-w-0">
+                      {/* Time row */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm font-bold tabular-nums ${
+                            cancelled ? "line-through text-muted-foreground" : "text-foreground"
+                          }`}>
+                            {formatTime(slot.start_time)} – {formatTime(slot.end_time)}
+                          </span>
+                          <span className={`text-xs tabular-nums px-1.5 py-0.5 rounded-md font-medium ${
+                            swim
+                              ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                              : "bg-amber-400/10 text-amber-600 dark:text-amber-400"
+                          }`}>
+                            {durationLabel(slot.start_time, slot.end_time)}
+                          </span>
+                        </div>
+                        {hasOverrides && !cancelled && (
+                          <AlertTriangle className="h-3.5 w-3.5 text-orange-500 flex-shrink-0" />
+                        )}
+                      </div>
+
+                      {/* Location */}
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        <span className="text-xs text-muted-foreground truncate">
+                          {slot.location}
+                        </span>
+                      </div>
+
+                      {/* Group badges */}
+                      {slot.assignments.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {slot.assignments.map((a) => (
+                            <span
+                              key={a.id}
+                              className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground"
+                            >
+                              {a.group_name}
+                              {a.coach_name ? ` · ${a.coach_name.split(" ")[0]}` : ""}
+                              {a.lane_count ? ` · ${a.lane_count}L` : ""}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Override info */}
+                      {hasOverrides && !cancelled && (
+                        <div className="mt-1.5 space-y-0.5">
+                          {slotOverrides.slice(0, 2).map((o) => (
+                            <div key={o.id} className="flex items-center gap-1 text-[10px]">
+                              <span className={`font-medium ${
+                                o.status === "cancelled" ? "text-red-500" : "text-orange-500"
+                              }`}>
+                                {o.status === "cancelled" ? "Annulé" : "Modifié"} le{" "}
+                                {new Date(o.override_date).toLocaleDateString("fr-FR", {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                })}
+                              </span>
+                              {o.reason && (
+                                <span className="text-muted-foreground truncate">— {o.reason}</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1371,23 +1452,6 @@ const CoachTrainingSlotsScreen = ({
     display_name: c.display_name,
   }));
 
-  // Compute a smart mobile time range based on actual slot times (±1h padding)
-  const mobileTimeRange = useMemo(() => {
-    let minH = 22;
-    let maxH = 6;
-    for (const s of filteredSlots) {
-      const startH = Math.floor(timeToMinutes(s.start_time) / 60);
-      const endH = Math.ceil(timeToMinutes(s.end_time) / 60);
-      if (startH < minH) minH = startH;
-      if (endH > maxH) maxH = endH;
-    }
-    if (minH >= maxH) return { start: TIMELINE_START, end: TIMELINE_END };
-    return {
-      start: Math.max(0, minH - 1),
-      end: Math.min(24, maxH + 1),
-    };
-  }, [filteredSlots]);
-
   const description =
     slots.length === 0
       ? "Planning hebdomadaire des entrainements."
@@ -1525,29 +1589,25 @@ const CoachTrainingSlotsScreen = ({
       {slotsLoading ? (
         <>
           {/* Mobile skeleton */}
-          <div className="sm:hidden space-y-2">
-            <div className="flex items-center justify-between px-1">
+          <div className="sm:hidden space-y-3">
+            <div className="flex items-center justify-between">
               <div className="h-8 w-8 rounded-full bg-muted animate-pulse motion-reduce:animate-none" />
               <div className="h-4 w-28 rounded bg-muted animate-pulse motion-reduce:animate-none" />
               <div className="h-8 w-8 rounded-full bg-muted animate-pulse motion-reduce:animate-none" />
             </div>
-            <div
-              className="grid gap-0 -mx-4 px-4"
-              style={{ gridTemplateColumns: "1.5rem repeat(7, 1fr)" }}
-            >
-              <div />
+            <div className="grid grid-cols-7 gap-0 rounded-xl border border-border overflow-hidden">
               {Array.from({ length: 7 }, (_, i) => (
-                <div key={i} className="text-center pb-1.5">
-                  <div className="h-3 w-6 mx-auto rounded bg-muted animate-pulse motion-reduce:animate-none mb-0.5" />
-                  <div className="h-3.5 w-4 mx-auto rounded bg-muted animate-pulse motion-reduce:animate-none" />
+                <div key={i} className="flex flex-col items-center py-2 gap-1">
+                  <div className="h-3 w-6 rounded bg-muted animate-pulse motion-reduce:animate-none" />
+                  <div className="h-7 w-7 rounded-full bg-muted animate-pulse motion-reduce:animate-none" />
+                  <div className="h-8 w-5 rounded bg-muted/50 animate-pulse motion-reduce:animate-none mt-1" />
                 </div>
               ))}
-              <div />
-              {Array.from({ length: 7 }, (_, i) => (
-                <div key={i} className="border-l border-border/30 h-64 relative">
-                  <div className="absolute left-0.5 right-0.5 top-8 h-16 rounded-md bg-muted animate-pulse motion-reduce:animate-none" />
-                  <div className="absolute left-0.5 right-0.5 top-32 h-12 rounded-md bg-muted animate-pulse motion-reduce:animate-none" />
-                </div>
+            </div>
+            <div className="space-y-2">
+              <div className="h-4 w-32 rounded bg-muted animate-pulse motion-reduce:animate-none" />
+              {Array.from({ length: 3 }, (_, i) => (
+                <div key={i} className="h-20 rounded-xl bg-muted animate-pulse motion-reduce:animate-none" />
               ))}
             </div>
           </div>
@@ -1588,16 +1648,15 @@ const CoachTrainingSlotsScreen = ({
             </div>
           )}
 
-          {/* ── Mobile timeline ── */}
+          {/* ── Mobile view ── */}
           <div className="sm:hidden">
-            <MobileTimeline
+            <MobileView
               slotsByDay={slotsByDay}
               weekDates={weekDates}
               todayStr={todayIso()}
               overridesBySlot={overridesBySlot}
               cancelledSlotIds={cancelledSlotIds}
               onSelect={handleSelect}
-              mobileTimeRange={mobileTimeRange}
               onPrevWeek={prevWeek}
               onNextWeek={nextWeek}
               weekNumber={weekNumber}
