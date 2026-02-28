@@ -312,7 +312,11 @@ export default function Coach() {
   const role = useAuth((state) => state.role);
   const setSelectedAthlete = useAuth((state) => state.setSelectedAthlete);
   const [, navigate] = useLocation();
-  const [activeSection, setActiveSection] = useState<CoachSection>("home");
+  const [activeSection, setActiveSection] = useState<CoachSection>(() => {
+    const hash = window.location.hash;
+    const match = hash.match(/[?&]section=([^&]+)/);
+    return (match?.[1] as CoachSection) || "home";
+  });
   const [kpiPeriod, setKpiPeriod] = useState<KpiLookbackPeriod>(7);
 
   // Reset to home when nav icon is tapped while already on /coach

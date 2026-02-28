@@ -30,7 +30,7 @@ export default function CoachSwimmerDetail() {
     return (
       <div className="p-4 text-center text-muted-foreground">
         <p>Aucun nageur sélectionné.</p>
-        <button type="button" onClick={() => navigate("/coach")} className="mt-2 text-primary underline">
+        <button type="button" onClick={() => navigate("/coach?section=swimmers")} className="mt-2 text-primary underline">
           Retour au dashboard
         </button>
       </div>
@@ -43,7 +43,7 @@ export default function CoachSwimmerDetail() {
       <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={() => navigate("/coach")}
+          onClick={() => navigate("/coach?section=swimmers")}
           className="h-9 w-9 rounded-xl border border-border bg-card flex items-center justify-center hover:bg-muted transition"
           aria-label="Retour"
         >
