@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import {
   Sheet,
@@ -92,7 +91,6 @@ const CompetitionFormSheet = ({
   const [name, setName] = useState("");
   const [date, setDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [multiDay, setMultiDay] = useState(true);
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -120,8 +118,7 @@ const CompetitionFormSheet = ({
     if (competition) {
       setName(competition.name);
       setDate(competition.date);
-      setEndDate(competition.end_date ?? "");
-      setMultiDay(!!competition.end_date);
+      setEndDate(competition.end_date ?? competition.date ?? "");
       setLocation(competition.location ?? "");
       setDescription(competition.description ?? "");
       // Set athlete assignments
@@ -132,7 +129,6 @@ const CompetitionFormSheet = ({
       setName("");
       setDate("");
       setEndDate("");
-      setMultiDay(true);
       setLocation("");
       setDescription("");
       setAssignedAthleteIds(new Set());
@@ -225,7 +221,7 @@ const CompetitionFormSheet = ({
     const input: CompetitionInput = {
       name: name.trim(),
       date,
-      end_date: multiDay && endDate ? endDate : null,
+      end_date: endDate || date || null,
       location: location.trim() || null,
       description: description.trim() || null,
     };
@@ -242,6 +238,13 @@ const CompetitionFormSheet = ({
     updateMutation.isPending ||
     deleteMutation.isPending;
 
+  const dateCls = "flex h-9 w-full rounded-lg border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+
+  const handleStartChange = (v: string) => {
+    setDate(v);
+    if (!endDate || endDate < v) setEndDate(v);
+  };
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -251,61 +254,60 @@ const CompetitionFormSheet = ({
         >
           <SheetHeader>
             <SheetTitle>
-              {isEdit ? "Modifier la competition" : "Nouvelle competition"}
+              {isEdit ? "Modifier" : "Nouvelle compétition"}
             </SheetTitle>
           </SheetHeader>
-          <div className="mt-6 space-y-4">
-            {/* Name */}
-            <div className="space-y-2">
-              <Label htmlFor="comp-name">Nom *</Label>
+
+          <div className="mt-5 space-y-5">
+            {/* ── Name ── */}
+            <div className="space-y-1.5">
+              <Label htmlFor="comp-name" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Nom
+              </Label>
               <Input
                 id="comp-name"
-                placeholder="Ex : Championnats Regionaux"
+                placeholder="Ex : Championnats Régionaux"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                className="text-[15px] font-medium"
               />
             </div>
 
-            {/* Date */}
-            <div className="space-y-2">
-              <Label htmlFor="comp-date">Date *</Label>
-              <input
-                id="comp-date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-              />
-            </div>
-
-            {/* Multi-day toggle */}
-            <div className="flex items-center justify-between">
-              <Label htmlFor="comp-multiday">Multi-jours</Label>
-              <Switch
-                id="comp-multiday"
-                checked={multiDay}
-                onCheckedChange={setMultiDay}
-              />
-            </div>
-
-            {/* End date (only if multi-day) */}
-            {multiDay && (
-              <div className="space-y-2">
-                <Label htmlFor="comp-end-date">Date de fin</Label>
-                <input
-                  id="comp-end-date"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  min={date || undefined}
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                />
+            {/* ── Dates (side by side) ── */}
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Dates
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label htmlFor="comp-date" className="text-[10px] text-muted-foreground/60 pl-0.5">Début</label>
+                  <input
+                    id="comp-date"
+                    type="date"
+                    value={date}
+                    onChange={(e) => handleStartChange(e.target.value)}
+                    className={dateCls}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="comp-end-date" className="text-[10px] text-muted-foreground/60 pl-0.5">Fin</label>
+                  <input
+                    id="comp-end-date"
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    min={date || undefined}
+                    className={dateCls}
+                  />
+                </div>
               </div>
-            )}
+            </div>
 
-            {/* Location */}
-            <div className="space-y-2">
-              <Label htmlFor="comp-location">Lieu</Label>
+            {/* ── Location ── */}
+            <div className="space-y-1.5">
+              <Label htmlFor="comp-location" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Lieu
+              </Label>
               <Input
                 id="comp-location"
                 placeholder="Ex : Piscine de Strasbourg"
@@ -314,26 +316,35 @@ const CompetitionFormSheet = ({
               />
             </div>
 
-            {/* Description */}
-            <div className="space-y-2">
-              <Label htmlFor="comp-description">Description</Label>
+            {/* ── Notes ── */}
+            <div className="space-y-1.5">
+              <Label htmlFor="comp-description" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Notes
+              </Label>
               <Textarea
                 id="comp-description"
-                placeholder="Notes, informations complementaires..."
+                placeholder="Informations complémentaires..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                rows={3}
+                rows={2}
+                className="resize-none"
               />
             </div>
 
-            {/* Athlete assignment */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                <Label>Nageurs assignes</Label>
+            {/* ── Divider ── */}
+            <div className="border-t border-border/40" />
+
+            {/* ── Athletes ── */}
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Nageurs
+                </span>
+                <span className="text-[10px] tabular-nums text-muted-foreground/50">
+                  {assignedAthleteIds.size} sélectionné{assignedAthleteIds.size > 1 ? "s" : ""}
+                </span>
               </div>
 
-              {/* Group quick-select */}
               <Select
                 value=""
                 onValueChange={(groupId) => {
@@ -345,7 +356,7 @@ const CompetitionFormSheet = ({
                   });
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-8 text-xs">
                   <SelectValue placeholder="Ajouter un groupe..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -355,13 +366,18 @@ const CompetitionFormSheet = ({
                 </SelectContent>
               </Select>
 
-              {/* Individual checkboxes */}
-              <div className="max-h-48 overflow-y-auto rounded-md border p-2 space-y-1">
+              <div className="max-h-44 overflow-y-auto rounded-lg border p-1.5 space-y-0.5">
                 {athletes.map((athlete) => {
                   if (athlete.id == null) return null;
                   const checked = assignedAthleteIds.has(athlete.id);
                   return (
-                    <label key={athlete.id} className="flex items-center gap-2 py-1 px-1 rounded hover:bg-muted/50 cursor-pointer">
+                    <label
+                      key={athlete.id}
+                      className={cn(
+                        "flex items-center gap-2 py-1 px-1.5 rounded-md cursor-pointer transition-colors",
+                        checked ? "bg-primary/5" : "hover:bg-muted/50",
+                      )}
+                    >
                       <Checkbox
                         checked={checked}
                         onCheckedChange={(c) => {
@@ -373,60 +389,55 @@ const CompetitionFormSheet = ({
                           });
                         }}
                       />
-                      <span className="text-sm">{athlete.display_name}</span>
+                      <span className="text-[13px]">{athlete.display_name}</span>
                       {athlete.group_label && (
-                        <span className="text-xs text-muted-foreground ml-auto">{athlete.group_label}</span>
+                        <span className="text-[10px] text-muted-foreground/50 ml-auto">{athlete.group_label}</span>
                       )}
                     </label>
                   );
                 })}
               </div>
-
-              <p className="text-xs text-muted-foreground">
-                {assignedAthleteIds.size} nageur{assignedAthleteIds.size > 1 ? "s" : ""} assigne{assignedAthleteIds.size > 1 ? "s" : ""}
-              </p>
             </div>
 
-            {/* Actions */}
-            <div className="space-y-2 pt-2">
+            {/* ── Actions ── */}
+            <div className="space-y-3 pt-1">
               <Button
                 className="w-full"
                 onClick={handleSubmit}
-                disabled={isPending || !name.trim() || !date}
+                disabled={isPending || !name.trim() || !date || !endDate}
               >
                 {isPending
                   ? "Enregistrement..."
                   : isEdit
                     ? "Enregistrer"
-                    : "Creer"}
+                    : "Créer la compétition"}
               </Button>
 
               {isEdit && (
-                <Button
-                  variant="outline"
-                  className="w-full text-destructive hover:text-destructive"
+                <button
+                  type="button"
+                  className="w-full text-center text-[11px] text-destructive/50 hover:text-destructive py-1.5 transition-colors"
                   onClick={() => setShowDeleteConfirm(true)}
                   disabled={isPending}
                 >
-                  Supprimer cette competition
-                </Button>
+                  Supprimer cette compétition
+                </button>
               )}
             </div>
           </div>
         </SheetContent>
       </Sheet>
 
-      {/* Delete confirmation dialog */}
       <AlertDialog
         open={showDeleteConfirm}
         onOpenChange={setShowDeleteConfirm}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer la competition</AlertDialogTitle>
+            <AlertDialogTitle>Supprimer la compétition</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action est irreversible. La competition &laquo;{" "}
-              {competition?.name} &raquo; sera supprimee definitivement.
+              Cette action est irréversible. La compétition &laquo;{" "}
+              {competition?.name} &raquo; sera supprimée définitivement.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
