@@ -17,6 +17,7 @@ import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { UpdateNotification } from "@/components/shared/UpdateNotification";
 import { PWAInstallGate } from "@/components/shared/PWAInstallGate";
+import { PushPermissionBanner } from "@/components/shared/PushPermissionBanner";
 
 // Retry wrapper for lazy imports — handles stale chunk filenames after deployments
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -298,6 +299,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <UpdateNotification />
+          <PushPermissionBanner />
           <Toaster />
           <Router hook={useHashLocation}>
             <AppRouter />
