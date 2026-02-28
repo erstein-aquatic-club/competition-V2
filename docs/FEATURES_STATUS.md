@@ -1,6 +1,6 @@
 # État des fonctionnalités
 
-*Dernière mise à jour : 2026-02-28 (§76 Créneaux d'entraînement récurrents)*
+*Dernière mise à jour : 2026-02-28 (§78 Créneaux personnalisés par nageur)*
 
 ## Légende
 
@@ -229,6 +229,18 @@ Tous les feature flags sont activés.
 | Exceptions par date (annulation/modification) | ✅ | `CoachTrainingSlotsScreen.tsx`, `training-slots.ts` | Override avec statut cancelled/modified, motif optionnel (§76) |
 | Vue nageur "Mon planning" | ✅ | `Profile.tsx` | Liste compacte jour/horaire/lieu + exceptions à venir (§76) |
 | Navigation coach | ✅ | `Coach.tsx` | Bouton "Créneaux" dans la grille du dashboard coach (§76) |
+
+### Créneaux personnalisés par nageur
+
+| Fonctionnalité | Statut | Fichiers | Notes |
+|----------------|--------|----------|-------|
+| Table `swimmer_training_slots` | ✅ | `00042_swimmer_training_slots.sql` | UUID PK, FK vers `training_slot_assignments`, RLS coach/admin (§78) |
+| API CRUD module | ✅ | `swimmer-slots.ts` | get, has, init, create, update, delete, reset, affected (§78) |
+| Timeline mobile scroll horizontal | ✅ | `CoachTrainingSlotsScreen.tsx` | Colonnes 80px fixes, auto-scroll sur aujourd'hui (§78) |
+| Select filtre (remplace pills) | ✅ | `CoachTrainingSlotsScreen.tsx` | Groupes + coaches + nageurs dans Select unique (§78) |
+| Vue nageur dans timeline coach | ✅ | `CoachTrainingSlotsScreen.tsx` | Sélection nageur → affiche créneaux perso ou hérités (§78) |
+| Onglet Créneaux fiche nageur | ✅ | `SwimmerSlotsTab.tsx`, `CoachSwimmerDetail.tsx` | CRUD complet, init/reset depuis groupe (§78) |
+| Résolution créneaux profil nageur | ✅ | `Profile.tsx` | hasCustomSlots → créneaux perso, sinon fallback groupe (§78) |
 
 ### UI/UX & Design System (Phase 6)
 

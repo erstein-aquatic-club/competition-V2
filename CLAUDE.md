@@ -84,6 +84,8 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 | `src/components/neurotype/NeurotypQuiz.tsx` | Quiz 30 questions avec carousel + progress bar | ~250 lignes |
 | `src/components/neurotype/NeurotypResult.tsx` | Affichage résultat neurotype (barres, profil, accordéons) | ~250 lignes |
 | `src/lib/weekTypeColor.ts` | Helper partage couleur type semaine (hash-based) | ~15 lignes |
+| `src/lib/api/swimmer-slots.ts` | CRUD créneaux personnalisés par nageur | ~160 lignes |
+| `src/components/coach/SwimmerSlotsTab.tsx` | Onglet Créneaux dans fiche nageur coach | ~374 lignes |
 
 ## Edge Functions Supabase
 
@@ -146,6 +148,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 38 | Fiche nageur coach (ressentis, objectifs, onglets) | Moyenne | Fait (§73) |
 | 39 | Refonte entretiens conversationnels + planif inline | Haute | Fait (§75) |
 | 40 | Créneaux d'entraînement récurrents | Moyenne | Fait (§76) |
+| 41 | Créneaux personnalisés par nageur | Moyenne | Fait (§78) |
 
 Détail complet dans `docs/ROADMAP.md`.
 

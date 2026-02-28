@@ -48,6 +48,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §75 Refonte entretiens conversationnels + planif inline | ✅ Fait | 2026-02-28 |
 | §76 Créneaux d'entraînement récurrents | ✅ Fait | 2026-02-28 |
 | §77 Performance & dock reset | ✅ Fait | 2026-02-28 |
+| §78 Créneaux personnalisés par nageur | ✅ Fait | 2026-02-28 |
 | §45 Audit UI/UX — header Strength + login mobile + fixes | ✅ Fait | 2026-02-16 |
 | §46 Harmonisation headers + Login mobile thème clair | ✅ Fait | 2026-02-16 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
@@ -6181,3 +6182,71 @@ Les pages chargeaient parfois lentement (gros chunks, logo 382KB, re-renders inu
 - `tw-animate-css` importé globalement (faible impact)
 - Pas de virtualisation sur les longues listes (pas nécessaire aux volumes actuels)
 - `ComingSoon` reste en import eager dans Coach.tsx (composant minuscule)
+
+---
+
+## §78 — 2026-02-28 — Créneaux personnalisés par nageur
+
+**Branche** : `main`
+**Chantier ROADMAP** : §78 — Créneaux personnalisés par nageur
+
+### Contexte
+
+Les créneaux d'entraînement étaient définis par groupe (`training_slots` + `training_slot_assignments`). Certains nageurs ont des horaires décalés (arriver 30min plus tard, séance 1h30 au lieu de 2h). Le coach avait besoin de personnaliser le planning par nageur tout en gardant le lien avec le créneau groupe pour les notifications d'annulation/modification. Par ailleurs, la timeline mobile était trop petite et les filter pills peu ergonomiques.
+
+### Changements réalisés
+
+**Base de données :**
+1. **Migration 00042** : table `swimmer_training_slots` (10 colonnes) avec FK optionnelle `source_assignment_id` → `training_slot_assignments(id)` ON DELETE SET NULL, 2 index partiels, RLS (SELECT pour tous authentifiés, INSERT/UPDATE/DELETE pour coach/admin)
+
+**API :**
+2. **Types** : `SwimmerTrainingSlot` et `SwimmerTrainingSlotInput` ajoutés à `types.ts`
+3. **Module `swimmer-slots.ts`** : 8 fonctions CRUD (getSwimmerSlots, hasCustomSlots, initSwimmerSlots, createSwimmerSlot, updateSwimmerSlot, deleteSwimmerSlot, resetSwimmerSlots, getSwimmersAffectedBySlot)
+4. **Wiring** : re-exports dans `index.ts`, type exports et facade stubs dans `api.ts`
+
+**UI Coach — Écran créneaux :**
+5. **Timeline mobile scroll horizontal** : colonnes 80px fixes au lieu de compressées, `MOBILE_PX_PER_HOUR` passé de 32 à 40, auto-scroll sur le jour actuel
+6. **Select filtre** : remplacement des filter pills (ToggleGroup) par un Select unique avec options groupes + coaches + séparateur + nageurs
+7. **Vue nageur** : sélection d'un nageur dans le Select → affiche ses créneaux perso (ou hérite du groupe avec banner bleu)
+
+**UI Coach — Fiche nageur :**
+8. **SwimmerSlotsTab** : nouveau composant CRUD complet (init depuis groupe, ajout, modification via Sheet bottom, suppression, réinitialisation avec confirmation)
+9. **5e onglet "Créneaux"** dans `CoachSwimmerDetail` (grid-cols-4 → grid-cols-5, icône CalendarClock)
+
+**UI Nageur :**
+10. **Profil** : `SwimmerScheduleSection` résout désormais les créneaux perso via `hasCustomSlots` → `getSwimmerSlots`, sinon fallback groupe
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `supabase/migrations/00042_swimmer_training_slots.sql` | Créé — table + index + RLS |
+| `src/lib/api/types.ts` | Modifié — 2 interfaces ajoutées |
+| `src/lib/api/swimmer-slots.ts` | Créé — module CRUD (161 lignes) |
+| `src/lib/api/index.ts` | Modifié — re-exports swimmer-slots |
+| `src/lib/api.ts` | Modifié — type re-exports + 8 facade stubs |
+| `src/pages/coach/CoachTrainingSlotsScreen.tsx` | Modifié — timeline scroll, Select filtre, vue nageur |
+| `src/components/coach/SwimmerSlotsTab.tsx` | Créé — onglet CRUD créneaux nageur (374 lignes) |
+| `src/pages/coach/CoachSwimmerDetail.tsx` | Modifié — 5e onglet Créneaux |
+| `src/pages/Profile.tsx` | Modifié — résolution créneaux perso |
+
+### Tests
+
+- [x] `npx tsc --noEmit` — 0 erreurs nouvelles
+- [ ] Test manuel : coach → Créneaux → sélectionner nageur → voir créneaux
+- [ ] Test manuel : coach → fiche nageur → onglet Créneaux → personnaliser → ajouter/modifier/supprimer
+- [ ] Test manuel : nageur → Profil → "Mon planning" affiche créneaux perso si personnalisés
+
+### Décisions prises
+
+- **Approche table dédiée** plutôt que delta : `swimmer_training_slots` est une table autonome avec lien optionnel `source_assignment_id` vers l'assignation groupe. Plus flexible et simple à requêter.
+- **ON DELETE SET NULL** sur `source_assignment_id` : si le créneau groupe est supprimé, le créneau nageur survit mais perd le lien
+- **Soft delete** (`is_active = false`) cohérent avec le pattern existant de `training_slots`
+- **Colonnes 80px fixes** avec scroll horizontal pour la timeline mobile plutôt que compression responsive (meilleure lisibilité)
+- **Notifications override** différées à un chantier ultérieur — la logique de propagation override → créneaux nageur avec check de chevauchement horaire nécessite plus de design
+
+### Limites / dette
+
+- La migration n'a pas pu être appliquée via Supabase MCP (permission denied) → à appliquer manuellement
+- Les notifications de modification/annulation de groupe ne sont pas encore propagées aux nageurs avec créneaux perso (chantier futur § design doc)
+- `group_id` dans `CoachSwimmerDetail` vient de `profile?.group_id ?? 0` — si le profil ne contient pas `group_id`, l'init échouera silencieusement
