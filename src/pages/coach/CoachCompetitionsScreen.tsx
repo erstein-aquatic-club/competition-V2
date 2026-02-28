@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { Competition, CompetitionInput, CompetitionAssignment } from "@/lib/api";
+import type { Competition, CompetitionInput } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import CoachSectionHeader from "./CoachSectionHeader";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import {
   Sheet,
   SheetContent,
@@ -34,8 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trophy, MapPin, Users, MessageSquare, ChevronDown } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { Plus, Trophy, Users } from "lucide-react";
 
 // ── Helpers ─────────────────────────────────────────────────────
 
@@ -53,6 +52,24 @@ function daysUntil(dateStr: string): number {
   today.setHours(0, 0, 0, 0);
   const target = new Date(dateStr + "T00:00:00");
   return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function toLocalIso(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function weeksBetween(a: string, b: string): number {
+  return Math.max(0, Math.round(
+    (new Date(b + "T00:00:00").getTime() - new Date(a + "T00:00:00").getTime()) / 604800000,
+  ));
+}
+
+const PX_PER_WEEK = 7;
+const MIN_GAP = 20;
+const MAX_GAP = 72;
+
+function gapPx(weeks: number): number {
+  return Math.min(MAX_GAP, Math.max(MIN_GAP, weeks * PX_PER_WEEK));
 }
 
 // ── Competition Form Sheet ──────────────────────────────────────
@@ -430,81 +447,172 @@ const CompetitionFormSheet = ({
   );
 };
 
-// ── Competition Card ────────────────────────────────────────────
+// ── Competition Timeline ────────────────────────────────────────
 
-type CompetitionCardProps = {
-  competition: Competition;
-  onEdit: (comp: Competition) => void;
-  onSendSms?: (comp: Competition, assignments: CompetitionAssignment[]) => void;
-};
+type TimelineNode =
+  | { kind: "comp"; comp: Competition; isPast: boolean; days: number; isNewMonth: boolean; monthLabel: string }
+  | { kind: "gap"; weeks: number; height: number }
+  | { kind: "today" };
 
-const CompetitionCard = ({ competition, onEdit, onSendSms }: CompetitionCardProps) => {
-  const { data: assignments = [] } = useQuery({
-    queryKey: ["competition-assignments", competition.id],
-    queryFn: () => api.getCompetitionAssignments(competition.id),
-  });
+const CompetitionTimeline = ({
+  competitions,
+  onEdit,
+}: {
+  competitions: Competition[];
+  onEdit: (c: Competition) => void;
+}) => {
+  const items = useMemo(() => {
+    const sorted = [...competitions].sort((a, b) => a.date.localeCompare(b.date));
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = toLocalIso(today);
 
-  const days = daysUntil(competition.date);
-  const isPast = days < 0;
-  const isUpcoming = days >= 0;
+    const result: TimelineNode[] = [];
+    let prevEnd = "";
+    let prevMonth = "";
+    let todayInserted = false;
 
-  const dateLabel = competition.end_date
-    ? `du ${formatDateFr(competition.date)} au ${formatDateFr(competition.end_date)}`
-    : formatDateFr(competition.date);
+    for (const comp of sorted) {
+      const isPast = comp.date < todayStr;
+      const days = daysUntil(comp.date);
+      const compMonth = comp.date.slice(0, 7);
+      const isNewMonth = compMonth !== prevMonth;
+      const monthLabel = new Date(comp.date + "T00:00:00")
+        .toLocaleDateString("fr-FR", { month: "short" })
+        .replace(".", "")
+        .toUpperCase();
+
+      // Insert today marker before first upcoming competition
+      if (!todayInserted && !isPast) {
+        if (prevEnd) {
+          const w = weeksBetween(prevEnd, todayStr);
+          if (w >= 1) result.push({ kind: "gap", weeks: w, height: gapPx(w) });
+        }
+        result.push({ kind: "today" });
+        todayInserted = true;
+        const w = weeksBetween(todayStr, comp.date);
+        if (w >= 1) result.push({ kind: "gap", weeks: w, height: gapPx(w) });
+      } else if (prevEnd) {
+        const w = weeksBetween(prevEnd, comp.date);
+        if (w >= 1) result.push({ kind: "gap", weeks: w, height: gapPx(w) });
+      }
+
+      result.push({ kind: "comp", comp, isPast, days, isNewMonth, monthLabel });
+      prevEnd = comp.end_date || comp.date;
+      prevMonth = compMonth;
+    }
+
+    // If today wasn't inserted (all past), add at end
+    if (!todayInserted) {
+      if (prevEnd) {
+        const w = weeksBetween(prevEnd, todayStr);
+        if (w >= 1) result.push({ kind: "gap", weeks: w, height: gapPx(w) });
+      }
+      result.push({ kind: "today" });
+    }
+
+    return result;
+  }, [competitions]);
+
+  if (competitions.length === 0) return null;
 
   return (
-    <button
-      type="button"
-      className={`w-full text-left rounded-xl border bg-card p-3 space-y-1 transition-colors hover:bg-muted/50 ${isPast ? "opacity-60" : ""}`}
-      onClick={() => onEdit(competition)}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold truncate">{competition.name}</p>
-          <p className="text-xs text-muted-foreground">{dateLabel}</p>
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          {isUpcoming && (
-            <Badge
-              variant="outline"
-              className="border-orange-300 text-orange-600 dark:text-orange-400 text-[10px] px-1.5 py-0"
-            >
-              J-{days}
-            </Badge>
-          )}
-          {isPast && (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-              Passee
-            </Badge>
-          )}
-        </div>
-      </div>
-      {competition.location && (
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <MapPin className="h-3 w-3 shrink-0" />
-          <span className="truncate">{competition.location}</span>
-        </div>
-      )}
-      {assignments.length > 0 && (
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Users className="h-3 w-3 shrink-0" />
-          <span>{assignments.length} nageur{assignments.length > 1 ? "s" : ""}</span>
-        </div>
-      )}
-      {assignments.length > 0 && onSendSms && (
-        <button
-          type="button"
-          className="flex items-center gap-1 text-xs text-primary hover:underline"
-          onClick={(e) => {
-            e.stopPropagation();
-            onSendSms(competition, assignments);
-          }}
-        >
-          <MessageSquare className="h-3 w-3" />
-          SMS
-        </button>
-      )}
-    </button>
+    <div className="relative pl-14">
+      {/* Vertical rail */}
+      <div className="absolute left-[2.625rem] top-1 bottom-1 w-[2px] rounded-full bg-gradient-to-b from-border/10 via-border/40 to-border/10" />
+
+      {items.map((item, i) => {
+        if (item.kind === "gap") {
+          return (
+            <div key={`g${i}`} className="relative" style={{ height: item.height }}>
+              {item.weeks >= 2 && (
+                <span className="absolute left-[-0.8rem] -translate-x-1/2 top-1/2 -translate-y-1/2 text-[9px] tabular-nums font-medium text-muted-foreground/30 bg-background px-1 select-none">
+                  {item.weeks}s
+                </span>
+              )}
+            </div>
+          );
+        }
+
+        if (item.kind === "today") {
+          return (
+            <div key="today" className="relative flex items-center h-7 -ml-14">
+              <div className="absolute left-0 right-0 h-[2px] bg-emerald-500/60" />
+              <span className="relative text-[10px] font-bold tracking-widest text-emerald-600 dark:text-emerald-400 bg-background pl-2 pr-1.5 select-none">
+                AUJOURD&apos;HUI
+              </span>
+            </div>
+          );
+        }
+
+        // Competition node
+        const { comp, isPast, days, isNewMonth, monthLabel } = item;
+        const dateLabel = (() => {
+          const ds = new Date(comp.date + "T00:00:00");
+          if (!comp.end_date || comp.end_date === comp.date) {
+            return ds.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }).replace(".", "");
+          }
+          const de = new Date(comp.end_date + "T00:00:00");
+          const endFmt = de.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }).replace(".", "");
+          return ds.getMonth() === de.getMonth()
+            ? `${ds.getDate()}\u2013${endFmt}`
+            : `${ds.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }).replace(".", "")} \u2192 ${endFmt}`;
+        })();
+
+        return (
+          <button
+            key={comp.id}
+            type="button"
+            className={cn(
+              "relative w-full flex items-start text-left py-1.5 group transition-opacity",
+              isPast ? "opacity-40 hover:opacity-70" : "hover:opacity-80",
+            )}
+            onClick={() => onEdit(comp)}
+          >
+            {/* Month label */}
+            {isNewMonth && (
+              <span className="absolute left-[-3.25rem] top-[3px] w-[2rem] text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 text-right select-none">
+                {monthLabel}
+              </span>
+            )}
+
+            {/* Dot on rail */}
+            <div
+              className={cn(
+                "absolute left-[-0.8rem] top-[5px] h-[10px] w-[10px] rounded-full -translate-x-1/2 z-10 border-2 border-background transition-transform group-hover:scale-150",
+                isPast
+                  ? "bg-muted-foreground/30"
+                  : "bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]",
+              )}
+            />
+
+            {/* Content */}
+            <div className="min-w-0 flex-1 pl-1">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className={cn(
+                  "text-[13px] font-semibold truncate",
+                  isPast ? "text-muted-foreground" : "text-foreground",
+                )}>
+                  {comp.name}
+                </span>
+                {!isPast && days >= 0 && (
+                  <span className="text-[10px] font-bold tabular-nums shrink-0 text-amber-600 dark:text-amber-400">
+                    J-{days}
+                  </span>
+                )}
+              </div>
+              <p className={cn(
+                "text-[11px] truncate",
+                isPast ? "text-muted-foreground/60" : "text-muted-foreground",
+              )}>
+                {dateLabel}
+                {comp.location && comp.location !== "??" && ` \u00b7 ${comp.location}`}
+              </p>
+            </div>
+          </button>
+        );
+      })}
+    </div>
   );
 };
 
@@ -515,7 +623,6 @@ type CoachCompetitionsScreenProps = {
 };
 
 const CoachCompetitionsScreen = ({ onBack }: CoachCompetitionsScreenProps) => {
-  const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [editingComp, setEditingComp] = useState<Competition | null>(null);
 
@@ -523,51 +630,6 @@ const CoachCompetitionsScreen = ({ onBack }: CoachCompetitionsScreenProps) => {
     queryKey: ["competitions"],
     queryFn: () => api.getCompetitions(),
   });
-
-  const { data: athletePhones } = useQuery({
-    queryKey: ["athlete-phones"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("user_profiles")
-        .select("user_id, phone")
-        .not("phone", "is", null);
-      return new Map((data ?? []).map((p: any) => [p.user_id as number, p.phone as string]));
-    },
-  });
-
-  const [pastOpen, setPastOpen] = useState(false);
-
-  // Sort: upcoming (by date ascending), past (by date descending)
-  const { upcoming, past } = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayMs = today.getTime();
-
-    const up: Competition[] = [];
-    const pa: Competition[] = [];
-
-    for (const c of competitions) {
-      const d = new Date(c.date + "T00:00:00").getTime();
-      if (d >= todayMs) {
-        up.push(c);
-      } else {
-        pa.push(c);
-      }
-    }
-
-    up.sort(
-      (a, b) =>
-        new Date(a.date + "T00:00:00").getTime() -
-        new Date(b.date + "T00:00:00").getTime(),
-    );
-    pa.sort(
-      (a, b) =>
-        new Date(b.date + "T00:00:00").getTime() -
-        new Date(a.date + "T00:00:00").getTime(),
-    );
-
-    return { upcoming: up, past: pa };
-  }, [competitions]);
 
   const handleCreate = () => {
     setEditingComp(null);
@@ -577,43 +639,6 @@ const CoachCompetitionsScreen = ({ onBack }: CoachCompetitionsScreenProps) => {
   const handleEdit = (comp: Competition) => {
     setEditingComp(comp);
     setShowForm(true);
-  };
-
-  const handleSendSms = (comp: Competition, compAssignments: CompetitionAssignment[]) => {
-    if (!athletePhones) return;
-    const phones = compAssignments
-      .map((a) => athletePhones.get(a.athlete_id))
-      .filter((p): p is string => !!p && p.trim().length > 0);
-
-    if (phones.length === 0) {
-      toast({
-        title: "Aucun numero",
-        description: "Aucun nageur assigne n'a renseigne de numero de telephone.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (isMobile) {
-      const body = encodeURIComponent(`[${comp.name}] `);
-      const isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-      if (isIos) {
-        window.location.href = `sms:/open?addresses=${phones.join(",")}&body=${body}`;
-      } else {
-        window.location.href = `sms:${phones.join(",")}?body=${body}`;
-      }
-    } else {
-      // Desktop fallback: copy phones to clipboard
-      navigator.clipboard.writeText(phones.join(", ")).then(() => {
-        toast({
-          title: "Numeros copies",
-          description: `${phones.length} numero${phones.length > 1 ? "s" : ""} copie${phones.length > 1 ? "s" : ""} dans le presse-papiers. Utilisez votre telephone pour envoyer le SMS.`,
-        });
-      }).catch(() => {
-        toast({ title: "Erreur", description: "Impossible de copier les numéros.", variant: "destructive" });
-      });
-    }
   };
 
   const description =
@@ -661,43 +686,10 @@ const CoachCompetitionsScreen = ({ onBack }: CoachCompetitionsScreenProps) => {
           </Button>
         </div>
       ) : (
-        <div className="space-y-2">
-          {upcoming.map((comp) => (
-            <CompetitionCard
-              key={comp.id}
-              competition={comp}
-              onEdit={handleEdit}
-              onSendSms={handleSendSms}
-            />
-          ))}
-
-          {past.length > 0 && (
-            <div className="rounded-xl border bg-card">
-              <button
-                type="button"
-                className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-muted/50 rounded-xl transition-colors"
-                onClick={() => setPastOpen((o) => !o)}
-              >
-                <span className="text-xs font-medium text-muted-foreground">
-                  Passees ({past.length})
-                </span>
-                <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${pastOpen ? "rotate-180" : ""}`} />
-              </button>
-              {pastOpen && (
-                <div className="px-2 pb-2 space-y-1.5">
-                  {past.map((comp) => (
-                    <CompetitionCard
-                      key={comp.id}
-                      competition={comp}
-                      onEdit={handleEdit}
-                      onSendSms={handleSendSms}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        <CompetitionTimeline
+          competitions={competitions}
+          onEdit={handleEdit}
+        />
       )}
 
       <CompetitionFormSheet
