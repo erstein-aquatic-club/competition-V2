@@ -916,7 +916,7 @@ function ObjectiveRow({ objective, performances }: { objective: Objective; perfo
           )}
           {delta != null && (
             <span className={delta <= 0 ? "text-emerald-600 font-medium" : "text-amber-600"}>
-              {delta <= 0 ? "Objectif atteint !" : `+${delta.toFixed(1)}s`}
+              {delta <= 0 ? "Objectif atteint !" : `+${delta.toFixed(2)}s`}
             </span>
           )}
         </div>
