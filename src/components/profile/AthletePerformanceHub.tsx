@@ -335,35 +335,34 @@ export default function AthletePerformanceHub({
   defaultTab,
 }: Props) {
   return (
-    <div className="mx-auto max-w-4xl space-y-4 pb-24">
-      <div className="rounded-[1.75rem] border bg-gradient-to-br from-primary/[0.12] via-background to-amber-500/[0.08] p-4 shadow-sm">
+    <div className={`mx-auto max-w-4xl pb-24 ${standalone ? "space-y-3" : "space-y-4"}`}>
+      <div className={`rounded-[1.75rem] border bg-gradient-to-br from-primary/[0.12] via-background to-amber-500/[0.08] shadow-sm ${standalone ? "p-3" : "p-4"}`}>
         {!standalone && onBack && (
           <Button variant="ghost" size="sm" className="-ml-2 mb-2" onClick={onBack}>
             <ArrowLeft className="mr-1.5 h-4 w-4" />
             Retour
           </Button>
         )}
-        <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-primary">
-            <Trophy className="h-5 w-5" />
+        <div className="flex items-center gap-3">
+          <div className={`flex shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-primary ${standalone ? "h-9 w-9" : "h-11 w-11"}`}>
+            <Trophy className={standalone ? "h-4 w-4" : "h-5 w-5"} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl font-display font-semibold uppercase italic text-foreground">
+              <h1 className={`font-display font-semibold uppercase italic text-foreground ${standalone ? "text-lg" : "text-xl"}`}>
                 Mon suivi
               </h1>
-              <Badge className="border-primary/20 bg-primary/10 text-[10px] text-primary">
-                Vue nageur
-              </Badge>
               {groupLabel && (
                 <Badge variant="secondary" className="text-[10px]">
                   {groupLabel}
                 </Badge>
               )}
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {athleteName}: ton plan d&apos;action, tes entretiens et tes échéances au même endroit.
-            </p>
+            {!standalone && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                {athleteName}: ton plan d&apos;action, tes entretiens et tes échéances au même endroit.
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -371,7 +370,7 @@ export default function AthletePerformanceHub({
       {/* Objectives always visible above tabs in standalone mode (Suivi page) */}
       {standalone && <SwimmerObjectivesView embedded />}
 
-      <Tabs defaultValue={defaultTab || (standalone ? "ressentis" : "objectifs")} className="space-y-4">
+      <Tabs defaultValue={defaultTab || (standalone ? "ressentis" : "objectifs")} className={standalone ? "space-y-3" : "space-y-4"}>
         <TabsList className={`grid h-auto w-full gap-2 rounded-2xl bg-transparent p-0 ${standalone ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-4"}`}>
           {!standalone && (
             <TabsTrigger value="objectifs" className="gap-1 rounded-2xl border border-border bg-card px-3 py-2.5 text-xs data-[state=active]:border-primary/30 data-[state=active]:bg-primary/5 data-[state=active]:text-primary">

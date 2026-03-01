@@ -226,12 +226,15 @@ export default function SwimmerObjectivesView({ onBack, embedded = false }: Prop
   };
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className={embedded ? "space-y-3" : "space-y-6 pb-24"}>
       {/* Header */}
       {embedded ? (
-        <div className="flex items-center justify-end">
-          <Button variant="outline" size="sm" onClick={openCreate}>
-            <Plus className="mr-1.5 h-3.5 w-3.5" />
+        <div className="flex items-center justify-between">
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/70">
+            Objectifs
+          </h3>
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={openCreate}>
+            <Plus className="mr-1 h-3 w-3" />
             Ajouter
           </Button>
         </div>
@@ -260,13 +263,13 @@ export default function SwimmerObjectivesView({ onBack, embedded = false }: Prop
 
       {/* Loading */}
       {isLoading && (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
+        <div className="space-y-1.5">
+          {[1, 2].map((i) => (
             <div
               key={i}
-              className="rounded-xl border p-3 animate-pulse motion-reduce:animate-none"
+              className="rounded-lg border p-2.5 animate-pulse motion-reduce:animate-none"
             >
-              <div className="h-4 w-40 rounded bg-muted" />
+              <div className="h-3.5 w-36 rounded bg-muted" />
             </div>
           ))}
         </div>
@@ -274,48 +277,46 @@ export default function SwimmerObjectivesView({ onBack, embedded = false }: Prop
 
       {/* Empty state */}
       {!isLoading && objectives.length === 0 && (
-        <div className="text-center py-12 space-y-3">
-          <Target className="h-10 w-10 text-muted-foreground mx-auto" />
-          <p className="text-sm text-muted-foreground">
+        <div className="text-center py-8 space-y-2">
+          <Target className="h-8 w-8 text-muted-foreground/40 mx-auto" />
+          <p className="text-xs text-muted-foreground">
             Aucun objectif pour le moment.
           </p>
-          <Button variant="outline" size="sm" onClick={openCreate}>
-            <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Ajouter un objectif
+          <Button variant="ghost" size="sm" className="text-xs h-7" onClick={openCreate}>
+            <Plus className="mr-1 h-3 w-3" />
+            Ajouter
           </Button>
         </div>
       )}
 
       {/* Coach objectives (read-only) */}
       {coachObjectives.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-            Objectifs du coach
-          </h3>
+        <div className="space-y-1.5">
+          {!embedded && (
+            <h3 className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+              Objectifs du coach
+            </h3>
+          )}
           {coachObjectives.map((obj) => (
             <ObjectiveCard
               key={obj.id}
               objective={obj}
               isPersonal={false}
               performances={performances}
+              compact={embedded}
             />
           ))}
         </div>
       )}
 
-      {/* Perf note */}
-      {(coachObjectives.length > 0 || personalObjectives.length > 0) && (
-        <p className="text-[10px] text-muted-foreground/60 italic text-center">
-          Les temps « Actuel » correspondent à la meilleure performance des 360 derniers jours sur l'épreuve.
-        </p>
-      )}
-
       {/* Personal objectives (editable) */}
       {personalObjectives.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-            Mes objectifs personnels
-          </h3>
+        <div className="space-y-1.5">
+          {!embedded && (
+            <h3 className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+              Mes objectifs personnels
+            </h3>
+          )}
           {personalObjectives.map((obj) => (
             <ObjectiveCard
               key={obj.id}
@@ -324,6 +325,7 @@ export default function SwimmerObjectivesView({ onBack, embedded = false }: Prop
               performances={performances}
               onEdit={openEdit}
               onDelete={setDeleteTarget}
+              compact={embedded}
             />
           ))}
         </div>
@@ -482,12 +484,14 @@ function ObjectiveCard({
   performances,
   onEdit,
   onDelete,
+  compact = false,
 }: {
   objective: Objective;
   isPersonal: boolean;
   performances: Array<{ event_code: string; pool_length?: number | null; time_seconds?: number | null; competition_date?: string | null }>;
   onEdit?: (obj: Objective) => void;
   onDelete?: (obj: Objective) => void;
+  compact?: boolean;
 }) {
   const stroke = objective.event_code ? strokeFromCode(objective.event_code) : null;
   const borderColor = stroke ? STROKE_COLORS[stroke] ?? "" : "";
@@ -506,6 +510,79 @@ function ObjectiveCard({
   const hasCompetition = !!objective.competition_name;
   const leftDays = objective.competition_date ? daysUntil(objective.competition_date) : null;
 
+  // ── Compact mode (embedded in Suivi page) ──
+  if (compact) {
+    return (
+      <div className={`rounded-lg border bg-card px-3 py-2 text-xs ${borderColor ? `border-l-3 ${borderColor}` : ""}`}>
+        <div className="flex items-center gap-2">
+          {/* Event + target */}
+          <div className="min-w-0 flex-1 flex items-center gap-1.5">
+            {objective.event_code && (
+              <span className="font-semibold truncate">{eventLabel(objective.event_code)}</span>
+            )}
+            {objective.pool_length && (
+              <span className="text-muted-foreground/60 shrink-0">{objective.pool_length}m</span>
+            )}
+            {objective.target_time_seconds != null && (
+              <span className="font-mono text-primary shrink-0">
+                {formatTime(objective.target_time_seconds)}
+              </span>
+            )}
+            {!isPersonal && (
+              <Badge variant="secondary" className="text-[9px] px-1 py-0 leading-none shrink-0">
+                Coach
+              </Badge>
+            )}
+          </div>
+          {/* Current + delta */}
+          {bestPerf && (
+            <div className="flex items-center gap-1.5 shrink-0 tabular-nums">
+              <span className="font-mono text-muted-foreground">{formatTime(bestPerf.time)}</span>
+              {delta != null && (
+                <span className={`font-semibold ${delta <= 0 ? "text-emerald-500" : "text-amber-500"}`}>
+                  {delta <= 0 ? "✓" : `+${delta.toFixed(1)}s`}
+                </span>
+              )}
+            </div>
+          )}
+          {/* Actions */}
+          {isPersonal && onEdit && onDelete && (
+            <div className="flex gap-0.5 shrink-0 ml-1">
+              <button type="button" onClick={() => onEdit(objective)} className="text-primary hover:underline text-[10px]">
+                Mod.
+              </button>
+              <button type="button" onClick={() => onDelete(objective)} className="text-muted-foreground hover:text-destructive p-0.5">
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+        </div>
+        {/* Text objective (single line) */}
+        {objective.text && !objective.event_code && (
+          <p className="text-muted-foreground truncate mt-0.5">{objective.text}</p>
+        )}
+        {/* Inline progress bar */}
+        {progressPct != null && (
+          <div className="mt-1.5">
+            <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${progressBarColor(progressPct)}`}
+                style={{ width: `${Math.min(progressPct, 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
+        {/* Competition countdown inline */}
+        {hasCompetition && leftDays != null && leftDays > 0 && (
+          <span className="text-[10px] text-orange-500 mt-0.5 inline-block">
+            {objective.competition_name} · J-{leftDays}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  // ── Full mode (standalone view) ──
   return (
     <div className={`rounded-lg border bg-card p-3 text-sm space-y-1.5 ${borderColor ? `border-l-4 ${borderColor}` : ""}`}>
       {/* Row 1: event info + badges + actions */}
