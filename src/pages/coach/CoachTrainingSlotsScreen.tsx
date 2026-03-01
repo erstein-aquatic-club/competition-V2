@@ -56,6 +56,9 @@ import {
   Trash2,
   AlertTriangle,
   BookOpen,
+  Check,
+  CircleDashed,
+  Ban,
 } from "lucide-react";
 
 // ── Constants ────────────────────────────────────────────────────
@@ -188,6 +191,8 @@ type AssignmentRow = {
   coach_id: string;
   lane_count: string;
 };
+
+type SlotCompletionState = "empty" | "draft" | "published" | "cancelled";
 
 // ── Slot Form Sheet ─────────────────────────────────────────────
 
@@ -777,6 +782,71 @@ const OverrideFormSheet = ({
 
 // ── Timeline Slot Block (positioned absolutely on the timeline) ──
 
+function getSlotCompletionState(instance?: SlotInstance): SlotCompletionState {
+  if (!instance) return "empty";
+  return instance.state;
+}
+
+function SlotCompletionBadge({
+  state,
+  compact = false,
+}: {
+  state: SlotCompletionState;
+  compact?: boolean;
+}) {
+  const config = {
+    empty: {
+      label: "À renseigner",
+      shortLabel: "À faire",
+      icon: CircleDashed,
+      className:
+        "border-border/60 bg-background/80 text-muted-foreground",
+    },
+    draft: {
+      label: "Brouillon",
+      shortLabel: "Brouillon",
+      icon: CircleDashed,
+      className:
+        "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+    },
+    published: {
+      label: "Renseignée",
+      shortLabel: "OK",
+      icon: Check,
+      className:
+        "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+    },
+    cancelled: {
+      label: "Annulé",
+      shortLabel: "Annulé",
+      icon: Ban,
+      className:
+        "border-border/60 bg-muted/60 text-muted-foreground",
+    },
+  } satisfies Record<
+    SlotCompletionState,
+    {
+      label: string;
+      shortLabel: string;
+      icon: typeof Check;
+      className: string;
+    }
+  >;
+
+  const { icon: Icon, className, label, shortLabel } = config[state];
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold leading-none ${className}`}
+      title={label}
+      aria-label={label}
+    >
+      <Icon className="h-3 w-3 shrink-0" />
+      {!compact && <span>{shortLabel}</span>}
+    </span>
+  );
+}
+
 type TimelineSlotProps = {
   slot: TrainingSlot;
   instance?: SlotInstance;
@@ -796,6 +866,7 @@ const TimelineSlot = ({
   const height = durationPx(slot.start_time, slot.end_time);
   const isShort = height < 50;
   const swim = isSwimSlot(slot.location);
+  const completionState = getSlotCompletionState(instance);
   const hasAssignment = !!instance?.assignment;
   const isDraft = instance?.state === "draft";
   const isPublished = instance?.state === "published";
@@ -828,14 +899,19 @@ const TimelineSlot = ({
     >
       <div className={`flex flex-col gap-0.5 ${isShort ? "flex-row items-center" : ""}`}>
         {/* Location */}
-        <div className="flex items-center gap-1 min-w-0">
-          <MapPin className={`h-2.5 w-2.5 shrink-0 ${iconClass}`} />
-          <span className="text-[10px] font-medium text-foreground truncate">
-            {slot.location}
+        <div className="flex items-start justify-between gap-1 min-w-0">
+          <div className="flex items-center gap-1 min-w-0">
+            <MapPin className={`h-2.5 w-2.5 shrink-0 ${iconClass}`} />
+            <span className="text-[10px] font-medium text-foreground truncate">
+              {slot.location}
+            </span>
+            {hasOverrides && !cancelled && (
+              <AlertTriangle className="h-2.5 w-2.5 text-orange-500 shrink-0" />
+            )}
+          </div>
+          <span className="shrink-0">
+            <SlotCompletionBadge state={completionState} compact />
           </span>
-          {hasOverrides && !cancelled && (
-            <AlertTriangle className="h-2.5 w-2.5 text-orange-500 shrink-0" />
-          )}
         </div>
 
         {/* Group badges */}
@@ -1078,6 +1154,7 @@ const MobileView = ({
               const slotOverrides = overridesBySlot.get(slot.id) ?? [];
               const hasOverrides = slotOverrides.length > 0;
               const instance = slotInstancesById.get(slot.id);
+              const completionState = getSlotCompletionState(instance);
               const isPublished = instance?.state === "published";
               const isDraft = instance?.state === "draft";
 
@@ -1103,7 +1180,7 @@ const MobileView = ({
                     <div className="flex-1 px-3 py-2.5 min-w-0">
                       {/* Time row */}
                       <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
                           <span className={`text-sm font-bold tabular-nums ${
                             cancelled ? "line-through text-muted-foreground" : "text-foreground"
                           }`}>
@@ -1117,9 +1194,12 @@ const MobileView = ({
                             {durationLabel(slot.start_time, slot.end_time)}
                           </span>
                         </div>
-                        {hasOverrides && !cancelled && (
-                          <AlertTriangle className="h-3.5 w-3.5 text-orange-500 flex-shrink-0" />
-                        )}
+                        <div className="flex items-center gap-1.5">
+                          <SlotCompletionBadge state={completionState} />
+                          {hasOverrides && !cancelled && (
+                            <AlertTriangle className="h-3.5 w-3.5 text-orange-500 flex-shrink-0" />
+                          )}
+                        </div>
                       </div>
 
                       {/* Location */}

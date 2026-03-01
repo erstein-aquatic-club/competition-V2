@@ -36,6 +36,7 @@ import { calculateSwimTotalDistance } from "@/lib/swimSessionUtils";
 import { normalizeIntensityValue, normalizeEquipmentValue } from "@/lib/swimTextParser";
 import type { SwimBlock, SwimExercise } from "@/lib/swimTextParser";
 import { generateShareToken } from "@/lib/api/swim";
+import type { SwimLibraryEntryContext } from "./swimLibraryEntryContext";
 
 interface SwimSessionDraft {
   id: number | null;
@@ -167,12 +168,37 @@ const getFolderDisplayName = (folderPath: string, parentFolder: string | null) =
   return folderPath.slice(parentFolder.length + 1);
 };
 
-export default function SwimCatalog() {
+function formatSlotDateLabel(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+  });
+}
+
+function buildSlotLabel(context: SwimLibraryEntryContext["slot"]): string {
+  return `${context.startTime.slice(0, 5)} · ${context.location}`;
+}
+
+function buildContextualSessionTitle(context: SwimLibraryEntryContext["slot"]): string {
+  return `Séance du ${formatSlotDateLabel(context.scheduledDate)} - ${buildSlotLabel(context)}`;
+}
+
+type SwimCatalogProps = {
+  entryContext?: SwimLibraryEntryContext | null;
+  onEntryContextConsumed?: () => void;
+};
+
+export default function SwimCatalog({
+  entryContext = null,
+  onEntryContextConsumed,
+}: SwimCatalogProps = {}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const userId = useAuth((s) => s.userId);
   const role = useAuth((s) => s.role);
-  const [isCreating, setIsCreating] = useState(false);
+  const [isCreating, setIsCreating] = useState(entryContext?.mode === "create");
   useBeforeUnload(isCreating);
   const [selectedSession, setSelectedSession] = useState<SwimSessionTemplate | null>(null);
   const [pendingDeleteSession, setPendingDeleteSession] = useState<SwimSessionTemplate | null>(null);
@@ -187,16 +213,24 @@ export default function SwimCatalog() {
   const [newFolderName, setNewFolderName] = useState("");
   const [pendingMoveSession, setPendingMoveSession] = useState<SwimSessionTemplate | null>(null);
 
-  const createEmptySession = (): SwimSessionDraft => ({
+  const createEmptySession = (
+    context?: SwimLibraryEntryContext | null,
+    folderOverride: string | null = currentFolder,
+  ): SwimSessionDraft => ({
     id: null,
-    name: formatSwimSessionDefaultTitle(new Date()),
+    name:
+      context?.mode === "create"
+        ? buildContextualSessionTitle(context.slot)
+        : formatSwimSessionDefaultTitle(new Date()),
     description: "",
     estimatedDuration: 0,
-    folder: currentFolder,
+    folder: folderOverride,
     blocks: [],
   });
 
-  const [newSession, setNewSession] = useState<SwimSessionDraft>(createEmptySession);
+  const [newSession, setNewSession] = useState<SwimSessionDraft>(() =>
+    createEmptySession(entryContext?.mode === "create" ? entryContext : null),
+  );
 
   const { data: sessions, isLoading: sessionsLoading, error: sessionsError, refetch: refetchSessions } = useQuery({
     queryKey: ["swim_catalog"],
@@ -405,6 +439,46 @@ export default function SwimCatalog() {
     });
     setIsCreating(true);
   };
+
+  useEffect(() => {
+    if (!entryContext) return;
+
+    if (entryContext.mode === "create") {
+      setShowArchive(false);
+      setCurrentFolder(null);
+      setSelectedSession(null);
+      setNewSession(createEmptySession(entryContext, null));
+      setIsCreating(true);
+      onEntryContextConsumed?.();
+      return;
+    }
+
+    if (!sessions) return;
+
+    const sessionToEdit = sessions.find(
+      (session) => session.id === entryContext.swimCatalogId,
+    );
+
+    if (!sessionToEdit) {
+      toast({
+        title: "Séance introuvable",
+        description: "La séance liée à ce créneau n'est plus disponible.",
+        variant: "destructive",
+      });
+      onEntryContextConsumed?.();
+      return;
+    }
+
+    setShowArchive(false);
+    setCurrentFolder(sessionToEdit.folder ?? null);
+    handleEdit(sessionToEdit);
+    onEntryContextConsumed?.();
+  }, [
+    entryContext,
+    sessions,
+    onEntryContextConsumed,
+    toast,
+  ]);
 
   const handleArchive = (session: SwimSessionTemplate) => {
     setPendingArchiveSession(session);

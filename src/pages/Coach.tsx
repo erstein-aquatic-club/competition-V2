@@ -22,6 +22,7 @@ import {
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Input } from "@/components/ui/input";
 import CoachSectionHeader from "./coach/CoachSectionHeader";
+import type { SwimLibraryEntryContext } from "./coach/swimLibraryEntryContext";
 const CoachSwimmersOverview = lazy(() => import("./coach/CoachSwimmersOverview"));
 const CoachMessagesScreen = lazy(() => import("./coach/CoachMessagesScreen"));
 const CoachSmsScreen = lazy(() => import("./coach/CoachSmsScreen"));
@@ -572,6 +573,10 @@ export default function Coach() {
   });
   const kpiPeriod: KpiLookbackPeriod = 7;
   const [selectedCoachAthlete, setSelectedCoachAthlete] = useState<CoachAthleteOption | null>(null);
+  const [swimLibraryContext, setSwimLibraryContext] =
+    useState<SwimLibraryEntryContext | null>(null);
+  const [swimLibraryReturnSection, setSwimLibraryReturnSection] =
+    useState<"swim" | "training-slots">("swim");
 
   // Sync activeSection → URL (replaceState to avoid extra history entries)
   useEffect(() => {
@@ -618,6 +623,7 @@ export default function Coach() {
     activeSection === "groups" ||
     activeSection === "objectives";
   const shouldLoadGroups =
+    activeSection === "swim" ||
     activeSection === "messaging" ||
     activeSection === "sms" ||
     activeSection === "calendar" ||
@@ -796,7 +802,11 @@ export default function Coach() {
         <Suspense fallback={<PageSkeleton />}>
           <CoachTrainingSlotsScreen
             onBack={() => setActiveSection("home")}
-            onOpenLibrary={() => setActiveSection("swim-library")}
+            onOpenLibrary={(context) => {
+              setSwimLibraryReturnSection("swim");
+              setSwimLibraryContext(context ?? null);
+              setActiveSection("swim-library");
+            }}
             groups={groups}
           />
         </Suspense>
@@ -807,10 +817,16 @@ export default function Coach() {
           <CoachSectionHeader
             title="Bibliothèque natation"
             description="Templates de séances."
-            onBack={() => setActiveSection("swim")}
+            onBack={() => {
+              setSwimLibraryContext(null);
+              setActiveSection(swimLibraryReturnSection);
+            }}
           />
           <Suspense fallback={<PageSkeleton />}>
-            <SwimCatalog />
+            <SwimCatalog
+              entryContext={swimLibraryContext}
+              onEntryContextConsumed={() => setSwimLibraryContext(null)}
+            />
           </Suspense>
         </div>
       ) : null}
@@ -930,7 +946,11 @@ export default function Coach() {
           <CoachTrainingSlotsScreen
             onBack={() => setActiveSection("home")}
             groups={groups}
-            onOpenLibrary={() => setActiveSection("swim-library")}
+            onOpenLibrary={(context) => {
+              setSwimLibraryReturnSection("training-slots");
+              setSwimLibraryContext(context ?? null);
+              setActiveSection("swim-library");
+            }}
           />
         </Suspense>
       ) : null}
