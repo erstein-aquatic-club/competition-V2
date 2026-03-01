@@ -39,8 +39,9 @@ import type { LocalStrengthRun } from "@/lib/types";
 // Lazy load heavy catalog components
 const StrengthCatalog = lazy(() => import("./coach/StrengthCatalog"));
 const SwimCatalog = lazy(() => import("./coach/SwimCatalog"));
+const CoachSlotCalendar = lazy(() => import("./coach/CoachSlotCalendar"));
 
-type CoachSection = "home" | "swim" | "strength" | "swimmers" | "messaging" | "sms" | "calendar" | "groups" | "competitions" | "objectives" | "training-slots" | "athlete" | "deadlines";
+type CoachSection = "home" | "swim" | "swim-library" | "strength" | "swimmers" | "messaging" | "sms" | "calendar" | "groups" | "competitions" | "objectives" | "training-slots" | "athlete" | "deadlines";
 type KpiLookbackPeriod = 7 | 30 | 365;
 
 type CoachAthleteOption = {
@@ -795,17 +796,21 @@ export default function Coach() {
       ) : null}
 
       {activeSection === "swim" ? (
+        <Suspense fallback={<PageSkeleton />}>
+          <CoachSlotCalendar
+            onBack={() => setActiveSection("home")}
+            onOpenLibrary={() => setActiveSection("swim-library")}
+            onOpenSlot={() => {/* Handled internally by CoachSlotCalendar + SlotSessionSheet */}}
+          />
+        </Suspense>
+      ) : null}
+
+      {activeSection === "swim-library" ? (
         <div className="space-y-6">
           <CoachSectionHeader
             title="Bibliothèque natation"
-            description="Accédez aux séances et aux templates natation."
-            onBack={() => setActiveSection("home")}
-            actions={
-              <Button variant="outline" size="sm" onClick={() => setActiveSection("calendar")}>
-                <CalendarDays className="mr-1.5 h-3.5 w-3.5" />
-                Assigner
-              </Button>
-            }
+            description="Templates de séances."
+            onBack={() => setActiveSection("swim")}
           />
           <Suspense fallback={<PageSkeleton />}>
             <SwimCatalog />
