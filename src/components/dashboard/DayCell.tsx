@@ -96,7 +96,7 @@ export const DayCell = memo(function DayCell({
         </div>
 
         <div className="flex items-center justify-end gap-1">
-          {isRest && !strengthAssigned ? (
+          {hasCompetition ? null : isRest && !strengthAssigned ? (
             <Moon className="h-3 w-3 text-muted-foreground/40" />
           ) : (
             <>
