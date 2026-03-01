@@ -92,12 +92,12 @@ const STATE_CONFIG: Record<
       "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/25",
   },
   published: {
-    label: "Publi\u00e9",
+    label: "Publié",
     badgeClass:
       "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/25",
   },
   cancelled: {
-    label: "Annul\u00e9",
+    label: "Annulé",
     badgeClass: "bg-muted text-muted-foreground border-border/50",
   },
 };
@@ -272,11 +272,11 @@ export default function SlotSessionSheet({
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer la s\u00e9ance ?</AlertDialogTitle>
+            <AlertDialogTitle>Supprimer la séance ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action supprimera d\u00e9finitivement la s\u00e9ance assign\u00e9e pour ce
-              cr\u00e9neau le {formatDateFr(instance.date)}. Les nageurs ne verront
-              plus cette s\u00e9ance.
+              Cette action supprimera définitivement la séance assignée pour ce
+              créneau le {formatDateFr(instance.date)}. Les nageurs ne verront
+              plus cette séance.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -315,7 +315,7 @@ function CancelledBody({
     <div className="space-y-3">
       <div className="rounded-xl bg-muted/40 border border-border/50 p-4 text-center">
         <p className="text-sm font-medium text-muted-foreground">
-          Ce cr\u00e9neau a \u00e9t\u00e9 annul\u00e9
+          Ce créneau a été annulé
         </p>
         {override?.reason && (
           <p className="mt-1.5 text-xs text-muted-foreground/70 italic">
@@ -395,7 +395,7 @@ function EmptyBody({
           className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
         >
           <CalendarDays className="inline h-3 w-3 mr-1 opacity-60" />
-          Visible \u00e0 partir du
+          Visible à partir du
         </Label>
         <input
           id="visible-from-empty"
@@ -420,10 +420,10 @@ function EmptyBody({
           </div>
           <div>
             <p className="text-sm font-semibold text-foreground">
-              Nouvelle s\u00e9ance
+              Nouvelle séance
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Cr\u00e9er une s\u00e9ance de z\u00e9ro
+              Créer une séance de zéro
             </p>
           </div>
         </button>
@@ -438,10 +438,10 @@ function EmptyBody({
           </div>
           <div>
             <p className="text-sm font-semibold text-foreground">
-              Depuis la biblioth\u00e8que
+              Depuis la bibliothèque
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Utiliser une s\u00e9ance existante
+              Utiliser une séance existante
             </p>
           </div>
         </button>
@@ -482,7 +482,7 @@ function FilledBody({
       {/* Session preview */}
       <div className="rounded-xl bg-muted/30 border border-border/50 p-4">
         <p className="text-sm font-semibold text-foreground leading-snug">
-          {assignment.session_name ?? "S\u00e9ance sans nom"}
+          {assignment.session_name ?? "Séance sans nom"}
         </p>
         {assignment.session_distance != null &&
           assignment.session_distance > 0 && (
@@ -532,7 +532,7 @@ function FilledBody({
           <ActionButton
             icon={<Pencil className="h-4 w-4" />}
             label="Modifier"
-            description="Ouvrir dans l'\u00e9diteur"
+            description="Ouvrir dans l'éditeur"
             onClick={() => onEditSession(assignment.swim_catalog_id!)}
           />
         )}
@@ -541,12 +541,12 @@ function FilledBody({
         <ActionButton
           icon={<Copy className="h-4 w-4" />}
           label="Dupliquer vers..."
-          description="Bient\u00f4t disponible"
+          description="Bientôt disponible"
           disabled
           onClick={() => {}}
         />
 
-        {/* Visibilit\u00e9 */}
+        {/* Visibilité */}
         <ActionButton
           icon={
             showVisibilityPicker ? (
@@ -555,7 +555,7 @@ function FilledBody({
               <Eye className="h-4 w-4" />
             )
           }
-          label="Visibilit\u00e9"
+          label="Visibilité"
           description="Date de publication pour les nageurs"
           onClick={onToggleVisibilityPicker}
         />
@@ -567,7 +567,7 @@ function FilledBody({
               htmlFor="visible-from-edit"
               className="text-xs text-muted-foreground"
             >
-              Visible \u00e0 partir du
+              Visible à partir du
             </Label>
             <input
               id="visible-from-edit"
@@ -605,7 +605,7 @@ function FilledBody({
         <ActionButton
           icon={<Trash2 className="h-4 w-4" />}
           label="Supprimer"
-          description="Retirer cette s\u00e9ance du cr\u00e9neau"
+          description="Retirer cette séance du créneau"
           variant="destructive"
           disabled={deleteLoading}
           onClick={onRequestDelete}

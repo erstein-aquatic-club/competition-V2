@@ -61,7 +61,7 @@ const STATE_CONFIG: Record<
   }
 > = {
   empty: {
-    label: "Aucune s\u00e9ance",
+    label: "Aucune séance",
     badgeClass: "",
     cardClass: "border-dashed border-border/60 bg-card/40",
   },
@@ -71,12 +71,12 @@ const STATE_CONFIG: Record<
     cardClass: "border-amber-500/30 bg-card",
   },
   published: {
-    label: "Publi\u00e9",
+    label: "Publié",
     badgeClass: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/25",
     cardClass: "border-emerald-500/30 bg-card",
   },
   cancelled: {
-    label: "Annul\u00e9",
+    label: "Annulé",
     badgeClass: "bg-muted text-muted-foreground border-border/50",
     cardClass: "border-border/40 bg-muted/30",
   },
@@ -138,7 +138,7 @@ function EmptySlotCard({ instance, onTap }: { instance: SlotInstance; onTap: () 
           <Plus className="h-5 w-5 text-muted-foreground/60" />
         </div>
         <div className="min-w-0 flex-1 text-left">
-          <p className="text-sm font-medium text-muted-foreground/80">Aucune s\u00e9ance</p>
+          <p className="text-sm font-medium text-muted-foreground/80">Aucune séance</p>
           <p className="text-xs text-muted-foreground/50 mt-0.5">
             {formatTimeRange(instance.slot.start_time, instance.slot.end_time)} &middot; {instance.slot.location}
           </p>
@@ -272,11 +272,11 @@ export default function CoachSlotCalendar({
             className="text-lg font-bold tracking-tight"
             style={{ fontFamily: "var(--font-display, 'Oswald', sans-serif)" }}
           >
-            S\u00e9ances
+            Séances
           </h1>
           <Button variant="ghost" size="sm" className="-mr-2 text-primary" onClick={onOpenLibrary}>
             <BookOpen className="mr-1.5 h-3.5 w-3.5" />
-            Biblioth\u00e8que
+            Bibliothèque
           </Button>
         </div>
 
@@ -354,10 +354,10 @@ export default function CoachSlotCalendar({
               <Calendar className="h-7 w-7 text-muted-foreground/40" />
             </div>
             <p className="text-sm font-medium text-muted-foreground">
-              Aucun cr\u00e9neau cette semaine
+              Aucun créneau cette semaine
             </p>
             <p className="text-xs text-muted-foreground/60 mt-1 max-w-[260px]">
-              Configurez vos cr\u00e9neaux r\u00e9currents dans les param\u00e8tres pour les voir appara\u00eetre ici
+              Configurez vos créneaux récurrents dans les paramètres pour les voir apparaître ici
             </p>
           </div>
         )}
