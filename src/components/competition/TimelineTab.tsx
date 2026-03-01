@@ -19,6 +19,7 @@ interface TimelineEntry {
   label: string;
   type: "race" | "step";
   eventCode?: string;
+  isFinale?: boolean;
 }
 
 /* ── Helpers ─────────────────────────────────────────────── */
@@ -118,6 +119,7 @@ export default function TimelineTab({
         label: eventLabel(race.event_code) + suffix,
         type: "race",
         eventCode: race.event_code,
+        isFinale: race.race_type === "finale",
       });
 
       // Add routine step entries
@@ -182,13 +184,17 @@ export default function TimelineTab({
           {timed.map((entry, i) => (
             <div key={`${entry.time}-${entry.label}-${i}`} className="relative flex items-start pb-4 last:pb-0">
               {/* Time label — positioned to the left of the line */}
-              <span className="absolute -left-[52px] w-[44px] text-right text-xs font-mono tabular-nums text-muted-foreground leading-5">
+              <span className={`absolute -left-[52px] w-[44px] text-right text-xs font-mono tabular-nums leading-5 ${
+                entry.isFinale ? "font-semibold text-yellow-600 dark:text-yellow-400" : "text-muted-foreground"
+              }`}>
                 {entry.time}
               </span>
 
               {/* Dot on the line */}
               <div className="absolute -left-[5px] top-1.5">
-                {entry.type === "race" ? (
+                {entry.isFinale ? (
+                  <div className="h-3 w-3 -ml-[1px] rounded-full bg-yellow-500 ring-2 ring-yellow-500/30" />
+                ) : entry.type === "race" ? (
                   <div className="h-2.5 w-2.5 rounded-full bg-amber-500" />
                 ) : (
                   <div className="h-2 w-2 rounded-full bg-blue-400" />
@@ -197,13 +203,19 @@ export default function TimelineTab({
 
               {/* Label */}
               <div className="pl-4">
-                <span
-                  className={`text-sm leading-5 ${
-                    entry.type === "race" ? "font-semibold text-foreground" : "text-muted-foreground"
-                  }`}
-                >
-                  {entry.label}
-                </span>
+                {entry.isFinale ? (
+                  <span className="text-sm leading-5 font-bold text-yellow-700 dark:text-yellow-300">
+                    ★ {entry.label}
+                  </span>
+                ) : (
+                  <span
+                    className={`text-sm leading-5 ${
+                      entry.type === "race" ? "font-semibold text-foreground" : "text-muted-foreground"
+                    }`}
+                  >
+                    {entry.label}
+                  </span>
+                )}
               </div>
             </div>
           ))}

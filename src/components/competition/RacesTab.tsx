@@ -33,7 +33,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Trophy, Plus, Pencil, Trash2, Clock, Copy } from "lucide-react";
+import { Trophy, Plus, Pencil, Trash2, Clock, Copy, Star } from "lucide-react";
 
 /* ── Props ──────────────────────────────────────────────── */
 
@@ -242,22 +242,34 @@ export default function RacesTab({ competitionId, competitionDate, competitionEn
         /* ── Race cards ───────────────────────────────── */
         <div className="space-y-2.5">
           {races.map((race) => {
+            const isFinale = race.race_type === "finale";
             const stroke = strokeFromCode(race.event_code);
             const borderColor = stroke ? STROKE_COLORS[stroke] : "border-l-amber-500";
             const typeLabel = raceTypeLabel(race);
             return (
               <div
                 key={race.id}
-                className={`rounded-2xl border bg-card px-3 py-3 border-l-[3px] ${borderColor}`}
+                className={`rounded-2xl border px-3 py-3 border-l-[3px] ${
+                  isFinale
+                    ? "border-l-yellow-500 border-yellow-500/40 bg-gradient-to-r from-yellow-500/[0.07] to-amber-500/[0.03]"
+                    : `bg-card ${borderColor}`
+                }`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
+                      {isFinale && (
+                        <Star className="h-3.5 w-3.5 shrink-0 fill-yellow-500 text-yellow-500" />
+                      )}
                       <p className="text-sm font-semibold truncate">
                         {eventLabel(race.event_code)}
                       </p>
                       {typeLabel && (
-                        <span className="shrink-0 rounded-md bg-orange-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-orange-600 dark:text-orange-400">
+                        <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
+                          isFinale
+                            ? "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300"
+                            : "bg-orange-500/10 text-orange-600 dark:text-orange-400"
+                        }`}>
                           {typeLabel}
                         </span>
                       )}
@@ -279,11 +291,11 @@ export default function RacesTab({ competitionId, competitionDate, competitionEn
                     )}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    {race.race_type !== "finale" && (
+                    {!isFinale && (
                       <button
                         type="button"
                         onClick={() => duplicateAsFinale(race)}
-                        className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-orange-500 hover:bg-orange-500/10 transition"
+                        className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-yellow-600 hover:bg-yellow-500/10 transition"
                         aria-label="Dupliquer en finale"
                         title="Dupliquer en finale"
                       >
