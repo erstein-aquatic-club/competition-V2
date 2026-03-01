@@ -530,7 +530,8 @@ const getRunTimestamp = (run: LocalStrengthRun) =>
 const buildFatigueRating = (values: number[]) => {
   if (!values.length) return null;
   const average = values.reduce((sum, value) => sum + value, 0) / values.length;
-  const rating = Math.min(5, Math.max(1, Math.round((average / 10) * 5)));
+  // Values are already normalized to 1-5 scale by mapFromDbSession/normalizeScaleToFive
+  const rating = Math.min(5, Math.max(1, Math.round(average)));
   return { average, rating };
 };
 
