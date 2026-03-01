@@ -315,3 +315,125 @@ export async function getCoachAssignments(filters: {
     } satisfies CoachAssignment;
   });
 }
+
+// ── Slot-centric helpers ────────────────────────────────────────────
+
+/** Derive morning/evening from a training slot start_time (HH:MM format) */
+export function deriveScheduledSlot(startTime: string): "morning" | "evening" {
+  const hour = parseInt(startTime.split(":")[0], 10);
+  return hour < 13 ? "morning" : "evening";
+}
+
+/** Create one assignment per group for a session on a specific slot+date */
+export async function bulkCreateSlotAssignments(params: {
+  swimCatalogId: number;
+  trainingSlotId: string;
+  scheduledDate: string;
+  groupIds: number[];
+  scheduledSlot: "morning" | "evening";
+  visibleFrom: string | null;
+  assignedBy: number;
+}): Promise<{ created: number }> {
+  if (!canUseSupabase()) return { created: 0 };
+
+  const rows = params.groupIds.map((groupId) => ({
+    assignment_type: "swim" as const,
+    swim_catalog_id: params.swimCatalogId,
+    target_group_id: groupId,
+    scheduled_date: params.scheduledDate,
+    scheduled_slot: params.scheduledSlot,
+    training_slot_id: params.trainingSlotId,
+    visible_from: params.visibleFrom,
+    assigned_by: params.assignedBy,
+    status: "assigned",
+  }));
+
+  const { data, error } = await supabase
+    .from("session_assignments")
+    .insert(rows)
+    .select("id");
+
+  if (error) throw new Error(error.message);
+  return { created: data?.length ?? 0 };
+}
+
+/** Get all slot-linked assignments for a date range (coach view) */
+export async function getSlotAssignments(params: {
+  from: string;
+  to: string;
+}): Promise<Array<{
+  id: number;
+  swim_catalog_id: number | null;
+  training_slot_id: string | null;
+  target_group_id: number | null;
+  scheduled_date: string;
+  scheduled_slot: string | null;
+  visible_from: string | null;
+  notified_at: string | null;
+  status: string;
+  session_name: string | null;
+  session_distance: number | null;
+}>> {
+  if (!canUseSupabase()) return [];
+
+  const { data, error } = await supabase
+    .from("session_assignments")
+    .select(`
+      id, swim_catalog_id, training_slot_id, target_group_id,
+      scheduled_date, scheduled_slot, visible_from, notified_at, status,
+      swim_sessions_catalog(name)
+    `)
+    .gte("scheduled_date", params.from)
+    .lte("scheduled_date", params.to)
+    .not("training_slot_id", "is", null)
+    .order("scheduled_date");
+
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).map((row: any) => ({
+    id: row.id,
+    swim_catalog_id: row.swim_catalog_id,
+    training_slot_id: row.training_slot_id,
+    target_group_id: row.target_group_id,
+    scheduled_date: row.scheduled_date,
+    scheduled_slot: row.scheduled_slot,
+    visible_from: row.visible_from,
+    notified_at: row.notified_at,
+    status: row.status,
+    session_name: row.swim_sessions_catalog?.name ?? null,
+    session_distance: null,
+  }));
+}
+
+/** Update visible_from on all assignments for a slot+date */
+export async function updateSlotVisibility(params: {
+  trainingSlotId: string;
+  scheduledDate: string;
+  visibleFrom: string | null;
+}): Promise<void> {
+  if (!canUseSupabase()) return;
+
+  const { error } = await supabase
+    .from("session_assignments")
+    .update({ visible_from: params.visibleFrom })
+    .eq("training_slot_id", params.trainingSlotId)
+    .eq("scheduled_date", params.scheduledDate);
+
+  if (error) throw new Error(error.message);
+}
+
+/** Delete all assignments for a slot+date */
+export async function deleteSlotAssignments(params: {
+  trainingSlotId: string;
+  scheduledDate: string;
+}): Promise<void> {
+  if (!canUseSupabase()) return;
+
+  const { error } = await supabase
+    .from("session_assignments")
+    .delete()
+    .eq("training_slot_id", params.trainingSlotId)
+    .eq("scheduled_date", params.scheduledDate);
+
+  if (error) throw new Error(error.message);
+}
