@@ -7,14 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import {
-  eventLabel,
-  formatTime,
-  STROKE_COLORS,
-  strokeFromCode,
-  findBestPerformance,
-  computeProgress,
-} from "@/lib/objectiveHelpers";
+import { ObjectiveCard } from "@/components/shared/ObjectiveCard";
 import { weekTypeColor, weekTypeTextColor } from "@/lib/weekTypeColor";
 import {
   Collapsible,
@@ -30,7 +23,6 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronRight,
-  Target,
   User,
   GraduationCap,
   Trophy,
@@ -470,7 +462,7 @@ function InterviewCard({
                 {objectives.length > 0 && (
                   <div className="space-y-1.5">
                     {objectives.map((obj) => (
-                      <ObjectiveRow key={obj.id} objective={obj} performances={performances} />
+                      <ObjectiveCard key={obj.id} objective={obj} performances={performances} />
                     ))}
                   </div>
                 )}
@@ -573,7 +565,7 @@ function InterviewCard({
                 {objectives.length > 0 && (
                   <div className="space-y-1.5">
                     {objectives.map((obj) => (
-                      <ObjectiveRow key={obj.id} objective={obj} performances={performances} />
+                      <ObjectiveCard key={obj.id} objective={obj} performances={performances} />
                     ))}
                   </div>
                 )}
@@ -945,69 +937,4 @@ function CoachBlock({ text, label }: { text?: string | null; label?: string }) {
   );
 }
 
-// ── Objective row (compact card with best perf + delta) ──
-
-function ObjectiveRow({ objective, performances }: { objective: Objective; performances: SwimmerPerformance[] }) {
-  const stroke = objective.event_code ? strokeFromCode(objective.event_code) : null;
-  const borderColor = stroke ? STROKE_COLORS[stroke] ?? "" : "";
-
-  const bestPerf = objective.event_code
-    ? findBestPerformance(performances, objective.event_code, objective.pool_length)
-    : null;
-
-  let delta: number | null = null;
-  let progressPct: number | null = null;
-  if (bestPerf && objective.target_time_seconds != null && objective.event_code) {
-    delta = bestPerf.time - objective.target_time_seconds;
-    progressPct = computeProgress(bestPerf.time, objective.target_time_seconds, objective.event_code);
-  }
-
-  return (
-    <div className={`rounded-lg border bg-card p-2 text-sm space-y-1 ${borderColor ? `border-l-4 ${borderColor}` : ""}`}>
-      <div className="flex items-center gap-2 flex-wrap">
-        <Target className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        <div className="flex-1 min-w-0 flex items-center gap-1 flex-wrap">
-          {objective.event_code && (
-            <span className="font-medium">{eventLabel(objective.event_code)}</span>
-          )}
-          {objective.event_code && objective.pool_length && (
-            <span className="text-muted-foreground">({objective.pool_length}m)</span>
-          )}
-          {objective.target_time_seconds != null && (
-            <span className="font-mono text-xs text-primary">
-              {formatTime(objective.target_time_seconds)}
-            </span>
-          )}
-        </div>
-        {objective.competition_name && (
-          <Badge variant="secondary" className="text-[10px] shrink-0">
-            {objective.competition_name}
-          </Badge>
-        )}
-      </div>
-      {objective.text && (
-        <p className="text-muted-foreground text-xs pl-5">{objective.text}</p>
-      )}
-      {bestPerf && (
-        <div className="flex items-center gap-2 pl-5 text-xs text-muted-foreground flex-wrap">
-          <span>
-            Actuel : <span className="font-mono">{formatTime(bestPerf.time)}</span>
-          </span>
-          {bestPerf.date && (
-            <span className="text-muted-foreground/60">({formatDate(bestPerf.date)})</span>
-          )}
-          {delta != null && (
-            <span className={delta <= 0 ? "text-emerald-600 font-medium" : "text-amber-600"}>
-              {delta <= 0 ? "Objectif atteint !" : `+${delta.toFixed(2)}s`}
-            </span>
-          )}
-        </div>
-      )}
-      {!bestPerf && objective.event_code && objective.target_time_seconds != null && (
-        <p className="text-[10px] text-muted-foreground italic pl-5">
-          Pas encore de temps enregistré
-        </p>
-      )}
-    </div>
-  );
-}
+// ObjectiveRow replaced by shared ObjectiveCard from @/components/shared/ObjectiveCard

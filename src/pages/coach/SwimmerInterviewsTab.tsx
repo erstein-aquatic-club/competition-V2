@@ -41,7 +41,6 @@ import {
   User,
   GraduationCap,
   Trophy,
-  Target,
   ChevronDown,
   ChevronRight,
   ChevronUp,
@@ -49,11 +48,8 @@ import {
 import {
   eventLabel,
   formatTime,
-  findBestPerformance,
-  computeProgress,
-  STROKE_COLORS,
-  strokeFromCode,
 } from "@/lib/objectiveHelpers";
+import { ObjectiveCard } from "@/components/shared/ObjectiveCard";
 import { weekTypeColor, weekTypeTextColor } from "@/lib/weekTypeColor";
 import { buildSmsUri, canOpenSmsApp } from "@/lib/smsUtils";
 
@@ -222,65 +218,7 @@ const SectionDivider = ({ label }: { label: string }) => (
 
 // ── Objective Row (with best perf + delta) ──────────────────────
 
-const ObjectiveRow = ({ objective, performances = [] }: { objective: Objective; performances?: SwimmerPerformance[] }) => {
-  const hasChrono = !!objective.event_code;
-  const hasText = !!objective.text;
-  const stroke = hasChrono ? strokeFromCode(objective.event_code!) : null;
-  const borderColor = stroke ? STROKE_COLORS[stroke] ?? "" : "";
-
-  const bestPerf = hasChrono
-    ? findBestPerformance(performances, objective.event_code!, objective.pool_length)
-    : null;
-
-  let delta: number | null = null;
-  let progressPct: number | null = null;
-  if (bestPerf && objective.target_time_seconds != null && objective.event_code) {
-    delta = bestPerf.time - objective.target_time_seconds;
-    progressPct = computeProgress(bestPerf.time, objective.target_time_seconds, objective.event_code);
-  }
-
-  return (
-    <div className={`rounded-lg border bg-card p-2.5 text-sm space-y-1 ${hasChrono ? `border-l-4 ${borderColor}` : ""}`}>
-      <div className="flex items-center gap-2 flex-wrap">
-        <Target className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        <span className="font-medium">{hasChrono ? eventLabel(objective.event_code!) : ""}</span>
-        {objective.pool_length && (
-          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-            {objective.pool_length}m
-          </Badge>
-        )}
-        {objective.target_time_seconds != null && (
-          <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono">
-            {formatTime(objective.target_time_seconds)}
-          </Badge>
-        )}
-      </div>
-      {hasText && (
-        <p className="text-muted-foreground line-clamp-2 pl-5">{objective.text}</p>
-      )}
-      {bestPerf && (
-        <div className="flex items-center gap-2 pl-5 text-xs text-muted-foreground flex-wrap">
-          <span>
-            Actuel : <span className="font-mono">{formatTime(bestPerf.time)}</span>
-          </span>
-          {bestPerf.date && (
-            <span className="text-muted-foreground/60">({formatDate(bestPerf.date)})</span>
-          )}
-          {delta != null && (
-            <span className={delta <= 0 ? "text-emerald-600 font-medium" : "text-amber-600"}>
-              {delta <= 0 ? "Objectif atteint !" : `+${delta.toFixed(2)}s`}
-            </span>
-          )}
-        </div>
-      )}
-      {!bestPerf && hasChrono && objective.target_time_seconds != null && (
-        <p className="text-[10px] text-muted-foreground italic pl-5">
-          Pas encore de temps enregistré
-        </p>
-      )}
-    </div>
-  );
-};
+// ObjectiveRow replaced by shared ObjectiveCard
 
 const CollapsiblePreviousCommitments = ({
   prevInterview,
@@ -892,7 +830,7 @@ const CoachInterviewCard = ({
                 {objectives.length > 0 && (
                   <div className="space-y-1.5">
                     {objectives.map((obj) => (
-                      <ObjectiveRow key={obj.id} objective={obj} performances={performances} />
+                      <ObjectiveCard key={obj.id} objective={obj} performances={performances} />
                     ))}
                   </div>
                 )}
@@ -947,7 +885,7 @@ const CoachInterviewCard = ({
                 {objectives.length > 0 && (
                   <div className="space-y-1.5">
                     {objectives.map((obj) => (
-                      <ObjectiveRow key={obj.id} objective={obj} performances={performances} />
+                      <ObjectiveCard key={obj.id} objective={obj} performances={performances} />
                     ))}
                   </div>
                 )}

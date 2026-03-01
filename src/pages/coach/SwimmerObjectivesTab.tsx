@@ -33,20 +33,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Target, Trash2 } from "lucide-react";
+import { Plus, Target } from "lucide-react";
 import {
   FFN_EVENTS,
   eventLabel,
   formatTime,
   parseTime,
-  STROKE_COLORS,
-  strokeFromCode,
-  findBestPerformance,
-  daysUntil,
-  computeProgress,
-  progressBarColor,
 } from "@/lib/objectiveHelpers";
-import type { SwimmerPerformance } from "@/lib/api";
+import { ObjectiveCard } from "@/components/shared/ObjectiveCard";
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -417,119 +411,7 @@ const ObjectiveFormSheet = ({
   );
 };
 
-// ── Compact Objective Card (same design as interview view) ──
-
-function formatDate(d: string) {
-  const p = d.split("-");
-  if (p.length === 3) return `${p[2]}/${p[1]}/${p[0]}`;
-  return d;
-}
-
-type ObjectiveCardProps = {
-  objective: Objective;
-  performances: SwimmerPerformance[];
-  onEdit: (obj: Objective) => void;
-};
-
-const ObjectiveCard = ({ objective, performances, onEdit }: ObjectiveCardProps) => {
-  const stroke = objective.event_code ? strokeFromCode(objective.event_code) : null;
-  const borderColor = stroke ? STROKE_COLORS[stroke] ?? "" : "";
-
-  const bestPerf = objective.event_code
-    ? findBestPerformance(performances, objective.event_code, objective.pool_length)
-    : null;
-
-  let delta: number | null = null;
-  let progressPct: number | null = null;
-  if (bestPerf && objective.target_time_seconds != null && objective.event_code) {
-    delta = bestPerf.time - objective.target_time_seconds;
-    progressPct = computeProgress(bestPerf.time, objective.target_time_seconds, objective.event_code);
-  }
-
-  const hasCompetition = !!objective.competition_name;
-  const leftDays = objective.competition_date ? daysUntil(objective.competition_date) : null;
-
-  return (
-    <button
-      type="button"
-      className={`w-full text-left rounded-lg border bg-card p-3 text-sm space-y-1.5 transition-colors hover:bg-muted/50 ${borderColor ? `border-l-4 ${borderColor}` : ""}`}
-      onClick={() => onEdit(objective)}
-    >
-      {/* Row 1: event info */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <Target className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
-          {objective.event_code && (
-            <span className="font-medium">{eventLabel(objective.event_code)}</span>
-          )}
-          {objective.event_code && objective.pool_length && (
-            <span className="text-muted-foreground">({objective.pool_length}m)</span>
-          )}
-          {objective.target_time_seconds != null && (
-            <span className="font-mono text-xs text-primary">
-              {formatTime(objective.target_time_seconds)}
-            </span>
-          )}
-        </div>
-        <Trash2 className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
-      </div>
-
-      {/* Text objective */}
-      {objective.text && (
-        <p className="text-muted-foreground text-xs pl-5 line-clamp-2">{objective.text}</p>
-      )}
-
-      {/* Best performance line */}
-      {objective.event_code && bestPerf && (
-        <div className="flex items-center gap-2 pl-5 text-xs text-muted-foreground flex-wrap">
-          <span>
-            Actuel : <span className="font-mono">{formatTime(bestPerf.time)}</span>
-          </span>
-          {bestPerf.date && (
-            <span className="text-muted-foreground/60">({formatDate(bestPerf.date)})</span>
-          )}
-          {delta != null && (
-            <span className={delta <= 0 ? "text-emerald-600 font-medium" : "text-amber-600"}>
-              {delta <= 0 ? "Objectif atteint !" : `+${delta.toFixed(2)}s`}
-            </span>
-          )}
-        </div>
-      )}
-      {objective.event_code && !bestPerf && (
-        <p className="text-[10px] text-muted-foreground italic pl-5">
-          Pas encore de temps enregistré
-        </p>
-      )}
-
-      {/* Progress bar */}
-      {progressPct != null && (
-        <div className="pl-5 pr-1">
-          <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${progressBarColor(progressPct)}`}
-              style={{ width: `${Math.min(progressPct, 100)}%` }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Competition countdown */}
-      {hasCompetition && (
-        <div className="pl-5">
-          <Badge
-            variant="outline"
-            className="border-orange-300 text-orange-600 dark:text-orange-400 text-[10px] px-1.5 py-0"
-          >
-            {objective.competition_name}
-            {leftDays != null && leftDays > 0 && (
-              <span className="ml-1 font-bold">J-{leftDays}</span>
-            )}
-          </Badge>
-        </div>
-      )}
-    </button>
-  );
-};
+// ObjectiveCard replaced by shared import from @/components/shared/ObjectiveCard
 
 // ── Main Component ──────────────────────────────────────────────
 
@@ -655,7 +537,7 @@ const SwimmerObjectivesTab = ({ athleteId, athleteName }: Props) => {
       {showObjectivesList && !objectivesLoading && objectives.length > 0 && (
         <div className="space-y-2">
           {objectives.map((obj) => (
-            <ObjectiveCard key={obj.id} objective={obj} performances={performances} onEdit={handleEdit} />
+            <ObjectiveCard key={obj.id} objective={obj} performances={performances} onClick={() => handleEdit(obj)} />
           ))}
           <p className="text-[10px] text-muted-foreground/60 italic text-center pt-1">
             Les temps « Actuel » correspondent à la meilleure performance des 360 derniers jours sur l'épreuve.

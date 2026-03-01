@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Select,
@@ -35,19 +34,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Plus, Target, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Target } from "lucide-react";
 import {
   FFN_EVENTS,
   eventLabel,
   formatTime,
   parseTime,
-  STROKE_COLORS,
-  strokeFromCode,
-  findBestPerformance,
-  daysUntil,
-  computeProgress,
-  progressBarColor,
 } from "@/lib/objectiveHelpers";
+import { ObjectiveCard } from "@/components/shared/ObjectiveCard";
 
 type Props = {
   onBack?: () => void;
@@ -301,9 +295,9 @@ export default function SwimmerObjectivesView({ onBack, embedded = false }: Prop
             <ObjectiveCard
               key={obj.id}
               objective={obj}
-              isPersonal={false}
               performances={performances}
               compact={embedded}
+              showCoachBadge
             />
           ))}
         </div>
@@ -321,10 +315,8 @@ export default function SwimmerObjectivesView({ onBack, embedded = false }: Prop
             <ObjectiveCard
               key={obj.id}
               objective={obj}
-              isPersonal={true}
               performances={performances}
-              onEdit={openEdit}
-              onDelete={setDeleteTarget}
+              onClick={() => openEdit(obj)}
               compact={embedded}
             />
           ))}
@@ -470,215 +462,4 @@ export default function SwimmerObjectivesView({ onBack, embedded = false }: Prop
   );
 }
 
-// ── Compact Objective Card (same design as interview view) ──
-
-function formatDate(d: string) {
-  const p = d.split("-");
-  if (p.length === 3) return `${p[2]}/${p[1]}/${p[0]}`;
-  return d;
-}
-
-function ObjectiveCard({
-  objective,
-  isPersonal,
-  performances,
-  onEdit,
-  onDelete,
-  compact = false,
-}: {
-  objective: Objective;
-  isPersonal: boolean;
-  performances: Array<{ event_code: string; pool_length?: number | null; time_seconds?: number | null; competition_date?: string | null }>;
-  onEdit?: (obj: Objective) => void;
-  onDelete?: (obj: Objective) => void;
-  compact?: boolean;
-}) {
-  const stroke = objective.event_code ? strokeFromCode(objective.event_code) : null;
-  const borderColor = stroke ? STROKE_COLORS[stroke] ?? "" : "";
-
-  const bestPerf = objective.event_code
-    ? findBestPerformance(performances, objective.event_code, objective.pool_length)
-    : null;
-
-  let delta: number | null = null;
-  let progressPct: number | null = null;
-  if (bestPerf && objective.target_time_seconds != null && objective.event_code) {
-    delta = bestPerf.time - objective.target_time_seconds;
-    progressPct = computeProgress(bestPerf.time, objective.target_time_seconds, objective.event_code);
-  }
-
-  const hasCompetition = !!objective.competition_name;
-  const leftDays = objective.competition_date ? daysUntil(objective.competition_date) : null;
-
-  // ── Compact mode (embedded in Suivi page) ──
-  if (compact) {
-    return (
-      <div className={`rounded-lg border bg-card px-3 py-2 text-xs ${borderColor ? `border-l-3 ${borderColor}` : ""}`}>
-        <div className="flex items-center gap-2">
-          {/* Event + target */}
-          <div className="min-w-0 flex-1 flex items-center gap-1.5">
-            {objective.event_code && (
-              <span className="font-semibold truncate">{eventLabel(objective.event_code)}</span>
-            )}
-            {objective.pool_length && (
-              <span className="text-muted-foreground/60 shrink-0">{objective.pool_length}m</span>
-            )}
-            {objective.target_time_seconds != null && (
-              <span className="font-mono text-primary shrink-0">
-                {formatTime(objective.target_time_seconds)}
-              </span>
-            )}
-            {!isPersonal && (
-              <Badge variant="secondary" className="text-[9px] px-1 py-0 leading-none shrink-0">
-                Coach
-              </Badge>
-            )}
-          </div>
-          {/* Current + delta */}
-          {bestPerf && (
-            <div className="flex items-center gap-1.5 shrink-0 tabular-nums">
-              <span className="font-mono text-muted-foreground">{formatTime(bestPerf.time)}</span>
-              {delta != null && (
-                <span className={`font-semibold ${delta <= 0 ? "text-emerald-500" : "text-amber-500"}`}>
-                  {delta <= 0 ? "✓" : `+${delta.toFixed(1)}s`}
-                </span>
-              )}
-            </div>
-          )}
-          {/* Actions */}
-          {isPersonal && onEdit && onDelete && (
-            <div className="flex gap-0.5 shrink-0 ml-1">
-              <button type="button" onClick={() => onEdit(objective)} className="text-primary hover:underline text-[10px]">
-                Mod.
-              </button>
-              <button type="button" onClick={() => onDelete(objective)} className="text-muted-foreground hover:text-destructive p-0.5">
-                <Trash2 className="h-3 w-3" />
-              </button>
-            </div>
-          )}
-        </div>
-        {/* Text objective (single line) */}
-        {objective.text && !objective.event_code && (
-          <p className="text-muted-foreground truncate mt-0.5">{objective.text}</p>
-        )}
-        {/* Inline progress bar */}
-        {progressPct != null && (
-          <div className="mt-1.5">
-            <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-500 ${progressBarColor(progressPct)}`}
-                style={{ width: `${Math.min(progressPct, 100)}%` }}
-              />
-            </div>
-          </div>
-        )}
-        {/* Competition countdown inline */}
-        {hasCompetition && leftDays != null && leftDays > 0 && (
-          <span className="text-[10px] text-orange-500 mt-0.5 inline-block">
-            {objective.competition_name} · J-{leftDays}
-          </span>
-        )}
-      </div>
-    );
-  }
-
-  // ── Full mode (standalone view) ──
-  return (
-    <div className={`rounded-lg border bg-card p-3 text-sm space-y-1.5 ${borderColor ? `border-l-4 ${borderColor}` : ""}`}>
-      {/* Row 1: event info + badges + actions */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <Target className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        {!isPersonal && (
-          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-            Coach
-          </Badge>
-        )}
-        <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
-          {objective.event_code && (
-            <span className="font-medium">{eventLabel(objective.event_code)}</span>
-          )}
-          {objective.event_code && objective.pool_length && (
-            <span className="text-muted-foreground">({objective.pool_length}m)</span>
-          )}
-          {objective.target_time_seconds != null && (
-            <span className="font-mono text-xs text-primary">
-              {formatTime(objective.target_time_seconds)}
-            </span>
-          )}
-        </div>
-        {isPersonal && onEdit && onDelete && (
-          <div className="ml-auto flex gap-1 shrink-0">
-            <button
-              type="button"
-              onClick={() => onEdit(objective)}
-              className="text-xs text-primary hover:underline"
-            >
-              Modifier
-            </button>
-            <button
-              type="button"
-              onClick={() => onDelete(objective)}
-              className="text-muted-foreground hover:text-destructive p-0.5"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Text objective */}
-      {objective.text && (
-        <p className="text-muted-foreground text-xs pl-5">{objective.text}</p>
-      )}
-
-      {/* Best performance line */}
-      {objective.event_code && bestPerf && (
-        <div className="flex items-center gap-2 pl-5 text-xs text-muted-foreground flex-wrap">
-          <span>
-            Actuel : <span className="font-mono">{formatTime(bestPerf.time)}</span>
-          </span>
-          {bestPerf.date && (
-            <span className="text-muted-foreground/60">({formatDate(bestPerf.date)})</span>
-          )}
-          {delta != null && (
-            <span className={delta <= 0 ? "text-emerald-600 font-medium" : "text-amber-600"}>
-              {delta <= 0 ? "Objectif atteint !" : `+${delta.toFixed(2)}s`}
-            </span>
-          )}
-        </div>
-      )}
-      {objective.event_code && !bestPerf && (
-        <p className="text-[10px] text-muted-foreground italic pl-5">
-          Pas encore de temps enregistré
-        </p>
-      )}
-
-      {/* Progress bar */}
-      {progressPct != null && (
-        <div className="pl-5 pr-1">
-          <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${progressBarColor(progressPct)}`}
-              style={{ width: `${Math.min(progressPct, 100)}%` }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Competition countdown */}
-      {hasCompetition && (
-        <div className="pl-5">
-          <Badge
-            variant="outline"
-            className="border-orange-300 text-orange-600 dark:text-orange-400 text-[10px] px-1.5 py-0"
-          >
-            {objective.competition_name}
-            {leftDays != null && leftDays > 0 && (
-              <span className="ml-1 font-bold">J-{leftDays}</span>
-            )}
-          </Badge>
-        </div>
-      )}
-    </div>
-  );
-}
+// ObjectiveCard replaced by shared import from @/components/shared/ObjectiveCard

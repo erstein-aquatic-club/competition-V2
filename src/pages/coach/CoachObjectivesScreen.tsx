@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Target } from "lucide-react";
 import { FFN_EVENTS, eventLabel, formatTime, parseTime } from "@/lib/objectiveHelpers";
+import { ObjectiveCard } from "@/components/shared/ObjectiveCard";
 
 /** Fetch the auth UUID for a public.users integer ID via RPC. */
 async function fetchAuthUidForUser(userId: number): Promise<string | null> {
@@ -411,62 +412,7 @@ const ObjectiveFormSheet = ({
   );
 };
 
-// ── Objective Card ──────────────────────────────────────────────
-
-type ObjectiveCardProps = {
-  objective: Objective;
-  onEdit: (obj: Objective) => void;
-};
-
-const ObjectiveCard = ({ objective, onEdit }: ObjectiveCardProps) => {
-  const hasChrono = !!objective.event_code;
-  const hasText = !!objective.text;
-
-  return (
-    <button
-      type="button"
-      className="w-full text-left rounded-xl border bg-card p-3 space-y-1.5 transition-colors hover:bg-muted/50"
-      onClick={() => onEdit(objective)}
-    >
-      {hasChrono && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-semibold">
-            {eventLabel(objective.event_code!)}
-          </span>
-          {objective.pool_length && (
-            <Badge
-              variant="secondary"
-              className="text-[10px] px-1.5 py-0"
-            >
-              {objective.pool_length}m
-            </Badge>
-          )}
-          {objective.target_time_seconds != null && (
-            <Badge
-              variant="outline"
-              className="text-[10px] px-1.5 py-0 font-mono"
-            >
-              {formatTime(objective.target_time_seconds)}
-            </Badge>
-          )}
-        </div>
-      )}
-      {hasText && (
-        <p className="text-sm text-muted-foreground line-clamp-2">
-          {objective.text}
-        </p>
-      )}
-      {objective.competition_name && (
-        <Badge
-          variant="outline"
-          className="border-orange-300 text-orange-600 dark:text-orange-400 text-[10px] px-1.5 py-0"
-        >
-          {objective.competition_name}
-        </Badge>
-      )}
-    </button>
-  );
-};
+// ObjectiveCard replaced by shared import from @/components/shared/ObjectiveCard
 
 // ── Main Component ──────────────────────────────────────────────
 
@@ -650,7 +596,7 @@ const CoachObjectivesScreen = ({
       {showObjectivesList && !objectivesLoading && objectives.length > 0 && (
         <div className="space-y-2">
           {objectives.map((obj) => (
-            <ObjectiveCard key={obj.id} objective={obj} onEdit={handleEdit} />
+            <ObjectiveCard key={obj.id} objective={obj} onClick={() => handleEdit(obj)} />
           ))}
         </div>
       )}
