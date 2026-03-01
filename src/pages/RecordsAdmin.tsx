@@ -220,6 +220,12 @@ export default function RecordsAdmin() {
   const [showArchive, setShowArchive] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [rateLimits, setRateLimits] = useState<{ coach_monthly: number; athlete_monthly: number; admin_monthly: number } | null>(null);
+  const [autoSync, setAutoSync] = useState<{
+    enabled: boolean;
+    day: number;
+    hour: number;
+    last_run: string | null;
+  } | null>(null);
   const [mergeSource, setMergeSource] = useState<ClubRecordSwimmer | null>(null);
   const [mergeTargetId, setMergeTargetId] = useState<number | null>(null);
 
@@ -260,6 +266,9 @@ export default function RecordsAdmin() {
     if (!isAdmin) return;
     void api.getAppSettings("import_rate_limits").then((value) => {
       if (value) setRateLimits(value);
+    });
+    void api.getAppSettings("ffn_auto_sync").then((value) => {
+      if (value) setAutoSync(value);
     });
   }, [isAdmin]);
 
@@ -372,6 +381,17 @@ export default function RecordsAdmin() {
       api.updateAppSettings("import_rate_limits", limits),
     onSuccess: () => {
       toast({ title: "Limites sauvegardées" });
+    },
+    onError: () => {
+      toast({ title: "Erreur de sauvegarde", variant: "destructive" });
+    },
+  });
+
+  const saveAutoSync = useMutation({
+    mutationFn: (config: { enabled: boolean; day: number; hour: number; last_run: string | null }) =>
+      api.updateAppSettings("ffn_auto_sync", config),
+    onSuccess: () => {
+      toast({ title: "Planning sauvegardé" });
     },
     onError: () => {
       toast({ title: "Erreur de sauvegarde", variant: "destructive" });
@@ -830,6 +850,82 @@ export default function RecordsAdmin() {
               >
                 Enregistrer
               </Button>
+              {autoSync && (
+                <div className="space-y-3 border-t pt-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">Mise à jour auto FFN</p>
+                      <p className="text-xs text-muted-foreground">
+                        Import hebdomadaire des performances de tous les nageurs actifs
+                      </p>
+                    </div>
+                    <Switch
+                      checked={autoSync.enabled}
+                      onCheckedChange={(checked) => setAutoSync({ ...autoSync, enabled: checked })}
+                    />
+                  </div>
+                  {autoSync.enabled && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="text-xs text-muted-foreground">Jour</label>
+                        <Select
+                          value={String(autoSync.day)}
+                          onValueChange={(v) => setAutoSync({ ...autoSync, day: Number(v) })}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[
+                              { value: "1", label: "Lundi" },
+                              { value: "2", label: "Mardi" },
+                              { value: "3", label: "Mercredi" },
+                              { value: "4", label: "Jeudi" },
+                              { value: "5", label: "Vendredi" },
+                              { value: "6", label: "Samedi" },
+                              { value: "0", label: "Dimanche" },
+                            ].map((d) => (
+                              <SelectItem key={d.value} value={d.value}>
+                                {d.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Heure (UTC)</label>
+                        <Select
+                          value={String(autoSync.hour)}
+                          onValueChange={(v) => setAutoSync({ ...autoSync, hour: Number(v) })}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 24 }, (_, i) => (
+                              <SelectItem key={i} value={String(i)}>
+                                {String(i).padStart(2, "0")}:00
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                  {autoSync.last_run && (
+                    <p className="text-xs text-muted-foreground">
+                      Dernière exécution : {formatDateTime(autoSync.last_run)}
+                    </p>
+                  )}
+                  <Button
+                    size="sm"
+                    onClick={() => saveAutoSync.mutate(autoSync)}
+                    disabled={saveAutoSync.isPending}
+                  >
+                    Enregistrer
+                  </Button>
+                </div>
+              )}
             </CardContent>
           )}
         </Card>
