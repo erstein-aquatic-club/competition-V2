@@ -137,6 +137,10 @@ import {
   getCoachAssignments as _getCoachAssignments,
   assignments_create as _assignments_create,
   assignments_delete as _assignments_delete,
+  bulkCreateSlotAssignments as _bulkCreateSlotAssignments,
+  getSlotAssignments as _getSlotAssignments,
+  updateSlotVisibility as _updateSlotVisibility,
+  deleteSlotAssignments as _deleteSlotAssignments,
 } from "./api/assignments";
 
 import {
@@ -592,6 +596,10 @@ export const api = {
     return _assignments_create(data, currentUserId);
   },
   async assignments_delete(assignmentId: number) { return _assignments_delete(assignmentId); },
+  async bulkCreateSlotAssignments(params: Parameters<typeof _bulkCreateSlotAssignments>[0]) { return _bulkCreateSlotAssignments(params); },
+  async getSlotAssignments(params: Parameters<typeof _getSlotAssignments>[0]) { return _getSlotAssignments(params); },
+  async updateSlotVisibility(params: Parameters<typeof _updateSlotVisibility>[0]) { return _updateSlotVisibility(params); },
+  async deleteSlotAssignments(params: Parameters<typeof _deleteSlotAssignments>[0]) { return _deleteSlotAssignments(params); },
 
   // ══════════════════════════════════════════════════════════════════
   // DELEGATION STUBS — Notifications

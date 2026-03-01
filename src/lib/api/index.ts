@@ -141,6 +141,11 @@ export {
   getCoachAssignments,
   assignments_create,
   assignments_delete,
+  deriveScheduledSlot,
+  bulkCreateSlotAssignments,
+  getSlotAssignments,
+  updateSlotVisibility,
+  deleteSlotAssignments,
 } from './assignments';
 
 export {
