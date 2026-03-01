@@ -362,9 +362,19 @@ export interface StrokeCountEntry {
   count: number;
 }
 
+export const EQUIPMENT_OPTIONS = [
+  { value: "aucun", label: "Sans équipement" },
+  { value: "palmes", label: "Palmes" },
+  { value: "plaquettes", label: "Plaquettes" },
+  { value: "pull-buoy", label: "Pull-buoy" },
+  { value: "tuba", label: "Tuba frontal" },
+  { value: "elastique", label: "Élastique" },
+  { value: "combinaison", label: "Combinaison" },
+] as const;
+
 export interface SwimExerciseLog {
   id: string;
-  session_id: number;
+  session_id: number | null;
   user_id: string;
   exercise_label: string;
   source_item_id: number | null;
@@ -372,6 +382,9 @@ export interface SwimExerciseLog {
   tempo: number | null;
   stroke_count: StrokeCountEntry[];
   notes: string | null;
+  event_code: string | null;
+  pool_length: number | null;
+  equipment: string[];
   created_at: string;
   updated_at: string;
 }
@@ -383,6 +396,9 @@ export interface SwimExerciseLogInput {
   tempo?: number | null;
   stroke_count?: StrokeCountEntry[];
   notes?: string | null;
+  event_code?: string | null;
+  pool_length?: number | null;
+  equipment?: string[];
 }
 
 export interface CoachAssignment {

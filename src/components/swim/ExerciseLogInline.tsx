@@ -3,7 +3,9 @@ import { ChevronUp, Activity, Timer, Hash, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatSwimTime, parseSwimTime } from "@/lib/swimConsultationUtils";
 import type { SwimSessionItem, SwimExerciseLogInput, SplitTimeEntry, StrokeCountEntry } from "@/lib/api/types";
+import { EQUIPMENT_OPTIONS } from "@/lib/api/types";
 import type { SwimPayloadFields } from "@/lib/types";
+import { FFN_EVENTS, eventLabel } from "@/lib/objectiveHelpers";
 import { SwimTimeInput } from "./SwimTimeInput";
 
 // ---------------------------------------------------------------------------
@@ -59,6 +61,9 @@ export function ExerciseLogInline({ item, log, onChange, onCollapse }: ExerciseL
   const [splitTexts, setSplitTexts] = useState<string[]>(() =>
     initSplits().map((s) => formatSwimTime(s.time_seconds)),
   );
+  const [eventCode, setEventCode] = useState<string | null>(log.event_code ?? null);
+  const [poolLength, setPoolLength] = useState<number | null>(log.pool_length ?? null);
+  const [equipment, setEquipment] = useState<string[]>(log.equipment ?? ["aucun"]);
 
   const emit = useCallback(
     (patch: Partial<SwimExerciseLogInput>) => {
@@ -102,6 +107,33 @@ export function ExerciseLogInline({ item, log, onChange, onCollapse }: ExerciseL
     emit({ notes: value || null });
   };
 
+  const handleEventChange = (value: string) => {
+    const next = value || null;
+    setEventCode(next);
+    emit({ event_code: next });
+  };
+
+  const handlePoolToggle = (len: number) => {
+    const next = poolLength === len ? null : len;
+    setPoolLength(next);
+    emit({ pool_length: next });
+  };
+
+  const handleEquipmentToggle = (value: string) => {
+    let next: string[];
+    if (value === "aucun") {
+      next = ["aucun"];
+    } else {
+      const without = equipment.filter((e) => e !== "aucun");
+      next = without.includes(value)
+        ? without.filter((e) => e !== value)
+        : [...without, value];
+      if (next.length === 0) next = ["aucun"];
+    }
+    setEquipment(next);
+    emit({ equipment: next });
+  };
+
   // -- Render ----------------------------------------------------------------
 
   return (
@@ -135,6 +167,64 @@ export function ExerciseLogInline({ item, log, onChange, onCollapse }: ExerciseL
         >
           <ChevronUp className="h-4 w-4 text-muted-foreground" />
         </button>
+      </div>
+
+      {/* Event / Pool / Equipment selectors */}
+      <div className="space-y-2">
+        {/* Event + Pool row */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <select
+            value={eventCode ?? ""}
+            onChange={(e) => handleEventChange(e.target.value)}
+            className={cn(
+              "h-7 rounded-lg border border-input bg-background px-1.5 text-xs",
+              "focus:outline-none focus:ring-1 focus:ring-ring",
+              !eventCode && "text-muted-foreground",
+            )}
+          >
+            <option value="">Épreuve...</option>
+            {FFN_EVENTS.map((code) => (
+              <option key={code} value={code}>{eventLabel(code)}</option>
+            ))}
+          </select>
+
+          <div className="flex items-center gap-1">
+            {([25, 50] as const).map((len) => (
+              <button
+                key={len}
+                type="button"
+                onClick={() => handlePoolToggle(len)}
+                className={cn(
+                  "h-7 px-2 rounded-lg border text-xs font-medium transition-colors",
+                  poolLength === len
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background border-input text-muted-foreground hover:bg-muted",
+                )}
+              >
+                {len}m
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Equipment chips */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {EQUIPMENT_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => handleEquipmentToggle(opt.value)}
+              className={cn(
+                "h-6 px-2 rounded-lg border text-xs transition-colors",
+                equipment.includes(opt.value)
+                  ? "bg-primary/15 text-primary border-primary/40 font-medium"
+                  : "bg-background border-input text-muted-foreground hover:bg-muted",
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Table: Rep | Temps | Coups de bras */}

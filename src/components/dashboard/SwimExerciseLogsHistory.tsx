@@ -2,7 +2,9 @@ import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { SwimExerciseLog, SwimExerciseLogInput } from "@/lib/api";
-import { Timer, Activity, Hash, FileText, ChevronRight, Pencil, Check, X, Trash2, Plus } from "lucide-react";
+import { EQUIPMENT_OPTIONS } from "@/lib/api/types";
+import { eventLabel, strokeFromCode, STROKE_COLORS } from "@/lib/objectiveHelpers";
+import { Timer, Activity, Hash, FileText, ChevronRight, ChevronDown, Pencil, Check, X, Trash2, Plus, Droplets } from "lucide-react";
 import { formatSwimTime, parseSwimTime } from "@/lib/swimConsultationUtils";
 import { SwimTimeInput } from "@/components/swim/SwimTimeInput";
 
@@ -22,11 +24,15 @@ function formatDate(iso: string) {
   }
 }
 
+function equipmentLabel(value: string): string {
+  return EQUIPMENT_OPTIONS.find((o) => o.value === value)?.label ?? value;
+}
+
 interface SwimExerciseLogsHistoryProps {
   userId: string;
   expanded: boolean;
   onToggle: () => void;
-  /** When true, skip the toggle button (used on dedicated page) */
+  /** When true, skip the toggle button and group by event (used on dedicated page) */
   standalone?: boolean;
 }
 
@@ -34,7 +40,7 @@ export function SwimExerciseLogsHistory({ userId, expanded, onToggle, standalone
   const queryClient = useQueryClient();
   const { data: logs, isLoading } = useQuery({
     queryKey: ["swim-exercise-logs-history", userId],
-    queryFn: () => api.getSwimExerciseLogsHistory(userId, 100),
+    queryFn: () => api.getSwimExerciseLogsHistory(userId, 200),
     enabled: !!userId && expanded,
   });
 
@@ -53,7 +59,7 @@ export function SwimExerciseLogsHistory({ userId, expanded, onToggle, standalone
     },
   });
 
-  // Group logs by date
+  // Group logs by date (default view)
   const groupedByDate = React.useMemo(() => {
     if (!logs?.length) return [];
     const map = new Map<string, SwimExerciseLog[]>();
@@ -65,38 +71,96 @@ export function SwimExerciseLogsHistory({ userId, expanded, onToggle, standalone
     return Array.from(map.entries()).map(([date, entries]) => ({ date, entries }));
   }, [logs]);
 
+  // Group logs by event (standalone view)
+  const groupedByEvent = React.useMemo(() => {
+    if (!logs?.length) return [];
+    const map = new Map<string, SwimExerciseLog[]>();
+    const unclassified: SwimExerciseLog[] = [];
+    for (const log of logs) {
+      if (!log.event_code) {
+        unclassified.push(log);
+        continue;
+      }
+      const key = `${log.event_code}__${log.pool_length ?? ""}`;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(log);
+    }
+    const groups = Array.from(map.entries()).map(([key, entries]) => {
+      const [eventCode, poolStr] = key.split("__");
+      const pool = poolStr ? Number(poolStr) : null;
+      return { eventCode, pool, entries, label: `${eventLabel(eventCode)}${pool ? ` — ${pool}m` : ""}` };
+    });
+    // Sort by event label
+    groups.sort((a, b) => a.label.localeCompare(b.label));
+    if (unclassified.length > 0) {
+      groups.push({ eventCode: "", pool: null, entries: unclassified, label: "Non classées" });
+    }
+    return groups;
+  }, [logs]);
+
+  const renderLogEntry = (log: SwimExerciseLog) => (
+    <LogEntry
+      key={log.id}
+      log={log}
+      showEventBadge={!standalone}
+      onSave={(patch) => updateMutation.mutate({ logId: log.id, patch })}
+      onDelete={() => deleteMutation.mutate(log.id)}
+      saving={updateMutation.isPending}
+    />
+  );
+
+  // Standalone: grouped by event
+  if (standalone && expanded) {
+    return (
+      <div className="space-y-3">
+        {isLoading && (
+          <div className="text-sm text-muted-foreground text-center py-4">Chargement...</div>
+        )}
+        {!isLoading && groupedByEvent.length === 0 && (
+          <div className="text-sm text-muted-foreground text-center py-8">
+            Aucune note technique enregistrée.
+          </div>
+        )}
+        {groupedByEvent.map(({ eventCode, label, entries }) => {
+          const stroke = eventCode ? strokeFromCode(eventCode) : null;
+          const borderColor = stroke ? STROKE_COLORS[stroke] : "";
+          return (
+            <EventSection
+              key={label}
+              label={label}
+              borderColor={borderColor}
+              entries={entries}
+              renderEntry={renderLogEntry}
+            />
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Default: grouped by date (collapsible)
   const content = expanded ? (
-    <div className={standalone ? "space-y-3" : "mt-2 space-y-3 rounded-2xl border border-border/60 bg-card/60 p-2"}>
-          {isLoading && (
-            <div className="text-sm text-muted-foreground text-center py-4">Chargement...</div>
-          )}
-
-          {!isLoading && groupedByDate.length === 0 && (
-            <div className="text-sm text-muted-foreground text-center py-4">
-              Aucune note technique enregistree.
-            </div>
-          )}
-
-          {groupedByDate.map(({ date, entries }) => (
-            <div key={date} className="rounded-2xl border border-border overflow-hidden">
-              <div className="bg-muted/50 px-3 py-2 text-xs font-semibold text-muted-foreground">
-                {formatDate(date)}
-              </div>
-              <div className="divide-y divide-border">
-                {entries.map((log) => (
-                  <LogEntry
-                    key={log.id}
-                    log={log}
-                    onSave={(patch) => updateMutation.mutate({ logId: log.id, patch })}
-                    onDelete={() => deleteMutation.mutate(log.id)}
-                    saving={updateMutation.isPending}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
+    <div className="mt-2 space-y-3 rounded-2xl border border-border/60 bg-card/60 p-2">
+      {isLoading && (
+        <div className="text-sm text-muted-foreground text-center py-4">Chargement...</div>
+      )}
+      {!isLoading && groupedByDate.length === 0 && (
+        <div className="text-sm text-muted-foreground text-center py-4">
+          Aucune note technique enregistrée.
         </div>
-      ) : null;
+      )}
+      {groupedByDate.map(({ date, entries }) => (
+        <div key={date} className="rounded-2xl border border-border overflow-hidden">
+          <div className="bg-muted/50 px-3 py-2 text-xs font-semibold text-muted-foreground">
+            {formatDate(date)}
+          </div>
+          <div className="divide-y divide-border">
+            {entries.map(renderLogEntry)}
+          </div>
+        </div>
+      ))}
+    </div>
+  ) : null;
 
   if (standalone) return content;
 
@@ -127,14 +191,55 @@ export function SwimExerciseLogsHistory({ userId, expanded, onToggle, standalone
   );
 }
 
+// ── Collapsible event section ────────────────────────────────
+
+function EventSection({
+  label,
+  borderColor,
+  entries,
+  renderEntry,
+}: {
+  label: string;
+  borderColor: string;
+  entries: SwimExerciseLog[];
+  renderEntry: (log: SwimExerciseLog) => React.ReactNode;
+}) {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <div className={cn("rounded-2xl border border-border overflow-hidden", borderColor && `border-l-[3px] ${borderColor}`)}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between bg-muted/50 px-3 py-2 text-left"
+      >
+        <div className="flex items-center gap-2">
+          <Droplets className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs font-semibold text-foreground">{label}</span>
+          <span className="text-[10px] text-muted-foreground">{entries.length} entrée{entries.length > 1 ? "s" : ""}</span>
+        </div>
+        <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", !open && "-rotate-90")} />
+      </button>
+      {open && (
+        <div className="divide-y divide-border">
+          {entries.map(renderEntry)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Log entry (read + edit) ──────────────────────────────────
+
 interface LogEntryProps {
   log: SwimExerciseLog;
+  showEventBadge?: boolean;
   onSave: (patch: Partial<SwimExerciseLogInput>) => void;
   onDelete: () => void;
   saving: boolean;
 }
 
-function LogEntry({ log, onSave, onDelete, saving }: LogEntryProps) {
+function LogEntry({ log, showEventBadge, onSave, onDelete, saving }: LogEntryProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({
     notes: log.notes ?? "",
@@ -224,29 +329,13 @@ function LogEntry({ log, onSave, onDelete, saving }: LogEntryProps) {
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold text-foreground">{log.exercise_label}</span>
           <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={save}
-              disabled={saving}
-              className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition"
-              aria-label="Enregistrer"
-            >
+            <button type="button" onClick={save} disabled={saving} className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition" aria-label="Enregistrer">
               <Check className="h-4 w-4" />
             </button>
-            <button
-              type="button"
-              onClick={cancel}
-              className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted transition"
-              aria-label="Annuler"
-            >
+            <button type="button" onClick={cancel} className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted transition" aria-label="Annuler">
               <X className="h-4 w-4" />
             </button>
-            <button
-              type="button"
-              onClick={onDelete}
-              className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition"
-              aria-label="Supprimer"
-            >
+            <button type="button" onClick={onDelete} className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition" aria-label="Supprimer">
               <Trash2 className="h-4 w-4" />
             </button>
           </div>
@@ -277,11 +366,7 @@ function LogEntry({ log, onSave, onDelete, saving }: LogEntryProps) {
               <Timer className="h-3.5 w-3.5" />
               Temps
             </div>
-            <button
-              type="button"
-              onClick={addSplit}
-              className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition"
-            >
+            <button type="button" onClick={addSplit} className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition">
               <Plus className="h-3 w-3" />
               Rep
             </button>
@@ -297,11 +382,7 @@ function LogEntry({ log, onSave, onDelete, saving }: LogEntryProps) {
                     onBlur={() => handleSplitBlur(i)}
                     size="compact"
                   />
-                  <button
-                    type="button"
-                    onClick={() => removeSplit(i)}
-                    className="p-0.5 text-muted-foreground hover:text-destructive transition"
-                  >
+                  <button type="button" onClick={() => removeSplit(i)} className="p-0.5 text-muted-foreground hover:text-destructive transition">
                     <Trash2 className="h-3 w-3" />
                   </button>
                 </div>
@@ -317,11 +398,7 @@ function LogEntry({ log, onSave, onDelete, saving }: LogEntryProps) {
               <Hash className="h-3.5 w-3.5" />
               Coups de bras
             </div>
-            <button
-              type="button"
-              onClick={addStroke}
-              className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition"
-            >
+            <button type="button" onClick={addStroke} className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition">
               <Plus className="h-3 w-3" />
               Rep
             </button>
@@ -340,11 +417,7 @@ function LogEntry({ log, onSave, onDelete, saving }: LogEntryProps) {
                     placeholder="nb"
                     className="w-14 rounded-lg border border-border bg-background px-1.5 py-1 text-xs text-center outline-none focus:ring-2 focus:ring-foreground/10"
                   />
-                  <button
-                    type="button"
-                    onClick={() => removeStroke(i)}
-                    className="p-0.5 text-muted-foreground hover:text-destructive transition"
-                  >
+                  <button type="button" onClick={() => removeStroke(i)} className="p-0.5 text-muted-foreground hover:text-destructive transition">
                     <Trash2 className="h-3 w-3" />
                   </button>
                 </div>
@@ -365,10 +438,20 @@ function LogEntry({ log, onSave, onDelete, saving }: LogEntryProps) {
     );
   }
 
+  // Read mode
+  const hasEquipment = log.equipment?.length > 0 && !(log.equipment.length === 1 && log.equipment[0] === "aucun");
+
   return (
     <div className="px-3 py-2.5 space-y-1.5 group">
       <div className="flex items-center justify-between">
-        <div className="text-sm font-semibold text-foreground">{log.exercise_label}</div>
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="text-sm font-semibold text-foreground truncate">{log.exercise_label}</div>
+          {showEventBadge && log.event_code && (
+            <span className="shrink-0 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+              {eventLabel(log.event_code)}{log.pool_length ? ` ${log.pool_length}m` : ""}
+            </span>
+          )}
+        </div>
         <button
           type="button"
           onClick={startEdit}
@@ -377,6 +460,18 @@ function LogEntry({ log, onSave, onDelete, saving }: LogEntryProps) {
         >
           <Pencil className="h-3.5 w-3.5" />
         </button>
+      </div>
+
+      {/* Badges: equipment + date */}
+      <div className="flex flex-wrap gap-1">
+        {hasEquipment && log.equipment.filter((e) => e !== "aucun").map((eq) => (
+          <span key={eq} className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+            {equipmentLabel(eq)}
+          </span>
+        ))}
+        <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+          {formatDate((log.created_at ?? "").slice(0, 10))}
+        </span>
       </div>
 
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">

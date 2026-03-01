@@ -185,6 +185,7 @@ export {
   getSwimExerciseLogs,
   getSwimExerciseLogsHistory,
   saveSwimExerciseLogs,
+  createStandaloneSwimLog,
   updateSwimExerciseLog,
   deleteSwimExerciseLog,
 } from './swim-logs';
