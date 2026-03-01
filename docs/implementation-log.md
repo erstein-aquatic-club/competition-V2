@@ -53,6 +53,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §80 Sécurité RLS + Import FFN Auto-Sync | ✅ Fait | 2026-03-01 |
 | §81 Audit UX A-H (touch targets, feedback, nav, wizard) | ✅ Fait | 2026-03-01 |
 | §82 Audit restant (CORS, migrations, RPC, pagination, deep linking) | ✅ Fait | 2026-03-01 |
+| §84 Refonte UX CoachHome + CoachSwimmersOverview (Bord de Bassin) | ✅ Fait | 2026-03-01 |
 | §45 Audit UI/UX — header Strength + login mobile + fixes | ✅ Fait | 2026-02-16 |
 | §46 Harmonisation headers + Login mobile thème clair | ✅ Fait | 2026-02-16 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
@@ -6605,3 +6606,64 @@ Dernières recommandations de l'audit EAC. E5 scinde la page Profil monolithique
 
 - Le pull-to-refresh ne distingue pas le scroll interne vs page — fonctionne uniquement quand la page est en haut
 - Le swipe calendrier peut interférer avec le scroll horizontal d'éléments internes (peu probable vu le layout actuel)
+
+---
+
+## 2026-03-01 — §84 Refonte UX CoachHome "Bord de Bassin" + CoachSwimmersOverview Intelligente
+
+**Branche** : `main`
+**Chantier ROADMAP** : §84 — Refonte UX Dashboard Coach
+
+### Contexte — Pourquoi ce patch
+
+Le CoachHome existant était un menu d'applications générique sans personnalité. L'objectif était de le transformer en un vrai "bord de bassin" orienté mobile-first, premium, avec :
+- Les alertes fatigue visibles immédiatement (pas enfouies)
+- Un bouton CTA géant animé pour l'action principale du quotidien
+- Une liste nageurs intelligente avec indicateurs visuels (sparkline, forme dots)
+
+### Changements réalisés
+
+**Coach.tsx — CoachHome :**
+- Ajout de `SectionLabel` — séparateur minimaliste avec ligne horizontale et texte uppercase tracké
+- CTA géant animé (gradient indigo/violet ou rouge/orange selon alertes) avec :
+  - Glow radial pulsant via `@keyframes cta-breathe` / `cta-breathe-alert` CSS inline
+  - Shimmer diagonal animé (`shimmer-slide`)
+  - Badge "Attention requise" avec `animate-ping` si alertes
+  - Icône Waves ou HeartPulse dans conteneur frosted-glass
+- Section "Tour de Contrôle" : affichage des alertes fatigue en first-class (liste pulsante, bouton par nageur → navigate swimmers)
+- Avatars nageurs avec ring rouge + badge "Alerte" animé si fatigueAlert
+- Section "Arsenal" avec grille 4 colonnes + icônes colorées par domaine
+- Toutes les props et callbacks (onNavigate, onOpenAthlete, onOpenRecordsAdmin, etc.) rigoureusement conservés
+
+**CoachSwimmersOverview.tsx :**
+- `FormeDots` : 5 points colorés (vert/orange/rouge) + score numérique pour la forme
+- `SparkBar` : 5 barres en hauteur montante pour l'assiduité 30j (relative au max du groupe visible)
+- `LastSeenLabel` : label relatif intelligente (Aujourd'hui / Hier / Il y a Xj / date courte), orange si > 14j
+- Badge objectifs sur les cartes nageur
+- Coloration rouge de l'avatar et de la bordure carte si forme < 2.5
+- KPI "Dernier ressenti" séparé par un divider `border-t`
+- `maxSessions30d` calculé via `useMemo` pour normaliser les sparkbars
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/pages/Coach.tsx` | Redesign CoachHome — CTA animé, Tour de Contrôle, Arsenal, SectionLabel |
+| `src/pages/coach/CoachSwimmersOverview.tsx` | Ajout FormeDots, SparkBar, LastSeenLabel, redesign cartes |
+
+### Tests
+
+- [x] `npx tsc --noEmit` : 0 nouvelles erreurs
+- [ ] Test manuel : vérifier CTA alert vs non-alert, sparkbars proportionnelles, form dots couleurs
+
+### Décisions
+
+- CSS keyframes inline (`<style>`) : évite une dépendance framer-motion sur un composant déjà léger
+- Sparkbar normalisée au max du groupe visible — représentation relative honnête sans données par jour
+- `LastSeenLabel` en orange à partir de 14 jours d'inactivité — seuil coach pertinent
+- Toutes les props existantes conservées à l'identique : refonte purement visuelle, 0 breaking change
+
+### Limites
+
+- Le shimmer CTA peut créer un flicker sur très vieux appareils (animation CSS accélérée GPU)
+- SparkBar utilise le max du groupe courant : si un seul nageur visible, toutes ses barres sont au max

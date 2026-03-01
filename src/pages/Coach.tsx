@@ -5,7 +5,20 @@ import { api } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BellRing, CalendarDays, ChevronRight, Clock, Dumbbell, HeartPulse, Search, Trophy, Users, UsersRound, Waves } from "lucide-react";
+import {
+  BellRing,
+  CalendarDays,
+  ChevronRight,
+  Clock,
+  Dumbbell,
+  HeartPulse,
+  Search,
+  Trophy,
+  Users,
+  UsersRound,
+  Waves,
+  Zap,
+} from "lucide-react";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Input } from "@/components/ui/input";
 import CoachSectionHeader from "./coach/CoachSectionHeader";
@@ -49,6 +62,19 @@ type CoachHomeProps = {
   strengthSessionCount?: number;
 };
 
+// ── Minimal section divider label ──────────────────────────────────────────
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 pb-0.5">
+      <span className="text-[9px] font-black uppercase tracking-[0.28em] text-muted-foreground/70">
+        {children}
+      </span>
+      <div className="flex-1 h-px bg-border/50" />
+    </div>
+  );
+}
+
+// ── CoachHome ──────────────────────────────────────────────────────────────
 const CoachHome = ({
   onNavigate,
   onOpenRecordsAdmin,
@@ -74,7 +100,6 @@ const CoachHome = ({
     if (!deferredSearch) {
       return athletes.slice(0, 5);
     }
-
     return athletes
       .filter((athlete) => {
         const name = athlete.display_name.toLocaleLowerCase("fr-FR");
@@ -84,21 +109,53 @@ const CoachHome = ({
       .slice(0, 6);
   }, [athletes, deferredSearch]);
 
-  const primaryAction =
-    fatigueAlerts.length > 0
-      ? {
-          label: `${fatigueAlerts.length} alerte${fatigueAlerts.length > 1 ? "s" : ""} fatigue`,
-          detail: "Ouvrir la vue nageurs",
-          action: () => onNavigate("swimmers"),
-        }
-      : {
-          label: "Assigner une séance",
-          detail: "Planifier pour un groupe",
-          action: () => onNavigate("calendar"),
-        };
+  const hasAlerts = fatigueAlerts.length > 0;
+
+  const primaryAction = hasAlerts
+    ? {
+        label: `${fatigueAlerts.length} alerte${fatigueAlerts.length > 1 ? "s" : ""} fatigue`,
+        detail: fatigueAlerts.slice(0, 2).map((a) => a.athleteName.split(" ")[0]).join(", ") + (fatigueAlerts.length > 2 ? `…` : ""),
+        action: () => onNavigate("swimmers"),
+      }
+    : {
+        label: "Séance du jour",
+        detail: "Assigner · Planifier un groupe",
+        action: () => onNavigate("calendar"),
+      };
+
+  const tools = [
+    { label: "Natation", icon: Waves, action: () => onNavigate("swim"), color: "text-cyan-500" },
+    { label: "Muscu", icon: Dumbbell, action: () => onNavigate("strength"), color: "text-violet-500" },
+    { label: "Groupes", icon: UsersRound, action: () => onNavigate("groups"), color: "text-emerald-500" },
+    { label: "Compétitions", icon: Trophy, action: () => onNavigate("competitions"), color: "text-amber-500" },
+    { label: "Créneaux", icon: Clock, action: () => onNavigate("training-slots"), color: "text-blue-500" },
+    { label: "SMS", icon: BellRing, action: () => onNavigate("sms"), color: "text-rose-500" },
+    { label: "Records", icon: Trophy, action: onOpenRecordsClub, color: "text-orange-500" },
+    { label: "Admin rec.", icon: Trophy, action: onOpenRecordsAdmin, color: "text-slate-500" },
+  ];
 
   return (
-    <div className="space-y-4 pb-24">
+    <div className="space-y-5 pb-24">
+      {/* CSS keyframes for glow animations */}
+      <style>{`
+        @keyframes cta-breathe {
+          0%, 100% { opacity: 0.55; transform: scale(1); }
+          50%       { opacity: 0.85; transform: scale(1.06); }
+        }
+        @keyframes cta-breathe-alert {
+          0%, 100% { opacity: 0.45; }
+          50%       { opacity: 0.85; }
+        }
+        @keyframes shimmer-slide {
+          0%   { transform: translateX(-100%) skewX(-12deg); }
+          100% { transform: translateX(300%) skewX(-12deg); }
+        }
+        .cta-glow     { animation: cta-breathe 3.5s ease-in-out infinite; }
+        .cta-glow-alert { animation: cta-breathe-alert 1.4s ease-in-out infinite; }
+        .cta-shimmer  { animation: shimmer-slide 2.8s ease-in-out infinite 0.8s; }
+      `}</style>
+
+      {/* ── STICKY HEADER ── */}
       <div className="sticky top-0 z-20 -mx-4 border-b bg-background/95 px-4 py-3 backdrop-blur">
         <div className="flex items-center gap-2">
           <button
@@ -112,7 +169,7 @@ const CoachHome = ({
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Rechercher un nageur"
               className="h-10 rounded-full pl-9"
             />
@@ -126,104 +183,271 @@ const CoachHome = ({
         </p>
       </div>
 
-      <section className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h1 className="text-lg font-display font-bold uppercase italic">Aujourd'hui</h1>
-          <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => onNavigate("swimmers")}>
-            Tous les nageurs
-          </Button>
-        </div>
-        <div className="space-y-2 rounded-2xl border bg-card p-3 shadow-sm">
-          <button
-            type="button"
-            onClick={primaryAction.action}
-            className="flex w-full items-center justify-between gap-3 rounded-2xl border px-3 py-3 text-left active:bg-muted"
-          >
-            <div className="min-w-0">
-              <p className="text-sm font-semibold">{primaryAction.label}</p>
-              <p className="text-xs text-muted-foreground">{primaryAction.detail}</p>
+      {/* ── SECTION 1 : LE QUOTIDIEN ── */}
+      <section className="space-y-2.5">
+        <SectionLabel>Le Quotidien</SectionLabel>
+
+        {/* ── PRIMARY CTA — giant animated button ── */}
+        <button
+          type="button"
+          onClick={primaryAction.action}
+          className={[
+            "relative w-full overflow-hidden rounded-3xl text-white transition-all duration-200 active:scale-[0.97]",
+            hasAlerts
+              ? "bg-gradient-to-br from-rose-500 via-red-500 to-orange-500"
+              : "bg-gradient-to-br from-indigo-600 via-violet-600 to-blue-700",
+          ].join(" ")}
+        >
+          {/* Radial background glow */}
+          <div
+            className={hasAlerts ? "cta-glow-alert absolute inset-0" : "cta-glow absolute inset-0"}
+            style={{
+              background: hasAlerts
+                ? "radial-gradient(ellipse at 20% 60%, rgba(255,80,60,0.6) 0%, transparent 65%)"
+                : "radial-gradient(ellipse at 20% 60%, rgba(139,92,246,0.6) 0%, transparent 65%)",
+            }}
+          />
+          {/* Diagonal shimmer stripe */}
+          <div
+            className="cta-shimmer absolute top-0 bottom-0 left-0 w-1/3 pointer-events-none"
+            style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent)" }}
+          />
+
+          <div className="relative flex items-center gap-4 px-6 py-7">
+            <div className="min-w-0 flex-1">
+              {hasAlerts && (
+                <div className="mb-2.5 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
+                  </span>
+                  <span className="text-[9px] font-black uppercase tracking-[0.22em]">Attention requise</span>
+                </div>
+              )}
+              <p className="text-[1.6rem] font-bold leading-tight tracking-tight">{primaryAction.label}</p>
+              <p className="mt-1.5 text-sm opacity-75">{primaryAction.detail}</p>
             </div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-          </button>
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm border border-white/20">
+              {hasAlerts
+                ? <HeartPulse className="h-7 w-7 animate-pulse" />
+                : <Waves className="h-7 w-7" />}
+            </div>
+          </div>
+        </button>
+
+        {/* Secondary quick actions */}
+        <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => onNavigate("objectives")}
-            className="flex w-full items-center justify-between gap-3 rounded-2xl border px-3 py-3 text-left active:bg-muted"
+            className="flex items-center gap-2.5 rounded-2xl border bg-card px-4 py-3.5 text-left transition-colors active:bg-muted"
           >
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/30">
+              <Trophy className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            </div>
             <div className="min-w-0">
               <p className="text-sm font-semibold">Objectifs</p>
-              <p className="text-xs text-muted-foreground">Ouvrir les temps cibles</p>
+              <p className="text-[11px] text-muted-foreground">Temps cibles</p>
             </div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
           </button>
           <button
             type="button"
             onClick={() => onNavigate("messaging")}
-            className="flex w-full items-center justify-between gap-3 rounded-2xl border px-3 py-3 text-left active:bg-muted"
+            className="flex items-center gap-2.5 rounded-2xl border bg-card px-4 py-3.5 text-left transition-colors active:bg-muted"
           >
-            <div className="min-w-0">
-              <p className="text-sm font-semibold">Message rapide</p>
-              <p className="text-xs text-muted-foreground">Notifier un groupe ou un nageur</p>
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/30">
+              <BellRing className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             </div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">Message</p>
+              <p className="text-[11px] text-muted-foreground">Notifier un groupe</p>
+            </div>
           </button>
         </div>
       </section>
 
-      <section className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+      {/* ── SECTION 2 : TOUR DE CONTRÔLE ── */}
+      <section className="space-y-2.5">
+        <SectionLabel>Tour de Contrôle</SectionLabel>
+
+        <div
+          className={[
+            "rounded-3xl border p-4 space-y-3 transition-colors",
+            hasAlerts
+              ? "border-red-200 bg-red-50/70 dark:border-red-900/50 dark:bg-red-950/25"
+              : "bg-card border-border",
+          ].join(" ")}
+        >
+          {/* Fatigue alert list — front and center */}
+          {hasAlerts && !kpiLoading && (
+            <div className="space-y-1.5">
+              {fatigueAlerts.map((alert) => (
+                <button
+                  key={alert.athleteName}
+                  type="button"
+                  onClick={() => onNavigate("swimmers")}
+                  className="flex w-full items-center gap-3 rounded-2xl bg-white/70 dark:bg-black/20 px-3.5 py-2.5 text-left transition-colors active:bg-white/90"
+                >
+                  <span className="relative flex h-3 w-3 shrink-0">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-60" />
+                    <span className="relative inline-flex h-3 w-3 rounded-full bg-red-500" />
+                  </span>
+                  <span className="flex-1 text-sm font-semibold text-red-900 dark:text-red-200">
+                    {alert.athleteName}
+                  </span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-red-600 dark:text-red-400">
+                    Fatigue max
+                  </span>
+                  <ChevronRight className="h-3.5 w-3.5 text-red-400" />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* KPI pair */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <div
+              className={[
+                "rounded-2xl p-3.5",
+                hasAlerts ? "bg-white/50 dark:bg-black/20" : "bg-muted/40",
+              ].join(" ")}
+            >
+              <div className="mb-2 flex items-center gap-1.5">
+                <HeartPulse
+                  className={`h-3.5 w-3.5 ${fatigueAlerts.length > 0 ? "text-red-500" : "text-muted-foreground"}`}
+                />
+                <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                  Alertes
+                </span>
+              </div>
+              <p
+                className={`text-4xl font-black tabular-nums leading-none ${
+                  fatigueAlerts.length > 0 ? "text-red-600 dark:text-red-400" : "text-foreground"
+                }`}
+              >
+                {kpiLoading ? "–" : fatigueAlerts.length}
+              </p>
+              <p className="mt-1.5 text-[11px] text-muted-foreground truncate">
+                {kpiLoading
+                  ? "Calcul…"
+                  : fatigueAlerts.length > 0
+                  ? fatigueAlerts.slice(0, 2).map((a) => a.athleteName.split(" ")[0]).join(", ")
+                  : "Aucune alerte"}
+              </p>
+            </div>
+
+            <div
+              className={[
+                "rounded-2xl p-3.5",
+                hasAlerts ? "bg-white/50 dark:bg-black/20" : "bg-muted/40",
+              ].join(" ")}
+            >
+              <div className="mb-2 flex items-center gap-1.5">
+                <Zap className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                  Plus chargé
+                </span>
+              </div>
+              <p className="text-2xl font-black truncate leading-none">
+                {kpiLoading ? "–" : mostLoadedAthlete?.athleteName?.split(" ")[0] ?? "–"}
+              </p>
+              <p className="mt-1.5 text-[11px] text-muted-foreground">
+                {kpiLoading
+                  ? "Calcul…"
+                  : mostLoadedAthlete
+                  ? `Charge ${Math.round(mostLoadedAthlete.loadScore)}`
+                  : "Pas de données"}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── SECTION 3 : NAGEURS ── */}
+      <section className="space-y-2.5">
+        <div className="flex items-center gap-3 pb-0.5">
+          <span className="text-[9px] font-black uppercase tracking-[0.28em] text-muted-foreground/70">
             Nageurs
-          </h2>
+          </span>
+          <div className="flex-1 h-px bg-border/50" />
           {search ? (
             <button
               type="button"
               onClick={() => setSearch("")}
-              className="text-xs font-semibold text-primary"
+              className="text-[10px] font-bold text-primary"
             >
               Effacer
             </button>
-          ) : null}
+          ) : (
+            <button
+              type="button"
+              onClick={() => onNavigate("swimmers")}
+              className="flex items-center gap-0.5 text-[10px] font-bold text-primary"
+            >
+              Tous <ChevronRight className="h-3 w-3" />
+            </button>
+          )}
         </div>
-        <div className="rounded-2xl border bg-card p-2 shadow-sm">
+
+        <div className="overflow-hidden rounded-3xl border bg-card shadow-sm">
           {athletesLoading ? (
-            <div className="space-y-2 p-2">
-              {[1, 2, 3, 4].map((item) => (
-                <div key={item} className="h-14 animate-pulse rounded-xl bg-muted/60" />
+            <div className="divide-y divide-border/60">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex items-center gap-3 px-4 py-3.5">
+                  <div className="h-9 w-9 animate-pulse rounded-full bg-muted" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-3.5 w-28 animate-pulse rounded bg-muted" />
+                    <div className="h-3 w-18 animate-pulse rounded bg-muted" />
+                  </div>
+                </div>
               ))}
             </div>
           ) : visibleAthletes.length === 0 ? (
-            <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+            <p className="px-4 py-8 text-center text-sm text-muted-foreground">
               Aucun nageur trouvé.
-            </div>
+            </p>
           ) : (
-            <div className="space-y-1">
+            <div className="divide-y divide-border/60">
               {visibleAthletes.map((athlete) => {
                 const isFatigueAlert = fatigueAlerts.some(
-                  (item) => item.athleteName === athlete.display_name,
+                  (a) => a.athleteName === athlete.display_name,
                 );
+                const initials = athlete.display_name.charAt(0).toUpperCase();
 
                 return (
                   <button
                     key={athlete.id ?? athlete.display_name}
                     type="button"
                     onClick={() => onOpenAthlete(athlete)}
-                    className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left active:bg-muted"
+                    className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors active:bg-muted"
                   >
+                    {/* Avatar with alert ring */}
+                    <div
+                      className={[
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-all",
+                        isFatigueAlert
+                          ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 ring-2 ring-red-400/60 ring-offset-1"
+                          : "bg-primary/10 text-primary",
+                      ].join(" ")}
+                    >
+                      {initials}
+                    </div>
+
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{athlete.display_name}</p>
-                      <p className="truncate text-xs text-muted-foreground">
+                      <p className="truncate text-[11px] text-muted-foreground">
                         {athlete.group_label || "Sans groupe"}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {isFatigueAlert ? (
-                        <span className="rounded-full bg-destructive/10 px-2 py-1 text-[10px] font-semibold text-destructive">
-                          Alerte
-                        </span>
-                      ) : null}
+
+                    {isFatigueAlert ? (
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
+                        Alerte
+                      </span>
+                    ) : (
                       <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    </div>
+                    )}
                   </button>
                 );
               })}
@@ -232,92 +456,58 @@ const CoachHome = ({
         </div>
       </section>
 
-      <section className="space-y-2">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-          Repères
-        </h2>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-2xl border bg-card p-3 shadow-sm">
-            <div className="mb-1 flex items-center justify-between">
-              <span className="text-[11px] text-muted-foreground">Fatigue</span>
-              <HeartPulse className="h-3.5 w-3.5 text-muted-foreground" />
-            </div>
-            <p className="text-xl font-bold tabular-nums">{kpiLoading ? "–" : fatigueAlerts.length}</p>
-            <p className="text-[11px] text-muted-foreground truncate">
-              {kpiLoading
-                ? "Chargement…"
-                : fatigueAlerts.length > 0
-                  ? fatigueAlerts.slice(0, 2).map((a) => a.athleteName.split(" ")[0]).join(", ")
-                  : "Aucune alerte"}
-            </p>
-          </div>
-          <div className="rounded-2xl border bg-card p-3 shadow-sm">
-            <div className="mb-1 flex items-center justify-between">
-              <span className="text-[11px] text-muted-foreground">Plus chargé</span>
-              <Users className="h-3.5 w-3.5 text-muted-foreground" />
-            </div>
-            <p className="text-xl font-bold truncate">
-              {kpiLoading ? "–" : mostLoadedAthlete?.athleteName?.split(" ")[0] ?? "–"}
-            </p>
-            <p className="text-[11px] text-muted-foreground">
-              {kpiLoading
-                ? "Calcul…"
-                : mostLoadedAthlete
-                  ? `Charge ${Math.round(mostLoadedAthlete.loadScore)}`
-                  : "Pas de données"}
-            </p>
-          </div>
-        </div>
-      </section>
+      {/* ── SECTION 4 : ARSENAL ── */}
+      <section className="space-y-2.5">
+        <SectionLabel>Arsenal</SectionLabel>
 
-      <section className="space-y-2">
-        <div className="space-y-2 rounded-2xl border bg-card p-3 shadow-sm">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-            Outils
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { label: "Natation", icon: Waves, action: () => onNavigate("swim") },
-              { label: "Muscu", icon: Dumbbell, action: () => onNavigate("strength") },
-              { label: "Groupes", icon: UsersRound, action: () => onNavigate("groups") },
-              { label: "Compétitions", icon: Trophy, action: () => onNavigate("competitions") },
-              { label: "Créneaux", icon: Clock, action: () => onNavigate("training-slots") },
-              { label: "SMS", icon: BellRing, action: () => onNavigate("sms") },
-              { label: "Records", icon: Trophy, action: onOpenRecordsClub },
-              { label: "Admin records", icon: Trophy, action: onOpenRecordsAdmin },
-            ].map((item) => (
-              <button
-                key={item.label}
-                type="button"
-                onClick={item.action}
-                className="inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-sm font-medium active:bg-muted"
-              >
-                <item.icon className="h-3.5 w-3.5" />
-                {item.label}
-              </button>
-            ))}
-          </div>
+        <div className="space-y-2 rounded-3xl border bg-card p-3 shadow-sm">
+          {/* Session assignment row */}
           <button
             type="button"
             onClick={() => onNavigate("calendar")}
-            className="flex w-full items-center justify-between gap-3 rounded-2xl border px-3 py-3 text-left active:bg-muted"
+            className="flex w-full items-center gap-3 rounded-2xl bg-muted/40 px-4 py-3.5 text-left transition-colors active:bg-muted"
           >
-            <div className="min-w-0">
-              <p className="text-sm font-semibold">Assigner</p>
-              <p className="text-xs text-muted-foreground">Natation et musculation</p>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/30">
+              <CalendarDays className="h-4.5 w-4.5 text-violet-600 dark:text-violet-400" />
             </div>
-            <span className="text-xs font-semibold text-muted-foreground">
-              {swimSessionCount ?? 0} nat · {strengthSessionCount ?? 0} muscu
-            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold">Calendrier · Assigner</p>
+              <p className="text-[11px] text-muted-foreground">
+                {swimSessionCount ?? 0} séances nat · {strengthSessionCount ?? 0} muscu
+              </p>
+            </div>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
           </button>
+
+          {/* Tools grid 4-col */}
+          <div className="grid grid-cols-4 gap-1.5">
+            {tools.map((tool) => (
+              <button
+                key={tool.label}
+                type="button"
+                onClick={tool.action}
+                className="flex flex-col items-center gap-1.5 rounded-2xl border bg-card px-1.5 py-3 text-center transition-colors active:bg-muted"
+              >
+                <tool.icon className={`h-4.5 w-4.5 ${tool.color}`} />
+                <span className="text-[9px] font-semibold leading-tight text-muted-foreground">
+                  {tool.label}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* All swimmers link */}
           <button
             type="button"
             onClick={() => onNavigate("swimmers")}
-            className="flex w-full items-center justify-between gap-3 rounded-2xl border px-3 py-3 text-left active:bg-muted"
+            className="flex w-full items-center gap-3 rounded-2xl bg-muted/40 px-4 py-3.5 text-left transition-colors active:bg-muted"
           >
-            <div className="min-w-0">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/30">
+              <Users className="h-4.5 w-4.5 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold">Voir tous les nageurs</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[11px] text-muted-foreground">
                 {athletesLoading
                   ? "Chargement…"
                   : `${athletes.length} nageur${athletes.length > 1 ? "s" : ""}`}
@@ -331,6 +521,7 @@ const CoachHome = ({
   );
 };
 
+// ── Data helpers (unchanged) ───────────────────────────────────────────────
 const getDateOnly = (value: Date) => value.toISOString().split("T")[0];
 const getRunTimestamp = (run: LocalStrengthRun) =>
   new Date(run.completed_at || run.started_at || run.date || run.created_at || 0).getTime();
@@ -342,6 +533,7 @@ const buildFatigueRating = (values: number[]) => {
   return { average, rating };
 };
 
+// ── Coach (outer router component — unchanged) ─────────────────────────────
 export default function Coach() {
   const role = useAuth((state) => state.role);
   const setSelectedAthlete = useAuth((state) => state.setSelectedAthlete);
@@ -398,7 +590,12 @@ export default function Coach() {
     activeSection === "calendar" ||
     activeSection === "groups" ||
     activeSection === "objectives";
-  const shouldLoadGroups = activeSection === "messaging" || activeSection === "sms" || activeSection === "calendar" || activeSection === "groups" || activeSection === "training-slots";
+  const shouldLoadGroups =
+    activeSection === "messaging" ||
+    activeSection === "sms" ||
+    activeSection === "calendar" ||
+    activeSection === "groups" ||
+    activeSection === "training-slots";
 
   // Queries
   const { data: swimSessions } = useQuery({
