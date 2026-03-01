@@ -70,6 +70,10 @@ Tous les feature flags sont activés.
 | Intensité Progressif | ✅ | `IntensityDots.tsx`, `IntensityDotsSelector.tsx` | Intensité "Prog" avec icône TrendingUp, couleur orange |
 | Conversion texte → blocs | ✅ | `swimTextParser.ts`, `SwimSessionBuilder.tsx` | Parser déterministe, 50 tests, format coach structuré (§49). Fix §52 : exercices parents préservés avec sous-détails Form A en modalities |
 | Assignation | ✅ | `CoachAssignScreen.tsx` | Nage + muscu |
+| Calendrier créneaux | ✅ | `CoachSlotCalendar.tsx`, `useSlotCalendar.ts` | Vue semaine créneaux récurrents, états (vide/brouillon/publié/annulé), navigation ←→ (§85) |
+| Assignation par créneau | ✅ | `SlotSessionSheet.tsx`, `assignments.ts` | Auto-assignation groupes, visible_from, bulk create, delete, visibilité (§85) |
+| Picker templates | ✅ | `SlotTemplatePicker.tsx` | Sélection séance bibliothèque, recherche par nom (§85) |
+| Notifications rappel ressenti | ✅ | `00054_slot_centric_sessions.sql` | pg_cron 15min, push 30min avant fin créneau (§85) |
 
 ### Musculation — Nageur
 

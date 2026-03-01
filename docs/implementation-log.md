@@ -55,6 +55,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §82 Audit restant (CORS, migrations, RPC, pagination, deep linking) | ✅ Fait | 2026-03-01 |
 | §84 Refonte UX CoachHome + CoachSwimmersOverview (Bord de Bassin) | ✅ Fait | 2026-03-01 |
 | §84 Coach Events Timeline (Tableau de Bord des Échéances) | ✅ Fait | 2026-03-01 |
+| §85 Calendrier créneaux centré séances (Slot-Centric Sessions) | ✅ Fait | 2026-03-01 |
 | §45 Audit UI/UX — header Strength + login mobile + fixes | ✅ Fait | 2026-02-16 |
 | §46 Harmonisation headers + Login mobile thème clair | ✅ Fait | 2026-02-16 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
@@ -92,6 +93,56 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §39 Redesign: Records personnels mobile first (flex cards, no grids) | ✅ Fait | 2026-02-16 |
 | §47 Redesign: RecordsClub épuré (filtres 3→1, sections nage, drill-down) | ✅ Fait | 2026-02-17 |
 | §50 Fix: 8 pre-existing test failures (122/122 pass) | ✅ Fait | 2026-02-18 |
+
+---
+
+## 2026-03-01 — Calendrier créneaux centré séances (§85)
+**Branche** : `main`
+**Chantier ROADMAP** : §85 — Slot-Centric Session Calendar
+
+### Contexte — Pourquoi ce patch
+Remplacement du point d'entrée SwimCatalog par un calendrier centré sur les créneaux d'entraînement. Le coach voit les créneaux de la semaine, crée des séances dessus, contrôle la visibilité nageur via une date de publication. L'assignation aux groupes est automatique.
+
+### Changements réalisés
+1. **Migration DB** (`00054`): 3 colonnes ajoutées sur `session_assignments` (`visible_from`, `training_slot_id`, `notified_at`), RLS updaté pour filtrer `visible_from` côté nageur, pg_cron job toutes les 15 min pour notifications push 30 min avant fin de créneau
+2. **API** : 5 fonctions slot-centric dans `assignments.ts` (`deriveScheduledSlot`, `bulkCreateSlotAssignments`, `getSlotAssignments`, `updateSlotVisibility`, `deleteSlotAssignments`)
+3. **Hook** : `useSlotCalendar` — matérialise les créneaux récurrents en instances concrètes par semaine, croise avec assignments et overrides, retourne `SlotInstance[]` avec état
+4. **UI** : `CoachSlotCalendar` (calendrier semaine mobile-first), `SlotSessionSheet` (bottom sheet actions), `SlotTemplatePicker` (sélecteur templates bibliothèque)
+5. **Routing** : "Natation" dans Coach.tsx ouvre désormais le calendrier créneaux. SwimCatalog accessible via "Bibliothèque" (section `swim-library`)
+6. **Re-exports** : fonctions slot-centric exposées via `api/index.ts` et facade `api.ts`
+
+### Fichiers modifiés
+| Fichier | Nature |
+|---------|--------|
+| `supabase/migrations/00054_slot_centric_sessions.sql` | Nouveau — migration DB |
+| `src/lib/api/assignments.ts` | Modifié — 5 fonctions slot-centric |
+| `src/lib/api/__tests__/assignments-slot.test.ts` | Nouveau — tests deriveScheduledSlot |
+| `src/hooks/useSlotCalendar.ts` | Nouveau — hook matérialisation créneaux |
+| `src/hooks/__tests__/useSlotCalendar.test.ts` | Nouveau — 9 tests (helpers purs) |
+| `src/pages/coach/CoachSlotCalendar.tsx` | Nouveau — calendrier semaine |
+| `src/pages/coach/SlotSessionSheet.tsx` | Nouveau — bottom sheet actions |
+| `src/pages/coach/SlotTemplatePicker.tsx` | Nouveau — picker templates |
+| `src/pages/Coach.tsx` | Modifié — routing swim → slot calendar |
+| `src/lib/api/index.ts` | Modifié — re-exports |
+| `src/lib/api.ts` | Modifié — facade delegation |
+
+### Tests
+- [x] `npx tsc --noEmit` — 0 erreurs
+- [x] `npx vitest run` — 11 nouveaux tests passants (2 assignments + 9 useSlotCalendar)
+- [x] Migration appliquée en production via Supabase MCP
+
+### Décisions prises
+- `visible_from` DATE (pas BOOLEAN) pour contrôle fin de la publication différée
+- Matérialisation client-side des créneaux récurrents (pas de vue matérialisée DB)
+- pg_cron toutes les 15 min (compromis entre réactivité et charge)
+- Notification push 30 min avant fin de créneau (rappel ressenti)
+- SwimCatalog conservé en arrière-plan (section `swim-library`), pas supprimé
+- Pas d'extraction du SwimSessionBuilder — "Nouvelle séance" navigue vers SwimCatalog (pragmatique V1)
+
+### Limites / dette
+- "Dupliquer vers..." désactivé en V1 (à implémenter dans un prochain chantier)
+- Pas de calcul distance totale dans le picker template (champ `session_distance` = null)
+- Le SwimSessionBuilder n'est pas un composant séparé (inline dans SwimCatalog)
 
 ---
 

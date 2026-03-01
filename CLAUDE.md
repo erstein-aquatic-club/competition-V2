@@ -79,6 +79,10 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 | `src/components/profile/SwimmerObjectivesView.tsx` | Vue objectifs nageur (lecture coach + CRUD perso) | ~530 lignes |
 | `src/pages/coach/CoachSmsScreen.tsx` | Écran SMS généraliste coach (groupe/nageur) | ~190 lignes |
 | `src/pages/coach/CoachTrainingSlotsScreen.tsx` | Écran gestion créneaux d'entraînement (coach) | ~560 lignes |
+| `src/pages/coach/CoachSlotCalendar.tsx` | Calendrier semaine créneaux + séances (§85) | ~440 lignes |
+| `src/pages/coach/SlotSessionSheet.tsx` | Bottom sheet actions créneau (créer/modifier/visibilité/supprimer) (§85) | ~375 lignes |
+| `src/pages/coach/SlotTemplatePicker.tsx` | Picker templates bibliothèque séances (§85) | ~150 lignes |
+| `src/hooks/useSlotCalendar.ts` | Hook matérialisation créneaux récurrents → instances semaine (§85) | ~230 lignes |
 | `src/lib/neurotype-quiz-data.ts` | 30 questions quiz + 5 profils neurotype + couleurs | ~450 lignes |
 | `src/lib/neurotype-scoring.ts` | Calcul scores neurotype (points/maxPoints) + niveaux | ~40 lignes |
 | `src/components/neurotype/NeurotypQuiz.tsx` | Quiz 30 questions avec carousel + progress bar | ~250 lignes |
@@ -167,6 +171,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 45 | Audit restant (CORS, migrations, RPC, pagination, deep linking) | Moyenne | Fait (§82) |
 | 46 | Réorganisation Profil & Gestes mobiles (E5+E7) | Moyenne | Fait (§83) |
 | 47 | Coach Events Timeline (Tableau de Bord des Échéances) | Moyenne | Fait (§84) |
+| 48 | Calendrier créneaux centré séances (Slot-Centric Sessions) | Haute | Fait (§85) |
 
 Détail complet dans `docs/ROADMAP.md`.
 
