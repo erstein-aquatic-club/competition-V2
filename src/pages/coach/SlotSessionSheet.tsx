@@ -18,7 +18,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -41,8 +40,12 @@ import {
   MapPin,
   CalendarDays,
   Loader2,
+  Ban,
 } from "lucide-react";
-import { updateSlotVisibility, deleteSlotAssignments } from "@/lib/api/assignments";
+import {
+  updateSlotVisibility,
+  deleteSlotAssignments,
+} from "@/lib/api/assignments";
 import type { SlotInstance, SlotState } from "@/hooks/useSlotCalendar";
 
 // ── Props ────────────────────────────────────────────────────
@@ -69,6 +72,8 @@ const DAY_NAMES = [
   "Samedi",
   "Dimanche",
 ];
+
+type MenuMode = "session" | "slot";
 
 function formatTime(hhmm: string): string {
   return hhmm.slice(0, 5);
@@ -123,20 +128,17 @@ export default function SlotSessionSheet({
   const [visibleFrom, setVisibleFrom] = useState("");
   const [showVisibilityPicker, setShowVisibilityPicker] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [menuMode, setMenuMode] = useState<MenuMode>("session");
 
   // Reset local state when instance changes
   useEffect(() => {
     if (!instance) return;
 
-    // Pre-check all groups from slot assignments
     setSelectedGroups(instance.groups.map((g) => g.group_id));
-
-    // Default visible_from to instance date
     setVisibleFrom(instance.assignment?.visible_from ?? instance.date);
-
-    // Reset toggles
     setShowVisibilityPicker(false);
     setDeleteConfirmOpen(false);
+    setMenuMode(instance.state === "cancelled" ? "slot" : "session");
   }, [instance]);
 
   // ── Mutations ────────────────────────────────────────────
@@ -211,6 +213,7 @@ export default function SlotSessionSheet({
 
   const { state, slot, assignment, override, groups } = instance;
   const cfg = STATE_CONFIG[state];
+  const sessionDisabled = state === "cancelled";
 
   return (
     <>
@@ -219,11 +222,9 @@ export default function SlotSessionSheet({
           side="bottom"
           className="rounded-t-3xl max-h-[85vh] overflow-y-auto px-5 pb-8 pt-4"
         >
-          {/* ── Drag handle ── */}
           <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-border/60" />
 
-          {/* ── Header ── */}
-          <SheetHeader className="text-left space-y-1.5 mb-5">
+          <SheetHeader className="mb-5 space-y-1.5 text-left">
             <div className="flex items-center gap-2">
               <SheetTitle className="text-base font-bold leading-tight">
                 {formatDateFr(instance.date)}
@@ -249,58 +250,61 @@ export default function SlotSessionSheet({
             </SheetDescription>
           </SheetHeader>
 
-          {/* ── Body: adapts to slot state ── */}
-          {state === "cancelled" && (
-            <CancelledBody
+          <MenuModePicker
+            mode={menuMode}
+            onModeChange={setMenuMode}
+            sessionDisabled={sessionDisabled}
+          />
+
+          {menuMode === "session" ? (
+            <>
+              {state === "cancelled" && (
+                <SessionUnavailableBody override={override} />
+              )}
+              {state === "empty" && (
+                <EmptyBody
+                  instance={instance}
+                  groups={groups}
+                  selectedGroups={selectedGroups}
+                  visibleFrom={visibleFrom}
+                  onToggleGroup={handleToggleGroup}
+                  onVisibleFromChange={setVisibleFrom}
+                  onCreateNew={onCreateNew}
+                  onPickTemplate={onPickTemplate}
+                  onClose={() => onOpenChange(false)}
+                />
+              )}
+              {(state === "draft" || state === "published") && (
+                <FilledBody
+                  instance={instance}
+                  assignment={assignment!}
+                  showVisibilityPicker={showVisibilityPicker}
+                  visibleFrom={visibleFrom}
+                  visibilityLoading={visibilityMutation.isPending}
+                  deleteLoading={deleteMutation.isPending}
+                  onToggleVisibilityPicker={() =>
+                    setShowVisibilityPicker((v) => !v)
+                  }
+                  onVisibleFromChange={setVisibleFrom}
+                  onSaveVisibility={handleSaveVisibility}
+                  onEditSession={onEditSession}
+                  onRequestDelete={() => setDeleteConfirmOpen(true)}
+                />
+              )}
+            </>
+          ) : (
+            <SlotManagementPanel
+              state={state}
               override={override}
-              onEditSlot={handleEditSlot}
-              onManageOverride={handleManageOverride}
               canEditSlot={!!onEditSlot}
               canManageOverride={!!onManageOverride}
-            />
-          )}
-          {state === "empty" && (
-            <EmptyBody
-              instance={instance}
-              groups={groups}
-              selectedGroups={selectedGroups}
-              visibleFrom={visibleFrom}
-              onToggleGroup={handleToggleGroup}
-              onVisibleFromChange={setVisibleFrom}
-              onCreateNew={onCreateNew}
-              onPickTemplate={onPickTemplate}
-              onClose={() => onOpenChange(false)}
               onEditSlot={handleEditSlot}
               onManageOverride={handleManageOverride}
-              canEditSlot={!!onEditSlot}
-              canManageOverride={!!onManageOverride}
-            />
-          )}
-          {(state === "draft" || state === "published") && (
-            <FilledBody
-              instance={instance}
-              assignment={assignment!}
-              showVisibilityPicker={showVisibilityPicker}
-              visibleFrom={visibleFrom}
-              visibilityLoading={visibilityMutation.isPending}
-              deleteLoading={deleteMutation.isPending}
-              onToggleVisibilityPicker={() =>
-                setShowVisibilityPicker((v) => !v)
-              }
-              onVisibleFromChange={setVisibleFrom}
-              onSaveVisibility={handleSaveVisibility}
-              onEditSession={onEditSession}
-              onRequestDelete={() => setDeleteConfirmOpen(true)}
-              onEditSlot={handleEditSlot}
-              onManageOverride={handleManageOverride}
-              canEditSlot={!!onEditSlot}
-              canManageOverride={!!onManageOverride}
             />
           )}
         </SheetContent>
       </Sheet>
 
-      {/* ── Delete confirmation dialog ── */}
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -336,39 +340,128 @@ export default function SlotSessionSheet({
   );
 }
 
-// ── CancelledBody ───────────────────────────────────────────
-
-function CancelledBody({
-  override,
-  onEditSlot,
-  onManageOverride,
-  canEditSlot,
-  canManageOverride,
+function MenuModePicker({
+  mode,
+  onModeChange,
+  sessionDisabled,
 }: {
-  override?: SlotInstance["override"];
-  onEditSlot: () => void;
-  onManageOverride: () => void;
-  canEditSlot: boolean;
-  canManageOverride: boolean;
+  mode: MenuMode;
+  onModeChange: (mode: MenuMode) => void;
+  sessionDisabled: boolean;
 }) {
   return (
-    <div className="space-y-3">
-      <div className="rounded-xl bg-muted/40 border border-border/50 p-4 text-center">
-        <p className="text-sm font-medium text-muted-foreground">
-          Ce créneau a été annulé
+    <div className="mb-5 space-y-3">
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          Étape 1
+        </p>
+        <p className="text-sm font-semibold text-foreground">
+          Choisissez ce que vous voulez gérer
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <ModeCard
+          title="Séance"
+          description={
+            sessionDisabled
+              ? "Indisponible tant que le créneau est annulé"
+              : "Créer, modifier ou publier"
+          }
+          active={mode === "session"}
+          disabled={sessionDisabled}
+          onClick={() => onModeChange("session")}
+        />
+        <ModeCard
+          title="Créneau"
+          description="Horaires, lieu et exception"
+          active={mode === "slot"}
+          onClick={() => onModeChange("slot")}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ModeCard({
+  title,
+  description,
+  active,
+  disabled = false,
+  onClick,
+}: {
+  title: string;
+  description: string;
+  active: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`
+        rounded-2xl border px-4 py-3 text-left transition-all
+        ${disabled ? "cursor-not-allowed opacity-50" : "active:scale-[0.98]"}
+        ${
+          active
+            ? "border-primary/40 bg-primary/8 shadow-sm"
+            : "border-border/50 bg-muted/20 hover:bg-muted/35"
+        }
+      `}
+    >
+      <p className="text-sm font-semibold text-foreground">{title}</p>
+      <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+        {description}
+      </p>
+    </button>
+  );
+}
+
+function PanelHeader({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        Étape 2
+      </p>
+      <div className="rounded-2xl border border-border/50 bg-muted/20 px-4 py-3">
+        <p className="text-sm font-semibold text-foreground">{title}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+      </div>
+    </div>
+  );
+}
+
+function SessionUnavailableBody({
+  override,
+}: {
+  override?: SlotInstance["override"];
+}) {
+  return (
+    <div className="space-y-4">
+      <PanelHeader
+        title="Définir une séance"
+        description="Ce sous-menu redevient disponible quand le créneau n'est plus annulé."
+      />
+      <div className="rounded-2xl border border-border/50 bg-muted/30 p-4 text-center">
+        <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-2xl bg-muted">
+          <Ban className="h-4 w-4 text-muted-foreground" />
+        </div>
+        <p className="mt-3 text-sm font-medium text-foreground">
+          Ce créneau est annulé
         </p>
         {override?.reason && (
-          <p className="mt-1.5 text-xs text-muted-foreground/70 italic">
-            {override.reason}
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            Motif : {override.reason}
           </p>
         )}
       </div>
-      <SlotManagementActions
-        canEditSlot={canEditSlot}
-        canManageOverride={canManageOverride}
-        onEditSlot={onEditSlot}
-        onManageOverride={onManageOverride}
-      />
     </div>
   );
 }
@@ -385,10 +478,6 @@ function EmptyBody({
   onCreateNew,
   onPickTemplate,
   onClose,
-  onEditSlot,
-  onManageOverride,
-  canEditSlot,
-  canManageOverride,
 }: {
   instance: SlotInstance;
   groups: SlotInstance["groups"];
@@ -399,10 +488,6 @@ function EmptyBody({
   onCreateNew: (inst: SlotInstance) => void;
   onPickTemplate: (inst: SlotInstance) => void;
   onClose: () => void;
-  onEditSlot: () => void;
-  onManageOverride: () => void;
-  canEditSlot: boolean;
-  canManageOverride: boolean;
 }) {
   const handleCreateNew = () => {
     onClose();
@@ -416,11 +501,15 @@ function EmptyBody({
 
   return (
     <div className="space-y-5">
-      {/* Group checkboxes */}
+      <PanelHeader
+        title="Définir une séance"
+        description="Choisissez comment renseigner la séance liée à ce créneau."
+      />
+
       {groups.length > 0 && (
         <div className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Groupes
+            Groupes concernés
           </p>
           <div className="space-y-2.5">
             {groups.map((g) => (
@@ -442,13 +531,12 @@ function EmptyBody({
         </div>
       )}
 
-      {/* Visible from date */}
       <div className="space-y-2">
         <Label
           htmlFor="visible-from-empty"
           className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
         >
-          <CalendarDays className="inline h-3 w-3 mr-1 opacity-60" />
+          <CalendarDays className="mr-1 inline h-3 w-3 opacity-60" />
           Visible à partir du
         </Label>
         <input
@@ -460,53 +548,21 @@ function EmptyBody({
         />
       </div>
 
-      <Separator className="my-1" />
-
-      {/* Action buttons */}
       <div className="space-y-2.5">
-        <button
-          type="button"
+        <ActionButton
+          icon={<Plus className="h-4 w-4" />}
+          label="Nouvelle séance"
+          description="Créer une séance de zéro"
           onClick={handleCreateNew}
-          className="flex w-full items-center gap-3 rounded-xl bg-primary/10 px-4 py-3.5 text-left transition-colors active:bg-primary/20 hover:bg-primary/15"
-        >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15">
-            <Plus className="h-4.5 w-4.5 text-primary" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-foreground">
-              Nouvelle séance
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Créer une séance de zéro
-            </p>
-          </div>
-        </button>
-
-        <button
-          type="button"
+          highlight
+        />
+        <ActionButton
+          icon={<BookOpen className="h-4 w-4" />}
+          label="Depuis la bibliothèque"
+          description="Réutiliser une séance existante"
           onClick={handlePickTemplate}
-          className="flex w-full items-center gap-3 rounded-xl bg-muted/50 border border-border/50 px-4 py-3.5 text-left transition-colors active:bg-muted/80 hover:bg-muted/70"
-        >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
-            <BookOpen className="h-4.5 w-4.5 text-muted-foreground" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-foreground">
-              Depuis la bibliothèque
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Utiliser une séance existante
-            </p>
-          </div>
-        </button>
+        />
       </div>
-
-      <SlotManagementActions
-        canEditSlot={canEditSlot}
-        canManageOverride={canManageOverride}
-        onEditSlot={onEditSlot}
-        onManageOverride={onManageOverride}
-      />
     </div>
   );
 }
@@ -525,10 +581,6 @@ function FilledBody({
   onSaveVisibility,
   onEditSession,
   onRequestDelete,
-  onEditSlot,
-  onManageOverride,
-  canEditSlot,
-  canManageOverride,
 }: {
   instance: SlotInstance;
   assignment: NonNullable<SlotInstance["assignment"]>;
@@ -541,25 +593,25 @@ function FilledBody({
   onSaveVisibility: () => void;
   onEditSession: (sessionId: number) => void;
   onRequestDelete: () => void;
-  onEditSlot: () => void;
-  onManageOverride: () => void;
-  canEditSlot: boolean;
-  canManageOverride: boolean;
 }) {
   return (
     <div className="space-y-5">
-      {/* Session preview */}
-      <div className="rounded-xl bg-muted/30 border border-border/50 p-4">
+      <PanelHeader
+        title="Définir une séance"
+        description="Travaillez sur la séance déjà liée à ce créneau."
+      />
+
+      <div className="rounded-xl border border-border/50 bg-muted/30 p-4">
         <p className="text-sm font-semibold text-foreground leading-snug">
           {assignment.session_name ?? "Séance sans nom"}
         </p>
         {assignment.session_distance != null &&
           assignment.session_distance > 0 && (
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="mt-1 text-xs text-muted-foreground">
               {assignment.session_distance} m
             </p>
           )}
-        <div className="flex items-center gap-2 mt-2">
+        <div className="mt-2 flex items-center gap-2">
           <Badge
             variant="outline"
             className={`text-[10px] px-2 py-0.5 font-medium leading-none ${STATE_CONFIG[instance.state].badgeClass}`}
@@ -578,13 +630,12 @@ function FilledBody({
         </div>
       </div>
 
-      {/* Groups */}
       {instance.groups.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {instance.groups.map((g) => (
             <span
               key={g.id}
-              className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium border border-border/50 bg-muted/60 text-muted-foreground"
+              className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-muted/60 px-2.5 py-1 text-xs font-medium text-muted-foreground"
             >
               {g.group_name}
             </span>
@@ -592,30 +643,17 @@ function FilledBody({
         </div>
       )}
 
-      <Separator className="my-1" />
-
-      {/* Action buttons */}
       <div className="space-y-2.5">
-        {/* Modifier */}
         {assignment.swim_catalog_id != null && (
           <ActionButton
             icon={<Pencil className="h-4 w-4" />}
-            label="Modifier"
+            label="Modifier la séance"
             description="Ouvrir dans l'éditeur"
             onClick={() => onEditSession(assignment.swim_catalog_id!)}
+            highlight
           />
         )}
 
-        {/* Dupliquer (disabled v1) */}
-        <ActionButton
-          icon={<Copy className="h-4 w-4" />}
-          label="Dupliquer vers..."
-          description="Bientôt disponible"
-          disabled
-          onClick={() => {}}
-        />
-
-        {/* Visibilité */}
         <ActionButton
           icon={
             showVisibilityPicker ? (
@@ -625,11 +663,10 @@ function FilledBody({
             )
           }
           label="Visibilité"
-          description="Date de publication pour les nageurs"
+          description="Définir la date de publication"
           onClick={onToggleVisibilityPicker}
         />
 
-        {/* Inline visibility picker */}
         {showVisibilityPicker && (
           <div className="ml-12 space-y-2.5 rounded-xl border border-border/50 bg-muted/20 p-3">
             <Label
@@ -670,7 +707,14 @@ function FilledBody({
           </div>
         )}
 
-        {/* Supprimer */}
+        <ActionButton
+          icon={<Copy className="h-4 w-4" />}
+          label="Dupliquer vers..."
+          description="Bientôt disponible"
+          disabled
+          onClick={() => {}}
+        />
+
         <ActionButton
           icon={<Trash2 className="h-4 w-4" />}
           label="Supprimer"
@@ -680,23 +724,20 @@ function FilledBody({
           onClick={onRequestDelete}
         />
       </div>
-
-      <SlotManagementActions
-        canEditSlot={canEditSlot}
-        canManageOverride={canManageOverride}
-        onEditSlot={onEditSlot}
-        onManageOverride={onManageOverride}
-      />
     </div>
   );
 }
 
-function SlotManagementActions({
+function SlotManagementPanel({
+  state,
+  override,
   canEditSlot,
   canManageOverride,
   onEditSlot,
   onManageOverride,
 }: {
+  state: SlotState;
+  override?: SlotInstance["override"];
   canEditSlot: boolean;
   canManageOverride: boolean;
   onEditSlot: () => void;
@@ -705,27 +746,42 @@ function SlotManagementActions({
   if (!canEditSlot && !canManageOverride) return null;
 
   return (
-    <div className="space-y-2.5">
-      <Separator className="my-1" />
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Créneau
-      </p>
-      {canEditSlot && (
-        <ActionButton
-          icon={<Pencil className="h-4 w-4" />}
-          label="Modifier le créneau"
-          description="Horaires, lieu et groupes"
-          onClick={onEditSlot}
-        />
+    <div className="space-y-4">
+      <PanelHeader
+        title="Gérer le créneau"
+        description="Modifiez la structure du créneau ou ajustez uniquement cette date."
+      />
+
+      {state === "cancelled" && (
+        <div className="rounded-2xl border border-border/50 bg-muted/30 px-4 py-3">
+          <p className="text-sm font-medium text-foreground">Créneau annulé</p>
+          {override?.reason && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Motif : {override.reason}
+            </p>
+          )}
+        </div>
       )}
-      {canManageOverride && (
-        <ActionButton
-          icon={<CalendarDays className="h-4 w-4" />}
-          label="Gérer l'exception"
-          description="Annuler ou ajuster ce jour précis"
-          onClick={onManageOverride}
-        />
-      )}
+
+      <div className="space-y-2.5">
+        {canEditSlot && (
+          <ActionButton
+            icon={<Pencil className="h-4 w-4" />}
+            label="Modifier le créneau"
+            description="Horaires, lieu et groupes"
+            onClick={onEditSlot}
+            highlight
+          />
+        )}
+        {canManageOverride && (
+          <ActionButton
+            icon={<CalendarDays className="h-4 w-4" />}
+            label="Gérer l'exception"
+            description="Annuler ou ajuster ce jour précis"
+            onClick={onManageOverride}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -738,6 +794,7 @@ function ActionButton({
   description,
   variant = "default",
   disabled = false,
+  highlight = false,
   onClick,
 }: {
   icon: React.ReactNode;
@@ -745,6 +802,7 @@ function ActionButton({
   description?: string;
   variant?: "default" | "destructive";
   disabled?: boolean;
+  highlight?: boolean;
   onClick: () => void;
 }) {
   const isDestructive = variant === "destructive";
@@ -760,7 +818,9 @@ function ActionButton({
         ${
           isDestructive
             ? "bg-destructive/5 hover:bg-destructive/10 active:bg-destructive/15"
-            : "bg-muted/40 hover:bg-muted/60 active:bg-muted/80"
+            : highlight
+              ? "bg-primary/10 hover:bg-primary/15 active:bg-primary/20"
+              : "bg-muted/40 hover:bg-muted/60 active:bg-muted/80"
         }
       `}
     >
@@ -768,7 +828,9 @@ function ActionButton({
         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
           isDestructive
             ? "bg-destructive/10 text-destructive"
-            : "bg-muted text-muted-foreground"
+            : highlight
+              ? "bg-primary/15 text-primary"
+              : "bg-muted text-muted-foreground"
         }`}
       >
         {icon}
@@ -782,7 +844,7 @@ function ActionButton({
           {label}
         </p>
         {description && (
-          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
         )}
       </div>
     </button>
