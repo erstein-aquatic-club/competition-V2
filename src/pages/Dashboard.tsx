@@ -82,9 +82,11 @@ function clampToStep(value: number, step: number) {
 function DashboardHeaderContent({
   globalKm,
   onSettings,
+  onRecords,
 }: {
   globalKm: string;
   onSettings: () => void;
+  onRecords: () => void;
 }) {
   return (
     <>
@@ -96,6 +98,17 @@ function DashboardHeaderContent({
       </div>
       <div className="flex items-center gap-2">
         <span className="hidden sm:inline text-xs font-mono font-semibold text-muted-foreground tabular-nums">{globalKm} km</span>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onRecords}
+          className="h-8 rounded-xl border-primary/20 bg-primary/5 px-2.5 text-xs font-semibold text-primary hover:bg-primary/10"
+          aria-label="Mes records"
+        >
+          <Trophy className="mr-1 h-3.5 w-3.5" />
+          Records
+        </Button>
         <Button
           type="button"
           variant="outline"
@@ -661,7 +674,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="mx-auto max-w-6xl px-3 sm:px-4 pt-20 pb-5 sm:py-8">
+        <div className="mx-auto max-w-6xl px-3 sm:px-4 pt-14 pb-5 sm:py-8">
           <div className="mt-4 rounded-3xl border border-border bg-card overflow-hidden">
             <div className="flex items-center justify-between px-3 sm:px-5 py-3 border-b border-border">
               <div className="flex items-center gap-1">
@@ -710,17 +723,19 @@ export default function Dashboard() {
           <DashboardHeaderContent
             globalKm={globalKm}
             onSettings={() => setSettingsOpen(true)}
+            onRecords={() => navigate("/records")}
           />
         </div>
       </div>
 
       <PullToRefresh onRefresh={handlePullRefresh}>
-      <div className="mx-auto max-w-6xl px-3 sm:px-4 pt-20 pb-5 sm:py-8">
+      <div className="mx-auto max-w-6xl px-3 sm:px-4 pt-14 pb-5 sm:py-8">
         {/* Desktop: inline header in content flow */}
         <div className="hidden sm:flex items-center justify-between">
           <DashboardHeaderContent
             globalKm={globalKm}
             onSettings={() => setSettingsOpen(true)}
+            onRecords={() => navigate("/records")}
           />
         </div>
 
@@ -738,22 +753,11 @@ export default function Dashboard() {
           }
           visible={!!nextCompetition && daysUntilNextCompetition != null}
           onClick={nextCompetition ? () => navigate(`/competition/${nextCompetition.id}`) : undefined}
-          className="mt-4"
+          className="mt-2"
         />
 
-        {/* Quick-access shortcuts */}
-        <div className="mt-3 flex items-center gap-2">
-          <button
-            onClick={() => navigate("/records")}
-            className="flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium text-muted-foreground active:bg-muted"
-          >
-            <Trophy className="h-3.5 w-3.5" />
-            Mes records
-          </button>
-        </div>
-
         {/* Calendar */}
-        <div className="mt-4 rounded-3xl border border-border bg-card overflow-hidden">
+        <div className="mt-3 rounded-3xl border border-border bg-card overflow-hidden">
           <CalendarHeader
             monthCursor={monthCursor}
             selectedDayStatus={selectedDayStatus}
