@@ -448,7 +448,14 @@ export function useDashboardState({ sessions, assignments, userId, user }: UseDa
       for (const s of planned) {
         const st = getSessionStatus(s, d);
         if (!st.expected) {
-          slots.push({ slotKey: s.slotKey, expected: false, completed: false, absent: false });
+          const hasLogAnyway = Boolean(logsBySessionId[s.id]);
+          if (hasLogAnyway) {
+            total += 1;
+            completed += 1;
+            slots.push({ slotKey: s.slotKey, expected: true, completed: true, absent: false });
+          } else {
+            slots.push({ slotKey: s.slotKey, expected: false, completed: false, absent: false });
+          }
           continue;
         }
         total += 1;
