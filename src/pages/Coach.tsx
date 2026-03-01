@@ -38,7 +38,6 @@ import type { LocalStrengthRun } from "@/lib/types";
 // Lazy load heavy catalog components
 const StrengthCatalog = lazy(() => import("./coach/StrengthCatalog"));
 const SwimCatalog = lazy(() => import("./coach/SwimCatalog"));
-const CoachSlotCalendar = lazy(() => import("./coach/CoachSlotCalendar"));
 
 type CoachSection = "home" | "swim" | "swim-library" | "strength" | "swimmers" | "messaging" | "sms" | "calendar" | "groups" | "competitions" | "objectives" | "training-slots" | "athlete";
 type KpiLookbackPeriod = 7 | 30 | 365;
@@ -795,9 +794,10 @@ export default function Coach() {
 
       {activeSection === "swim" ? (
         <Suspense fallback={<PageSkeleton />}>
-          <CoachSlotCalendar
+          <CoachTrainingSlotsScreen
             onBack={() => setActiveSection("home")}
             onOpenLibrary={() => setActiveSection("swim-library")}
+            groups={groups}
           />
         </Suspense>
       ) : null}
@@ -930,6 +930,7 @@ export default function Coach() {
           <CoachTrainingSlotsScreen
             onBack={() => setActiveSection("home")}
             groups={groups}
+            onOpenLibrary={() => setActiveSection("swim-library")}
           />
         </Suspense>
       ) : null}

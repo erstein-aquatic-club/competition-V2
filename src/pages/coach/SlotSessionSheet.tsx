@@ -54,6 +54,8 @@ export interface SlotSessionSheetProps {
   onCreateNew: (slotInstance: SlotInstance) => void;
   onEditSession: (sessionId: number) => void;
   onPickTemplate: (slotInstance: SlotInstance) => void;
+  onEditSlot?: (slotInstance: SlotInstance) => void;
+  onManageOverride?: (slotInstance: SlotInstance) => void;
 }
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -111,6 +113,8 @@ export default function SlotSessionSheet({
   onCreateNew,
   onEditSession,
   onPickTemplate,
+  onEditSlot,
+  onManageOverride,
 }: SlotSessionSheetProps) {
   const queryClient = useQueryClient();
 
@@ -190,6 +194,18 @@ export default function SlotSessionSheet({
     });
   };
 
+  const handleEditSlot = () => {
+    if (!instance || !onEditSlot) return;
+    onOpenChange(false);
+    onEditSlot(instance);
+  };
+
+  const handleManageOverride = () => {
+    if (!instance || !onManageOverride) return;
+    onOpenChange(false);
+    onManageOverride(instance);
+  };
+
   // ── Guard ────────────────────────────────────────────────
   if (!instance) return null;
 
@@ -234,7 +250,15 @@ export default function SlotSessionSheet({
           </SheetHeader>
 
           {/* ── Body: adapts to slot state ── */}
-          {state === "cancelled" && <CancelledBody override={override} />}
+          {state === "cancelled" && (
+            <CancelledBody
+              override={override}
+              onEditSlot={handleEditSlot}
+              onManageOverride={handleManageOverride}
+              canEditSlot={!!onEditSlot}
+              canManageOverride={!!onManageOverride}
+            />
+          )}
           {state === "empty" && (
             <EmptyBody
               instance={instance}
@@ -246,6 +270,10 @@ export default function SlotSessionSheet({
               onCreateNew={onCreateNew}
               onPickTemplate={onPickTemplate}
               onClose={() => onOpenChange(false)}
+              onEditSlot={handleEditSlot}
+              onManageOverride={handleManageOverride}
+              canEditSlot={!!onEditSlot}
+              canManageOverride={!!onManageOverride}
             />
           )}
           {(state === "draft" || state === "published") && (
@@ -263,6 +291,10 @@ export default function SlotSessionSheet({
               onSaveVisibility={handleSaveVisibility}
               onEditSession={onEditSession}
               onRequestDelete={() => setDeleteConfirmOpen(true)}
+              onEditSlot={handleEditSlot}
+              onManageOverride={handleManageOverride}
+              canEditSlot={!!onEditSlot}
+              canManageOverride={!!onManageOverride}
             />
           )}
         </SheetContent>
@@ -308,8 +340,16 @@ export default function SlotSessionSheet({
 
 function CancelledBody({
   override,
+  onEditSlot,
+  onManageOverride,
+  canEditSlot,
+  canManageOverride,
 }: {
   override?: SlotInstance["override"];
+  onEditSlot: () => void;
+  onManageOverride: () => void;
+  canEditSlot: boolean;
+  canManageOverride: boolean;
 }) {
   return (
     <div className="space-y-3">
@@ -323,6 +363,12 @@ function CancelledBody({
           </p>
         )}
       </div>
+      <SlotManagementActions
+        canEditSlot={canEditSlot}
+        canManageOverride={canManageOverride}
+        onEditSlot={onEditSlot}
+        onManageOverride={onManageOverride}
+      />
     </div>
   );
 }
@@ -339,6 +385,10 @@ function EmptyBody({
   onCreateNew,
   onPickTemplate,
   onClose,
+  onEditSlot,
+  onManageOverride,
+  canEditSlot,
+  canManageOverride,
 }: {
   instance: SlotInstance;
   groups: SlotInstance["groups"];
@@ -349,6 +399,10 @@ function EmptyBody({
   onCreateNew: (inst: SlotInstance) => void;
   onPickTemplate: (inst: SlotInstance) => void;
   onClose: () => void;
+  onEditSlot: () => void;
+  onManageOverride: () => void;
+  canEditSlot: boolean;
+  canManageOverride: boolean;
 }) {
   const handleCreateNew = () => {
     onClose();
@@ -446,6 +500,13 @@ function EmptyBody({
           </div>
         </button>
       </div>
+
+      <SlotManagementActions
+        canEditSlot={canEditSlot}
+        canManageOverride={canManageOverride}
+        onEditSlot={onEditSlot}
+        onManageOverride={onManageOverride}
+      />
     </div>
   );
 }
@@ -464,6 +525,10 @@ function FilledBody({
   onSaveVisibility,
   onEditSession,
   onRequestDelete,
+  onEditSlot,
+  onManageOverride,
+  canEditSlot,
+  canManageOverride,
 }: {
   instance: SlotInstance;
   assignment: NonNullable<SlotInstance["assignment"]>;
@@ -476,6 +541,10 @@ function FilledBody({
   onSaveVisibility: () => void;
   onEditSession: (sessionId: number) => void;
   onRequestDelete: () => void;
+  onEditSlot: () => void;
+  onManageOverride: () => void;
+  canEditSlot: boolean;
+  canManageOverride: boolean;
 }) {
   return (
     <div className="space-y-5">
@@ -611,6 +680,52 @@ function FilledBody({
           onClick={onRequestDelete}
         />
       </div>
+
+      <SlotManagementActions
+        canEditSlot={canEditSlot}
+        canManageOverride={canManageOverride}
+        onEditSlot={onEditSlot}
+        onManageOverride={onManageOverride}
+      />
+    </div>
+  );
+}
+
+function SlotManagementActions({
+  canEditSlot,
+  canManageOverride,
+  onEditSlot,
+  onManageOverride,
+}: {
+  canEditSlot: boolean;
+  canManageOverride: boolean;
+  onEditSlot: () => void;
+  onManageOverride: () => void;
+}) {
+  if (!canEditSlot && !canManageOverride) return null;
+
+  return (
+    <div className="space-y-2.5">
+      <Separator className="my-1" />
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Créneau
+      </p>
+      {canEditSlot && (
+        <ActionButton
+          icon={<Pencil className="h-4 w-4" />}
+          label="Modifier le créneau"
+          description="Horaires, lieu et groupes"
+          onClick={onEditSlot}
+        />
+      )}
+      {canManageOverride && (
+        <ActionButton
+          icon={<CalendarDays className="h-4 w-4" />}
+          label="Gérer l'exception"
+          description="Annuler ou ajuster ce jour précis"
+          onClick={onManageOverride}
+        />
+      )}
     </div>
   );
 }

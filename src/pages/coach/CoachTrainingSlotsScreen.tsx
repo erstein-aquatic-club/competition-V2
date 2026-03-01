@@ -7,8 +7,15 @@ import type {
   TrainingSlotInput,
   TrainingSlotOverrideInput,
 } from "@/lib/api/types";
+import type { SlotInstance } from "@/hooks/useSlotCalendar";
+import { computeSlotState } from "@/hooks/useSlotCalendar";
+import { deriveScheduledSlot } from "@/lib/api/assignments";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth";
 import CoachSectionHeader from "./CoachSectionHeader";
+import SlotSessionSheet from "./SlotSessionSheet";
+import { SlotTemplatePicker } from "./SlotTemplatePicker";
+import type { SwimLibraryEntryContext } from "./swimLibraryEntryContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,6 +55,7 @@ import {
   Plus,
   Trash2,
   AlertTriangle,
+  BookOpen,
 } from "lucide-react";
 
 // ── Constants ────────────────────────────────────────────────────
@@ -137,11 +145,41 @@ function isSwimSlot(location: string): boolean {
   return loc.includes("piscine") || loc.includes("bassin") || (!loc.includes("salle") && !loc.includes("muscu") && !loc.includes("ppg") && !loc.includes("gym"));
 }
 
+function buildSwimLibraryContext(
+  instance: SlotInstance,
+  mode: "create" | "edit",
+  swimCatalogId?: number,
+): SwimLibraryEntryContext {
+  const base = {
+    slot: {
+      trainingSlotId: instance.slot.id,
+      scheduledDate: instance.date,
+      startTime: instance.slot.start_time,
+      endTime: instance.slot.end_time,
+      location: instance.slot.location,
+    },
+  };
+
+  if (mode === "edit" && swimCatalogId != null) {
+    return {
+      mode,
+      swimCatalogId,
+      ...base,
+    };
+  }
+
+  return {
+    mode: "create",
+    ...base,
+  };
+}
+
 // ── Types ────────────────────────────────────────────────────────
 
 type CoachTrainingSlotsScreenProps = {
   onBack: () => void;
   groups: Array<{ id: number | string; name: string }>;
+  onOpenLibrary?: (context?: SwimLibraryEntryContext) => void;
 };
 
 type AssignmentRow = {
@@ -741,24 +779,44 @@ const OverrideFormSheet = ({
 
 type TimelineSlotProps = {
   slot: TrainingSlot;
+  instance?: SlotInstance;
   hasOverrides: boolean;
   cancelled?: boolean;
   onSelect: (slot: TrainingSlot) => void;
 };
 
-const TimelineSlot = ({ slot, hasOverrides, cancelled = false, onSelect }: TimelineSlotProps) => {
+const TimelineSlot = ({
+  slot,
+  instance,
+  hasOverrides,
+  cancelled = false,
+  onSelect,
+}: TimelineSlotProps) => {
   const top = timeToPx(slot.start_time);
   const height = durationPx(slot.start_time, slot.end_time);
   const isShort = height < 50;
   const swim = isSwimSlot(slot.location);
+  const hasAssignment = !!instance?.assignment;
+  const isDraft = instance?.state === "draft";
+  const isPublished = instance?.state === "published";
 
   const bgClass = cancelled
     ? "bg-muted/50 border-muted-foreground/20 opacity-50 line-through"
+    : isPublished
+      ? "bg-emerald-500/12 border-emerald-500/30 hover:bg-emerald-500/18"
+      : isDraft
+        ? "bg-amber-500/12 border-amber-500/30 hover:bg-amber-500/18"
     : swim
       ? "bg-blue-500/15 border-blue-400/40 hover:bg-blue-500/25"
       : "bg-amber-400/15 border-amber-400/40 hover:bg-amber-400/25";
 
-  const iconClass = swim ? "text-blue-500" : "text-amber-500";
+  const iconClass = isPublished
+    ? "text-emerald-600 dark:text-emerald-400"
+    : isDraft
+      ? "text-amber-600 dark:text-amber-400"
+      : swim
+        ? "text-blue-500"
+        : "text-amber-500";
 
   return (
     <button
@@ -766,7 +824,7 @@ const TimelineSlot = ({ slot, hasOverrides, cancelled = false, onSelect }: Timel
       className={`absolute left-0.5 right-0.5 rounded-md border px-1.5 py-0.5 text-left overflow-hidden cursor-pointer transition-colors ${bgClass}`}
       style={{ top, height, minHeight: 24 }}
       onClick={() => onSelect(slot)}
-      title={`${formatTime(slot.start_time)}–${formatTime(slot.end_time)} · ${slot.location}`}
+      title={`${formatTime(slot.start_time)}–${formatTime(slot.end_time)} · ${slot.location}${instance?.assignment?.session_name ? ` · ${instance.assignment.session_name}` : ""}`}
     >
       <div className={`flex flex-col gap-0.5 ${isShort ? "flex-row items-center" : ""}`}>
         {/* Location */}
@@ -801,132 +859,20 @@ const TimelineSlot = ({ slot, hasOverrides, cancelled = false, onSelect }: Timel
             {[...new Set(slot.assignments.map((a) => a.coach_name))].join(", ")}
           </span>
         )}
+
+        {!isShort && hasAssignment && (
+          <span
+            className={`text-[9px] truncate ${
+              isDraft
+                ? "text-amber-700 dark:text-amber-300"
+                : "text-emerald-700 dark:text-emerald-300"
+            }`}
+          >
+            {instance?.assignment?.session_name ?? "Séance"}
+          </span>
+        )}
       </div>
     </button>
-  );
-};
-
-// ── Slot Detail Sheet (bottom sheet on tap) ─────────────────────
-
-type SlotDetailSheetProps = {
-  slot: TrainingSlot | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  overrides: TrainingSlotOverride[];
-  onEdit: () => void;
-  onOverride: () => void;
-  onDeleteOverride: (id: string) => void;
-};
-
-const SlotDetailSheet = ({
-  slot,
-  open,
-  onOpenChange,
-  overrides,
-  onEdit,
-  onOverride,
-  onDeleteOverride,
-}: SlotDetailSheetProps) => {
-  if (!slot) return null;
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="bottom"
-        className="max-h-[60vh] overflow-y-auto rounded-t-2xl"
-      >
-        <SheetHeader className="pb-2">
-          <SheetTitle className="text-left text-base">
-            {DAYS_FR[slot.day_of_week - 1]} · {formatTime(slot.start_time)}–
-            {formatTime(slot.end_time)}
-          </SheetTitle>
-          <SheetDescription className="sr-only">
-            Details du creneau
-          </SheetDescription>
-        </SheetHeader>
-
-        <div className="space-y-3">
-          {/* Location */}
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <MapPin className="h-3.5 w-3.5 shrink-0" />
-            {slot.location}
-          </div>
-
-          {/* Assignments */}
-          {slot.assignments.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {slot.assignments.map((a) => (
-                <div key={a.id} className="flex items-center gap-1">
-                  <Badge variant="secondary" className="text-xs px-2 py-0.5">
-                    {a.group_name}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground">
-                    {a.coach_name}
-                    {a.lane_count != null &&
-                      ` · ${a.lane_count} ligne${a.lane_count > 1 ? "s" : ""}`}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Overrides */}
-          {overrides.length > 0 && (
-            <div className="space-y-1.5 pt-1 border-t border-dashed">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Exceptions
-              </span>
-              {overrides.map((ovr) => (
-                <div
-                  key={ovr.id}
-                  className="flex items-center gap-1.5 text-xs"
-                >
-                  <AlertTriangle className="h-3 w-3 text-orange-500 shrink-0" />
-                  <span className="text-muted-foreground">
-                    {new Date(
-                      ovr.override_date + "T00:00:00",
-                    ).toLocaleDateString("fr-FR", {
-                      day: "2-digit",
-                      month: "2-digit",
-                    })}
-                  </span>
-                  <Badge
-                    variant={
-                      ovr.status === "cancelled" ? "destructive" : "outline"
-                    }
-                    className="text-[10px] px-1 py-0"
-                  >
-                    {ovr.status === "cancelled" ? "Annule" : "Modifie"}
-                  </Badge>
-                  {ovr.reason && (
-                    <span className="text-muted-foreground truncate flex-1">
-                      {ovr.reason}
-                    </span>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 ml-auto shrink-0 text-muted-foreground hover:text-destructive"
-                    onClick={() => onDeleteOverride(ovr.id)}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Action buttons */}
-          <div className="flex gap-2 pt-2">
-            <Button variant="outline" size="sm" className="flex-1" onClick={onEdit}>
-              Modifier
-            </Button>
-            <Button variant="outline" size="sm" className="flex-1" onClick={onOverride}>
-              Exception
-            </Button>
-          </div>
-        </div>
-      </SheetContent>
-    </Sheet>
   );
 };
 
@@ -934,6 +880,7 @@ const SlotDetailSheet = ({
 
 type MobileViewProps = {
   slotsByDay: Map<number, TrainingSlot[]>;
+  slotInstancesById: Map<string, SlotInstance>;
   weekDates: Date[];
   todayStr: string;
   overridesBySlot: Map<string, TrainingSlotOverride[]>;
@@ -956,6 +903,7 @@ function durationLabel(start: string, end: string): string {
 
 const MobileView = ({
   slotsByDay,
+  slotInstancesById,
   weekDates,
   todayStr,
   overridesBySlot,
@@ -1072,6 +1020,9 @@ const MobileView = ({
                   const heightPct = Math.max(8, ((endMin - startMin) / stripTotalMin) * 100);
                   const swim = isSwimSlot(slot.location);
                   const cancelled = cancelledSlotIds.has(slot.id);
+                  const instance = slotInstancesById.get(slot.id);
+                  const isPublished = instance?.state === "published";
+                  const isDraft = instance?.state === "draft";
 
                   return (
                     <div
@@ -1079,6 +1030,10 @@ const MobileView = ({
                       className={`absolute left-1 right-1 rounded-sm ${
                         cancelled
                           ? "bg-muted-foreground/20"
+                          : isPublished
+                            ? "bg-emerald-500/50"
+                            : isDraft
+                              ? "bg-amber-500/50"
                           : swim
                             ? "bg-blue-500/40"
                             : "bg-amber-400/50"
@@ -1122,6 +1077,9 @@ const MobileView = ({
               const cancelled = cancelledSlotIds.has(slot.id);
               const slotOverrides = overridesBySlot.get(slot.id) ?? [];
               const hasOverrides = slotOverrides.length > 0;
+              const instance = slotInstancesById.get(slot.id);
+              const isPublished = instance?.state === "published";
+              const isDraft = instance?.state === "draft";
 
               return (
                 <button
@@ -1171,6 +1129,25 @@ const MobileView = ({
                           {slot.location}
                         </span>
                       </div>
+
+                      {instance?.assignment?.session_name && (
+                        <div className="mt-1.5 flex items-center gap-1.5">
+                          <span
+                            className={`inline-flex rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
+                              isDraft
+                                ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                                : isPublished
+                                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                                  : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            {isDraft ? "Brouillon" : "Publié"}
+                          </span>
+                          <span className="truncate text-xs font-medium text-foreground">
+                            {instance.assignment.session_name}
+                          </span>
+                        </div>
+                      )}
 
                       {/* Group badges */}
                       {slot.assignments.length > 0 && (
@@ -1226,16 +1203,20 @@ const MobileView = ({
 const CoachTrainingSlotsScreen = ({
   onBack,
   groups,
+  onOpenLibrary,
 }: CoachTrainingSlotsScreenProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { userId } = useAuth();
 
   const [showSlotForm, setShowSlotForm] = useState(false);
   const [editingSlot, setEditingSlot] = useState<TrainingSlot | null>(null);
   const [overrideSlot, setOverrideSlot] = useState<TrainingSlot | null>(null);
   const [showOverrideForm, setShowOverrideForm] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<TrainingSlot | null>(null);
-  const [showDetail, setShowDetail] = useState(false);
+  const [selectedInstance, setSelectedInstance] = useState<SlotInstance | null>(null);
+  const [showSessionSheet, setShowSessionSheet] = useState(false);
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  const [templateTargetInstance, setTemplateTargetInstance] = useState<SlotInstance | null>(null);
 
   // Week navigation state
   const [weekMonday, setWeekMonday] = useState(() => getMonday(new Date()));
@@ -1380,6 +1361,15 @@ const CoachTrainingSlotsScreen = ({
   const weekMondayIso = toIsoDate(weekMonday);
   const weekSundayIso = toIsoDate(weekSunday);
 
+  const { data: slotAssignments = [] } = useQuery({
+    queryKey: ["slot-assignments", weekMondayIso, weekSundayIso],
+    queryFn: () =>
+      api.getSlotAssignments({
+        from: weekMondayIso,
+        to: weekSundayIso,
+      }),
+  });
+
   const weekOverrides = useMemo(() => {
     return allOverrides.filter(
       (o) => o.override_date >= weekMondayIso && o.override_date <= weekSundayIso,
@@ -1406,13 +1396,125 @@ const CoachTrainingSlotsScreen = ({
     return set;
   }, [weekOverrides]);
 
-  const deleteOverrideMutation = useMutation({
-    mutationFn: (overrideId: string) => api.deleteSlotOverride(overrideId),
-    onSuccess: () => {
-      toast({ title: "Exception supprimee" });
-      void queryClient.invalidateQueries({
-        queryKey: ["training-slot-overrides"],
+  const assignmentsByKey = useMemo(() => {
+    const map = new Map<string, (typeof slotAssignments)[number]>();
+    for (const assignment of slotAssignments) {
+      if (!assignment.training_slot_id) continue;
+      const key = `${assignment.training_slot_id}:${assignment.scheduled_date}`;
+      if (!map.has(key)) {
+        map.set(key, assignment);
+      }
+    }
+    return map;
+  }, [slotAssignments]);
+
+  const slotInstancesById = useMemo(() => {
+    const map = new Map<string, SlotInstance>();
+    const today = todayIso();
+
+    for (const slot of filteredSlots) {
+      const slotDate = weekDates[slot.day_of_week - 1];
+      if (!slotDate) continue;
+
+      const scheduledDate = toIsoDate(slotDate);
+      const override = weekOverrides.find(
+        (item) =>
+          item.slot_id === slot.id &&
+          item.override_date === scheduledDate,
+      );
+      const assignment = assignmentsByKey.get(`${slot.id}:${scheduledDate}`);
+
+      const state =
+        override?.status === "cancelled"
+          ? "cancelled"
+          : computeSlotState(assignment, today);
+
+      map.set(slot.id, {
+        date: scheduledDate,
+        slot,
+        groups: slot.assignments,
+        state,
+        assignment,
+        override,
       });
+    }
+
+    return map;
+  }, [assignmentsByKey, filteredSlots, weekDates, weekOverrides]);
+
+  const handleCreate = () => {
+    setEditingSlot(null);
+    setShowSlotForm(true);
+  };
+
+  const handleOpenInstance = (instance: SlotInstance) => {
+    setSelectedInstance(instance);
+    setShowSessionSheet(true);
+  };
+
+  const handleSelect = (slot: TrainingSlot) => {
+    const instance = slotInstancesById.get(slot.id);
+    if (!instance) return;
+    handleOpenInstance(instance);
+  };
+
+  const handleEditSlot = (instance: SlotInstance) => {
+    setEditingSlot(instance.slot);
+    setShowSlotForm(true);
+  };
+
+  const handleManageOverride = (instance: SlotInstance) => {
+    setOverrideSlot(instance.slot);
+    setShowOverrideForm(true);
+  };
+
+  const handleCreateNewSession = (instance: SlotInstance) => {
+    if (!onOpenLibrary) return;
+    setShowSessionSheet(false);
+    onOpenLibrary(buildSwimLibraryContext(instance, "create"));
+  };
+
+  const handleEditSession = (sessionId: number) => {
+    if (!onOpenLibrary) return;
+    setShowSessionSheet(false);
+    if (!selectedInstance) {
+      onOpenLibrary();
+      return;
+    }
+    onOpenLibrary(buildSwimLibraryContext(selectedInstance, "edit", sessionId));
+  };
+
+  const handlePickTemplate = (instance: SlotInstance) => {
+    setTemplateTargetInstance(instance);
+    setShowSessionSheet(false);
+    setTemplatePickerOpen(true);
+  };
+
+  const assignTemplateMutation = useMutation({
+    mutationFn: async ({
+      catalogId,
+      instance,
+    }: {
+      catalogId: number;
+      instance: SlotInstance;
+    }) => {
+      const groupIds = instance.groups.map((group) => group.group_id);
+      if (!userId || groupIds.length === 0) return;
+
+      await api.bulkCreateSlotAssignments({
+        swimCatalogId: catalogId,
+        trainingSlotId: instance.slot.id,
+        scheduledDate: instance.date,
+        groupIds,
+        scheduledSlot: deriveScheduledSlot(instance.slot.start_time),
+        visibleFrom: instance.date,
+        assignedBy: userId,
+      });
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["slot-assignments"] });
+      setTemplatePickerOpen(false);
+      setTemplateTargetInstance(null);
     },
     onError: (err: Error) => {
       toast({
@@ -1423,28 +1525,9 @@ const CoachTrainingSlotsScreen = ({
     },
   });
 
-  const handleCreate = () => {
-    setEditingSlot(null);
-    setShowSlotForm(true);
-  };
-
-  const handleSelect = (slot: TrainingSlot) => {
-    setSelectedSlot(slot);
-    setShowDetail(true);
-  };
-
-  const handleEditFromDetail = () => {
-    if (!selectedSlot) return;
-    setShowDetail(false);
-    setEditingSlot(selectedSlot);
-    setShowSlotForm(true);
-  };
-
-  const handleOverrideFromDetail = () => {
-    if (!selectedSlot) return;
-    setShowDetail(false);
-    setOverrideSlot(selectedSlot);
-    setShowOverrideForm(true);
+  const handleTemplateSelect = (catalogId: number) => {
+    if (!templateTargetInstance) return;
+    assignTemplateMutation.mutate({ catalogId, instance: templateTargetInstance });
   };
 
   const coachesForForm = coaches.map((c) => ({
@@ -1478,13 +1561,25 @@ const CoachTrainingSlotsScreen = ({
               )}
             </div>
           </div>
-          <button
-            type="button"
-            className="flex items-center justify-center h-9 w-9 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/20 active:scale-90 transition-all"
-            onClick={handleCreate}
-          >
-            <Plus className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            {onOpenLibrary && (
+              <button
+                type="button"
+                className="flex items-center justify-center h-9 w-9 rounded-full border border-border bg-card text-primary active:scale-90 transition-all"
+                onClick={() => onOpenLibrary()}
+                aria-label="Ouvrir la bibliothèque"
+              >
+                <BookOpen className="h-4 w-4" />
+              </button>
+            )}
+            <button
+              type="button"
+              className="flex items-center justify-center h-9 w-9 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/20 active:scale-90 transition-all"
+              onClick={handleCreate}
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1495,10 +1590,18 @@ const CoachTrainingSlotsScreen = ({
           description={description}
           onBack={onBack}
           actions={
-            <Button variant="outline" size="sm" onClick={handleCreate}>
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Nouveau
-            </Button>
+            <div className="flex items-center gap-2">
+              {onOpenLibrary && (
+                <Button variant="ghost" size="sm" onClick={() => onOpenLibrary()}>
+                  <BookOpen className="mr-1.5 h-3.5 w-3.5" />
+                  Bibliothèque
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={handleCreate}>
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Nouveau
+              </Button>
+            </div>
           }
         />
       </div>
@@ -1652,6 +1755,7 @@ const CoachTrainingSlotsScreen = ({
           <div className="sm:hidden">
             <MobileView
               slotsByDay={slotsByDay}
+              slotInstancesById={slotInstancesById}
               weekDates={weekDates}
               todayStr={todayIso()}
               overridesBySlot={overridesBySlot}
@@ -1725,6 +1829,7 @@ const CoachTrainingSlotsScreen = ({
                       <TimelineSlot
                         key={slot.id}
                         slot={slot}
+                        instance={slotInstancesById.get(slot.id)}
                         hasOverrides={
                           (overridesBySlot.get(slot.id) ?? []).length > 0
                         }
@@ -1740,17 +1845,15 @@ const CoachTrainingSlotsScreen = ({
         </>
       )}
 
-      {/* Slot Detail Sheet (tap on timeline) */}
-      <SlotDetailSheet
-        slot={selectedSlot}
-        open={showDetail}
-        onOpenChange={setShowDetail}
-        overrides={
-          selectedSlot ? (overridesBySlot.get(selectedSlot.id) ?? []) : []
-        }
-        onEdit={handleEditFromDetail}
-        onOverride={handleOverrideFromDetail}
-        onDeleteOverride={(id) => deleteOverrideMutation.mutate(id)}
+      <SlotSessionSheet
+        instance={selectedInstance}
+        open={showSessionSheet}
+        onOpenChange={setShowSessionSheet}
+        onCreateNew={handleCreateNewSession}
+        onEditSession={handleEditSession}
+        onPickTemplate={handlePickTemplate}
+        onEditSlot={handleEditSlot}
+        onManageOverride={handleManageOverride}
       />
 
       {/* Slot Form Sheet */}
@@ -1767,6 +1870,12 @@ const CoachTrainingSlotsScreen = ({
         open={showOverrideForm}
         onOpenChange={setShowOverrideForm}
         slot={overrideSlot}
+      />
+
+      <SlotTemplatePicker
+        open={templatePickerOpen}
+        onOpenChange={setTemplatePickerOpen}
+        onSelect={(catalogId, _sessionName) => handleTemplateSelect(catalogId)}
       />
     </div>
   );
