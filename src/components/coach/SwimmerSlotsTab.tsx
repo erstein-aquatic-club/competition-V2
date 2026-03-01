@@ -22,6 +22,28 @@ import { Link2, Plus, RotateCcw, Trash2, Clock, MapPin } from "lucide-react";
 
 const DAYS_FR = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
 
+/** Convert "HH:MM" or "HH:MM:SS" to minutes since midnight */
+function timeToMinutes(t: string): number {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+/** Duration label (e.g. "1h30", "45min") */
+function durationLabel(start: string, end: string): string {
+  const diff = timeToMinutes(end) - timeToMinutes(start);
+  const h = Math.floor(diff / 60);
+  const m = diff % 60;
+  if (h === 0) return `${m}min`;
+  if (m === 0) return `${h}h`;
+  return `${h}h${String(m).padStart(2, "0")}`;
+}
+
+/** True if slot is a swimming session (vs PPG/muscu) based on location */
+function isSwimSlot(location: string): boolean {
+  const loc = location.toLowerCase();
+  return loc.includes("piscine") || loc.includes("bassin") || (!loc.includes("salle") && !loc.includes("muscu") && !loc.includes("ppg") && !loc.includes("gym"));
+}
+
 type Props = {
   athleteId: number;
   athleteName: string;
@@ -153,30 +175,57 @@ export default function SwimmerSlotsTab({ athleteId, athleteName, groupId }: Pro
         const daySlots = slotsByDay.get(dow);
         if (!daySlots || daySlots.length === 0) return null;
         return (
-          <div key={dow} className="space-y-1.5">
+          <div key={dow} className="space-y-2">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               {DAYS_FR[dow - 1]}
             </h3>
-            {daySlots.map((s: any) => (
-              <button
-                key={s.id}
-                type="button"
-                className="w-full flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2 text-left hover:bg-muted/50 transition"
-                onClick={() => hasPersonalSlots ? setEditSlot(s) : undefined}
-              >
-                <div className="flex items-center gap-1.5 text-sm font-mono tabular-nums">
-                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                  {(s.start_time as string).slice(0, 5)} – {(s.end_time as string).slice(0, 5)}
-                </div>
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground truncate">
-                  <MapPin className="h-3.5 w-3.5" />
-                  {s.location}
-                </div>
-                {hasPersonalSlots && (s as SwimmerTrainingSlot).source_assignment_id && (
-                  <Link2 className="h-3.5 w-3.5 text-blue-500 ml-auto flex-shrink-0" />
-                )}
-              </button>
-            ))}
+            {daySlots.map((s: any) => {
+              const swim = isSwimSlot(s.location);
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  className="w-full text-left rounded-xl border border-border bg-card transition-all active:scale-[0.98] hover:border-border/80"
+                  onClick={() => hasPersonalSlots ? setEditSlot(s) : undefined}
+                >
+                  <div className="flex">
+                    {/* Color accent bar */}
+                    <div className={`w-1 rounded-l-xl flex-shrink-0 ${
+                      swim ? "bg-blue-500" : "bg-amber-400"
+                    }`} />
+
+                    <div className="flex-1 px-3 py-2.5 min-w-0">
+                      {/* Time row */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold tabular-nums text-foreground">
+                            {(s.start_time as string).slice(0, 5)} – {(s.end_time as string).slice(0, 5)}
+                          </span>
+                          <span className={`text-xs tabular-nums px-1.5 py-0.5 rounded-md font-medium ${
+                            swim
+                              ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                              : "bg-amber-400/10 text-amber-600 dark:text-amber-400"
+                          }`}>
+                            {durationLabel(s.start_time, s.end_time)}
+                          </span>
+                        </div>
+                        {hasPersonalSlots && (s as SwimmerTrainingSlot).source_assignment_id && (
+                          <Link2 className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
+                        )}
+                      </div>
+
+                      {/* Location */}
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        <span className="text-xs text-muted-foreground truncate">
+                          {s.location}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         );
       })}
