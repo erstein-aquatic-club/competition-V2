@@ -1,8 +1,8 @@
 /**
  * Shared ObjectiveCard — card-based grid design.
  *
- * Top color bar (stroke), SVG progress ring, vertical layout for 2x2 grid.
- * Date of best perf shown as relative "time ago" badge inside the card.
+ * Top color bar (stroke), SVG progress ring colored by progress %,
+ * horizontal layout: ring left, times right.
  *
  * Used across: SwimmerObjectivesView, SwimmerObjectivesTab,
  * CoachObjectivesScreen, AthleteInterviewsSection, SwimmerInterviewsTab.
@@ -17,21 +17,10 @@ import {
   strokeFromCode,
   findBestPerformance,
   computeProgress,
-  progressBarColor,
-  daysUntil,
   STROKE_COLORS,
 } from "@/lib/objectiveHelpers";
 
-// ── Stroke colors ───────────────────────────────────────────────
-
-const RING_HEX: Record<string, string> = {
-  NL: "#3b82f6",
-  DOS: "#10b981",
-  BR: "#f43f5e",
-  PAP: "#8b5cf6",
-  QN: "#f59e0b",
-};
-const RING_DEFAULT = "#a1a1aa";
+// ── Stroke colors (top border) ──────────────────────────────────
 
 const STROKE_BORDER_TOP: Record<string, string> = {
   NL: "border-t-blue-500",
@@ -41,21 +30,20 @@ const STROKE_BORDER_TOP: Record<string, string> = {
   QN: "border-t-amber-500",
 };
 
-// ── Helpers ─────────────────────────────────────────────────────
+// ── Progress-based ring colors (same palette as progress bar) ───
 
-const FR_MONTHS = ["jan", "fév", "mar", "avr", "mai", "jun", "jul", "aoû", "sep", "oct", "nov", "déc"];
-
-/** "12 fév" or "3 jan 24" if different year. */
-function fmtShortDate(iso: string): string {
-  const p = iso.split("-");
-  if (p.length !== 3) return iso;
-  const day = parseInt(p[2]);
-  const month = FR_MONTHS[parseInt(p[1]) - 1] ?? p[1];
-  const year = parseInt(p[0]);
-  const currentYear = new Date().getFullYear();
-  if (year !== currentYear) return `${day} ${month} ${String(year).slice(2)}`;
-  return `${day} ${month}`;
+function progressRingColor(pct: number | null): string {
+  if (pct == null) return "#a1a1aa"; // zinc-400
+  if (pct >= 100) return "#10b981"; // emerald-500
+  if (pct >= 75) return "#22c55e";  // green-500
+  if (pct >= 50) return "#eab308";  // yellow-500
+  if (pct >= 25) return "#f97316";  // orange-500
+  return "#ef4444";                  // red-500
 }
+
+const RING_DEFAULT = "#a1a1aa";
+
+// ── Helpers ─────────────────────────────────────────────────────
 
 /** "il y a Xj" for recent, "il y a Xm" for older. */
 function timeAgo(iso: string): string {
@@ -165,7 +153,6 @@ export function ObjectiveCard({
 }: ObjectiveCardProps) {
   const hasChrono = !!objective.event_code;
   const stroke = hasChrono ? strokeFromCode(objective.event_code!) : null;
-  const ringColor = stroke ? RING_HEX[stroke] ?? RING_DEFAULT : RING_DEFAULT;
   const topBorder = stroke ? STROKE_BORDER_TOP[stroke] ?? "" : "";
   const leftBorder = stroke ? STROKE_COLORS[stroke] ?? "" : "";
 
@@ -180,12 +167,11 @@ export function ObjectiveCard({
     progressPct = computeProgress(bestPerf.time, objective.target_time_seconds, objective.event_code);
   }
 
-  const hasCompetition = !!objective.competition_name;
-  const leftDays = objective.competition_date ? daysUntil(objective.competition_date) : null;
+  const ringColor = progressRingColor(progressPct);
 
   const Tag = onClick ? "button" : "div";
 
-  // ── Compact (embedded in Suivi — single row, left border) ──
+  // ── Compact (embedded in interviews — single row, left border) ──
   if (compact) {
     return (
       <Tag
@@ -257,7 +243,7 @@ export function ObjectiveCard({
           <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{objective.text}</p>
         )}
 
-        {/* Ring + times block */}
+        {/* Ring (left) + times (right) */}
         {objective.target_time_seconds != null && (
           <div className="flex items-center gap-2.5">
             <ProgressRing size={40} strokeWidth={3} progress={progressPct} color={ringColor} />
@@ -294,27 +280,9 @@ export function ObjectiveCard({
         {/* Text-only: ring only if no chrono */}
         {!hasChrono && (
           <div className="flex items-center gap-2.5">
-            <ProgressRing size={40} strokeWidth={3} progress={null} color={ringColor} />
+            <ProgressRing size={40} strokeWidth={3} progress={null} color={RING_DEFAULT} />
             <p className="text-[10px] text-muted-foreground/40 italic">Objectif qualitatif</p>
           </div>
-        )}
-
-        {/* Progress bar */}
-        {progressPct != null && (
-          <div className="h-1 w-full rounded-full bg-black/5 dark:bg-white/5 overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${progressBarColor(progressPct)}`}
-              style={{ width: `${Math.min(progressPct, 100)}%` }}
-            />
-          </div>
-        )}
-
-        {/* Competition countdown */}
-        {hasCompetition && (
-          <p className="text-[10px] text-muted-foreground/50 truncate">
-            {objective.competition_name}
-            {leftDays != null && leftDays > 0 && <span> · J-{leftDays}</span>}
-          </p>
         )}
       </div>
     </Tag>

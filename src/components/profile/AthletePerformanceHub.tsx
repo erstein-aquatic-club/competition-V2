@@ -17,10 +17,12 @@ import SwimmerObjectivesView from "./SwimmerObjectivesView";
 import { weekTypeColor, weekTypeTextColor } from "@/lib/weekTypeColor";
 import {
   ArrowLeft,
+  CalendarClock,
   CalendarRange,
   ChevronRight,
   Clock,
   ExternalLink,
+  MapPin,
   MessageSquare,
   Sparkles,
   Target,
@@ -85,6 +87,108 @@ function daysBetween(dateA: string, dateB: string): number {
   const b = new Date(dateB + "T00:00:00");
   return Math.round((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
 }
+
+// ── Read-only swimmer slots (athlete view) ─────────────────────
+
+const DAYS_FR = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
+
+function isSwimSlot(location: string): boolean {
+  const l = location.toLowerCase();
+  return l.includes("piscine") || l.includes("bassin") || l.includes("natation") || l.includes("nage");
+}
+
+function durationLabel(start: string, end: string): string {
+  const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+  const diff = toMin(end) - toMin(start);
+  const h = Math.floor(diff / 60);
+  const m = diff % 60;
+  if (h === 0) return `${m}min`;
+  if (m === 0) return `${h}h`;
+  return `${h}h${String(m).padStart(2, "0")}`;
+}
+
+function AthleteSlots({ athleteId }: { athleteId: number }) {
+  const { data: slots = [], isLoading } = useQuery({
+    queryKey: ["swimmer-slots", athleteId],
+    queryFn: () => api.getSwimmerSlots(athleteId),
+    enabled: !!athleteId,
+  });
+
+  const slotsByDay = useMemo(() => {
+    const map = new Map<number, typeof slots>();
+    for (const s of slots) {
+      const arr = map.get(s.day_of_week) ?? [];
+      arr.push(s);
+      map.set(s.day_of_week, arr);
+    }
+    return map;
+  }, [slots]);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-2">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-12 rounded-xl border animate-pulse bg-muted/30" />
+        ))}
+      </div>
+    );
+  }
+
+  if (slots.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed bg-muted/20 py-6 text-center">
+        <p className="text-xs text-muted-foreground">Aucun créneau personnalisé.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5">
+      {[1, 2, 3, 4, 5, 6, 7].map((dow) => {
+        const daySlots = slotsByDay.get(dow);
+        if (!daySlots || daySlots.length === 0) return null;
+        return (
+          <div key={dow} className="space-y-1">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-0.5">
+              {DAYS_FR[dow - 1]}
+            </p>
+            {daySlots.map((s) => {
+              const swim = isSwimSlot(s.location);
+              return (
+                <div
+                  key={s.id}
+                  className="flex rounded-xl border bg-card overflow-hidden"
+                >
+                  <div className={`w-1 shrink-0 ${swim ? "bg-blue-500" : "bg-amber-400"}`} />
+                  <div className="flex-1 px-3 py-2 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold tabular-nums">
+                        {(s.start_time as string).slice(0, 5)} – {(s.end_time as string).slice(0, 5)}
+                      </span>
+                      <span className={`text-xs tabular-nums px-1.5 py-0.5 rounded-md font-medium ${
+                        swim
+                          ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                          : "bg-amber-400/10 text-amber-600 dark:text-amber-400"
+                      }`}>
+                        {durationLabel(s.start_time, s.end_time)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="text-xs text-muted-foreground truncate">{s.location}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Season planning ─────────────────────────────────────────────
 
 function AthleteSeasonPlanning({ athleteId }: { athleteId: number }) {
   const [, navigate] = useLocation();
@@ -427,8 +531,22 @@ export default function AthletePerformanceHub({
           <AthleteInterviewsSection embedded />
         </TabsContent>
 
-        <TabsContent value="planification" className="mt-0">
-          <AthleteSeasonPlanning athleteId={athleteId} />
+        <TabsContent value="planification" className="mt-0 space-y-4">
+          <section className="space-y-2">
+            <div className="flex items-center gap-2">
+              <CalendarClock className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold">Créneaux</h2>
+            </div>
+            <AthleteSlots athleteId={athleteId} />
+          </section>
+
+          <section className="space-y-2">
+            <div className="flex items-center gap-2">
+              <CalendarRange className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold">Cycle</h2>
+            </div>
+            <AthleteSeasonPlanning athleteId={athleteId} />
+          </section>
         </TabsContent>
       </Tabs>
     </div>
