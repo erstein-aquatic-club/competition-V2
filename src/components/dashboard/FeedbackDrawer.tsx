@@ -936,7 +936,7 @@ export function FeedbackDrawer({
                     >
                       Valider
                     </button>
-                    <div className="text-xs text-muted-foreground">{"\u2192"} km</div>
+                    <div className="text-xs text-muted-foreground">{"→"} km</div>
                   </BottomActionBar>
                 );
               })()}

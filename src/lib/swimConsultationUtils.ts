@@ -52,13 +52,13 @@ export const strokeLabelMap: Record<string, string> = {
   brasse: "Brasse",
   "4n": "4 nages",
   "4 nages": "4 nages",
-  spe: "Sp\u00e9",
-  "sp\u00e9": "Sp\u00e9",
+  spe: "Spé",
+  "spé": "Spé",
 };
 
 export const strokeTypeLabels: Record<string, string> = {
   nc: "NC",
-  educ: "\u00c9ducatif",
+  educ: "Éducatif",
   jambes: "Jambes",
 };
 

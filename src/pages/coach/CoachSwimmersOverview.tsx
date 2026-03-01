@@ -45,7 +45,7 @@ function computeFormeScore(sessions: Array<{
 }
 
 function formeBadge(score: number | null): { label: string; className: string } {
-  if (score == null) return { label: "\u2014", className: "bg-muted text-muted-foreground" };
+  if (score == null) return { label: "—", className: "bg-muted text-muted-foreground" };
   if (score >= 3.5) return { label: `${score.toFixed(1)}`, className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400" };
   if (score >= 2.5) return { label: `${score.toFixed(1)}`, className: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400" };
   return { label: `${score.toFixed(1)}`, className: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400" };
@@ -235,7 +235,7 @@ export default function CoachSwimmersOverview({ athletes, athletesLoading, onBac
         title="Nageurs"
         description={
           athletesLoading
-            ? "Chargement\u2026"
+            ? "Chargement…"
             : `${athletes.length} nageur${athletes.length !== 1 ? "s" : ""}`
         }
         onBack={onBack}

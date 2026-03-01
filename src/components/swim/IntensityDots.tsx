@@ -13,7 +13,7 @@ export const intensityTone: Record<string, string> = {
 
 export const formatIntensityLabel = (value: string) => {
   if (value === "Max") return "MAX";
-  if (value === "Prog") return "Prog \u2197";
+  if (value === "Prog") return "Prog ↗";
   return value;
 };
 

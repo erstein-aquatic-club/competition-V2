@@ -601,8 +601,8 @@ const EventsTimeline = ({
       const de = new Date(ev.end_date + "T00:00:00");
       const endFmt = de.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }).replace(".", "");
       return ds.getMonth() === de.getMonth()
-        ? `${ds.getDate()}\u2013${endFmt}`
-        : `${ds.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }).replace(".", "")} \u2192 ${endFmt}`;
+        ? `${ds.getDate()}–${endFmt}`
+        : `${ds.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }).replace(".", "")} → ${endFmt}`;
     })();
 
     const content = (
@@ -642,7 +642,7 @@ const EventsTimeline = ({
             isPast ? "text-muted-foreground/60" : "text-muted-foreground",
           )}>
             {dateLabel}
-            {ev.subtitle && ` \u00b7 ${ev.subtitle}`}
+            {ev.subtitle && ` · ${ev.subtitle}`}
           </p>
         </div>
       </>

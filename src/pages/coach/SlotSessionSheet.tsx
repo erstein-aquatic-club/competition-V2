@@ -224,7 +224,7 @@ export default function SlotSessionSheet({
             <SheetDescription className="flex items-center gap-3 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1">
                 <Clock className="h-3 w-3 opacity-60" />
-                {formatTime(slot.start_time)} \u2013 {formatTime(slot.end_time)}
+                {formatTime(slot.start_time)} – {formatTime(slot.end_time)}
               </span>
               <span className="inline-flex items-center gap-1">
                 <MapPin className="h-3 w-3 opacity-60" />

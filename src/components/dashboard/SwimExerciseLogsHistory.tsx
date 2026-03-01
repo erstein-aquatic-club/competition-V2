@@ -385,7 +385,7 @@ function LogEntry({ log, onSave, onDelete, saving }: LogEntryProps) {
         {log.split_times.length > 0 && (
           <span className="inline-flex items-center gap-1">
             <Timer className="h-3 w-3" />
-            {log.split_times.map((s) => formatSwimTime(s.time_seconds) || "\u2014").join(" / ")}
+            {log.split_times.map((s) => formatSwimTime(s.time_seconds) || "—").join(" / ")}
           </span>
         )}
 

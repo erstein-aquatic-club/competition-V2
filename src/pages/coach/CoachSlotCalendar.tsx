@@ -31,9 +31,9 @@ function formatWeekRange(mondayIso: string, sundayIso: string): string {
   const sundayMonth = sunday.toLocaleDateString("fr-FR", { month: "long" });
   const year = sunday.getFullYear();
   if (mondayMonth === sundayMonth) {
-    return `${mD} \u2013 ${sD} ${mondayMonth} ${year}`;
+    return `${mD} – ${sD} ${mondayMonth} ${year}`;
   }
-  return `${mD} ${mondayMonth} \u2013 ${sD} ${sundayMonth} ${year}`;
+  return `${mD} ${mondayMonth} – ${sD} ${sundayMonth} ${year}`;
 }
 
 function formatDayHeader(isoDate: string): { abbrev: string; label: string } {
@@ -46,7 +46,7 @@ function formatDayHeader(isoDate: string): { abbrev: string; label: string } {
 }
 
 function formatTimeRange(start: string, end: string): string {
-  return `${start.slice(0, 5)} \u2013 ${end.slice(0, 5)}`;
+  return `${start.slice(0, 5)} – ${end.slice(0, 5)}`;
 }
 
 function todayIso(): string {

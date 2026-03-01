@@ -133,7 +133,7 @@ export default function SwimmerFeedbackTab({
                           indicatorColor(ind.mode, value)
                         )}
                       >
-                        {value ?? "\u2014"}
+                        {value ?? "—"}
                       </span>
                       {/* Tooltip: hover on desktop, tap on mobile */}
                       <span
@@ -153,7 +153,7 @@ export default function SwimmerFeedbackTab({
 
             <div className="flex items-center justify-between mt-1.5">
               <span className="text-xs text-muted-foreground">
-                {session.distance > 0 ? `${session.distance}m` : "\u2014"}
+                {session.distance > 0 ? `${session.distance}m` : "—"}
               </span>
               {session.comments && (
                 <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", isExpanded && "rotate-180")} />

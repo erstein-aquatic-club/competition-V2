@@ -314,7 +314,7 @@ export function SwimSessionBuilder({
             <textarea
               value={rawText}
               onChange={(e) => setRawText(e.target.value)}
-              placeholder={"Collez ou tapez votre séance ici\u2026\n\nExemple :\nÉchauffement\n4x100 crawl V1 R30\n8x50 educ dos V0\n\nCorps de séance\n2x(4x100 NL V3 D1'30)\n6x50 papillon jambes V2 R20\n\nRetour au calme\n200 4N souple"}
+              placeholder={"Collez ou tapez votre séance ici…\n\nExemple :\nÉchauffement\n4x100 crawl V1 R30\n8x50 educ dos V0\n\nCorps de séance\n2x(4x100 NL V3 D1'30)\n6x50 papillon jambes V2 R20\n\nRetour au calme\n200 4N souple"}
               className="min-h-[280px] w-full resize-y rounded-2xl border border-border bg-card px-4 py-3 text-sm leading-relaxed placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring"
             />
             <button

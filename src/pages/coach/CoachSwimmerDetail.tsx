@@ -219,7 +219,7 @@ export default function CoachSwimmerDetail({
                     ? ""
                     : avgEngagement != null
                       ? `Engagement moy. : ${avgEngagement.toFixed(1)}/5`
-                      : "\u2014"}
+                      : "—"}
                 </p>
               </button>
 
@@ -245,7 +245,7 @@ export default function CoachSwimmerDetail({
                     ? ""
                     : lastInterviewDate
                       ? `Dernier : ${formatRelative(lastInterviewDate)}`
-                      : "\u2014"}
+                      : "—"}
                 </p>
               </button>
 
@@ -271,7 +271,7 @@ export default function CoachSwimmerDetail({
                     ? ""
                     : cycles.length > 0
                       ? `${cycles.length} cycle${cycles.length > 1 ? "s" : ""}`
-                      : "\u2014"}
+                      : "—"}
                 </p>
               </button>
 
@@ -293,7 +293,7 @@ export default function CoachSwimmerDetail({
                       : "Aucun objectif"}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {objectives === undefined ? "" : "\u2014"}
+                  {objectives === undefined ? "" : "—"}
                 </p>
               </button>
             </div>
