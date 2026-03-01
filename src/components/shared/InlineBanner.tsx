@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, KeyboardEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -84,6 +84,8 @@ interface InlineBannerProps {
   animate?: boolean;
   /** Show / hide (for AnimatePresence) */
   visible?: boolean;
+  /** Click handler */
+  onClick?: () => void;
   className?: string;
 }
 
@@ -96,6 +98,7 @@ export function InlineBanner({
   subbadge,
   animate = true,
   visible = true,
+  onClick,
   className,
 }: InlineBannerProps) {
   const v = variants[variant];
@@ -103,9 +106,14 @@ export function InlineBanner({
   const content = (
     <motion.div
       {...(animate ? bannerMotion : {})}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e: KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
       className={cn(
         "rounded-xl border px-3 py-2.5",
         "backdrop-blur-sm",
+        onClick && "cursor-pointer active:scale-[0.98] transition-transform",
         v.border,
         v.bg,
         className,

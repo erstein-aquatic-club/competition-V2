@@ -362,9 +362,10 @@ export default function Dashboard() {
     getSessionStatus,
   } = state;
 
-  // Competition dates for calendar markers
-  const competitionDates = useMemo(() => {
+  // Competition dates for calendar markers + date→competitionId lookup
+  const { competitionDates, competitionByDate } = useMemo(() => {
     const dates = new Set<string>();
+    const byDate = new Map<string, string>();
     for (const c of visibleCompetitions) {
       if (!c.date) continue;
       const start = c.date.slice(0, 10);
@@ -373,6 +374,7 @@ export default function Dashboard() {
       let current = start;
       while (current <= end) {
         dates.add(current);
+        if (!byDate.has(current)) byDate.set(current, c.id);
         // Increment date by 1 day
         const d = new Date(current + "T00:00:00");
         d.setDate(d.getDate() + 1);
@@ -382,7 +384,7 @@ export default function Dashboard() {
         current = `${y}-${m}-${day}`;
       }
     }
-    return dates;
+    return { competitionDates: dates, competitionByDate: byDate };
   }, [visibleCompetitions]);
 
   // Next upcoming competition
@@ -415,6 +417,13 @@ export default function Dashboard() {
 
   const openDay = useCallback(
     (iso: string) => {
+      // If this is a competition day, navigate to competition detail
+      const compId = competitionByDate.get(iso);
+      if (compId) {
+        navigate(`/competition/${compId}`);
+        return;
+      }
+
       setSelectedISO(iso);
       setDrawerOpen(true);
       setActiveSessionId(null);
@@ -423,7 +432,7 @@ export default function Dashboard() {
       const st = completionByISO[iso] || { completed: 0, total: 2, slots: [{ slotKey: "AM" as const, expected: true, completed: false, absent: false }, { slotKey: "PM" as const, expected: true, completed: false, absent: false }] };
       setAutoCloseArmed(st.total > 0 && st.completed < st.total);
     },
-    [completionByISO, setSelectedISO, setDrawerOpen, setActiveSessionId, setDetailsOpen, setAutoCloseArmed]
+    [competitionByDate, navigate, completionByISO, setSelectedISO, setDrawerOpen, setActiveSessionId, setDetailsOpen, setAutoCloseArmed]
   );
 
   const closeDay = useCallback(() => {
@@ -728,6 +737,7 @@ export default function Dashboard() {
               : undefined
           }
           visible={!!nextCompetition && daysUntilNextCompetition != null}
+          onClick={nextCompetition ? () => navigate(`/competition/${nextCompetition.id}`) : undefined}
           className="mt-4"
         />
 

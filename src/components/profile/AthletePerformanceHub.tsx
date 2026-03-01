@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useLocation } from "wouter";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { TrainingWeek } from "@/lib/api";
@@ -19,6 +20,7 @@ import {
   CalendarRange,
   ChevronRight,
   Clock,
+  ExternalLink,
   MessageSquare,
   Sparkles,
   Target,
@@ -85,6 +87,7 @@ function daysBetween(dateA: string, dateB: string): number {
 }
 
 function AthleteSeasonPlanning({ athleteId }: { athleteId: number }) {
+  const [, navigate] = useLocation();
   const todayIso = useMemo(() => new Date().toISOString().split("T")[0], []);
   const [openCompetitionIds, setOpenCompetitionIds] = useState<string[]>([]);
 
@@ -232,6 +235,17 @@ function AthleteSeasonPlanning({ athleteId }: { athleteId: number }) {
                           <Badge variant="outline" className="text-[10px]">
                             J-{daysUntil}
                           </Badge>
+                          <button
+                            type="button"
+                            className="ml-auto shrink-0 rounded-lg p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/competition/${competition.id}`);
+                            }}
+                            aria-label="Voir la compétition"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </button>
                         </div>
                         {cycle ? (
                           <div className="mt-1 flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
