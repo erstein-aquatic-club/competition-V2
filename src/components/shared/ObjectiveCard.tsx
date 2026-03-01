@@ -268,10 +268,10 @@ export function ObjectiveCard({
               </p>
               {/* Current time + date */}
               {bestPerf && (
-                <p className="text-xs font-mono tabular-nums text-muted-foreground leading-none">
+                <p className="text-[10px] font-mono tabular-nums text-muted-foreground/50 leading-none">
                   {formatTime(bestPerf.time)}
                   {bestPerf.date && (
-                    <span className="text-[10px] text-muted-foreground/40 font-sans ml-1.5">
+                    <span className="text-muted-foreground/30 font-sans ml-1">
                       {timeAgo(bestPerf.date)}
                     </span>
                   )}
