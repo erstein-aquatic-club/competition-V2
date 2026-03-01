@@ -157,7 +157,7 @@ export default function CoachSwimmersOverview({ athletes, athletesLoading, onBac
           <button
             type="button"
             onClick={() => setGroupFilter(null)}
-            className={`rounded-full px-3 py-1 text-xs font-medium border transition ${
+            className={`rounded-full px-3 py-2 text-xs font-medium border transition ${
               groupFilter == null
                 ? "bg-foreground text-background border-foreground"
                 : "bg-card text-foreground border-border hover:bg-muted"
@@ -170,7 +170,7 @@ export default function CoachSwimmersOverview({ athletes, athletesLoading, onBac
               key={g.id}
               type="button"
               onClick={() => setGroupFilter(groupFilter === g.id ? null : g.id)}
-              className={`rounded-full px-3 py-1 text-xs font-medium border transition ${
+              className={`rounded-full px-3 py-2 text-xs font-medium border transition ${
                 groupFilter === g.id
                   ? "bg-foreground text-background border-foreground"
                   : "bg-card text-foreground border-border hover:bg-muted"
@@ -194,7 +194,7 @@ export default function CoachSwimmersOverview({ athletes, athletesLoading, onBac
             key={opt.key}
             type="button"
             onClick={() => setSortKey(opt.key)}
-            className={`rounded-full px-2.5 py-0.5 text-xs font-medium border transition ${
+            className={`rounded-full px-2.5 py-1.5 text-xs font-medium border transition ${
               sortKey === opt.key
                 ? "bg-primary/10 text-primary border-primary/30"
                 : "bg-card text-muted-foreground border-border hover:bg-muted"

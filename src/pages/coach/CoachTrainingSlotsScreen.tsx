@@ -474,7 +474,7 @@ const SlotFormSheet = ({
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+                        className="h-10 w-10 text-muted-foreground hover:text-destructive shrink-0"
                         onClick={() => removeAssignment(row.key)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -1004,7 +1004,7 @@ const MobileView = ({
       <div className="flex items-center justify-between">
         <button
           type="button"
-          className="flex items-center justify-center h-8 w-8 rounded-full text-muted-foreground hover:bg-muted active:scale-90 transition-all"
+          className="flex items-center justify-center h-10 w-10 rounded-full text-muted-foreground hover:bg-muted active:scale-90 transition-all"
           onClick={onPrevWeek}
         >
           <ChevronLeft className="h-4 w-4" />
@@ -1019,7 +1019,7 @@ const MobileView = ({
         </div>
         <button
           type="button"
-          className="flex items-center justify-center h-8 w-8 rounded-full text-muted-foreground hover:bg-muted active:scale-90 transition-all"
+          className="flex items-center justify-center h-10 w-10 rounded-full text-muted-foreground hover:bg-muted active:scale-90 transition-all"
           onClick={onNextWeek}
         >
           <ChevronRight className="h-4 w-4" />
@@ -1053,7 +1053,7 @@ const MobileView = ({
               </span>
 
               {/* Date number */}
-              <span className={`text-sm font-bold tabular-nums mt-0.5 h-7 w-7 flex items-center justify-center rounded-full ${
+              <span className={`text-sm font-bold tabular-nums mt-0.5 h-10 w-10 flex items-center justify-center rounded-full ${
                 isToday
                   ? "bg-primary text-primary-foreground"
                   : isSelected
@@ -1464,7 +1464,7 @@ const CoachTrainingSlotsScreen = ({
       <div className="sm:hidden">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2" onClick={onBack}>
+            <Button variant="ghost" size="icon" className="h-10 w-10 -ml-2" onClick={onBack}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <div>
@@ -1533,7 +1533,7 @@ const CoachTrainingSlotsScreen = ({
       <div className="hidden sm:block space-y-3">
         {/* Week nav bar */}
         <div className="flex items-center justify-between gap-2">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={prevWeek}>
+          <Button variant="ghost" size="icon" className="h-10 w-10" onClick={prevWeek}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
 
@@ -1549,7 +1549,7 @@ const CoachTrainingSlotsScreen = ({
             </span>
           </button>
 
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={nextWeek}>
+          <Button variant="ghost" size="icon" className="h-10 w-10" onClick={nextWeek}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>

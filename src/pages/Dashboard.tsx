@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo } from "react";
+import { useLocation } from "wouter";
 import { computeTrainingDaysRemaining } from "@/lib/date";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -115,6 +116,7 @@ export default function Dashboard() {
   const userId = useAuth((s) => s.userId);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
   const [saveState, setSaveState] = React.useState<SaveState>("idle");
   const [historyExpanded, setHistoryExpanded] = React.useState(false);
 
@@ -710,6 +712,17 @@ export default function Dashboard() {
           visible={!!nextCompetition && daysUntilNextCompetition != null}
           className="mt-4"
         />
+
+        {/* Quick-access shortcuts */}
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            onClick={() => navigate("/records")}
+            className="flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium text-muted-foreground active:bg-muted"
+          >
+            <Trophy className="h-3.5 w-3.5" />
+            Mes records
+          </button>
+        </div>
 
         {/* Calendar */}
         <div className="mt-4 rounded-3xl border border-border bg-card overflow-hidden">

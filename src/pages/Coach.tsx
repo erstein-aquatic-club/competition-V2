@@ -364,6 +364,17 @@ export default function Coach() {
     return () => window.removeEventListener("nav:reset", reset);
   }, []);
 
+  // Switch section when bottom nav triggers a section change
+  useEffect(() => {
+    const onSection = (e: Event) => {
+      const section = (e as CustomEvent<string>).detail as CoachSection;
+      setActiveSection(section);
+      setSelectedCoachAthlete(null);
+    };
+    window.addEventListener("nav:section", onSection);
+    return () => window.removeEventListener("nav:section", onSection);
+  }, []);
+
   const coachAccess = role === "coach" || role === "admin";
   const shouldLoadCatalogs = activeSection === "home" || activeSection === "calendar";
   const shouldLoadAthletes =

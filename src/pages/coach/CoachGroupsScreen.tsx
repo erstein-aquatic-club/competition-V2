@@ -528,7 +528,7 @@ const GroupDetailView = ({
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    className="h-10 w-10 text-muted-foreground hover:text-destructive"
                     onClick={() =>
                       setConfirmRemove({
                         userId: m.user_id,

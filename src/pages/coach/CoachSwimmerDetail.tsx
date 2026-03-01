@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, CalendarClock, CalendarRange, Clock, MessageSquare, Target } from "lucide-react";
@@ -11,6 +12,26 @@ import SwimmerObjectivesTab from "./SwimmerObjectivesTab";
 import SwimmerPlanningTab from "./SwimmerPlanningTab";
 import SwimmerInterviewsTab from "./SwimmerInterviewsTab";
 import SwimmerSlotsTab from "@/components/coach/SwimmerSlotsTab";
+
+/* ── Helpers ─────────────────────────────────────────────── */
+
+function formatRelative(dateStr: string): string {
+  const diff = Math.floor(
+    (Date.now() - new Date(dateStr).getTime()) / 86_400_000,
+  );
+  if (diff === 0) return "aujourd'hui";
+  if (diff === 1) return "hier";
+  if (diff < 0) return `dans ${-diff}j`;
+  return `il y a ${diff}j`;
+}
+
+async function fetchAuthUid(userId: number): Promise<string | null> {
+  const { data, error } = await supabase.rpc("get_auth_uid_for_user", {
+    p_user_id: userId,
+  });
+  if (error) return null;
+  return data as string | null;
+}
 
 type CoachSwimmerDetailProps = {
   athleteId?: number | null;
@@ -39,6 +60,72 @@ export default function CoachSwimmerDetail({
     queryFn: () => api.getProfile({ userId: athleteId }),
     enabled: athleteId != null,
   });
+
+  // ── KPI data for Resume tab ──────────────────────────────
+  const staleTime = 5 * 60 * 1000;
+
+  const { data: sessions } = useQuery({
+    queryKey: ["sessions", athleteId],
+    queryFn: () => api.getSessions(athleteName ?? "", athleteId),
+    enabled: !!athleteId,
+    staleTime,
+  });
+
+  const { data: interviews } = useQuery({
+    queryKey: ["interviews", athleteId],
+    queryFn: () => api.getInterviews(athleteId!),
+    enabled: !!athleteId,
+    staleTime,
+  });
+
+  const { data: cycles } = useQuery({
+    queryKey: ["training-cycles", athleteId],
+    queryFn: () => api.getTrainingCycles({ athleteId: athleteId! }),
+    enabled: !!athleteId,
+    staleTime,
+  });
+
+  const { data: athleteAuthId } = useQuery({
+    queryKey: ["auth-uid", athleteId],
+    queryFn: () => fetchAuthUid(athleteId!),
+    enabled: !!athleteId,
+    staleTime,
+  });
+
+  const { data: objectives } = useQuery({
+    queryKey: ["objectives", athleteAuthId],
+    queryFn: () => api.getObjectives(athleteAuthId!),
+    enabled: !!athleteAuthId,
+    staleTime,
+  });
+
+  // ── Derived KPIs ─────────────────────────────────────────
+  const lastFeedbackDate = sessions?.[0]?.date ?? null;
+  const avgEngagement = useMemo(() => {
+    if (!sessions || sessions.length === 0) return null;
+    const recent = sessions.slice(0, 7);
+    const vals = recent
+      .map((s) => s.engagement)
+      .filter((v): v is number => v != null && Number.isFinite(v));
+    if (vals.length === 0) return null;
+    return vals.reduce((a, b) => a + b, 0) / vals.length;
+  }, [sessions]);
+
+  const interviewCount = interviews?.length ?? 0;
+  const lastInterviewDate = interviews?.[0]?.date ?? null;
+
+  const activeCycleName = useMemo(() => {
+    if (!cycles || cycles.length === 0) return null;
+    const today = new Date().toISOString().slice(0, 10);
+    const active = cycles.find((c) => {
+      const start = c.start_date ?? c.start_competition_date ?? "";
+      const end = c.end_competition_date ?? "";
+      return start <= today && end >= today;
+    });
+    return active?.name ?? cycles[0]?.name ?? null;
+  }, [cycles]);
+
+  const objectivesCount = objectives?.length ?? 0;
 
   const displayName = profile?.display_name ?? athleteName ?? "Nageur";
   const avatarUrl = profile?.avatar_url ?? null;
@@ -110,49 +197,104 @@ export default function CoachSwimmerDetail({
               Accès direct au suivi, aux entretiens et à la planification de {displayName}.
             </p>
             <div className="mt-3 grid grid-cols-2 gap-2">
+              {/* Suivi tile */}
               <button
                 type="button"
                 onClick={() => setActiveTab("suivi")}
                 className="rounded-xl border px-3 py-3 text-left active:bg-muted"
               >
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  Suivi
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-blue-500" />
+                  <span className="text-sm font-medium">Suivi</span>
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">Ressentis et objectifs</p>
+                <p className="mt-1.5 text-xs text-muted-foreground truncate">
+                  {sessions === undefined
+                    ? "..."
+                    : lastFeedbackDate
+                      ? `Dernier : ${formatRelative(lastFeedbackDate)}`
+                      : "Aucun ressenti"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {sessions === undefined
+                    ? ""
+                    : avgEngagement != null
+                      ? `Engagement moy. : ${avgEngagement.toFixed(1)}/5`
+                      : "\u2014"}
+                </p>
               </button>
+
+              {/* Echanges tile */}
               <button
                 type="button"
                 onClick={() => setActiveTab("echanges")}
                 className="rounded-xl border px-3 py-3 text-left active:bg-muted"
               >
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                  Échanges
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-violet-500" />
+                  <span className="text-sm font-medium">Échanges</span>
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">Entretiens du nageur</p>
+                <p className="mt-1.5 text-xs text-muted-foreground truncate">
+                  {interviews === undefined
+                    ? "..."
+                    : interviewCount > 0
+                      ? `${interviewCount} entretien${interviewCount > 1 ? "s" : ""}`
+                      : "Aucun entretien"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {interviews === undefined
+                    ? ""
+                    : lastInterviewDate
+                      ? `Dernier : ${formatRelative(lastInterviewDate)}`
+                      : "\u2014"}
+                </p>
               </button>
+
+              {/* Planif tile */}
               <button
                 type="button"
                 onClick={() => setActiveTab("planif")}
                 className="rounded-xl border px-3 py-3 text-left active:bg-muted"
               >
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <CalendarRange className="h-4 w-4 text-muted-foreground" />
-                  Planif
+                <div className="flex items-center gap-2">
+                  <CalendarRange className="h-4 w-4 text-emerald-500" />
+                  <span className="text-sm font-medium">Planif</span>
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">Cycles et créneaux</p>
+                <p className="mt-1.5 text-xs text-muted-foreground truncate">
+                  {cycles === undefined
+                    ? "..."
+                    : activeCycleName
+                      ? activeCycleName
+                      : "Aucun cycle"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {cycles === undefined
+                    ? ""
+                    : cycles.length > 0
+                      ? `${cycles.length} cycle${cycles.length > 1 ? "s" : ""}`
+                      : "\u2014"}
+                </p>
               </button>
+
+              {/* Objectifs tile */}
               <button
                 type="button"
                 onClick={() => setActiveTab("suivi")}
                 className="rounded-xl border px-3 py-3 text-left active:bg-muted"
               >
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <Target className="h-4 w-4 text-muted-foreground" />
-                  Objectifs
+                <div className="flex items-center gap-2">
+                  <Target className="h-4 w-4 text-amber-500" />
+                  <span className="text-sm font-medium">Objectifs</span>
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">Temps cibles et cap</p>
+                <p className="mt-1.5 text-xs text-muted-foreground truncate">
+                  {objectives === undefined
+                    ? "..."
+                    : objectivesCount > 0
+                      ? `${objectivesCount} objectif${objectivesCount > 1 ? "s" : ""}`
+                      : "Aucun objectif"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {objectives === undefined ? "" : "\u2014"}
+                </p>
               </button>
             </div>
           </div>

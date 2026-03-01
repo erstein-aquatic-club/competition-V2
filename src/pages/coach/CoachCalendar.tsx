@@ -336,7 +336,7 @@ function SlotRow({
             type="button"
             size="icon"
             variant="ghost"
-            className="h-7 w-7 shrink-0"
+            className="h-10 w-10 shrink-0"
             disabled={isPending}
             onClick={() => setIsChanging(true)}
             title={isGroupAssignment ? "Personnaliser" : "Changer"}
@@ -348,7 +348,7 @@ function SlotRow({
               type="button"
               size="icon"
               variant="ghost"
-              className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
+              className="h-10 w-10 shrink-0 text-destructive hover:text-destructive"
               disabled={isPending}
               onClick={() => onDelete(slot.assignment!.id)}
               title="Supprimer"

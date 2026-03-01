@@ -3,6 +3,16 @@ import { AnimatePresence, motion } from "framer-motion";
 import { X, Waves, Power, Check, Circle, UserX, FileText, UserCheck, Minus, Plus, Sun, Moon, ChevronDown, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { BottomActionBar, type SaveState } from "@/components/shared/BottomActionBar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { slideInFromBottom, staggerChildren, listItem } from "@/lib/animations";
 import { durationsSeconds } from "@/lib/design-tokens";
 import { StrokeDetailForm } from "./StrokeDetailForm";
@@ -156,6 +166,8 @@ function DistanceStepper({ plannedMeters, valueMeters, onChange, disabled }: Dis
 
   const displayMeters = Number.isFinite(Number(valueMeters)) ? Number(valueMeters) : plannedMeters;
   const delta = displayMeters - plannedMeters;
+  const [editing, setEditing] = useState(false);
+  const [editValue, setEditValue] = useState("");
 
   return (
     <div className={cn("mt-4 rounded-3xl border px-4 py-3", disabled ? "bg-muted border-border" : "bg-card border-border")}>
@@ -197,15 +209,55 @@ function DistanceStepper({ plannedMeters, valueMeters, onChange, disabled }: Dis
         </button>
 
         <div className="min-w-[140px] text-center">
-          <div className={cn(
-            "text-2xl font-bold",
-            disabled ? "text-muted-foreground" : "text-foreground"
-          )}>
-            {displayMeters}m
-          </div>
-          <div className={cn("text-sm font-medium mt-0.5", disabled ? "text-muted-foreground" : "text-primary")}>
-            {fmtKm(metersToKm(displayMeters))} km
-          </div>
+          {editing ? (
+            <>
+              <input
+                type="number"
+                step={100}
+                min={min}
+                max={max}
+                autoFocus
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={() => {
+                  const parsed = Number(editValue);
+                  if (Number.isFinite(parsed) && parsed >= min && parsed <= max) {
+                    onChange(Math.round(parsed / 100) * 100);
+                  }
+                  setEditing(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    (e.target as HTMLInputElement).blur();
+                  } else if (e.key === "Escape") {
+                    setEditing(false);
+                  }
+                }}
+                className="w-20 text-center text-lg font-bold bg-transparent border-b border-primary outline-none"
+              />
+              <div className="text-xs text-muted-foreground mt-0.5">mètres</div>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => {
+                  setEditValue(String(displayMeters));
+                  setEditing(true);
+                }}
+                className={cn(
+                  "text-2xl font-bold border-b border-dashed border-muted-foreground/40",
+                  disabled ? "text-muted-foreground cursor-not-allowed" : "text-foreground hover:border-primary cursor-text"
+                )}
+              >
+                {displayMeters}m
+              </button>
+              <div className={cn("text-sm font-medium mt-0.5", disabled ? "text-muted-foreground" : "text-primary")}>
+                {fmtKm(metersToKm(displayMeters))} km
+              </div>
+            </>
+          )}
         </div>
 
         <button
@@ -330,6 +382,7 @@ export function FeedbackDrawer({
   const [, setLocation] = useLocation();
   const [unexpectedExpanded, setUnexpectedExpanded] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const activeSession = useMemo(() => {
     if (!activeSessionId) return null;
@@ -721,28 +774,36 @@ export function FeedbackDrawer({
                                   return (
                                     <motion.div key={ind.key} className="space-y-2" variants={listItem}>
                                       <div className={cn("text-sm font-semibold", !canRate ? "text-muted-foreground" : "text-foreground")}>{ind.label}</div>
-                                      <div className="flex items-center gap-2">
-                                        {[1, 2, 3, 4, 5].map((n) => {
-                                          const isSel = selected === n;
-                                          return (
-                                            <button
-                                              key={n}
-                                              type="button"
-                                              disabled={!canRate}
-                                              onClick={() => onDraftStateChange({ ...draftState, [ind.key]: n })}
-                                              className={cn(
-                                                "h-11 w-11 rounded-2xl border text-sm font-semibold transition",
-                                                !canRate
-                                                  ? "bg-muted text-muted-foreground border-border cursor-not-allowed"
-                                                  : isSel
-                                                  ? valueTone(ind.mode, n)
-                                                  : "bg-card text-foreground border-border hover:bg-muted"
-                                              )}
-                                            >
-                                              {n}
-                                            </button>
-                                          );
-                                        })}
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-[10px] text-muted-foreground w-14 text-right shrink-0 leading-tight">
+                                          {ind.mode === "hard" ? "Facile" : "Mauvaise"}
+                                        </span>
+                                        <div className="flex gap-1.5 flex-1 justify-center">
+                                          {[1, 2, 3, 4, 5].map((n) => {
+                                            const isSel = selected === n;
+                                            return (
+                                              <button
+                                                key={n}
+                                                type="button"
+                                                disabled={!canRate}
+                                                onClick={() => onDraftStateChange({ ...draftState, [ind.key]: n })}
+                                                className={cn(
+                                                  "h-11 w-11 rounded-2xl border text-sm font-semibold transition",
+                                                  !canRate
+                                                    ? "bg-muted text-muted-foreground border-border cursor-not-allowed"
+                                                    : isSel
+                                                    ? valueTone(ind.mode, n)
+                                                    : "bg-card text-foreground border-border hover:bg-muted"
+                                                )}
+                                              >
+                                                {n}
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                        <span className="text-[10px] text-muted-foreground w-14 shrink-0 leading-tight">
+                                          {ind.mode === "hard" ? "Très dur" : "Excellente"}
+                                        </span>
                                       </div>
                                     </motion.div>
                                   );
@@ -816,11 +877,7 @@ export function FeedbackDrawer({
                                         {hasLog && onDeleteFeedback ? (
                                           <button
                                             type="button"
-                                            onClick={() => {
-                                              if (window.confirm("Supprimer ce ressenti ?")) {
-                                                onDeleteFeedback(activeSession.id);
-                                              }
-                                            }}
+                                            onClick={() => setDeleteTarget(activeSession.id)}
                                             disabled={isPending}
                                             className="mt-4 w-full rounded-2xl border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10 transition disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
                                           >
@@ -871,6 +928,22 @@ export function FeedbackDrawer({
             </div>
           </motion.div>
         </>
+      )}
+      {onDeleteFeedback && (
+        <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Supprimer ce ressenti ?</AlertDialogTitle>
+              <AlertDialogDescription>Cette action est irréversible.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction onClick={() => { onDeleteFeedback(deleteTarget!); setDeleteTarget(null); }}>
+                Supprimer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
     </AnimatePresence>
   );

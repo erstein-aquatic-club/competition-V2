@@ -377,17 +377,17 @@ export function SwimSessionBuilder({
                         placeholder="1"
                       />
                       <button type="button" onClick={() => moveBlock(blockIndex, "up")}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
                         disabled={blockIndex === 0}>
                         <ArrowUp className="h-3.5 w-3.5" />
                       </button>
                       <button type="button" onClick={() => moveBlock(blockIndex, "down")}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
                         disabled={blockIndex === session.blocks.length - 1}>
                         <ArrowDown className="h-3.5 w-3.5" />
                       </button>
                       <button type="button" onClick={() => removeBlock(blockIndex)}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-destructive hover:bg-destructive/10">
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-full text-destructive hover:bg-destructive/10">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>

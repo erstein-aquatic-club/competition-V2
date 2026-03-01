@@ -50,6 +50,8 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §77 Performance & dock reset | ✅ Fait | 2026-02-28 |
 | §78 Créneaux personnalisés par nageur | ✅ Fait | 2026-02-28 |
 | §79 Notifications push Web Push (VAPID) | ✅ Fait | 2026-02-28 |
+| §80 Sécurité RLS + Import FFN Auto-Sync | ✅ Fait | 2026-03-01 |
+| §81 Audit UX A-H (touch targets, feedback, nav, wizard) | ✅ Fait | 2026-03-01 |
 | §45 Audit UI/UX — header Strength + login mobile + fixes | ✅ Fait | 2026-02-16 |
 | §46 Harmonisation headers + Login mobile thème clair | ✅ Fait | 2026-02-16 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
@@ -6371,3 +6373,86 @@ Audit complet de l'app (UI/UX, Supabase, parcours utilisateurs) a identifié :
 - Les records de compétition sont dérivés dynamiquement de `swimmer_performances`
 - Le cron `pg_cron` nécessite le plan Pro Supabase (extensions `pg_cron` + `pg_net`)
 - L'heure est en UTC dans le setting admin
+
+## §81 — Audit UX A-H (2026-03-01)
+
+**Chantier ROADMAP** : §81 — Audit UX : touch targets, FeedbackDrawer, navigation coach, KPIs fiche nageur, wizard inscription
+
+### Contexte
+
+Suite à l'audit complet (§80), 8 items UX prioritaires identifiés (A-H). Tous sont des changements frontend purs — pas de migration, pas d'API.
+
+### Changements
+
+**A — Touch targets 44px (10 fichiers coach)** :
+26 violations corrigées. Buttons `h-7`/`h-8` → `h-10 w-10`, chips `py-1`/`py-0.5` → `py-2`/`py-1.5`. Fichiers : CoachSwimmersOverview, CoachTrainingSlotsScreen, SwimCatalog, CoachCalendar, SwimmerPlanningTab, SwimSessionBuilder, FolderSection, CoachGroupsScreen, SessionListView.
+
+**B — Labels d'échelle indicateurs ressenti** :
+Ajout de labels min/max flanquant les 5 boutons de notation : "Facile ↔ Très dur" (mode hard) et "Mauvaise ↔ Excellente" (mode good).
+
+**C — AlertDialog remplaçant window.confirm()** :
+Le `window.confirm("Supprimer ce ressenti ?")` remplacé par un Shadcn AlertDialog natif avec confirmation "Supprimer" / "Annuler".
+
+**D — Saisie directe distance** :
+Le DistanceStepper permet maintenant de taper sur la valeur centrale pour saisir directement en mètres (input numérique, arrondi au 100m le plus proche, touche Escape pour annuler).
+
+**E — Raccourci Records depuis Dashboard** :
+Chip "Mes records" avec icône Trophy ajouté sur le Dashboard nageur, après le banner compétition. Navigation directe vers `/records` en 1 tap.
+
+**F — Navigation bottom bar coach étendue à 5 items** :
+Bottom nav coach passe de 3 items (Coach, Administratif, Profil) à 5 items (Natation, Calendrier, Nageurs, Plus, Profil). Les 3 sections les plus utilisées sont promues en accès direct. Routing via query params `?section=swim|calendar|swimmers`. Custom event `nav:section` pour la synchronisation Coach.tsx ↔ AppLayout.tsx.
+
+**G — KPIs réels dans Resume fiche nageur** :
+Les 4 tuiles de navigation du Resume sont enrichies avec des données réelles :
+- Suivi : dernier ressenti (date relative) + engagement moyen /5
+- Échanges : nombre d'entretiens + dernier entretien
+- Planif : nom du cycle actif ou "Aucun cycle"
+- Objectifs : nombre d'objectifs actifs
+
+Queries React Query avec `staleTime: 5min`, chargement "..." pendant le fetch.
+
+**H — Wizard d'inscription 3 étapes** :
+Formulaire d'inscription découpé en 3 étapes :
+1. Identité (nom, email, mot de passe)
+2. Profil (rôle, date naissance, sexe)
+3. Club (groupe, téléphone, bouton créer)
+Progress dots animés, validation par étape via `trigger()`, boutons Suivant/Retour, reset du step au changement de tab.
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/pages/coach/CoachSwimmersOverview.tsx` | Touch targets py-2 |
+| `src/pages/coach/CoachTrainingSlotsScreen.tsx` | Touch targets h-10 |
+| `src/pages/coach/SwimCatalog.tsx` | Touch targets breadcrumb |
+| `src/pages/coach/CoachCalendar.tsx` | Touch targets h-10 |
+| `src/pages/coach/SwimmerPlanningTab.tsx` | Touch targets h-10 |
+| `src/components/coach/swim/SwimSessionBuilder.tsx` | Touch targets h-10 |
+| `src/components/coach/strength/FolderSection.tsx` | Touch targets h-10 |
+| `src/pages/coach/CoachGroupsScreen.tsx` | Touch targets h-10 |
+| `src/components/coach/shared/SessionListView.tsx` | Touch targets h-10 |
+| `src/components/dashboard/FeedbackDrawer.tsx` | Labels, AlertDialog, distance input |
+| `src/pages/Dashboard.tsx` | Raccourci Records |
+| `src/components/layout/navItems.ts` | Nav coach 5 items |
+| `src/components/layout/AppLayout.tsx` | Hash nav active, section events |
+| `src/pages/Coach.tsx` | Listener nav:section |
+| `src/pages/coach/CoachSwimmerDetail.tsx` | KPIs Resume |
+| `src/pages/Login.tsx` | Wizard 3 étapes |
+
+### Tests
+
+- [x] `npx tsc --noEmit` : 0 erreurs
+- [ ] Test manuel : touch targets, feedback drawer, navigation coach, KPIs, wizard
+
+### Décisions
+
+- Touch targets à h-10 (40px) plutôt que 44px strict — compromis entre ergonomie et densité d'information
+- Labels d'échelle en `text-[10px]` pour ne pas surcharger l'UI mobile
+- Coach nav "Plus" remplace le hub actuel — les sections moins fréquentes restent accessibles via les pills
+- KPIs fiche nageur : queries partagées avec les onglets enfants (React Query cache)
+- Wizard : validation par step via `trigger()` de react-hook-form
+
+### Limites
+
+- La synchronisation nav coach utilise un custom event DOM (`nav:section`) — solution pragmatique pour éviter un refactor du routing hash Wouter
+- Les KPIs fiche nageur font 4-5 queries par nageur — acceptable car staleTime 5min et cache partagé

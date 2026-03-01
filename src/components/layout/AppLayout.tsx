@@ -1,6 +1,6 @@
 
 import { useLocation } from "wouter";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 const eacLogo = `${import.meta.env.BASE_URL}logo-eac.webp`;
@@ -11,21 +11,62 @@ import { InstallPrompt } from "@/components/shared/InstallPrompt";
 /** Fired when user taps the nav icon for the page they're already on. */
 export const NAV_RESET_EVENT = "nav:reset";
 
+/** Fired when the coach section changes via bottom nav. */
+export const NAV_SECTION_EVENT = "nav:section";
+
+const getHash = () => window.location.hash || "#/";
+const subscribeHash = (cb: () => void) => {
+  window.addEventListener("hashchange", cb);
+  return () => window.removeEventListener("hashchange", cb);
+};
+
+/** Check if a nav item href matches the current hash (supports query params). */
+const isNavActive = (hash: string, href: string): boolean => {
+  // Full hash path (without leading #), e.g. "/coach?section=swim"
+  const full = hash.replace(/^#/, "") || "/";
+  const [hrefPath, hrefQuery] = href.split("?");
+  const [fullPath, fullQuery] = full.split("?");
+
+  if (fullPath !== hrefPath) return false;
+
+  // Href without query params (e.g. "/coach" = "Plus" button): active only when
+  // there's no section param in the current URL
+  if (!hrefQuery) return !fullQuery || !new URLSearchParams(fullQuery).has("section");
+
+  // Href with query params: match the section value
+  const hrefSection = new URLSearchParams(hrefQuery).get("section");
+  const fullSection = fullQuery ? new URLSearchParams(fullQuery).get("section") : null;
+  return hrefSection === fullSection;
+};
+
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location, navigate] = useLocation();
+  const hash = useSyncExternalStore(subscribeHash, getHash);
   const role = useAuth((s) => s.role);
   const [isFocusMode, setIsFocusMode] = useState(false);
   const navItems = getNavItemsForRole(role);
 
   const handleNavClick = useCallback((href: string) => {
-    if (location === href) {
+    const [hrefPath, hrefQuery] = href.split("?");
+    const alreadyActive = isNavActive(hash, href);
+
+    if (alreadyActive) {
       // Already on this page — reset to home state
       window.dispatchEvent(new CustomEvent(NAV_RESET_EVENT));
+      window.scrollTo(0, 0);
+    } else if (hrefQuery && location === hrefPath) {
+      // Same base route (e.g. /coach) but different section — update hash
+      // and notify Coach.tsx via custom event
+      const section = new URLSearchParams(hrefQuery).get("section");
+      window.location.hash = `#${href}`;
+      if (section) {
+        window.dispatchEvent(new CustomEvent(NAV_SECTION_EVENT, { detail: section }));
+      }
       window.scrollTo(0, 0);
     } else {
       navigate(href);
     }
-  }, [location, navigate]);
+  }, [hash, location, navigate]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -60,16 +101,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
         <nav aria-label="Navigation principale" className="flex gap-6">
           {navItems.map((item) => {
-            const isActive = location === item.href;
+            const active = isNavActive(hash, item.href);
             return (
               <button
                 key={item.href}
                 type="button"
-                aria-current={isActive ? "page" : undefined}
+                aria-current={active ? "page" : undefined}
                 onClick={() => handleNavClick(item.href)}
                 className={cn(
                   "flex items-center gap-2 text-sm font-bold uppercase transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-sm",
-                  isActive ? "text-primary border-b-2 border-primary" : "text-muted-foreground"
+                  active ? "text-primary border-b-2 border-primary" : "text-muted-foreground"
                 )}
               >
                 <item.icon className="h-4 w-4" />
@@ -96,29 +137,29 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       >
         <div className="flex items-stretch justify-evenly h-16 overflow-x-auto scrollbar-hide">
           {navItems.map((item) => {
-            const isActive = location === item.href;
+            const active = isNavActive(hash, item.href);
             return (
               <button
                 key={item.href}
                 type="button"
-                aria-current={isActive ? "page" : undefined}
+                aria-current={active ? "page" : undefined}
                 onClick={() => handleNavClick(item.href)}
                 className={cn(
                   "flex flex-col items-center justify-center gap-0.5 py-2 flex-1 min-w-0 max-w-[72px] transition-colors relative active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg",
-                  isActive
+                  active
                     ? "text-primary"
                     : "text-muted-foreground active:text-foreground"
                 )}
               >
                 <div className={cn(
                   "flex items-center justify-center h-7 w-7 rounded-xl transition-colors",
-                  isActive && "bg-primary/10"
+                  active && "bg-primary/10"
                 )}>
-                  <item.icon className={cn("h-5 w-5", isActive && "text-primary")} />
+                  <item.icon className={cn("h-5 w-5", active && "text-primary")} />
                 </div>
                 <span className={cn(
                   "text-[10px] font-semibold tracking-tight truncate w-full text-center px-0.5",
-                  isActive ? "text-primary" : "text-muted-foreground"
+                  active ? "text-primary" : "text-muted-foreground"
                 )}>
                   {item.label}
                 </span>

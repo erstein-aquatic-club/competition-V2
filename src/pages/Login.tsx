@@ -19,6 +19,7 @@ import { PasswordStrength } from "@/components/shared/PasswordStrength";
 import { LoginInstallBanner } from "@/components/shared/LoginInstallBanner";
 import { fadeIn, staggerChildren } from "@/lib/animations";
 import { durationsSeconds } from "@/lib/design-tokens";
+import { cn } from "@/lib/utils";
 const eacLogo = `${import.meta.env.BASE_URL}logo-eac-256.webp`;
 import { getLandingRouteForRole } from "@/pages/loginHelpers";
 
@@ -64,6 +65,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
+  const [signupStep, setSignupStep] = useState(1);
   const { loginFromSession, loadUser } = useAuth();
   const [, setLocation] = useLocation();
 
@@ -281,7 +283,7 @@ export default function Login() {
             variants={staggerChildren}
             className="w-full max-w-md"
           >
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "login" | "signup")} className="w-full">
+            <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v as "login" | "signup"); setSignupStep(1); }} className="w-full">
               <TabsList className="grid w-full grid-cols-2 mb-8">
                 <TabsTrigger value="login" className="text-sm font-medium">
                   Connexion
@@ -382,205 +384,280 @@ export default function Login() {
                   onSubmit={signupForm.handleSubmit(handleSignup)}
                   className="space-y-4"
                 >
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-name">Nom d'affichage</Label>
-                    <Input
-                      id="signup-name"
-                      {...signupForm.register("name", {
-                        setValueAs: (v) => v?.trim()
-                      })}
-                      placeholder="Votre nom"
-                      className="min-h-12"
-                      autoFocus
-                    />
-                    {signupForm.formState.errors.name && (
-                      <p className="text-xs text-destructive" role="alert" aria-live="assertive">
-                        {signupForm.formState.errors.name.message}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      {...signupForm.register("email")}
-                      placeholder="prenom.nom@email.com"
-                      className="min-h-12"
-                    />
-                    {signupForm.formState.errors.email && (
-                      <p className="text-xs text-destructive" role="alert" aria-live="assertive">
-                        {signupForm.formState.errors.email.message}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-role">Je m'inscris en tant que</Label>
-                    <Select
-                      value={signupForm.watch("role")}
-                      onValueChange={(value) => signupForm.setValue("role", value as "athlete" | "coach")}
-                    >
-                      <SelectTrigger id="signup-role" className="min-h-12">
-                        <SelectValue placeholder="Sélectionnez votre rôle" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="athlete">Athlète</SelectItem>
-                        <SelectItem value="coach">Coach / Entraineur</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {signupForm.formState.errors.role && (
-                      <p className="text-xs text-destructive" role="alert" aria-live="assertive">
-                        {signupForm.formState.errors.role.message}
-                      </p>
-                    )}
-                    {signupForm.watch("role") === "coach" && (
-                      <p className="text-xs text-muted-foreground">
-                        Les comptes coachs nécessitent une validation par un administrateur
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-birthdate">Date de naissance</Label>
-                      <Input
-                        id="signup-birthdate"
-                        type="date"
-                        {...signupForm.register("birthdate")}
-                        className="min-h-12"
-                        max={new Date().toISOString().split('T')[0]}
+                  {/* Progress indicator */}
+                  <div className="flex items-center justify-center gap-2 mb-6">
+                    {[1, 2, 3].map((s) => (
+                      <div
+                        key={s}
+                        className={cn(
+                          "h-2 rounded-full transition-all",
+                          s === signupStep ? "w-8 bg-primary" : s < signupStep ? "w-2 bg-primary/50" : "w-2 bg-muted"
+                        )}
                       />
-                      {signupForm.formState.errors.birthdate ? (
-                        <p className="text-xs text-destructive" role="alert" aria-live="assertive">
-                          {signupForm.formState.errors.birthdate.message}
-                        </p>
-                      ) : (
-                        <p className="text-xs text-muted-foreground">
-                          Cliquez sur l'icône calendrier
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-sex">Sexe</Label>
-                      <Select
-                        value={signupForm.watch("sex")}
-                        onValueChange={(value) => signupForm.setValue("sex", value as "M" | "F")}
-                      >
-                        <SelectTrigger id="signup-sex" className="min-h-12">
-                          <SelectValue placeholder="Sélectionnez" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="M">Garçon</SelectItem>
-                          <SelectItem value="F">Fille</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {signupForm.formState.errors.sex && (
-                        <p className="text-xs text-destructive" role="alert" aria-live="assertive">
-                          {signupForm.formState.errors.sex.message}
-                        </p>
-                      )}
-                    </div>
+                    ))}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-group">Groupe</Label>
-                    <Select
-                      value={signupForm.watch("groupId")}
-                      onValueChange={(value) => signupForm.setValue("groupId", value)}
-                      disabled={groupsLoading || groups.length === 0}
-                    >
-                      <SelectTrigger id="signup-group" className="min-h-12">
-                        <SelectValue
-                          placeholder={
-                            groupsLoading
-                              ? "Chargement..."
-                              : groupsError
-                              ? "Erreur de chargement"
-                              : "Sélectionnez un groupe"
-                          }
+                  {/* Step labels */}
+                  {signupStep === 1 && <p className="text-sm font-medium mb-3">1/3 — Identité</p>}
+                  {signupStep === 2 && <p className="text-sm font-medium mb-3">2/3 — Profil</p>}
+                  {signupStep === 3 && <p className="text-sm font-medium mb-3">3/3 — Club</p>}
+
+                  {/* Step 1 — Identité */}
+                  {signupStep === 1 && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="signup-name">Nom d'affichage</Label>
+                        <Input
+                          id="signup-name"
+                          {...signupForm.register("name", {
+                            setValueAs: (v) => v?.trim()
+                          })}
+                          placeholder="Votre nom"
+                          className="min-h-12"
+                          autoFocus
                         />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {groups.map((group) => (
-                          <SelectItem key={group.id} value={String(group.id)}>
-                            {group.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {signupForm.formState.errors.groupId && (
-                      <p className="text-xs text-destructive" role="alert" aria-live="assertive">
-                        {signupForm.formState.errors.groupId.message}
-                      </p>
-                    )}
-                  </div>
+                        {signupForm.formState.errors.name && (
+                          <p className="text-xs text-destructive" role="alert" aria-live="assertive">
+                            {signupForm.formState.errors.name.message}
+                          </p>
+                        )}
+                      </div>
 
-                  {/* Phone */}
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-phone">Téléphone *</Label>
-                    <Input
-                      id="signup-phone"
-                      type="tel"
-                      placeholder="06 12 34 56 78"
-                      {...signupForm.register("phone")}
-                      className="min-h-12"
-                    />
-                    {signupForm.formState.errors.phone && (
-                      <p className="text-xs text-destructive" role="alert" aria-live="assertive">
-                        {signupForm.formState.errors.phone.message}
-                      </p>
-                    )}
-                  </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="signup-email">Email</Label>
+                        <Input
+                          id="signup-email"
+                          type="email"
+                          {...signupForm.register("email")}
+                          placeholder="prenom.nom@email.com"
+                          className="min-h-12"
+                        />
+                        {signupForm.formState.errors.email && (
+                          <p className="text-xs text-destructive" role="alert" aria-live="assertive">
+                            {signupForm.formState.errors.email.message}
+                          </p>
+                        )}
+                      </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password">Mot de passe</Label>
-                    <div className="relative">
-                      <Input
-                        id="signup-password"
-                        type={showSignupPassword ? "text" : "password"}
-                        {...signupForm.register("password")}
-                        placeholder="Choisissez un mot de passe"
-                        className="min-h-12 pr-10"
-                      />
-                      <button
+                      <div className="space-y-2">
+                        <Label htmlFor="signup-password">Mot de passe</Label>
+                        <div className="relative">
+                          <Input
+                            id="signup-password"
+                            type={showSignupPassword ? "text" : "password"}
+                            {...signupForm.register("password")}
+                            placeholder="Choisissez un mot de passe"
+                            className="min-h-12 pr-10"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowSignupPassword(!showSignupPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                            aria-label={showSignupPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                          >
+                            {showSignupPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                          </button>
+                        </div>
+                        {signupForm.formState.errors.password && (
+                          <p className="text-xs text-destructive" role="alert" aria-live="assertive">
+                            {signupForm.formState.errors.password.message}
+                          </p>
+                        )}
+                        <PasswordStrength password={signupForm.watch("password")} />
+                      </div>
+
+                      <Button
                         type="button"
-                        onClick={() => setShowSignupPassword(!showSignupPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                        aria-label={showSignupPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                        className="w-full min-h-12 text-base font-semibold"
+                        onClick={async () => {
+                          const valid = await signupForm.trigger(["name", "email", "password"]);
+                          if (valid) setSignupStep(2);
+                        }}
                       >
-                        {showSignupPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                      </button>
-                    </div>
-                    {signupForm.formState.errors.password && (
-                      <p className="text-xs text-destructive" role="alert" aria-live="assertive">
-                        {signupForm.formState.errors.password.message}
-                      </p>
-                    )}
-                    <PasswordStrength password={signupForm.watch("password")} />
-                  </div>
-
-                  {signupForm.formState.errors.root && (
-                    <div
-                      className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive"
-                      role="alert"
-                      aria-live="assertive"
-                    >
-                      {signupForm.formState.errors.root.message}
-                    </div>
+                        Suivant
+                      </Button>
+                    </>
                   )}
 
-                  <div>
-                    <Button
-                      type="submit"
-                      className="w-full min-h-12 text-base font-semibold"
-                      disabled={signupForm.formState.isSubmitting}
-                    >
-                      {signupForm.formState.isSubmitting ? "Création..." : "CRÉER LE COMPTE"}
-                    </Button>
-                  </div>
+                  {/* Step 2 — Profil */}
+                  {signupStep === 2 && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="signup-role">Je m'inscris en tant que</Label>
+                        <Select
+                          value={signupForm.watch("role")}
+                          onValueChange={(value) => signupForm.setValue("role", value as "athlete" | "coach")}
+                        >
+                          <SelectTrigger id="signup-role" className="min-h-12">
+                            <SelectValue placeholder="Sélectionnez votre rôle" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="athlete">Athlète</SelectItem>
+                            <SelectItem value="coach">Coach / Entraineur</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {signupForm.formState.errors.role && (
+                          <p className="text-xs text-destructive" role="alert" aria-live="assertive">
+                            {signupForm.formState.errors.role.message}
+                          </p>
+                        )}
+                        {signupForm.watch("role") === "coach" && (
+                          <p className="text-xs text-muted-foreground">
+                            Les comptes coachs nécessitent une validation par un administrateur
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="signup-birthdate">Date de naissance</Label>
+                          <Input
+                            id="signup-birthdate"
+                            type="date"
+                            {...signupForm.register("birthdate")}
+                            className="min-h-12"
+                            max={new Date().toISOString().split('T')[0]}
+                          />
+                          {signupForm.formState.errors.birthdate ? (
+                            <p className="text-xs text-destructive" role="alert" aria-live="assertive">
+                              {signupForm.formState.errors.birthdate.message}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">
+                              Cliquez sur l'icône calendrier
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="signup-sex">Sexe</Label>
+                          <Select
+                            value={signupForm.watch("sex")}
+                            onValueChange={(value) => signupForm.setValue("sex", value as "M" | "F")}
+                          >
+                            <SelectTrigger id="signup-sex" className="min-h-12">
+                              <SelectValue placeholder="Sélectionnez" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="M">Garçon</SelectItem>
+                              <SelectItem value="F">Fille</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {signupForm.formState.errors.sex && (
+                            <p className="text-xs text-destructive" role="alert" aria-live="assertive">
+                              {signupForm.formState.errors.sex.message}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <Button
+                        type="button"
+                        className="w-full min-h-12 text-base font-semibold"
+                        onClick={async () => {
+                          const valid = await signupForm.trigger(["role", "birthdate", "sex"]);
+                          if (valid) setSignupStep(3);
+                        }}
+                      >
+                        Suivant
+                      </Button>
+
+                      <div className="text-center">
+                        <button
+                          type="button"
+                          onClick={() => setSignupStep((s) => s - 1)}
+                          className="text-sm text-muted-foreground hover:underline"
+                        >
+                          &larr; Retour
+                        </button>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Step 3 — Club */}
+                  {signupStep === 3 && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="signup-group">Groupe</Label>
+                        <Select
+                          value={signupForm.watch("groupId")}
+                          onValueChange={(value) => signupForm.setValue("groupId", value)}
+                          disabled={groupsLoading || groups.length === 0}
+                        >
+                          <SelectTrigger id="signup-group" className="min-h-12">
+                            <SelectValue
+                              placeholder={
+                                groupsLoading
+                                  ? "Chargement..."
+                                  : groupsError
+                                  ? "Erreur de chargement"
+                                  : "Sélectionnez un groupe"
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {groups.map((group) => (
+                              <SelectItem key={group.id} value={String(group.id)}>
+                                {group.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {signupForm.formState.errors.groupId && (
+                          <p className="text-xs text-destructive" role="alert" aria-live="assertive">
+                            {signupForm.formState.errors.groupId.message}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Phone */}
+                      <div className="space-y-2">
+                        <Label htmlFor="signup-phone">Téléphone *</Label>
+                        <Input
+                          id="signup-phone"
+                          type="tel"
+                          placeholder="06 12 34 56 78"
+                          {...signupForm.register("phone")}
+                          className="min-h-12"
+                        />
+                        {signupForm.formState.errors.phone && (
+                          <p className="text-xs text-destructive" role="alert" aria-live="assertive">
+                            {signupForm.formState.errors.phone.message}
+                          </p>
+                        )}
+                      </div>
+
+                      {signupForm.formState.errors.root && (
+                        <div
+                          className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive"
+                          role="alert"
+                          aria-live="assertive"
+                        >
+                          {signupForm.formState.errors.root.message}
+                        </div>
+                      )}
+
+                      <div>
+                        <Button
+                          type="submit"
+                          className="w-full min-h-12 text-base font-semibold"
+                          disabled={signupForm.formState.isSubmitting}
+                        >
+                          {signupForm.formState.isSubmitting ? "Création..." : "CRÉER LE COMPTE"}
+                        </Button>
+                      </div>
+
+                      <div className="text-center">
+                        <button
+                          type="button"
+                          onClick={() => setSignupStep((s) => s - 1)}
+                          className="text-sm text-muted-foreground hover:underline"
+                        >
+                          &larr; Retour
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </form>
               </TabsContent>
             </Tabs>

@@ -427,7 +427,7 @@ const SwimmerPlanningTab = ({ athleteId }: Props) => {
           <Button
             variant="outline"
             size="sm"
-            className="text-xs h-7"
+            className="text-xs h-10"
             onClick={() => setShowCustomizeConfirm(true)}
           >
             <Copy className="mr-1 h-3 w-3" />
@@ -438,7 +438,7 @@ const SwimmerPlanningTab = ({ athleteId }: Props) => {
         <Button
           variant="outline"
           size="sm"
-          className="text-xs h-7"
+          className="text-xs h-10"
           onClick={() => setShowCreateSheet(true)}
         >
           <Plus className="mr-1 h-3 w-3" />
@@ -449,7 +449,7 @@ const SwimmerPlanningTab = ({ athleteId }: Props) => {
           <Button
             variant="ghost"
             size="sm"
-            className="text-xs h-7 text-destructive hover:text-destructive"
+            className="text-xs h-10 w-10 text-destructive hover:text-destructive"
             onClick={() => setShowDeleteConfirm(true)}
           >
             <Trash2 className="h-3 w-3" />
@@ -661,11 +661,11 @@ const WeekRow = ({
           />
         </div>
         <div className="flex gap-2 justify-end">
-          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onCancel}>
+          <Button variant="ghost" size="sm" className="h-10 text-xs" onClick={onCancel}>
             <X className="mr-1 h-3 w-3" />
             Annuler
           </Button>
-          <Button size="sm" className="h-7 text-xs" onClick={onSave} disabled={isSaving}>
+          <Button size="sm" className="h-10 text-xs" onClick={onSave} disabled={isSaving}>
             <Check className="mr-1 h-3 w-3" />
             {isSaving ? "..." : "Enregistrer"}
           </Button>

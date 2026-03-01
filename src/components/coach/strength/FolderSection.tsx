@@ -96,7 +96,7 @@ export function FolderSection({
         <Popover open={menuOpen} onOpenChange={setMenuOpen}>
           <PopoverTrigger asChild>
             <button
-              className="h-7 w-7 shrink-0 inline-flex items-center justify-center rounded-full hover:bg-muted"
+              className="h-10 w-10 shrink-0 inline-flex items-center justify-center rounded-full hover:bg-muted"
               onClick={(e) => {
                 e.stopPropagation();
               }}

@@ -158,6 +158,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 41 | Créneaux personnalisés par nageur | Moyenne | Fait (§78) |
 | 42 | Notifications push Web Push (VAPID) | Haute | Fait (§79) |
 | 43 | Sécurité RLS + Import FFN Auto-Sync | Haute | Fait (§80) |
+| 44 | Audit UX A-H (touch targets, feedback, nav coach, wizard) | Haute | Fait (§81) |
 
 Détail complet dans `docs/ROADMAP.md`.
 

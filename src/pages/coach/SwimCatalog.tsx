@@ -575,7 +575,7 @@ export default function SwimCatalog() {
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbLink
-                  className="cursor-pointer"
+                  className="cursor-pointer py-2 px-1"
                   onClick={() => { setCurrentFolder(null); setShowArchive(false); }}
                 >
                   <Home className="h-4 w-4" />
@@ -597,7 +597,7 @@ export default function SwimCatalog() {
                         <BreadcrumbPage>{part}</BreadcrumbPage>
                       ) : (
                         <BreadcrumbLink
-                          className="cursor-pointer"
+                          className="cursor-pointer py-2 px-1"
                           onClick={() => setCurrentFolder(parts.slice(0, index + 1).join("/"))}
                         >
                           {part}

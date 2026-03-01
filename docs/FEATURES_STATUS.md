@@ -321,6 +321,14 @@ Tous les feature flags sont activés.
 | Zero Hardcoded Values | ✅ | All src/ files | No hex/rgb colors remaining (excluding CSS) |
 | z-index consistency | ✅ | `BottomActionBar.tsx`, `WorkoutRunner.tsx`, `toast.tsx` | Tous les z-index utilisent les design tokens CSS (z-bar, z-modal, z-toast) |
 | BottomActionBar position modes | ✅ | `BottomActionBar.tsx`, `FeedbackDrawer.tsx` | Prop `position="static"` pour usage dans drawers sans overflow |
+| Touch targets 44px compliance | ✅ | 10 fichiers coach | Tous les boutons interactifs ≥ 40px (h-10 w-10), chips py-2 (§81) |
+| FeedbackDrawer scale labels | ✅ | `FeedbackDrawer.tsx` | Labels min/max (Facile↔Très dur, Mauvaise↔Excellente) sur les 5 boutons (§81) |
+| FeedbackDrawer AlertDialog | ✅ | `FeedbackDrawer.tsx` | Remplacement window.confirm par Shadcn AlertDialog (§81) |
+| FeedbackDrawer distance directe | ✅ | `FeedbackDrawer.tsx` | Tap sur valeur → input numérique direct, arrondi 100m (§81) |
+| Records shortcut Dashboard | ✅ | `Dashboard.tsx` | Chip "Mes records" accès direct /records (§81) |
+| Coach bottom nav 5 items | ✅ | `navItems.ts`, `AppLayout.tsx`, `Coach.tsx` | Natation, Calendrier, Nageurs promus en bottom nav (§81) |
+| KPIs fiche nageur Resume | ✅ | `CoachSwimmerDetail.tsx` | 4 tuiles avec données réelles (ressenti, entretiens, cycle, objectifs) (§81) |
+| Wizard inscription 3 étapes | ✅ | `Login.tsx` | Formulaire découpé en 3 steps avec progress dots et validation (§81) |
 
 
 ---
