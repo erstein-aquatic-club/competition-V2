@@ -445,6 +445,16 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Build IUF → user_id mapping from user_profiles so bulk imports link performances
+    const { data: profiles } = await supabaseAdmin
+      .from("user_profiles")
+      .select("user_id, ffn_iuf")
+      .not("ffn_iuf", "is", null);
+    const iufToUserId = new Map<string, number>();
+    for (const p of profiles ?? []) {
+      if (p.ffn_iuf) iufToUserId.set(p.ffn_iuf, p.user_id);
+    }
+
     let totalImported = 0;
     let totalErrors = 0;
 
@@ -471,7 +481,9 @@ Deno.serve(async (req) => {
         const perfs = await fetchAllPerformances(iuf);
 
         // Build rows for upsert into swimmer_performances
+        const linkedUserId = iufToUserId.get(iuf) ?? null;
         const rows = perfs.map((p) => ({
+          user_id: linkedUserId,
           swimmer_iuf: iuf,
           event_code: p.event_name,
           pool_length: p.pool_length,
