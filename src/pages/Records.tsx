@@ -379,12 +379,7 @@ export default function Records() {
   }, [swimMode]);
 
   const activePoolLen = swimMode === "history" ? histPoolLen : poolLen;
-  const swimModeLabel =
-    swimMode === "training"
-      ? "Entraînement"
-      : swimMode === "comp"
-        ? "Compétition"
-        : "Historique";
+  const isMpp = swimMode !== "history";
 
   // --- SOURCE OF TRUTH: mutations / invalidateQueries unchanged ---
   const update1RM = useMutation({
@@ -581,18 +576,87 @@ export default function Records() {
             </TabsList>
 
             {mainTab === "swim" ? (
-              <div className="mt-2.5 rounded-2xl border border-border/60 bg-muted/20 px-3 py-3">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                      Vue active
-                    </p>
-                    <p className="truncate text-sm font-semibold text-foreground">
-                      {swimModeLabel} · {activePoolLen}m
-                    </p>
+              <div className="mt-2.5 space-y-1.5">
+                {/* Row 1: source pills left, pool pills right */}
+                <div className="flex items-center gap-2">
+                  {(["training", "comp"] as const).map((src) => {
+                    const label = src === "training" ? "Entraînement" : "Compétition";
+                    return (
+                      <button
+                        key={src}
+                        type="button"
+                        onClick={() => {
+                          setModeSafe(src);
+                          setHistExpandedEvent(null);
+                        }}
+                        className={cx(
+                          "rounded-xl border px-3 py-1.5 text-xs font-semibold transition",
+                          swimMode === src
+                            ? "border-primary/30 bg-primary/5 text-primary"
+                            : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground",
+                        )}
+                        aria-pressed={swimMode === src}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                  <div className="ml-auto flex gap-1.5">
+                    {([25, 50] as const).map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => {
+                          if (swimMode === "history") {
+                            setHistPoolLen(v);
+                          } else {
+                            setPoolLen(v);
+                            closeSwimEditor();
+                          }
+                        }}
+                        className={cx(
+                          "rounded-xl border px-3 py-1.5 text-xs font-semibold transition",
+                          activePoolLen === v
+                            ? "border-primary/30 bg-primary/5 text-primary"
+                            : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground",
+                        )}
+                      >
+                        {v}m
+                      </button>
+                    ))}
                   </div>
+                </div>
 
-                  <div className="flex items-center gap-2">
+                {/* Row 2: MPP / Historique sub-toggle + action buttons */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { if (!isMpp) setModeSafe("training"); }}
+                    className={cx(
+                      "rounded-xl border px-3 py-1.5 text-xs font-semibold transition",
+                      isMpp
+                        ? "border-primary/30 bg-primary/5 text-primary"
+                        : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground",
+                    )}
+                    aria-pressed={isMpp}
+                  >
+                    MPP
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setModeSafe("history"); }}
+                    className={cx(
+                      "rounded-xl border px-3 py-1.5 text-xs font-semibold transition",
+                      swimMode === "history"
+                        ? "border-primary/30 bg-primary/5 text-primary"
+                        : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground",
+                    )}
+                    aria-pressed={swimMode === "history"}
+                  >
+                    Historique
+                  </button>
+
+                  <div className="ml-auto flex items-center gap-2">
                     {swimMode === "training" ? (
                       <Button type="button" size="sm" onClick={openAddSwim} className="rounded-xl text-xs h-8 gap-1">
                         Ajouter
@@ -617,64 +681,6 @@ export default function Records() {
                       </motion.div>
                     ) : null}
                   </div>
-                </div>
-
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {(["training", "comp", "history"] as const).map((mode) => {
-                    const label =
-                      mode === "training" ? "Entraînement" : mode === "comp" ? "Compétition" : "Historique";
-                    return (
-                      <button
-                        key={mode}
-                        type="button"
-                        onClick={() => {
-                          setModeSafe(mode);
-                          if (mode !== "history") {
-                            setHistExpandedEvent(null);
-                          }
-                        }}
-                        className={cx(
-                          "rounded-xl border px-3 py-1.5 text-xs font-semibold transition",
-                          swimMode === mode
-                            ? "border-primary/30 bg-primary/5 text-primary"
-                            : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground",
-                        )}
-                        aria-pressed={swimMode === mode}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {([25, 50] as const).map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => {
-                        if (swimMode === "history") {
-                          setHistPoolLen(v);
-                        } else {
-                          setPoolLen(v);
-                          closeSwimEditor();
-                        }
-                      }}
-                      className={cx(
-                        "rounded-xl border px-3 py-1.5 text-xs font-semibold transition",
-                        activePoolLen === v
-                          ? "border-primary/30 bg-primary/5 text-primary"
-                          : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground",
-                      )}
-                    >
-                      {v}m
-                    </button>
-                  ))}
-                  {swimMode === "comp" ? (
-                    <span className="text-[11px] text-muted-foreground">
-                      Données FFN synchronisées
-                    </span>
-                  ) : null}
                 </div>
               </div>
             ) : null}
