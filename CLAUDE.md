@@ -74,6 +74,7 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 | `src/pages/coach/SwimmerPlanningTab.tsx` | Onglet planification fiche nageur (timeline cycles) | ~440 lignes |
 | `src/pages/coach/SwimmerInterviewsTab.tsx` | Onglet entretiens fiche nageur (workflow multi-phases) | ~440 lignes |
 | `src/components/profile/AthleteInterviewsSection.tsx` | Entretiens côté nageur (formulaire, signature, historique) | ~320 lignes |
+| `src/components/shared/ObjectiveCard.tsx` | Composant partagé objectifs (ring SVG, grid 2x2, compact) | ~260 lignes |
 | `src/lib/objectiveHelpers.ts` | Helpers partagés objectifs (FFN_EVENTS, formatTime) | ~40 lignes |
 | `src/lib/imageUtils.ts` | Compression image Canvas (avatar upload, WebP/JPEG ≤200KB) | ~95 lignes |
 | `src/components/profile/SwimmerObjectivesView.tsx` | Vue objectifs nageur (lecture coach + CRUD perso) | ~530 lignes |
@@ -171,6 +172,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 45 | Audit restant (CORS, migrations, RPC, pagination, deep linking) | Moyenne | Fait (§82) |
 | 46 | Réorganisation Profil & Gestes mobiles (E5+E7) | Moyenne | Fait (§83) |
 | 47 | Coach Events Timeline (Tableau de Bord des Échéances) | Moyenne | Fait (§84) |
+| 49 | Redesign ObjectiveCard + harmonisation Planif nageur | Moyenne | Fait (§86) |
 | 48 | Calendrier créneaux centré séances (Slot-Centric Sessions) | Haute | Fait (§85) |
 
 Détail complet dans `docs/ROADMAP.md`.

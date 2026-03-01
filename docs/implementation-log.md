@@ -56,6 +56,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §84 Refonte UX CoachHome + CoachSwimmersOverview (Bord de Bassin) | ✅ Fait | 2026-03-01 |
 | §84 Coach Events Timeline (Tableau de Bord des Échéances) | ✅ Fait | 2026-03-01 |
 | §85 Calendrier créneaux centré séances (Slot-Centric Sessions) | ✅ Fait | 2026-03-01 |
+| §86 Redesign ObjectiveCard + harmonisation Planif nageur | ✅ Fait | 2026-03-01 |
 | §45 Audit UI/UX — header Strength + login mobile + fixes | ✅ Fait | 2026-02-16 |
 | §46 Harmonisation headers + Login mobile thème clair | ✅ Fait | 2026-02-16 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
@@ -93,6 +94,61 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §39 Redesign: Records personnels mobile first (flex cards, no grids) | ✅ Fait | 2026-02-16 |
 | §47 Redesign: RecordsClub épuré (filtres 3→1, sections nage, drill-down) | ✅ Fait | 2026-02-17 |
 | §50 Fix: 8 pre-existing test failures (122/122 pass) | ✅ Fait | 2026-02-18 |
+
+---
+
+## 2026-03-01 — Redesign ObjectiveCard + harmonisation Planif nageur (§86)
+
+**Branche** : `main`
+**Chantier ROADMAP** : §86 — Redesign ObjectiveCard + harmonisation Planif nageur
+
+### Contexte — Pourquoi ce patch
+
+Les objectifs étaient affichés avec 5 implémentations dupliquées (ObjectiveCard / ObjectiveRow) réparties dans SwimmerObjectivesView, SwimmerObjectivesTab, CoachObjectivesScreen, AthleteInterviewsSection, SwimmerInterviewsTab. Le design n'était pas unifié et les vues étaient jugées trop chargées. L'onglet Planif nageur n'affichait pas les créneaux contrairement à la vue coach.
+
+### Changements réalisés
+
+1. **Composant partagé `ObjectiveCard`** : Création d'un composant unique (`src/components/shared/ObjectiveCard.tsx`) remplaçant les 5 implémentations. Deux modes : card (grid 2x2) et compact (ligne, border-l-4 pour entretiens).
+2. **SVG ProgressRing** : Anneau de progression circulaire coloré par % d'avancement (rouge→orange→jaune→vert→emeraude), même palette que l'ancienne barre de progression.
+3. **Layout card** : Barre couleur en haut (border-t-[3px] par nage), ring à gauche + temps cible/actuel/delta à droite. Delta affiché avec 2 décimales.
+4. **Date "time ago"** : Affichage relatif de la date de la meilleure perf des 360 derniers jours ("il y a 45j", "il y a 3m", "aujourd'hui").
+5. **ObjectiveGrid** : Wrapper `grid-cols-2 gap-2` exporté et utilisé dans toutes les vues objectives (y compris embedded).
+6. **Suppression progress bar** : Le ring suffit, la barre linéaire est supprimée.
+7. **Suppression nom compétition** : Retiré des cartes pour alléger.
+8. **Performances coach** : Ajout du fetch performances dans `CoachObjectivesScreen` pour alimenter les rings.
+9. **Réordonnancement** : Objectifs au-dessus des ressentis (coach Suivi), Créneaux au-dessus de Cycle (coach Planif).
+10. **Vue Planif nageur** : Ajout section Créneaux (lecture seule) au-dessus de Cycle, avec section headers (icône + titre) identiques au coach.
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/components/shared/ObjectiveCard.tsx` | Créé puis réécrit — composant partagé unique |
+| `src/components/profile/SwimmerObjectivesView.tsx` | Import ObjectiveGrid, suppression mode compact embedded |
+| `src/pages/coach/SwimmerObjectivesTab.tsx` | Import ObjectiveGrid, wrap objectives en grid |
+| `src/pages/coach/CoachObjectivesScreen.tsx` | Import ObjectiveGrid, ajout fetch performances |
+| `src/components/profile/AthleteInterviewsSection.tsx` | Ajout prop compact aux ObjectiveCard |
+| `src/pages/coach/SwimmerInterviewsTab.tsx` | Ajout prop compact aux ObjectiveCard |
+| `src/pages/coach/CoachSwimmerDetail.tsx` | Réordonnancement sections Suivi et Planif |
+| `src/components/profile/AthletePerformanceHub.tsx` | Ajout AthleteSlots + section headers Planif |
+
+### Tests
+
+- [x] `npx tsc --noEmit` : 0 erreurs
+- [x] `npm test` : 130/130 pass
+- [x] Build production OK
+
+### Décisions
+
+- Ring coloré par progression plutôt que par nage — plus informatif visuellement
+- Mode compact réservé aux entretiens (contexte étroit) — grid partout ailleurs
+- Créneaux nageur en lecture seule (pas de CRUD côté nageur)
+- `timeAgo()` plutôt que date brute — plus lisible sur mobile
+
+### Limites
+
+- Pas de fallback group slots si le nageur n'a pas de créneaux personnalisés (affiche "Aucun créneau")
+- Le compact mode dans les entretiens n'affiche pas la date de la meilleure perf
 
 ---
 

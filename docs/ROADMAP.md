@@ -57,6 +57,7 @@ Ce document décrit les fonctionnalités à implémenter. Il sert de référence
 | 44 | Réorganisation Profil & Gestes mobiles | Moyenne | Moyenne | Fait (§83) |
 | 47 | Coach Events Timeline (Tableau de Bord des Échéances) | Moyenne | Faible | Fait (§84) |
 | 48 | Calendrier créneaux centré séances (Slot-Centric Sessions) | Haute | Haute | Fait (§85) |
+| 49 | Redesign ObjectiveCard + harmonisation Planif nageur | Moyenne | Faible | Fait (§86) |
 
 ---
 

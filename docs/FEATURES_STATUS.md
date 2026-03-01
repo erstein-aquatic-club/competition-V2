@@ -160,8 +160,9 @@ Tous les feature flags sont activés.
 |----------------|--------|----------|-------|
 | CRUD objectifs coach | ✅ | `CoachObjectivesScreen.tsx`, `objectives.ts` | Par nageur, chrono (épreuve FFN + temps) et/ou texte libre (§60) |
 | Lien compétition optionnel | ✅ | `CoachObjectivesScreen.tsx` | Objectif rattachable à une compétition |
-| Vue objectifs nageur (Progression) | ✅ | `Progress.tsx` | Section "Mes objectifs" avec épreuve, temps cible, badge compétition J-X |
-| Objectifs nageur (lecture coach + CRUD perso) | ✅ | `SwimmerObjectivesView.tsx`, `Profile.tsx` | Hub Profil, objectifs coach RO + objectifs perso CRUD, bottom sheet form (§61) |
+| Vue objectifs nageur (lecture coach + CRUD perso) | ✅ | `SwimmerObjectivesView.tsx`, `Profile.tsx` | Hub Profil, objectifs coach RO + objectifs perso CRUD, bottom sheet form (§61) |
+| ObjectiveCard partagé (grid 2x2) | ✅ | `shared/ObjectiveCard.tsx` | Composant unique : ring SVG par %, barre nage, delta 2 déc., timeAgo, grid/compact (§86) |
+| Créneaux dans Planif nageur | ✅ | `AthletePerformanceHub.tsx` | Section lecture seule au-dessus de Cycle, même design coach (§86) |
 
 ### Pointage heures
 
