@@ -87,6 +87,8 @@ export default function Admin() {
   const [roleFilter, setRoleFilter] = useState<"all" | UserRole>("all");
   const [includeInactive, setIncludeInactive] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [usersShown, setUsersShown] = useState(50);
+  const [fichesShown, setFichesShown] = useState(50);
 
   const [createdCoachPassword, setCreatedCoachPassword] = useState<string | null>(null);
   const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
@@ -285,6 +287,10 @@ export default function Admin() {
       (u.email?.toLowerCase() ?? "").includes(q),
     );
   }, [users, ficheSearch]);
+
+  // Reset pagination when filters change
+  React.useEffect(() => { setUsersShown(50); }, [searchValue, roleFilter, includeInactive]);
+  React.useEffect(() => { setFichesShown(50); }, [ficheSearch]);
 
   // Populate form when profile data arrives while sheet is open
   React.useEffect(() => {
@@ -528,7 +534,7 @@ export default function Admin() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredUsers.map((user) => {
+                  {filteredUsers.slice(0, usersShown).map((user) => {
                     const active = isActiveUser(user.is_active);
                     const isSelf = userId === user.id;
                     const disableAdminOption = existingAdminId !== null && existingAdminId !== user.id;
@@ -603,6 +609,16 @@ export default function Admin() {
                   })}
                 </TableBody>
               </Table>
+              {filteredUsers.length > usersShown && (
+                <div className="flex flex-col items-center gap-2 py-4">
+                  <p className="text-xs text-muted-foreground">
+                    {usersShown} sur {filteredUsers.length} utilisateurs
+                  </p>
+                  <Button variant="outline" size="sm" onClick={() => setUsersShown((s) => s + 50)}>
+                    Voir plus
+                  </Button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -640,7 +656,7 @@ export default function Admin() {
             <p className="text-sm text-muted-foreground text-center py-4">Aucun résultat.</p>
           ) : (
             <div className="space-y-1.5">
-              {ficheFilteredUsers.map((u) => (
+              {ficheFilteredUsers.slice(0, fichesShown).map((u) => (
                 <button
                   key={u.id}
                   type="button"
@@ -659,6 +675,16 @@ export default function Admin() {
                   <Pen className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 </button>
               ))}
+            </div>
+          )}
+          {ficheFilteredUsers.length > fichesShown && (
+            <div className="flex flex-col items-center gap-2 py-4">
+              <p className="text-xs text-muted-foreground">
+                {fichesShown} sur {ficheFilteredUsers.length} fiches
+              </p>
+              <Button variant="outline" size="sm" onClick={() => setFichesShown((s) => s + 50)}>
+                Voir plus
+              </Button>
             </div>
           )}
         </CardContent>

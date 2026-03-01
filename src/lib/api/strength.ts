@@ -221,26 +221,29 @@ export async function updateStrengthSession(session: any) {
     prepareStrengthItemsPayload(session);
 
   if (canUseSupabase()) {
-    const { error } = await supabase
-      .from("strength_sessions")
-      .update({
-        name: session?.title ?? session?.name ?? "",
-        description: session?.description ?? "",
-        folder_id: session?.folder_id ?? null,
-      })
-      .eq("id", session.id);
+    const rpcItems = mapItemsForDbInsert(itemsPayload, session.id, cycle).map(
+      ({ session_id: _sid, ...item }) => ({
+        ordre: item.ordre,
+        exercise_id: item.exercise_id,
+        block: item.block ?? 'main',
+        cycle_type: item.cycle_type ?? 'normal',
+        sets: item.sets ?? null,
+        reps: item.reps ?? null,
+        pct_1rm: item.pct_1rm ?? null,
+        rest_series_s: item.rest_series_s ?? null,
+        rest_exercise_s: null as number | null,
+        notes: item.notes ?? null,
+        raw_payload: null as unknown,
+      }),
+    );
+    const { error } = await supabase.rpc('update_strength_session_atomic', {
+      p_session_id: session.id,
+      p_name: session?.title ?? session?.name ?? '',
+      p_description: session?.description ?? '',
+      p_folder_id: session?.folder_id ?? null,
+      p_items: rpcItems,
+    });
     if (error) throw new Error(error.message);
-    // Replace items: delete old, insert new
-    await supabase
-      .from("strength_session_items")
-      .delete()
-      .eq("session_id", session.id);
-    if (itemsPayload.length > 0) {
-      const { error: itemsError } = await supabase
-        .from("strength_session_items")
-        .insert(mapItemsForDbInsert(itemsPayload, session.id, cycle));
-      if (itemsError) throw new Error(itemsError.message);
-    }
     return { status: "updated" };
   }
 

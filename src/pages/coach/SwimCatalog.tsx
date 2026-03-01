@@ -178,6 +178,7 @@ export default function SwimCatalog() {
   const [pendingDeleteSession, setPendingDeleteSession] = useState<SwimSessionTemplate | null>(null);
   const [pendingArchiveSession, setPendingArchiveSession] = useState<SwimSessionTemplate | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [sessionsShown, setSessionsShown] = useState(30);
 
   // Folder navigation
   const [currentFolder, setCurrentFolder] = useState<string | null>(null);
@@ -314,6 +315,9 @@ export default function SwimCatalog() {
 
     return filtered;
   }, [sessions, searchQuery, currentFolder, showArchive]);
+
+  // Reset pagination when filters change
+  useEffect(() => { setSessionsShown(30); }, [searchQuery, currentFolder, showArchive]);
 
   const createSession = useMutation({
     mutationFn: (data: SwimSessionInput) => api.createSwimSession(data),
@@ -676,7 +680,7 @@ export default function SwimCatalog() {
 
         <div className="mt-4">
           <SessionListView
-            sessions={visibleSessions}
+            sessions={visibleSessions.slice(0, sessionsShown)}
             isLoading={sessionsLoading}
             error={sessionsError}
             renderTitle={renderTitle}
@@ -691,6 +695,16 @@ export default function SwimCatalog() {
             onShare={showArchive ? undefined : handleShare}
             archiveMode={showArchive ? "restore" : "archive"}
           />
+          {visibleSessions.length > sessionsShown && (
+            <div className="flex flex-col items-center gap-2 py-4">
+              <p className="text-xs text-muted-foreground">
+                {sessionsShown} sur {visibleSessions.length} séances
+              </p>
+              <Button variant="outline" size="sm" onClick={() => setSessionsShown((s) => s + 30)}>
+                Voir plus
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className="h-8" />

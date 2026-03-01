@@ -1,16 +1,12 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { fetchAllPerformances, formatTimeDisplay } from "../_shared/ffn-parser.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
-const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 /** Extract calling user's app_user_id from JWT (best-effort, returns null if missing) */
 async function getCallerUserId(req: Request): Promise<number | null> {
@@ -59,21 +55,21 @@ async function checkRateLimit(triggeredBy: number | null): Promise<{ allowed: bo
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  if (req.method !== "POST") return new Response(JSON.stringify({ error: "POST only" }), { status: 405, headers: { ...cors, "Content-Type": "application/json" } });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return new Response(JSON.stringify({ error: "POST only" }), { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   let logId: number | null = null;
 
   try {
     const { swimmer_iuf, user_id, swimmer_name } = await req.json();
-    if (!swimmer_iuf) return new Response(JSON.stringify({ error: "Missing swimmer_iuf" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } });
+    if (!swimmer_iuf) return new Response(JSON.stringify({ error: "Missing swimmer_iuf" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const triggeredBy = await getCallerUserId(req);
 
     // Rate limit check
     const rateCheck = await checkRateLimit(triggeredBy);
     if (!rateCheck.allowed) {
-      return new Response(JSON.stringify({ error: rateCheck.message }), { status: 429, headers: { ...cors, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: rateCheck.message }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // Create import log entry
@@ -139,7 +135,7 @@ Deno.serve(async (req) => {
       }).eq("id", logId);
     }
 
-    return new Response(JSON.stringify({ status: "ok", total_found: totalFound, new_imported: newImported, already_existed: totalFound - newImported }), { headers: { ...cors, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ status: "ok", total_found: totalFound, new_imported: newImported, already_existed: totalFound - newImported }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     // Update import log with error
     if (logId) {
@@ -149,6 +145,6 @@ Deno.serve(async (req) => {
         completed_at: new Date().toISOString(),
       }).eq("id", logId);
     }
-    return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

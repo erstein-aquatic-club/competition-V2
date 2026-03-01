@@ -329,6 +329,12 @@ Tous les feature flags sont activés.
 | Coach bottom nav 5 items | ✅ | `navItems.ts`, `AppLayout.tsx`, `Coach.tsx` | Natation, Calendrier, Nageurs promus en bottom nav (§81) |
 | KPIs fiche nageur Resume | ✅ | `CoachSwimmerDetail.tsx` | 4 tuiles avec données réelles (ressenti, entretiens, cycle, objectifs) (§81) |
 | Wizard inscription 3 étapes | ✅ | `Login.tsx` | Formulaire découpé en 3 steps avec progress dots et validation (§81) |
+| CORS production domain only | ✅ | `_shared/cors.ts`, 4 Edge Functions | Origin restreint à erstein-aquatic-club.github.io (§82) |
+| Migrations reproductibles | ✅ | `00050_missing_tables_reproducibility.sql` | competitions, competition_assignments, objectives, planned_absences, app_settings (§82) |
+| Nettoyage tables legacy | ✅ | `00051_drop_legacy.sql`, `schema.ts` | auth_login_attempts supprimée (§82) |
+| RPC atomique strength session | ✅ | `00052_rpc.sql`, `strength.ts` | Transaction unique UPDATE+DELETE+INSERT (§82) |
+| Pagination listes longues | ✅ | `Admin.tsx`, `SwimCatalog.tsx`, `CoachSwimmersOverview.tsx` | "Voir plus" client-side, cap 30-50 items (§82) |
+| Coach deep linking URL | ✅ | `Coach.tsx` | URL synchro activeSection via replaceState (§82) |
 
 
 ---

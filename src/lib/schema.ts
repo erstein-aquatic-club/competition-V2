@@ -1,4 +1,3 @@
-import { sql } from "drizzle-orm";
 import {
   pgTable,
   serial,
@@ -12,7 +11,6 @@ import {
   jsonb,
   uniqueIndex,
   index,
-  primaryKey,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 
@@ -57,21 +55,6 @@ export const userProfiles = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
   (table) => [index("idx_user_profiles_updated").on(table.updatedAt)]
-);
-
-export const authLoginAttempts = pgTable(
-  "auth_login_attempts",
-  {
-    identifier: text("identifier").notNull(),
-    ipAddress: text("ip_address").notNull(),
-    attemptCount: integer("attempt_count").notNull().default(0),
-    firstAttemptAt: timestamp("first_attempt_at", {
-      withTimezone: true,
-    }).notNull(),
-    lockedUntil: timestamp("locked_until", { withTimezone: true }),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-  },
-  (table) => [primaryKey({ columns: [table.identifier, table.ipAddress] })]
 );
 
 export const refreshTokens = pgTable(

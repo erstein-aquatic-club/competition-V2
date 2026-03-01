@@ -7,6 +7,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { fetchAllPerformances, formatTimeDisplay } from "../_shared/ffn-parser.ts";
 import { normalizeEventCode, EVENT_LABELS } from "../_shared/ffn-event-map.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -14,20 +15,13 @@ const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
 function jsonResponse(
   data: Record<string, unknown>,
   status = 200,
 ): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { ...cors, "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
 
@@ -393,7 +387,7 @@ async function recalculateClubRecords(): Promise<RecalcStats> {
 Deno.serve(async (req) => {
   // CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: cors });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   if (req.method !== "POST") {

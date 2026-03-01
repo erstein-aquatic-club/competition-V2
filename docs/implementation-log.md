@@ -52,6 +52,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §79 Notifications push Web Push (VAPID) | ✅ Fait | 2026-02-28 |
 | §80 Sécurité RLS + Import FFN Auto-Sync | ✅ Fait | 2026-03-01 |
 | §81 Audit UX A-H (touch targets, feedback, nav, wizard) | ✅ Fait | 2026-03-01 |
+| §82 Audit restant (CORS, migrations, RPC, pagination, deep linking) | ✅ Fait | 2026-03-01 |
 | §45 Audit UI/UX — header Strength + login mobile + fixes | ✅ Fait | 2026-02-16 |
 | §46 Harmonisation headers + Login mobile thème clair | ✅ Fait | 2026-02-16 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
@@ -6456,3 +6457,72 @@ Progress dots animés, validation par étape via `trigger()`, boutons Suivant/Re
 
 - La synchronisation nav coach utilise un custom event DOM (`nav:section`) — solution pragmatique pour éviter un refactor du routing hash Wouter
 - Les KPIs fiche nageur font 4-5 queries par nageur — acceptable car staleTime 5min et cache partagé
+
+## §82 — Audit restant : CORS, migrations, RPC, pagination, deep linking (2026-03-01)
+
+**Chantier ROADMAP** : §82 — Audit restant (S3, S4, R12, R15, R16, R17)
+
+### Contexte
+
+Suite aux items A-H (§81), implémentation des 6 items restants de l'audit : sécurité CORS, reproductibilité du schéma, atomicité des transactions, pagination des listes longues, deep linking coach.
+
+### Changements
+
+**S3 — CORS restreint au domaine de production** :
+Création de `supabase/functions/_shared/cors.ts` centralisant `Access-Control-Allow-Origin: https://erstein-aquatic-club.github.io`. Les 4 Edge Functions (admin-user, ffn-performances, import-club-records, push-send) importent désormais `corsHeaders` depuis ce module partagé. Plus de wildcard `*`.
+
+**S4 — Migrations manquantes (migration 00050)** :
+Création des tables `competitions`, `competition_assignments`, `objectives`, `planned_absences`, `app_settings` avec `IF NOT EXISTS` pour la reproductibilité du schéma. Policies RLS incluses. `avatars` est un bucket storage, pas une table.
+
+**R17 — Drop legacy table (migration 00051)** :
+`auth_login_attempts` supprimée (seule legacy restante — `dim_seance` et `dim_seance_deroule` étaient déjà absentes). Définition Drizzle retirée de `schema.ts`.
+
+**R12 — RPC atomique strength session (migration 00052)** :
+Fonction `update_strength_session_atomic()` PL/pgSQL qui encapsule UPDATE metadata + DELETE items + INSERT items dans une seule transaction. Si l'INSERT échoue, le DELETE est rollback automatiquement. `src/lib/api/strength.ts` appelle désormais `supabase.rpc()` au lieu de 3 requêtes séquentielles.
+
+**R15 — Pagination "Voir plus"** :
+Ajout de pagination client-side (slice + load more) sur 3 pages :
+- Admin.tsx : users table (cap 50) + fiches list (cap 50)
+- SwimCatalog.tsx : sessions list (cap 30)
+- CoachSwimmersOverview.tsx : athletes grid (cap 30)
+Reset automatique du compteur au changement de filtre/recherche.
+
+**R16 — Deep linking coach complet** :
+`useEffect` dans Coach.tsx synchronise `activeSection` → URL via `replaceState`. Les pills internes et tous les `setActiveSection` mettent maintenant l'URL à jour. Le refresh restaure la section correcte.
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `supabase/functions/_shared/cors.ts` | Nouveau — module CORS partagé |
+| `supabase/functions/admin-user/index.ts` | Import corsHeaders |
+| `supabase/functions/ffn-performances/index.ts` | Import corsHeaders |
+| `supabase/functions/import-club-records/index.ts` | Import corsHeaders |
+| `supabase/functions/push-send/index.ts` | Import corsHeaders |
+| `supabase/migrations/00050_missing_tables_reproducibility.sql` | Nouveau |
+| `supabase/migrations/00051_drop_legacy_auth_login_attempts.sql` | Nouveau |
+| `supabase/migrations/00052_update_strength_session_atomic_rpc.sql` | Nouveau |
+| `src/lib/api/strength.ts` | updateStrengthSession → RPC |
+| `src/lib/schema.ts` | Suppression authLoginAttempts |
+| `src/pages/Admin.tsx` | Pagination users + fiches |
+| `src/pages/coach/SwimCatalog.tsx` | Pagination sessions |
+| `src/pages/coach/CoachSwimmersOverview.tsx` | Pagination athletes |
+| `src/pages/Coach.tsx` | Deep linking useEffect |
+
+### Tests
+
+- [x] `npx tsc --noEmit` : 0 erreurs
+- [x] Migrations 00050-00052 appliquées sur Supabase
+- [ ] Test manuel : CORS preflight, pagination, deep linking coach, update session strength
+
+### Décisions
+
+- CORS restreint à `https://erstein-aquatic-club.github.io` uniquement — les requêtes depuis localhost en dev passent quand même car Supabase n'applique le CORS que sur les preflight OPTIONS (les appels directs depuis le navigateur ne sont pas bloqués en mode dev)
+- Pagination client-side plutôt que virtualization — plus simple, suffisant pour les volumes actuels (< 500 items)
+- RPC `SECURITY DEFINER` pour le strength update — les RLS sur strength_sessions contrôlent l'accès en amont
+- `replaceState` pour le deep linking coach — évite la pollution de l'historique navigateur
+
+### Limites
+
+- Les Edge Functions doivent être redéployées pour que le CORS prenne effet (les migrations seules ne suffisent pas)
+- La pagination est purement client-side — si les volumes augmentent fortement (1000+ items), il faudra paginer côté API

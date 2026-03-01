@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type { AthleteSummary } from "@/lib/api/types";
 import CoachSectionHeader from "./CoachSectionHeader";
 
@@ -62,6 +63,7 @@ interface Props {
 export default function CoachSwimmersOverview({ athletes, athletesLoading, onBack, onOpenAthlete }: Props) {
   const [groupFilter, setGroupFilter] = useState<number | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [athletesShown, setAthletesShown] = useState(30);
 
   const { data: recentSessions = [] } = useQuery({
     queryKey: ["recent-sessions-all", 30],
@@ -138,6 +140,9 @@ export default function CoachSwimmersOverview({ athletes, athletesLoading, onBac
     }
     return list;
   }, [athletes, groupFilter, sortKey, athleteKPIs]);
+
+  // Reset pagination when filters change
+  useEffect(() => { setAthletesShown(30); }, [groupFilter, sortKey]);
 
   return (
     <div className="space-y-4">
@@ -229,71 +234,83 @@ export default function CoachSwimmersOverview({ athletes, athletesLoading, onBac
           {groupFilter != null ? "Aucun nageur dans ce groupe." : "Aucun nageur disponible."}
         </p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {sortedAthletes.map((athlete) => {
-            const kpis = athlete.id != null ? athleteKPIs.get(athlete.id) : null;
-            const forme = formeBadge(kpis?.forme ?? null);
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {sortedAthletes.slice(0, athletesShown).map((athlete) => {
+              const kpis = athlete.id != null ? athleteKPIs.get(athlete.id) : null;
+              const forme = formeBadge(kpis?.forme ?? null);
 
-            return (
-              <button
-                key={athlete.id ?? athlete.display_name}
-                type="button"
-                onClick={() => onOpenAthlete(athlete)}
-                className="rounded-2xl border bg-card p-4 text-left hover:shadow-md hover:border-primary/20 transition-all"
-              >
-                <div className="flex items-center gap-3">
-                  {athlete.avatar_url ? (
-                    <img
-                      src={athlete.avatar_url}
-                      alt=""
-                      className="h-10 w-10 rounded-full object-cover border border-border"
-                    />
-                  ) : (
-                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
-                      {athlete.display_name.charAt(0).toUpperCase()}
+              return (
+                <button
+                  key={athlete.id ?? athlete.display_name}
+                  type="button"
+                  onClick={() => onOpenAthlete(athlete)}
+                  className="rounded-2xl border bg-card p-4 text-left hover:shadow-md hover:border-primary/20 transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    {athlete.avatar_url ? (
+                      <img
+                        src={athlete.avatar_url}
+                        alt=""
+                        className="h-10 w-10 rounded-full object-cover border border-border"
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
+                        {athlete.display_name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold truncate">{athlete.display_name}</p>
+                      {athlete.group_label && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 mt-0.5">
+                          {athlete.group_label}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    <div className="text-center">
+                      <div className="text-[10px] font-medium text-muted-foreground mb-1">Forme</div>
+                      <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${forme.className}`}>
+                        {forme.label}
+                      </span>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-[10px] font-medium text-muted-foreground mb-1">30j</div>
+                      <span className="text-sm font-bold text-foreground">
+                        {kpis?.sessionsCount30d ?? 0}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground ml-0.5">séances</span>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-[10px] font-medium text-muted-foreground mb-1">Objectifs</div>
+                      <span className="text-sm font-bold text-foreground">
+                        {kpis?.objectivesTotal ?? 0}
+                      </span>
+                    </div>
+                  </div>
+
+                  {kpis?.lastSessionDate && (
+                    <div className="mt-2 text-[10px] text-muted-foreground">
+                      Dernier ressenti : {new Date(kpis.lastSessionDate).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
                     </div>
                   )}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold truncate">{athlete.display_name}</p>
-                    {athlete.group_label && (
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 mt-0.5">
-                        {athlete.group_label}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  <div className="text-center">
-                    <div className="text-[10px] font-medium text-muted-foreground mb-1">Forme</div>
-                    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${forme.className}`}>
-                      {forme.label}
-                    </span>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-[10px] font-medium text-muted-foreground mb-1">30j</div>
-                    <span className="text-sm font-bold text-foreground">
-                      {kpis?.sessionsCount30d ?? 0}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground ml-0.5">séances</span>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-[10px] font-medium text-muted-foreground mb-1">Objectifs</div>
-                    <span className="text-sm font-bold text-foreground">
-                      {kpis?.objectivesTotal ?? 0}
-                    </span>
-                  </div>
-                </div>
-
-                {kpis?.lastSessionDate && (
-                  <div className="mt-2 text-[10px] text-muted-foreground">
-                    Dernier ressenti : {new Date(kpis.lastSessionDate).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
-                  </div>
-                )}
-              </button>
-            );
-          })}
-        </div>
+                </button>
+              );
+            })}
+          </div>
+          {sortedAthletes.length > athletesShown && (
+            <div className="flex flex-col items-center gap-2 py-4">
+              <p className="text-xs text-muted-foreground">
+                {athletesShown} sur {sortedAthletes.length} nageurs
+              </p>
+              <Button variant="outline" size="sm" onClick={() => setAthletesShown((s) => s + 30)}>
+                Voir plus
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

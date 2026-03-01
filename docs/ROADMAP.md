@@ -1,6 +1,6 @@
 # Roadmap de Développement
 
-*Dernière mise à jour : 2026-03-01 (§81 Audit UX A-H — Touch targets, FeedbackDrawer, nav coach, wizard inscription)*
+*Dernière mise à jour : 2026-03-01 (§82 Audit restant — CORS, migrations, RPC atomique, pagination, deep linking)*
 
 Ce document décrit les fonctionnalités à implémenter. Il sert de référence pour reprendre le développement dans une future conversation.
 
@@ -53,6 +53,7 @@ Ce document décrit les fonctionnalités à implémenter. Il sert de référence
 | 40 | Notifications push Web Push (VAPID) | Haute | Haute | Fait (§79) |
 | 41 | Sécurité RLS + Import FFN Auto-Sync | Haute | Moyenne | Fait (§80) |
 | 42 | Audit UX A-H (touch targets, feedback, nav, wizard) | Haute | Moyenne | Fait (§81) |
+| 43 | Audit restant (CORS, migrations, RPC, pagination, deep linking) | Moyenne | Moyenne | Fait (§82) |
 
 ---
 

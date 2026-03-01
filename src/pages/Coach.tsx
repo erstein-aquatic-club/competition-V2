@@ -354,6 +354,18 @@ export default function Coach() {
   const kpiPeriod: KpiLookbackPeriod = 7;
   const [selectedCoachAthlete, setSelectedCoachAthlete] = useState<CoachAthleteOption | null>(null);
 
+  // Sync activeSection → URL (replaceState to avoid extra history entries)
+  useEffect(() => {
+    const base = "/coach";
+    const target =
+      activeSection && activeSection !== "home"
+        ? `#${base}?section=${activeSection}`
+        : `#${base}`;
+    if (window.location.hash !== target) {
+      window.history.replaceState(null, "", target);
+    }
+  }, [activeSection]);
+
   // Reset to home when nav icon is tapped while already on /coach
   useEffect(() => {
     const reset = () => {
