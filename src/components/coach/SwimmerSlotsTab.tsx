@@ -21,6 +21,7 @@ import {
 import { Link2, Plus, RotateCcw, Trash2, Clock, MapPin } from "lucide-react";
 
 const DAYS_FR = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
+const DAYS_SHORT = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
 /** Convert "HH:MM" or "HH:MM:SS" to minutes since midnight */
 function timeToMinutes(t: string): number {
@@ -116,6 +117,12 @@ export default function SwimmerSlotsTab({ athleteId, athleteName, groupId }: Pro
   const [confirmReset, setConfirmReset] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
+  // ── Selected day (1=Mon...7=Sun), default to today ──
+  const [selectedDay, setSelectedDay] = useState<number>(() => {
+    const jsDay = new Date().getDay(); // 0=Sun
+    return jsDay === 0 ? 7 : jsDay;
+  });
+
   // ── Group slots by day ──────────────────────────
   const slotsByDay = useMemo(() => {
     const source = hasPersonalSlots ? displaySlots : groupSlots;
@@ -125,8 +132,32 @@ export default function SwimmerSlotsTab({ athleteId, athleteName, groupId }: Pro
       list.push(s as any);
       map.set(s.day_of_week, list);
     }
+    // Sort each day by start_time
+    for (const list of map.values()) {
+      list.sort((a, b) => a.start_time.localeCompare(b.start_time));
+    }
     return map;
   }, [hasPersonalSlots, displaySlots, groupSlots]);
+
+  // ── Mini-strip time range for slot indicators ───
+  const stripRange = useMemo(() => {
+    let minH = 22;
+    let maxH = 6;
+    slotsByDay.forEach((daySlots) => {
+      for (const s of daySlots) {
+        const startH = Math.floor(timeToMinutes(s.start_time) / 60);
+        const endH = Math.ceil(timeToMinutes(s.end_time) / 60);
+        if (startH < minH) minH = startH;
+        if (endH > maxH) maxH = endH;
+      }
+    });
+    if (minH >= maxH) return { start: 6, end: 22 };
+    return { start: Math.max(0, minH), end: Math.min(24, maxH) };
+  }, [slotsByDay]);
+
+  const stripTotalMin = (stripRange.end - stripRange.start) * 60;
+  const todayDow = (() => { const d = new Date().getDay(); return d === 0 ? 7 : d; })();
+  const selectedDaySlots = slotsByDay.get(selectedDay) ?? [];
 
   // ── Loading ─────────────────────────────────────
   if (isLoading) {
@@ -170,16 +201,89 @@ export default function SwimmerSlotsTab({ athleteId, athleteName, groupId }: Pro
         </div>
       )}
 
-      {/* Day-by-day list */}
-      {[1, 2, 3, 4, 5, 6, 7].map((dow) => {
-        const daySlots = slotsByDay.get(dow);
-        if (!daySlots || daySlots.length === 0) return null;
-        return (
-          <div key={dow} className="space-y-2">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              {DAYS_FR[dow - 1]}
-            </h3>
-            {daySlots.map((s: any) => {
+      {/* ── 7-column week strip ── */}
+      <div className="grid grid-cols-7 gap-0 rounded-xl border border-border bg-card overflow-hidden">
+        {[1, 2, 3, 4, 5, 6, 7].map((dow) => {
+          const isToday = dow === todayDow;
+          const isSelected = dow === selectedDay;
+          const daySlots = slotsByDay.get(dow) ?? [];
+
+          return (
+            <button
+              key={dow}
+              type="button"
+              className={`flex flex-col items-center py-2 transition-colors relative ${
+                isSelected
+                  ? "bg-primary/8"
+                  : "hover:bg-muted/50 active:bg-muted"
+              }`}
+              onClick={() => setSelectedDay(dow)}
+            >
+              {/* Day label */}
+              <span className={`text-[10px] font-semibold uppercase tracking-wider ${
+                isToday ? "text-primary" : "text-muted-foreground"
+              }`}>
+                {DAYS_SHORT[dow - 1]}
+              </span>
+
+              {/* Slot count dot */}
+              <span className={`text-xs font-bold tabular-nums mt-0.5 h-7 w-7 flex items-center justify-center rounded-full ${
+                isToday
+                  ? "bg-primary text-primary-foreground"
+                  : isSelected
+                    ? "text-foreground"
+                    : "text-foreground/80"
+              }`}>
+                {daySlots.length || "·"}
+              </span>
+
+              {/* Mini slot bars */}
+              <div className="w-full px-1 mt-1.5 h-8 relative">
+                {daySlots.map((slot: any) => {
+                  const startMin = timeToMinutes(slot.start_time) - stripRange.start * 60;
+                  const endMin = timeToMinutes(slot.end_time) - stripRange.start * 60;
+                  const topPct = Math.max(0, (startMin / stripTotalMin) * 100);
+                  const heightPct = Math.max(8, ((endMin - startMin) / stripTotalMin) * 100);
+                  const swim = isSwimSlot(slot.location);
+
+                  return (
+                    <div
+                      key={slot.id}
+                      className={`absolute left-1 right-1 rounded-sm ${
+                        swim ? "bg-blue-500/40" : "bg-amber-400/50"
+                      }`}
+                      style={{
+                        top: `${topPct}%`,
+                        height: `${heightPct}%`,
+                        minHeight: "3px",
+                      }}
+                    />
+                  );
+                })}
+              </div>
+
+              {/* Selection indicator line */}
+              {isSelected && (
+                <div className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-primary" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Day detail: slot cards ── */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-semibold text-foreground px-0.5">
+          {DAYS_FR[selectedDay - 1]}
+        </h3>
+
+        {selectedDaySlots.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 py-8 text-center">
+            <p className="text-sm text-muted-foreground">Aucun créneau</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {selectedDaySlots.map((s: any) => {
               const swim = isSwimSlot(s.location);
               return (
                 <button
@@ -227,14 +331,8 @@ export default function SwimmerSlotsTab({ athleteId, athleteName, groupId }: Pro
               );
             })}
           </div>
-        );
-      })}
-
-      {slotsByDay.size === 0 && (
-        <p className="text-center text-sm text-muted-foreground py-8">
-          Aucun créneau configuré.
-        </p>
-      )}
+        )}
+      </div>
 
       {/* Confirm reset dialog */}
       <AlertDialog open={confirmReset} onOpenChange={setConfirmReset}>
