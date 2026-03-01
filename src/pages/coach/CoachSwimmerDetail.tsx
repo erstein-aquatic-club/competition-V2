@@ -329,14 +329,6 @@ export default function CoachSwimmerDetail({
         <TabsContent value="planif" className="mt-4 space-y-4">
           <section className="space-y-2">
             <div className="flex items-center gap-2">
-              <CalendarRange className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold">Cycle</h2>
-            </div>
-            <SwimmerPlanningTab athleteId={athleteId} />
-          </section>
-
-          <section className="space-y-2">
-            <div className="flex items-center gap-2">
               <CalendarClock className="h-4 w-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">Créneaux</h2>
             </div>
@@ -345,6 +337,14 @@ export default function CoachSwimmerDetail({
               athleteName={displayName}
               groupId={profile?.group_id ?? 0}
             />
+          </section>
+
+          <section className="space-y-2">
+            <div className="flex items-center gap-2">
+              <CalendarRange className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold">Cycle</h2>
+            </div>
+            <SwimmerPlanningTab athleteId={athleteId} />
           </section>
         </TabsContent>
       </Tabs>
