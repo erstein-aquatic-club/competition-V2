@@ -368,12 +368,22 @@ export default function AthletePerformanceHub({
         </div>
       </div>
 
-      <Tabs defaultValue={defaultTab || "objectifs"} className="space-y-4">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-2xl bg-transparent p-0 sm:grid-cols-4">
-          <TabsTrigger value="objectifs" className="gap-1 rounded-2xl border border-border bg-card px-3 py-2.5 text-xs data-[state=active]:border-primary/30 data-[state=active]:bg-primary/5 data-[state=active]:text-primary">
-            <Target className="hidden h-3.5 w-3.5 sm:block" />
-            <span className="sm:hidden">Plan d&apos;action</span>
-            <span className="hidden sm:inline">Plan d'action</span>
+      {/* Objectives always visible above tabs in standalone mode (Suivi page) */}
+      {standalone && <SwimmerObjectivesView embedded />}
+
+      <Tabs defaultValue={defaultTab || (standalone ? "ressentis" : "objectifs")} className="space-y-4">
+        <TabsList className={`grid h-auto w-full gap-2 rounded-2xl bg-transparent p-0 ${standalone ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-4"}`}>
+          {!standalone && (
+            <TabsTrigger value="objectifs" className="gap-1 rounded-2xl border border-border bg-card px-3 py-2.5 text-xs data-[state=active]:border-primary/30 data-[state=active]:bg-primary/5 data-[state=active]:text-primary">
+              <Target className="hidden h-3.5 w-3.5 sm:block" />
+              <span className="sm:hidden">Plan d&apos;action</span>
+              <span className="hidden sm:inline">Plan d'action</span>
+            </TabsTrigger>
+          )}
+          <TabsTrigger value="ressentis" className="gap-1 rounded-2xl border border-border bg-card px-3 py-2.5 text-xs data-[state=active]:border-primary/30 data-[state=active]:bg-primary/5 data-[state=active]:text-primary">
+            <Clock className="hidden h-3.5 w-3.5 sm:block" />
+            <span className="sm:hidden">Ressentis</span>
+            <span className="hidden sm:inline">Ressentis</span>
           </TabsTrigger>
           <TabsTrigger value="entretiens" className="gap-1 rounded-2xl border border-border bg-card px-3 py-2.5 text-xs data-[state=active]:border-primary/30 data-[state=active]:bg-primary/5 data-[state=active]:text-primary">
             <MessageSquare className="hidden h-3.5 w-3.5 sm:block" />
@@ -384,15 +394,20 @@ export default function AthletePerformanceHub({
             <CalendarRange className="hidden h-3.5 w-3.5 sm:block" />
             <span>Planif.</span>
           </TabsTrigger>
-          <TabsTrigger value="ressentis" className="gap-1 rounded-2xl border border-border bg-card px-3 py-2.5 text-xs data-[state=active]:border-primary/30 data-[state=active]:bg-primary/5 data-[state=active]:text-primary">
-            <Clock className="hidden h-3.5 w-3.5 sm:block" />
-            <span className="sm:hidden">Ressentis</span>
-            <span className="hidden sm:inline">Ressentis</span>
-          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="objectifs" className="mt-0">
-          <SwimmerObjectivesView embedded />
+        {!standalone && (
+          <TabsContent value="objectifs" className="mt-0">
+            <SwimmerObjectivesView embedded />
+          </TabsContent>
+        )}
+
+        <TabsContent value="ressentis" className="mt-0">
+          <SwimmerFeedbackTab
+            athleteId={athleteId}
+            athleteName={athleteName}
+            showProgressAction={false}
+          />
         </TabsContent>
 
         <TabsContent value="entretiens" className="mt-0">
@@ -401,14 +416,6 @@ export default function AthletePerformanceHub({
 
         <TabsContent value="planification" className="mt-0">
           <AthleteSeasonPlanning athleteId={athleteId} />
-        </TabsContent>
-
-        <TabsContent value="ressentis" className="mt-0">
-          <SwimmerFeedbackTab
-            athleteId={athleteId}
-            athleteName={athleteName}
-            showProgressAction={false}
-          />
         </TabsContent>
       </Tabs>
     </div>

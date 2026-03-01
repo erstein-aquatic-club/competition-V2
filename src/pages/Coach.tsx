@@ -54,11 +54,12 @@ type CoachHomeProps = {
   onOpenRecordsAdmin: () => void;
   onOpenRecordsClub: () => void;
   onOpenAthlete: (athlete: CoachAthleteOption) => void;
-  athletes: Array<{ id: number | null; display_name: string; group_label?: string | null; ffn_iuf?: string | null }>;
+  athletes: Array<{ id: number | null; display_name: string; group_label?: string | null; ffn_iuf?: string | null; avatar_url?: string | null }>;
   athletesLoading: boolean;
   kpiLoading: boolean;
   fatigueAlerts: Array<{ athleteName: string; rating: number }>;
   mostLoadedAthlete?: { athleteName: string; loadScore: number } | null;
+  formeScores: Map<number, number | null>;
   swimSessionCount?: number;
   strengthSessionCount?: number;
 };
@@ -75,6 +76,20 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** 5-dot forme indicator — score is 1–5, dots fill from left */
+function FormeDots({ score }: { score: number | null }) {
+  if (score == null) return null;
+  const filled = Math.round(score);
+  const dotColor = score >= 3.5 ? "bg-emerald-500" : score >= 2.5 ? "bg-amber-500" : "bg-red-500";
+  return (
+    <div className="flex items-center gap-0.5">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className={`h-1.5 w-1.5 rounded-full ${i < filled ? dotColor : "bg-muted"}`} />
+      ))}
+    </div>
+  );
+}
+
 // ── CoachHome ──────────────────────────────────────────────────────────────
 const CoachHome = ({
   onNavigate,
@@ -86,6 +101,7 @@ const CoachHome = ({
   kpiLoading,
   fatigueAlerts,
   mostLoadedAthlete,
+  formeScores,
   swimSessionCount,
   strengthSessionCount,
 }: CoachHomeProps) => {
@@ -112,17 +128,11 @@ const CoachHome = ({
 
   const hasAlerts = fatigueAlerts.length > 0;
 
-  const primaryAction = hasAlerts
-    ? {
-      label: `${fatigueAlerts.length} alerte${fatigueAlerts.length > 1 ? "s" : ""} fatigue`,
-      detail: fatigueAlerts.slice(0, 2).map((a) => a.athleteName.split(" ")[0]).join(", ") + (fatigueAlerts.length > 2 ? `…` : ""),
-      action: () => onNavigate("swimmers"),
-    }
-    : {
-      label: "Créer une séance",
-      detail: "Natation · Explorer la bibliothèque",
-      action: () => onNavigate("swim"),
-    };
+  const primaryAction = {
+    label: "Créer une séance",
+    detail: "Natation · Explorer la bibliothèque",
+    action: () => onNavigate("swim"),
+  };
 
   const tools = [
     { label: "Natation", icon: Waves, action: () => onNavigate("swim"), color: "text-cyan-500" },
@@ -414,6 +424,7 @@ const CoachHome = ({
                   (a) => a.athleteName === athlete.display_name,
                 );
                 const initials = athlete.display_name.charAt(0).toUpperCase();
+                const formeScore = athlete.id != null ? (formeScores.get(athlete.id) ?? null) : null;
 
                 return (
                   <button
@@ -423,22 +434,38 @@ const CoachHome = ({
                     className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors active:bg-muted"
                   >
                     {/* Avatar with alert ring */}
-                    <div
-                      className={[
-                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-all",
-                        isFatigueAlert
-                          ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 ring-2 ring-red-400/60 ring-offset-1"
-                          : "bg-primary/10 text-primary",
-                      ].join(" ")}
-                    >
-                      {initials}
-                    </div>
+                    {athlete.avatar_url ? (
+                      <img
+                        src={athlete.avatar_url}
+                        alt=""
+                        className={[
+                          "h-9 w-9 shrink-0 rounded-full object-cover border",
+                          isFatigueAlert
+                            ? "border-red-400/60 ring-2 ring-red-400/60 ring-offset-1"
+                            : "border-border",
+                        ].join(" ")}
+                      />
+                    ) : (
+                      <div
+                        className={[
+                          "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-all",
+                          isFatigueAlert
+                            ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 ring-2 ring-red-400/60 ring-offset-1"
+                            : "bg-primary/10 text-primary",
+                        ].join(" ")}
+                      >
+                        {initials}
+                      </div>
+                    )}
 
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{athlete.display_name}</p>
-                      <p className="truncate text-[11px] text-muted-foreground">
-                        {athlete.group_label || "Sans groupe"}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="truncate text-[11px] text-muted-foreground">
+                          {athlete.group_label || "Sans groupe"}
+                        </p>
+                        {formeScore != null && <FormeDots score={formeScore} />}
+                      </div>
                     </div>
 
                     {isFatigueAlert ? (
@@ -668,10 +695,30 @@ export default function Coach() {
             return sum + setCount * 5;
           }, 0);
           const fatigueRating = buildFatigueRating([...sessionFatigueValues, ...runFatigueValues]);
+          // Compute forme score from most recent session (same pattern as CoachSwimmersOverview)
+          const lastSession = recentSessions[0];
+          let formeScore: number | null = null;
+          if (lastSession) {
+            const fv: number[] = [];
+            const eff = lastSession.effort;
+            const fat = lastSession.fatigue ?? lastSession.feeling;
+            const perf = lastSession.performance;
+            const eng = lastSession.engagement;
+            // Values are normalized to 1-5 scale — invert effort and fatigue (high = bad)
+            if (eff != null && Number.isFinite(eff)) fv.push(6 - eff);
+            if (fat != null && Number.isFinite(fat)) fv.push(6 - fat);
+            if (perf != null && Number.isFinite(perf)) fv.push(perf);
+            if (eng != null && Number.isFinite(eng)) fv.push(eng);
+            if (fv.length > 0) {
+              formeScore = Math.round((fv.reduce((a, b) => a + b, 0) / fv.length) * 10) / 10;
+            }
+          }
           return {
+            athleteId: athlete.id,
             athleteName: athlete.display_name,
             loadScore: swimLoad + strengthLoad,
             fatigueRating,
+            formeScore,
           };
         }),
       );
@@ -686,7 +733,14 @@ export default function Coach() {
         .filter((entry) => entry.loadScore > 0)
         .sort((a, b) => b.loadScore - a.loadScore)[0];
 
-      return { fatigueAlerts, mostLoadedAthlete: mostLoadedAthlete ?? null };
+      const formeScores = new Map<number, number | null>();
+      for (const entry of perAthlete) {
+        if (entry.athleteId != null) {
+          formeScores.set(entry.athleteId, entry.formeScore);
+        }
+      }
+
+      return { fatigueAlerts, mostLoadedAthlete: mostLoadedAthlete ?? null, formeScores };
     },
   });
 
@@ -734,6 +788,7 @@ export default function Coach() {
           kpiLoading={coachKpisQuery.isLoading}
           fatigueAlerts={coachKpisQuery.data?.fatigueAlerts ?? []}
           mostLoadedAthlete={coachKpisQuery.data?.mostLoadedAthlete ?? null}
+          formeScores={coachKpisQuery.data?.formeScores ?? new Map()}
           swimSessionCount={swimSessions?.length}
           strengthSessionCount={strengthSessions?.length}
         />
