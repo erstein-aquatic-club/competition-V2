@@ -13,7 +13,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { CalendarHeader } from "@/components/dashboard/CalendarHeader";
 import { CalendarGrid } from "@/components/dashboard/CalendarGrid";
 import { FeedbackDrawer } from "@/components/dashboard/FeedbackDrawer";
-import { SwimExerciseLogsHistory } from "@/components/dashboard/SwimExerciseLogsHistory";
 import { InlineBanner } from "@/components/shared/InlineBanner";
 import { PullToRefresh } from "@/components/shared/PullToRefresh";
 import {
@@ -23,6 +22,8 @@ import {
   Plus,
   AlertCircle,
   Trophy,
+  FileText,
+  ChevronRight,
 } from "lucide-react";
 import type { SaveState } from "@/components/shared/BottomActionBar";
 
@@ -148,7 +149,6 @@ export default function Dashboard() {
 
   const [, navigate] = useLocation();
   const [saveState, setSaveState] = React.useState<SaveState>("idle");
-  const [historyExpanded, setHistoryExpanded] = React.useState(false);
 
   // Get Supabase auth UUID for swim exercise logs
   const [authUuid, setAuthUuid] = React.useState<string | null>(null);
@@ -780,13 +780,30 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* Swim Exercise Logs History */}
+        {/* Link to swim notes page */}
         {authUuid && (
-          <SwimExerciseLogsHistory
-            userId={authUuid}
-            expanded={historyExpanded}
-            onToggle={() => setHistoryExpanded((v) => !v)}
-          />
+          <div className="mt-6">
+            <button
+              type="button"
+              onClick={() => navigate("/swim-notes")}
+              className="flex w-full items-center justify-between rounded-2xl border border-dashed border-border/80 bg-background px-3 py-2.5 text-left transition hover:bg-muted/40"
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                  <FileText className="h-4 w-4" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold text-foreground">
+                    Notes techniques
+                  </span>
+                  <span className="block truncate text-[11px] text-muted-foreground">
+                    Repères détaillés par exercice
+                  </span>
+                </span>
+              </span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </button>
+          </div>
         )}
 
         {/* Settings Dialog */}

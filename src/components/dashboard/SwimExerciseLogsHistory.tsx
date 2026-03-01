@@ -26,9 +26,11 @@ interface SwimExerciseLogsHistoryProps {
   userId: string;
   expanded: boolean;
   onToggle: () => void;
+  /** When true, skip the toggle button (used on dedicated page) */
+  standalone?: boolean;
 }
 
-export function SwimExerciseLogsHistory({ userId, expanded, onToggle }: SwimExerciseLogsHistoryProps) {
+export function SwimExerciseLogsHistory({ userId, expanded, onToggle, standalone }: SwimExerciseLogsHistoryProps) {
   const queryClient = useQueryClient();
   const { data: logs, isLoading } = useQuery({
     queryKey: ["swim-exercise-logs-history", userId],
@@ -63,31 +65,8 @@ export function SwimExerciseLogsHistory({ userId, expanded, onToggle }: SwimExer
     return Array.from(map.entries()).map(([date, entries]) => ({ date, entries }));
   }, [logs]);
 
-  return (
-    <div className="mt-6">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="flex w-full items-center justify-between rounded-2xl border border-dashed border-border/80 bg-background px-3 py-2.5 text-left transition hover:bg-muted/40"
-      >
-        <span className="flex min-w-0 items-center gap-2">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-            <FileText className="h-4 w-4" />
-          </span>
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold text-foreground">
-              Notes techniques
-            </span>
-            <span className="block truncate text-[11px] text-muted-foreground">
-              Repères détaillés, consultation optionnelle
-            </span>
-          </span>
-        </span>
-        <ChevronRight className={cn("h-4 w-4 transition-transform", expanded && "rotate-90")} />
-      </button>
-
-      {expanded && (
-        <div className="mt-2 space-y-3 rounded-2xl border border-border/60 bg-card/60 p-2">
+  const content = expanded ? (
+    <div className={standalone ? "space-y-3" : "mt-2 space-y-3 rounded-2xl border border-border/60 bg-card/60 p-2"}>
           {isLoading && (
             <div className="text-sm text-muted-foreground text-center py-4">Chargement...</div>
           )}
@@ -117,7 +96,33 @@ export function SwimExerciseLogsHistory({ userId, expanded, onToggle }: SwimExer
             </div>
           ))}
         </div>
-      )}
+      ) : null;
+
+  if (standalone) return content;
+
+  return (
+    <div className="mt-6">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center justify-between rounded-2xl border border-dashed border-border/80 bg-background px-3 py-2.5 text-left transition hover:bg-muted/40"
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+            <FileText className="h-4 w-4" />
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-semibold text-foreground">
+              Notes techniques
+            </span>
+            <span className="block truncate text-[11px] text-muted-foreground">
+              Repères détaillés, consultation optionnelle
+            </span>
+          </span>
+        </span>
+        <ChevronRight className={cn("h-4 w-4 transition-transform", expanded && "rotate-90")} />
+      </button>
+      {content}
     </div>
   );
 }
