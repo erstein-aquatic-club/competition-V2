@@ -181,6 +181,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 49 | Redesign ObjectiveCard + harmonisation Planif nageur | Moyenne | Fait (§86) |
 | 48 | Calendrier créneaux centré séances (Slot-Centric Sessions) | Haute | Fait (§85) |
 | 50 | Préparation compétition nageur (courses, routines, timeline, checklist) | Moyenne | Fait (§87) |
+| 51 | Notes techniques enrichies (épreuve, bassin, équipement) | Moyenne | Fait (§88) |
 
 Détail complet dans `docs/ROADMAP.md`.
 

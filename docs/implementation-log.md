@@ -57,6 +57,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §84 Coach Events Timeline (Tableau de Bord des Échéances) | ✅ Fait | 2026-03-01 |
 | §85 Calendrier créneaux centré séances (Slot-Centric Sessions) | ✅ Fait | 2026-03-01 |
 | §86 Redesign ObjectiveCard + harmonisation Planif nageur | ✅ Fait | 2026-03-01 |
+| §87 Notes techniques enrichies (épreuve, bassin, équipement) | ✅ Fait | 2026-03-01 |
 | §87 Préparation compétition nageur (courses, routines, timeline, checklist) | ✅ Fait | 2026-03-01 |
 | §45 Audit UI/UX — header Strength + login mobile + fixes | ✅ Fait | 2026-02-16 |
 | §46 Harmonisation headers + Login mobile thème clair | ✅ Fait | 2026-02-16 |
@@ -6863,3 +6864,47 @@ Les nageurs avaient des compétitions visibles (bannière dashboard, calendrier,
 - Pas de drag-and-drop pour réordonner les steps/items de template
 - Pas de notification push avant les étapes de routine
 - Pas d'export/partage de la timeline Jour J
+
+---
+
+## 2026-03-01 — §87 Notes techniques enrichies (épreuve, bassin, équipement)
+**Branche** : `main`
+**Chantier ROADMAP** : §87 — Notes techniques par épreuve
+
+### Contexte — Pourquoi ce patch
+Les notes techniques (swim_exercise_logs) étaient enregistrées uniquement comme texte libre avec des temps et des coups de bras. Pour permettre le suivi de progression par épreuve et l'analyse comparative, il fallait enrichir chaque note avec : l'épreuve FFN (event_code), la taille du bassin (25/50m), et l'équipement utilisé. La page /swim-notes devait aussi permettre la création standalone (hors session d'entraînement).
+
+### Changements réalisés
+1. **Migration SQL** : ajout colonnes `event_code TEXT`, `pool_length INTEGER`, `equipment TEXT[]` à `swim_exercise_logs` + `session_id` rendu nullable + index composite `(user_id, event_code)`
+2. **Types TypeScript** : `SwimExerciseLog` et `SwimExerciseLogInput` enrichis des 3 champs + `EQUIPMENT_OPTIONS` constant
+3. **API swim-logs.ts** : `mapFromDb` enrichi, `saveSwimExerciseLogs` et `updateSwimExerciseLog` gèrent les nouveaux champs, nouvelle fonction `createStandaloneSwimLog(userId, log)` pour les notes hors session
+4. **SwimExerciseLogsHistory** : mode standalone avec groupement par épreuve (sections collapsibles colorées par nage), badges équipement/date en lecture
+5. **SwimNotes page** : dialog de création avec sélecteur épreuve FFN, toggle bassin 25/50m, chips équipement, champs exercice/splits/tempo/notes
+6. **ExerciseLogInline** : ajout sélecteur épreuve, toggle bassin, chips équipement dans le formulaire inline de la timeline
+
+### Fichiers modifiés
+| Fichier | Nature |
+|---------|--------|
+| `supabase/migrations/00057_swim_logs_event_equipment.sql` | Créé (migration) |
+| `src/lib/api/types.ts` | Modifié (3 champs + EQUIPMENT_OPTIONS) |
+| `src/lib/api/swim-logs.ts` | Modifié (mapFromDb, save, update, create) |
+| `src/lib/api/index.ts` | Modifié (re-export createStandaloneSwimLog) |
+| `src/lib/api.ts` | Modifié (import + delegation stub) |
+| `src/components/dashboard/SwimExerciseLogsHistory.tsx` | Rewrite (groupement épreuve, EventSection, badges) |
+| `src/pages/SwimNotes.tsx` | Rewrite (CreateNoteDialog complet) |
+| `src/components/swim/ExerciseLogInline.tsx` | Modifié (event/pool/equipment selectors) |
+
+### Tests
+- `npx tsc --noEmit` : 0 erreurs nouvelles (1 pré-existante CompetitionDetail vibrate)
+- `npm run build` : succès (7.12s, 146 precache entries)
+
+### Décisions prises
+- Groupement par clé composite `event_code__pool_length` pour séparer 50NL@25m vs 50NL@50m
+- `STROKE_COLORS` réutilisé depuis `objectiveHelpers.ts` pour les bordures colorées de section
+- `session_id` nullable pour supporter les notes standalone
+- Équipement par défaut `["aucun"]` — chips avec toggle exclusif/multi-sélection
+
+### Limites / dette
+- Pas de vue "progression" par épreuve (graphique chronologique des temps)
+- Pas de filtrage/recherche dans les notes
+- Pas d'export des notes par épreuve
