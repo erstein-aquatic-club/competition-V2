@@ -33,7 +33,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Trophy, Plus, Pencil, Trash2, Clock, Copy, Star } from "lucide-react";
+import { Trophy, Plus, Pencil, Trash2, Clock, Star } from "lucide-react";
 
 /* ── Props ──────────────────────────────────────────────── */
 
@@ -291,17 +291,6 @@ export default function RacesTab({ competitionId, competitionDate, competitionEn
                     )}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    {!isFinale && (
-                      <button
-                        type="button"
-                        onClick={() => duplicateAsFinale(race)}
-                        className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-yellow-600 hover:bg-yellow-500/10 transition"
-                        aria-label="Dupliquer en finale"
-                        title="Dupliquer en finale"
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                      </button>
-                    )}
                     <button
                       type="button"
                       onClick={() => openEdit(race)}
@@ -320,6 +309,16 @@ export default function RacesTab({ competitionId, competitionDate, competitionEn
                     </button>
                   </div>
                 </div>
+                {!isFinale && (
+                  <button
+                    type="button"
+                    onClick={() => duplicateAsFinale(race)}
+                    className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-yellow-500/30 bg-yellow-500/[0.06] py-1.5 text-[11px] font-semibold text-yellow-700 dark:text-yellow-300 transition hover:bg-yellow-500/15 hover:border-yellow-500/50 active:scale-[0.98]"
+                  >
+                    <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />
+                    Qualifié en finale
+                  </button>
+                )}
               </div>
             );
           })}
