@@ -42,10 +42,6 @@ export default function HallOfFame() {
   const fromDate = useMemo(() => {
     return format(subDays(new Date(), Number(periodDays)), "yyyy-MM-dd");
   }, [periodDays]);
-  const activePeriodLabel = useMemo(
-    () => PERIOD_OPTIONS.find((option) => option.value === periodDays)?.label ?? `${periodDays}j`,
-    [periodDays],
-  );
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["hall-of-fame", fromDate],
@@ -180,34 +176,21 @@ export default function HallOfFame() {
         )}
       />
 
-      <div className="rounded-2xl border border-border/70 bg-card/90 px-4 py-3 shadow-sm">
-        <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-            Période active
-          </p>
-          <p className="mt-1 text-sm font-semibold text-foreground">
-            Top calculé sur {activePeriodLabel}
-          </p>
-        </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {PERIOD_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => setPeriodDays(opt.value)}
-              className={`rounded-xl border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                periodDays === opt.value
-                  ? "border-primary bg-primary/5 text-primary"
-                  : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-        <div className="mt-2 text-[11px] text-muted-foreground">
-          Changement immédiat, sans sous-menu.
-        </div>
+      <div className="flex flex-wrap gap-2">
+        {PERIOD_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => setPeriodDays(opt.value)}
+            className={`rounded-xl border px-3 py-1.5 text-xs font-semibold transition-colors ${
+              periodDays === opt.value
+                ? "border-primary bg-primary/5 text-primary"
+                : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
 
       <Tabs defaultValue="swim" className="w-full">

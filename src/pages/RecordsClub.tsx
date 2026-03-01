@@ -180,9 +180,6 @@ export default function RecordsClub() {
   const [exporting, setExporting] = useState(false);
 
   const ageValue = ageFilter === "ALL" ? null : Number(ageFilter);
-  const activePoolLabel = POOLS.find((option) => option.key === pool)?.label ?? `${pool}m`;
-  const activeSexLabel = SEXES.find((option) => option.key === sex)?.label ?? sex;
-  const activeAgeLabel = AGE_OPTIONS.find((option) => option.key === ageFilter)?.label ?? ageFilter;
 
   // Reset expansion on filter change
   const handlePoolChange = useCallback((val: string) => {
@@ -345,30 +342,20 @@ export default function RecordsClub() {
         )}
       />
 
-      <div className="rounded-2xl border border-border/70 bg-card/90 px-4 py-3 shadow-sm">
-        <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-            Vue active
-          </p>
-          <p className="mt-1 truncate text-sm font-semibold text-foreground">
-            {activePoolLabel} · {activeSexLabel} · {activeAgeLabel}
-          </p>
-        </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <SegmentedControl
-            options={POOLS}
-            value={pool}
-            onChange={handlePoolChange}
-          />
-          <SegmentedControl
-            options={SEXES}
-            value={sex}
-            onChange={handleSexChange}
-          />
-        </div>
-        <div className="mt-2">
+      <div className="flex items-center gap-2">
+        <SegmentedControl
+          options={POOLS}
+          value={pool}
+          onChange={handlePoolChange}
+        />
+        <SegmentedControl
+          options={SEXES}
+          value={sex}
+          onChange={handleSexChange}
+        />
+        <div className="ml-auto w-36">
           <Select value={ageFilter} onValueChange={handleAgeChange}>
-            <SelectTrigger className="h-10 w-full text-sm">
+            <SelectTrigger className="h-8 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -379,9 +366,6 @@ export default function RecordsClub() {
               ))}
             </SelectContent>
           </Select>
-        </div>
-        <div className="mt-2 text-[11px] text-muted-foreground">
-          Changement immédiat, sans panneau de filtres.
         </div>
       </div>
 
