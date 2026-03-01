@@ -62,6 +62,17 @@ export type {
   TrainingSlotOverrideInput,
   SwimmerTrainingSlot,
   SwimmerTrainingSlotInput,
+  CompetitionRace,
+  CompetitionRaceInput,
+  RoutineTemplate,
+  RoutineStep,
+  RoutineStepInput,
+  RaceRoutine,
+  ChecklistTemplate,
+  ChecklistItem,
+  ChecklistItemInput,
+  CompetitionChecklist,
+  CompetitionChecklistCheck,
 } from "./api/types";
 
 import type {
@@ -204,6 +215,26 @@ import {
   setCompetitionAssignments as _setCompetitionAssignments,
   getMyCompetitionIds as _getMyCompetitionIds,
 } from './api/competitions';
+
+import {
+  getCompetitionRaces as _getCompetitionRaces,
+  createCompetitionRace as _createCompetitionRace,
+  updateCompetitionRace as _updateCompetitionRace,
+  deleteCompetitionRace as _deleteCompetitionRace,
+  getRoutineTemplates as _getRoutineTemplates,
+  createRoutineTemplate as _createRoutineTemplate,
+  deleteRoutineTemplate as _deleteRoutineTemplate,
+  getRaceRoutines as _getRaceRoutines,
+  setRaceRoutine as _setRaceRoutine,
+  removeRaceRoutine as _removeRaceRoutine,
+  getChecklistTemplates as _getChecklistTemplates,
+  createChecklistTemplate as _createChecklistTemplate,
+  deleteChecklistTemplate as _deleteChecklistTemplate,
+  getCompetitionChecklist as _getCompetitionChecklist,
+  applyChecklistTemplate as _applyChecklistTemplate,
+  toggleChecklistCheck as _toggleChecklistCheck,
+  removeCompetitionChecklist as _removeCompetitionChecklist,
+} from './api/competition-prep';
 
 import {
   getObjectives as _getObjectives,
@@ -648,6 +679,25 @@ export const api = {
   async getCompetitionAssignments(competitionId: string) { return _getCompetitionAssignments(competitionId); },
   async setCompetitionAssignments(competitionId: string, athleteIds: number[]) { return _setCompetitionAssignments(competitionId, athleteIds); },
   async getMyCompetitionIds(athleteId?: number | null) { return _getMyCompetitionIds(athleteId); },
+
+  // ── Competition Prep (Races, Routines, Checklists) ─────────────
+  async getCompetitionRaces(competitionId: string) { return _getCompetitionRaces(competitionId); },
+  async createCompetitionRace(input: Parameters<typeof _createCompetitionRace>[0]) { return _createCompetitionRace(input); },
+  async updateCompetitionRace(id: string, input: Parameters<typeof _updateCompetitionRace>[1]) { return _updateCompetitionRace(id, input); },
+  async deleteCompetitionRace(id: string) { return _deleteCompetitionRace(id); },
+  async getRoutineTemplates() { return _getRoutineTemplates(); },
+  async createRoutineTemplate(name: string, steps: Parameters<typeof _createRoutineTemplate>[1]) { return _createRoutineTemplate(name, steps); },
+  async deleteRoutineTemplate(id: string) { return _deleteRoutineTemplate(id); },
+  async getRaceRoutines(competitionId: string) { return _getRaceRoutines(competitionId); },
+  async setRaceRoutine(raceId: string, routineId: string) { return _setRaceRoutine(raceId, routineId); },
+  async removeRaceRoutine(raceId: string) { return _removeRaceRoutine(raceId); },
+  async getChecklistTemplates() { return _getChecklistTemplates(); },
+  async createChecklistTemplate(name: string, items: Parameters<typeof _createChecklistTemplate>[1]) { return _createChecklistTemplate(name, items); },
+  async deleteChecklistTemplate(id: string) { return _deleteChecklistTemplate(id); },
+  async getCompetitionChecklist(competitionId: string) { return _getCompetitionChecklist(competitionId); },
+  async applyChecklistTemplate(competitionId: string, templateId: string) { return _applyChecklistTemplate(competitionId, templateId); },
+  async toggleChecklistCheck(checkId: string, checked: boolean) { return _toggleChecklistCheck(checkId, checked); },
+  async removeCompetitionChecklist(id: string) { return _removeCompetitionChecklist(id); },
 
   // ══════════════════════════════════════════════════════════════════
   // DELEGATION STUBS — Objectives

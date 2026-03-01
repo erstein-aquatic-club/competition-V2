@@ -274,6 +274,26 @@ export {
 } from './swimmer-slots';
 
 export {
+  getCompetitionRaces,
+  createCompetitionRace,
+  updateCompetitionRace,
+  deleteCompetitionRace,
+  getRoutineTemplates,
+  createRoutineTemplate,
+  deleteRoutineTemplate,
+  getRaceRoutines,
+  setRaceRoutine,
+  removeRaceRoutine,
+  getChecklistTemplates,
+  createChecklistTemplate,
+  deleteChecklistTemplate,
+  getCompetitionChecklist,
+  applyChecklistTemplate,
+  toggleChecklistCheck,
+  removeCompetitionChecklist,
+} from './competition-prep';
+
+export {
   getExercises,
   createExercise,
   updateExercise,

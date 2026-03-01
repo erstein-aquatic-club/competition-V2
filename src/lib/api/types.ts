@@ -670,3 +670,91 @@ export interface SwimmerTrainingSlotInput {
   end_time: string;
   location: string;
 }
+
+// ── Competition Prep (Races, Routines, Checklists) ─────────
+
+export interface CompetitionRace {
+  id: string;
+  competition_id: string;
+  athlete_id: number;
+  event_code: string;
+  race_day: string;
+  start_time?: string | null;
+  notes?: string | null;
+  sort_order: number;
+  created_at?: string | null;
+}
+
+export interface CompetitionRaceInput {
+  competition_id: string;
+  event_code: string;
+  race_day: string;
+  start_time?: string | null;
+  notes?: string | null;
+  sort_order?: number;
+}
+
+export interface RoutineTemplate {
+  id: string;
+  athlete_id: number;
+  name: string;
+  created_at?: string | null;
+  steps?: RoutineStep[];
+}
+
+export interface RoutineStep {
+  id: string;
+  routine_id: string;
+  offset_minutes: number;
+  label: string;
+  sort_order: number;
+  created_at?: string | null;
+}
+
+export interface RoutineStepInput {
+  offset_minutes: number;
+  label: string;
+  sort_order?: number;
+}
+
+export interface RaceRoutine {
+  id: string;
+  race_id: string;
+  routine_id: string;
+}
+
+export interface ChecklistTemplate {
+  id: string;
+  athlete_id: number;
+  name: string;
+  created_at?: string | null;
+  items?: ChecklistItem[];
+}
+
+export interface ChecklistItem {
+  id: string;
+  checklist_id: string;
+  label: string;
+  sort_order: number;
+  created_at?: string | null;
+}
+
+export interface ChecklistItemInput {
+  label: string;
+  sort_order?: number;
+}
+
+export interface CompetitionChecklist {
+  id: string;
+  competition_id: string;
+  athlete_id: number;
+  checklist_template_id: string;
+}
+
+export interface CompetitionChecklistCheck {
+  id: string;
+  competition_checklist_id: string;
+  checklist_item_id: string;
+  checked: boolean;
+  checked_at?: string | null;
+}
