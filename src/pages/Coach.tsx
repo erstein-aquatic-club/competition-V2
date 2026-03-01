@@ -22,6 +22,7 @@ import {
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Input } from "@/components/ui/input";
 import CoachSectionHeader from "./coach/CoachSectionHeader";
+import { CoachEventsTimeline } from "@/components/coach/CoachEventsTimeline";
 const CoachSwimmersOverview = lazy(() => import("./coach/CoachSwimmersOverview"));
 const CoachMessagesScreen = lazy(() => import("./coach/CoachMessagesScreen"));
 const CoachSmsScreen = lazy(() => import("./coach/CoachSmsScreen"));
@@ -39,7 +40,7 @@ import type { LocalStrengthRun } from "@/lib/types";
 const StrengthCatalog = lazy(() => import("./coach/StrengthCatalog"));
 const SwimCatalog = lazy(() => import("./coach/SwimCatalog"));
 
-type CoachSection = "home" | "swim" | "strength" | "swimmers" | "messaging" | "sms" | "calendar" | "groups" | "competitions" | "objectives" | "training-slots" | "athlete";
+type CoachSection = "home" | "swim" | "strength" | "swimmers" | "messaging" | "sms" | "calendar" | "groups" | "competitions" | "objectives" | "training-slots" | "athlete" | "deadlines";
 type KpiLookbackPeriod = 7 | 30 | 365;
 
 type CoachAthleteOption = {
@@ -113,21 +114,22 @@ const CoachHome = ({
 
   const primaryAction = hasAlerts
     ? {
-        label: `${fatigueAlerts.length} alerte${fatigueAlerts.length > 1 ? "s" : ""} fatigue`,
-        detail: fatigueAlerts.slice(0, 2).map((a) => a.athleteName.split(" ")[0]).join(", ") + (fatigueAlerts.length > 2 ? `…` : ""),
-        action: () => onNavigate("swimmers"),
-      }
+      label: `${fatigueAlerts.length} alerte${fatigueAlerts.length > 1 ? "s" : ""} fatigue`,
+      detail: fatigueAlerts.slice(0, 2).map((a) => a.athleteName.split(" ")[0]).join(", ") + (fatigueAlerts.length > 2 ? `…` : ""),
+      action: () => onNavigate("swimmers"),
+    }
     : {
-        label: "Séance du jour",
-        detail: "Assigner · Planifier un groupe",
-        action: () => onNavigate("calendar"),
-      };
+      label: "Créer une séance",
+      detail: "Natation · Explorer la bibliothèque",
+      action: () => onNavigate("swim"),
+    };
 
   const tools = [
     { label: "Natation", icon: Waves, action: () => onNavigate("swim"), color: "text-cyan-500" },
     { label: "Muscu", icon: Dumbbell, action: () => onNavigate("strength"), color: "text-violet-500" },
     { label: "Groupes", icon: UsersRound, action: () => onNavigate("groups"), color: "text-emerald-500" },
     { label: "Compétitions", icon: Trophy, action: () => onNavigate("competitions"), color: "text-amber-500" },
+    { label: "Échéances", icon: CalendarDays, action: () => onNavigate("deadlines"), color: "text-orange-500" },
     { label: "Créneaux", icon: Clock, action: () => onNavigate("training-slots"), color: "text-blue-500" },
     { label: "SMS", icon: BellRing, action: () => onNavigate("sms"), color: "text-rose-500" },
     { label: "Records", icon: Trophy, action: onOpenRecordsClub, color: "text-orange-500" },
@@ -195,7 +197,7 @@ const CoachHome = ({
             "relative w-full overflow-hidden rounded-3xl text-white transition-all duration-200 active:scale-[0.97]",
             hasAlerts
               ? "bg-gradient-to-br from-rose-500 via-red-500 to-orange-500"
-              : "bg-gradient-to-br from-indigo-600 via-violet-600 to-blue-700",
+              : "bg-gradient-to-br from-primary via-primary/80 to-primary/60",
           ].join(" ")}
         >
           {/* Radial background glow */}
@@ -204,7 +206,7 @@ const CoachHome = ({
             style={{
               background: hasAlerts
                 ? "radial-gradient(ellipse at 20% 60%, rgba(255,80,60,0.6) 0%, transparent 65%)"
-                : "radial-gradient(ellipse at 20% 60%, rgba(139,92,246,0.6) 0%, transparent 65%)",
+                : "radial-gradient(ellipse at 20% 60%, rgba(255,255,255,0.2) 0%, transparent 65%)",
             }}
           />
           {/* Diagonal shimmer stripe */}
@@ -321,9 +323,8 @@ const CoachHome = ({
                 </span>
               </div>
               <p
-                className={`text-4xl font-black tabular-nums leading-none ${
-                  fatigueAlerts.length > 0 ? "text-red-600 dark:text-red-400" : "text-foreground"
-                }`}
+                className={`text-4xl font-black tabular-nums leading-none ${fatigueAlerts.length > 0 ? "text-red-600 dark:text-red-400" : "text-foreground"
+                  }`}
               >
                 {kpiLoading ? "–" : fatigueAlerts.length}
               </p>
@@ -331,8 +332,8 @@ const CoachHome = ({
                 {kpiLoading
                   ? "Calcul…"
                   : fatigueAlerts.length > 0
-                  ? fatigueAlerts.slice(0, 2).map((a) => a.athleteName.split(" ")[0]).join(", ")
-                  : "Aucune alerte"}
+                    ? fatigueAlerts.slice(0, 2).map((a) => a.athleteName.split(" ")[0]).join(", ")
+                    : "Aucune alerte"}
               </p>
             </div>
 
@@ -355,8 +356,8 @@ const CoachHome = ({
                 {kpiLoading
                   ? "Calcul…"
                   : mostLoadedAthlete
-                  ? `Charge ${Math.round(mostLoadedAthlete.loadScore)}`
-                  : "Pas de données"}
+                    ? `Charge ${Math.round(mostLoadedAthlete.loadScore)}`
+                    : "Pas de données"}
               </p>
             </div>
           </div>
@@ -873,6 +874,17 @@ export default function Coach() {
             groups={groups}
           />
         </Suspense>
+      ) : null}
+
+      {activeSection === "deadlines" ? (
+        <div className="space-y-6">
+          <CoachSectionHeader
+            title="Échéances"
+            description="Compétitions, entretiens et fins de cycles"
+            onBack={() => setActiveSection("home")}
+          />
+          <CoachEventsTimeline />
+        </div>
       ) : null}
     </div>
   );
