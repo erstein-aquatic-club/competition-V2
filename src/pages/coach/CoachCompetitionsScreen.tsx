@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { Competition, CompetitionInput } from "@/lib/api";
+import { getAllPendingInterviews } from "@/lib/api/interviews";
+import { getTrainingCycles } from "@/lib/api/planning";
 import { useToast } from "@/hooks/use-toast";
 import CoachSectionHeader from "./CoachSectionHeader";
 import { Button } from "@/components/ui/button";
@@ -33,7 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trophy, Users, ChevronDown } from "lucide-react";
+import { CalendarDays, Plus, Trophy, Users, ChevronDown } from "lucide-react";
 
 // ── Helpers ─────────────────────────────────────────────────────
 
@@ -458,24 +460,56 @@ const CompetitionFormSheet = ({
   );
 };
 
-// ── Competition Timeline ────────────────────────────────────────
+// ── Unified Deadline Events ─────────────────────────────────────
+
+type DeadlineEventType = "competition" | "interview" | "cycle_end";
+
+type DeadlineEvent = {
+  id: string;
+  type: DeadlineEventType;
+  date: string;
+  end_date?: string;
+  name: string;
+  subtitle?: string;
+  competition?: Competition;
+};
+
+const DOT_ACTIVE: Record<DeadlineEventType, string> = {
+  competition: "bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]",
+  interview: "bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.4)]",
+  cycle_end: "bg-violet-500 shadow-[0_0_6px_rgba(139,92,246,0.4)]",
+};
+
+const BADGE_COLORS: Record<DeadlineEventType, string> = {
+  competition: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  interview: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  cycle_end: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400",
+};
+
+const INTERVIEW_STATUS_LABELS: Record<string, string> = {
+  draft_athlete: "En attente nageur",
+  draft_coach: "En attente coach",
+  sent: "Envoyé, à signer",
+};
+
+// ── Events Timeline ─────────────────────────────────────────────
 
 type TimelineNode =
-  | { kind: "comp"; comp: Competition; isPast: boolean; days: number; isNewMonth: boolean; monthLabel: string }
+  | { kind: "event"; event: DeadlineEvent; isPast: boolean; days: number; isNewMonth: boolean; monthLabel: string }
   | { kind: "gap"; weeks: number; height: number }
   | { kind: "today" };
 
-const CompetitionTimeline = ({
-  competitions,
-  onEdit,
+const EventsTimeline = ({
+  events,
+  onEditCompetition,
 }: {
-  competitions: Competition[];
-  onEdit: (c: Competition) => void;
+  events: DeadlineEvent[];
+  onEditCompetition: (c: Competition) => void;
 }) => {
   const [pastOpen, setPastOpen] = useState(false);
 
   const { items, todayIdx } = useMemo(() => {
-    const sorted = [...competitions].sort((a, b) => a.date.localeCompare(b.date));
+    const sorted = [...events].sort((a, b) => a.date.localeCompare(b.date));
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayStr = toLocalIso(today);
@@ -485,12 +519,12 @@ const CompetitionTimeline = ({
     let prevMonth = "";
     let todayInserted = false;
 
-    for (const comp of sorted) {
-      const isPast = comp.date < todayStr;
-      const days = daysUntil(comp.date);
-      const compMonth = comp.date.slice(0, 7);
-      const isNewMonth = compMonth !== prevMonth;
-      const monthLabel = new Date(comp.date + "T00:00:00")
+    for (const ev of sorted) {
+      const isPast = ev.date < todayStr;
+      const days = daysUntil(ev.date);
+      const evMonth = ev.date.slice(0, 7);
+      const isNewMonth = evMonth !== prevMonth;
+      const monthLabel = new Date(ev.date + "T00:00:00")
         .toLocaleDateString("fr-FR", { month: "short" })
         .replace(".", "")
         .toUpperCase();
@@ -502,16 +536,16 @@ const CompetitionTimeline = ({
         }
         result.push({ kind: "today" });
         todayInserted = true;
-        const w = weeksBetween(todayStr, comp.date);
+        const w = weeksBetween(todayStr, ev.date);
         if (w >= 1) result.push({ kind: "gap", weeks: w, height: gapPx(w) });
       } else if (prevEnd) {
-        const w = weeksBetween(prevEnd, comp.date);
+        const w = weeksBetween(prevEnd, ev.date);
         if (w >= 1) result.push({ kind: "gap", weeks: w, height: gapPx(w) });
       }
 
-      result.push({ kind: "comp", comp, isPast, days, isNewMonth, monthLabel });
-      prevEnd = comp.end_date || comp.date;
-      prevMonth = compMonth;
+      result.push({ kind: "event", event: ev, isPast, days, isNewMonth, monthLabel });
+      prevEnd = ev.end_date || ev.date;
+      prevMonth = evMonth;
     }
 
     if (!todayInserted) {
@@ -523,13 +557,13 @@ const CompetitionTimeline = ({
     }
 
     return { items: result, todayIdx: result.findIndex((n) => n.kind === "today") };
-  }, [competitions]);
+  }, [events]);
 
-  if (competitions.length === 0) return null;
+  if (events.length === 0) return null;
 
   const pastItems = todayIdx > 0 ? items.slice(0, todayIdx) : [];
   const upcomingItems = todayIdx >= 0 ? items.slice(todayIdx) : items;
-  const pastCount = pastItems.filter((n) => n.kind === "comp").length;
+  const pastCount = pastItems.filter((n) => n.kind === "event").length;
 
   // ── Shared node renderer ──
   const renderNode = (item: TimelineNode, i: number) => {
@@ -556,29 +590,23 @@ const CompetitionTimeline = ({
       );
     }
 
-    const { comp, isPast, days, isNewMonth, monthLabel } = item;
+    const { event: ev, isPast, days, isNewMonth, monthLabel } = item;
+    const isCompetition = ev.type === "competition" && ev.competition;
+
     const dateLabel = (() => {
-      const ds = new Date(comp.date + "T00:00:00");
-      if (!comp.end_date || comp.end_date === comp.date) {
+      const ds = new Date(ev.date + "T00:00:00");
+      if (!ev.end_date || ev.end_date === ev.date) {
         return ds.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }).replace(".", "");
       }
-      const de = new Date(comp.end_date + "T00:00:00");
+      const de = new Date(ev.end_date + "T00:00:00");
       const endFmt = de.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }).replace(".", "");
       return ds.getMonth() === de.getMonth()
         ? `${ds.getDate()}\u2013${endFmt}`
         : `${ds.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }).replace(".", "")} \u2192 ${endFmt}`;
     })();
 
-    return (
-      <button
-        key={comp.id}
-        type="button"
-        className={cn(
-          "relative w-full flex items-start text-left py-1.5 group transition-opacity",
-          isPast ? "opacity-40 hover:opacity-70" : "hover:opacity-80",
-        )}
-        onClick={() => onEdit(comp)}
-      >
+    const content = (
+      <>
         {isNewMonth && (
           <span className="absolute left-[-3.25rem] top-[3px] w-[2rem] text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 text-right select-none">
             {monthLabel}
@@ -588,9 +616,7 @@ const CompetitionTimeline = ({
         <div
           className={cn(
             "absolute left-[-0.8rem] top-[5px] h-[10px] w-[10px] rounded-full -translate-x-1/2 z-10 border-2 border-background transition-transform group-hover:scale-150",
-            isPast
-              ? "bg-muted-foreground/30"
-              : "bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]",
+            isPast ? "bg-muted-foreground/30" : DOT_ACTIVE[ev.type],
           )}
         />
 
@@ -600,10 +626,13 @@ const CompetitionTimeline = ({
               "text-[13px] font-semibold truncate flex-1 min-w-0",
               isPast ? "text-muted-foreground" : "text-foreground",
             )}>
-              {comp.name}
+              {ev.name}
             </span>
             {!isPast && days >= 0 && (
-              <span className="text-[10px] font-bold tabular-nums shrink-0 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+              <span className={cn(
+                "text-[10px] font-bold tabular-nums shrink-0 px-1.5 py-0.5 rounded-full",
+                BADGE_COLORS[ev.type],
+              )}>
                 J-{days}
               </span>
             )}
@@ -613,10 +642,38 @@ const CompetitionTimeline = ({
             isPast ? "text-muted-foreground/60" : "text-muted-foreground",
           )}>
             {dateLabel}
-            {comp.location && comp.location !== "??" && ` \u00b7 ${comp.location}`}
+            {ev.subtitle && ` \u00b7 ${ev.subtitle}`}
           </p>
         </div>
-      </button>
+      </>
+    );
+
+    if (isCompetition) {
+      return (
+        <button
+          key={ev.id}
+          type="button"
+          className={cn(
+            "relative w-full flex items-start text-left py-1.5 group transition-opacity",
+            isPast ? "opacity-40 hover:opacity-70" : "hover:opacity-80",
+          )}
+          onClick={() => onEditCompetition(ev.competition!)}
+        >
+          {content}
+        </button>
+      );
+    }
+
+    return (
+      <div
+        key={ev.id}
+        className={cn(
+          "relative w-full flex items-start text-left py-1.5 group",
+          isPast && "opacity-40",
+        )}
+      >
+        {content}
+      </div>
     );
   };
 
@@ -656,10 +713,54 @@ const CoachCompetitionsScreen = ({ onBack }: CoachCompetitionsScreenProps) => {
   const [showForm, setShowForm] = useState(false);
   const [editingComp, setEditingComp] = useState<Competition | null>(null);
 
-  const { data: competitions = [], isLoading } = useQuery({
+  const { data: competitions = [], isLoading: compLoading } = useQuery({
     queryKey: ["competitions"],
     queryFn: () => api.getCompetitions(),
   });
+
+  const { data: interviews = [], isLoading: intvLoading } = useQuery({
+    queryKey: ["coach-events-interviews"],
+    queryFn: getAllPendingInterviews,
+  });
+
+  const { data: cycles = [], isLoading: cyclesLoading } = useQuery({
+    queryKey: ["coach-events-cycles"],
+    queryFn: () => getTrainingCycles(),
+  });
+
+  const isLoading = compLoading || intvLoading || cyclesLoading;
+
+  const allEvents = useMemo<DeadlineEvent[]>(() => {
+    const comps: DeadlineEvent[] = competitions.map((c) => ({
+      id: `comp-${c.id}`,
+      type: "competition" as const,
+      date: c.date,
+      end_date: c.end_date ?? undefined,
+      name: c.name,
+      subtitle: c.location && c.location !== "??" ? c.location : undefined,
+      competition: c,
+    }));
+
+    const intvs: DeadlineEvent[] = interviews.map((i) => ({
+      id: `intv-${i.id}`,
+      type: "interview" as const,
+      date: i.date,
+      name: `Entretien : ${i.athlete_name}`,
+      subtitle: INTERVIEW_STATUS_LABELS[i.status] ?? i.status,
+    }));
+
+    const cycleEnds: DeadlineEvent[] = cycles
+      .filter((c) => c.end_competition_date != null)
+      .map((c) => ({
+        id: `cycle-${c.id}`,
+        type: "cycle_end" as const,
+        date: c.end_competition_date!,
+        name: `Fin cycle : ${c.name}`,
+        subtitle: c.end_competition_name ?? undefined,
+      }));
+
+    return [...comps, ...intvs, ...cycleEnds];
+  }, [competitions, interviews, cycles]);
 
   const handleCreate = () => {
     setEditingComp(null);
@@ -671,21 +772,16 @@ const CoachCompetitionsScreen = ({ onBack }: CoachCompetitionsScreenProps) => {
     setShowForm(true);
   };
 
-  const description =
-    competitions.length === 0
-      ? "Gerez les competitions du club."
-      : `${competitions.length} competition${competitions.length > 1 ? "s" : ""}`;
-
   return (
     <div className="space-y-6 pb-24">
       <CoachSectionHeader
-        title="Competitions"
-        description={description}
+        title="Échéances"
+        description="Compétitions, entretiens et fins de cycles"
         onBack={onBack}
         actions={
           <Button variant="outline" size="sm" onClick={handleCreate}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Ajouter
+            Compétition
           </Button>
         }
       />
@@ -704,21 +800,21 @@ const CoachCompetitionsScreen = ({ onBack }: CoachCompetitionsScreenProps) => {
             </div>
           ))}
         </div>
-      ) : competitions.length === 0 ? (
+      ) : allEvents.length === 0 ? (
         <div className="text-center py-12 space-y-3">
-          <Trophy className="h-10 w-10 text-muted-foreground mx-auto" />
+          <CalendarDays className="h-10 w-10 text-muted-foreground mx-auto" />
           <p className="text-sm text-muted-foreground">
-            Aucune competition creee.
+            Aucune échéance à venir
           </p>
           <Button variant="outline" size="sm" onClick={handleCreate}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Creer la premiere competition
+            Créer une compétition
           </Button>
         </div>
       ) : (
-        <CompetitionTimeline
-          competitions={competitions}
-          onEdit={handleEdit}
+        <EventsTimeline
+          events={allEvents}
+          onEditCompetition={handleEdit}
         />
       )}
 

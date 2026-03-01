@@ -22,7 +22,6 @@ import {
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Input } from "@/components/ui/input";
 import CoachSectionHeader from "./coach/CoachSectionHeader";
-import { CoachEventsTimeline } from "@/components/coach/CoachEventsTimeline";
 const CoachSwimmersOverview = lazy(() => import("./coach/CoachSwimmersOverview"));
 const CoachMessagesScreen = lazy(() => import("./coach/CoachMessagesScreen"));
 const CoachSmsScreen = lazy(() => import("./coach/CoachSmsScreen"));
@@ -41,7 +40,7 @@ const StrengthCatalog = lazy(() => import("./coach/StrengthCatalog"));
 const SwimCatalog = lazy(() => import("./coach/SwimCatalog"));
 const CoachSlotCalendar = lazy(() => import("./coach/CoachSlotCalendar"));
 
-type CoachSection = "home" | "swim" | "swim-library" | "strength" | "swimmers" | "messaging" | "sms" | "calendar" | "groups" | "competitions" | "objectives" | "training-slots" | "athlete" | "deadlines";
+type CoachSection = "home" | "swim" | "swim-library" | "strength" | "swimmers" | "messaging" | "sms" | "calendar" | "groups" | "competitions" | "objectives" | "training-slots" | "athlete";
 type KpiLookbackPeriod = 7 | 30 | 365;
 
 type CoachAthleteOption = {
@@ -139,8 +138,7 @@ const CoachHome = ({
     { label: "Natation", icon: Waves, action: () => onNavigate("swim"), color: "text-cyan-500" },
     { label: "Muscu", icon: Dumbbell, action: () => onNavigate("strength"), color: "text-violet-500" },
     { label: "Groupes", icon: UsersRound, action: () => onNavigate("groups"), color: "text-emerald-500" },
-    { label: "Compétitions", icon: Trophy, action: () => onNavigate("competitions"), color: "text-amber-500" },
-    { label: "Échéances", icon: CalendarDays, action: () => onNavigate("deadlines"), color: "text-orange-500" },
+    { label: "Échéances", icon: CalendarDays, action: () => onNavigate("competitions"), color: "text-orange-500" },
     { label: "Créneaux", icon: Clock, action: () => onNavigate("training-slots"), color: "text-blue-500" },
     { label: "SMS", icon: BellRing, action: () => onNavigate("sms"), color: "text-rose-500" },
     { label: "Records", icon: Trophy, action: onOpenRecordsClub, color: "text-orange-500" },
@@ -936,16 +934,6 @@ export default function Coach() {
         </Suspense>
       ) : null}
 
-      {activeSection === "deadlines" ? (
-        <div className="space-y-6">
-          <CoachSectionHeader
-            title="Échéances"
-            description="Compétitions, entretiens et fins de cycles"
-            onBack={() => setActiveSection("home")}
-          />
-          <CoachEventsTimeline />
-        </div>
-      ) : null}
     </div>
   );
 }
