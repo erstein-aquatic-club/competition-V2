@@ -276,14 +276,21 @@ function RaceRoutineCard({
       <div className="border-b border-border/60 px-3 py-2.5">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold truncate">
-              {eventLabel(race.event_code)}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold truncate">
+                {eventLabel(race.event_code)}
+              </p>
+              {race.race_type === "finale" && (
+                <span className="shrink-0 rounded-md bg-orange-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-orange-600 dark:text-orange-400">
+                  {race.final_letter ? `Finale ${race.final_letter}` : "Finale"}
+                </span>
+              )}
+            </div>
             <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
               <span>{formatDayLabel(race.race_day)}</span>
               <span className="flex items-center gap-1">
                 <Clock className="h-3 w-3" />
-                {race.start_time ? formatTime(race.start_time) : "Heure a definir"}
+                {race.start_time ? formatTime(race.start_time) : "Heure à définir"}
               </span>
             </div>
           </div>
@@ -443,7 +450,7 @@ function CreateRoutineSheet({
                       type="number"
                       value={step.offset}
                       onChange={(e) => updateStep(idx, "offset", e.target.value)}
-                      className="w-full rounded-xl border bg-background px-3 py-2 text-sm text-center font-mono outline-none focus:ring-2 focus:ring-blue-500/40"
+                      className="w-full rounded-xl border bg-background pl-3 pr-8 py-2 text-sm text-center font-mono outline-none focus:ring-2 focus:ring-blue-500/40 appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       placeholder="-60"
                     />
                     <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground pointer-events-none">

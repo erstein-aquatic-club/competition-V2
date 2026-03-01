@@ -1,7 +1,5 @@
 import React from "react";
-import { motion } from "framer-motion";
 import { DayCell } from "./DayCell";
-import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 
 const WEEKDAYS_FR_SHORT = ["Lu", "Ma", "Me", "Je", "Ve", "Sa", "Di"]; // mobile
 const WEEKDAYS_FR = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]; // desktop
@@ -27,8 +25,6 @@ interface CalendarGridProps {
   today: Date;
   onDayClick: (iso: string) => void;
   onKeyDown: (e: React.KeyboardEvent, index: number) => void;
-  onSwipeLeft?: () => void;
-  onSwipeRight?: () => void;
 }
 
 export function CalendarGrid({
@@ -43,13 +39,9 @@ export function CalendarGrid({
   today,
   onDayClick,
   onKeyDown,
-  onSwipeLeft,
-  onSwipeRight,
 }: CalendarGridProps) {
-  const swipeProps = useSwipeNavigation({ onSwipeLeft, onSwipeRight });
-
   return (
-    <motion.div {...swipeProps} className="p-3 sm:p-5">
+    <div className="p-3 sm:p-5">
       <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
         {WEEKDAYS_FR_SHORT.map((wd, idx) => (
           <div key={wd + idx} className="px-0.5 pb-1 text-[10px] font-semibold text-muted-foreground text-center">
@@ -83,6 +75,6 @@ export function CalendarGrid({
           );
         })}
       </div>
-    </motion.div>
+    </div>
   );
 }

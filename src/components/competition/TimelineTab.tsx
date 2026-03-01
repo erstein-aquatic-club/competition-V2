@@ -38,7 +38,10 @@ function dateRange(start: string, end?: string | null): string[] {
   const e = end ? new Date(end + "T00:00:00") : s;
   const current = new Date(s);
   while (current <= e) {
-    dates.push(current.toISOString().slice(0, 10));
+    const yyyy = current.getFullYear();
+    const mm = String(current.getMonth() + 1).padStart(2, "0");
+    const dd = String(current.getDate()).padStart(2, "0");
+    dates.push(`${yyyy}-${mm}-${dd}`);
     current.setDate(current.getDate() + 1);
   }
   return dates;
@@ -107,9 +110,12 @@ export default function TimelineTab({
       }
 
       // Add race entry
+      const suffix = race.race_type === "finale"
+        ? race.final_letter ? ` — Finale ${race.final_letter}` : " — Finale"
+        : "";
       timedEntries.push({
         time: race.start_time.slice(0, 5), // HH:MM
-        label: eventLabel(race.event_code),
+        label: eventLabel(race.event_code) + suffix,
         type: "race",
         eventCode: race.event_code,
       });
@@ -216,7 +222,10 @@ export default function TimelineTab({
               className="flex items-center gap-2.5 rounded-2xl border border-border/60 bg-muted/30 px-3 py-2.5"
             >
               <div className="h-2.5 w-2.5 rounded-full bg-amber-500/50 shrink-0" />
-              <span className="text-sm font-medium">{eventLabel(race.event_code)}</span>
+              <span className="text-sm font-medium">
+                {eventLabel(race.event_code)}
+                {race.race_type === "finale" && (race.final_letter ? ` — Finale ${race.final_letter}` : " — Finale")}
+              </span>
             </div>
           ))}
         </div>

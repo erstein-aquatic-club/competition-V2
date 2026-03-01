@@ -777,8 +777,6 @@ export default function Dashboard() {
             today={today}
             onDayClick={openDay}
             onKeyDown={handleCalendarKeyDown}
-            onSwipeLeft={nextMonth}
-            onSwipeRight={prevMonth}
           />
         </div>
 

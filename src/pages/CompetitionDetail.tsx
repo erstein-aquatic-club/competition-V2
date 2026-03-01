@@ -110,8 +110,8 @@ export default function CompetitionDetail() {
         </button>
 
         <div className="min-w-0 flex-1 space-y-1.5">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-lg font-bold truncate">{competition.name}</h1>
+          <div className="flex items-start gap-2 flex-wrap">
+            <h1 className="text-lg font-bold">{competition.name}</h1>
             {badge && (
               <Badge variant={badge.variant} className="text-[10px] px-2 py-0.5 shrink-0">
                 {badge.label}

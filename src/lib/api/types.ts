@@ -682,6 +682,9 @@ export interface CompetitionRace {
   start_time?: string | null;
   notes?: string | null;
   sort_order: number;
+  race_type: string;
+  final_letter?: string | null;
+  lane?: number | null;
   created_at?: string | null;
 }
 
@@ -692,6 +695,9 @@ export interface CompetitionRaceInput {
   start_time?: string | null;
   notes?: string | null;
   sort_order?: number;
+  race_type?: string;
+  final_letter?: string | null;
+  lane?: number | null;
 }
 
 export interface RoutineTemplate {

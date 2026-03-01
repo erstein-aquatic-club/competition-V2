@@ -33,7 +33,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Trophy, Plus, Pencil, Trash2, Clock } from "lucide-react";
+import { Trophy, Plus, Pencil, Trash2, Clock, Copy } from "lucide-react";
 
 /* ── Props ──────────────────────────────────────────────── */
 
@@ -43,6 +43,10 @@ interface RacesTabProps {
   competitionEndDate?: string | null;
 }
 
+/* ── Constants ──────────────────────────────────────────── */
+
+const FINAL_LETTERS = ["A", "B", "C", "D"];
+
 /* ── Helpers ─────────────────────────────────────────────── */
 
 /** Build an array of YYYY-MM-DD strings between start and end (inclusive). */
@@ -51,7 +55,10 @@ function dateRange(start: string, end?: string | null): string[] {
   const cur = new Date(start + "T00:00:00");
   const last = end ? new Date(end + "T00:00:00") : cur;
   while (cur <= last) {
-    days.push(cur.toISOString().slice(0, 10));
+    const yyyy = cur.getFullYear();
+    const mm = String(cur.getMonth() + 1).padStart(2, "0");
+    const dd = String(cur.getDate()).padStart(2, "0");
+    days.push(`${yyyy}-${mm}-${dd}`);
     cur.setDate(cur.getDate() + 1);
   }
   return days;
@@ -63,9 +70,15 @@ function formatDayLabel(iso: string): string {
 }
 
 function formatTime(time: string): string {
-  // "14:30:00" or "14:30" → "14h30"
   const [h, m] = time.split(":");
   return `${h}h${m}`;
+}
+
+function raceTypeLabel(race: CompetitionRace): string | null {
+  if (race.race_type === "finale") {
+    return race.final_letter ? `Finale ${race.final_letter}` : "Finale";
+  }
+  return null;
 }
 
 /* ── Component ──────────────────────────────────────────── */
@@ -81,6 +94,9 @@ export default function RacesTab({ competitionId, competitionDate, competitionEn
   const [raceDay, setRaceDay] = useState(competitionDate);
   const [startTime, setStartTime] = useState("");
   const [notes, setNotes] = useState("");
+  const [raceType, setRaceType] = useState<"series" | "finale">("series");
+  const [finalLetter, setFinalLetter] = useState("");
+  const [lane, setLane] = useState("");
 
   const days = dateRange(competitionDate, competitionEndDate);
 
@@ -100,7 +116,7 @@ export default function RacesTab({ competitionId, competitionDate, competitionEn
     mutationFn: (input: CompetitionRaceInput) => api.createCompetitionRace(input),
     onSuccess: () => {
       invalidate();
-      toast({ title: "Course ajoutee" });
+      toast({ title: "Course ajoutée" });
       closeSheet();
     },
     onError: (e: Error) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
@@ -111,7 +127,7 @@ export default function RacesTab({ competitionId, competitionDate, competitionEn
       api.updateCompetitionRace(id, input),
     onSuccess: () => {
       invalidate();
-      toast({ title: "Course modifiee" });
+      toast({ title: "Course modifiée" });
       closeSheet();
     },
     onError: (e: Error) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
@@ -121,7 +137,7 @@ export default function RacesTab({ competitionId, competitionDate, competitionEn
     mutationFn: (id: string) => api.deleteCompetitionRace(id),
     onSuccess: () => {
       invalidate();
-      toast({ title: "Course supprimee" });
+      toast({ title: "Course supprimée" });
       setDeleteTarget(null);
     },
     onError: (e: Error) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
@@ -129,12 +145,19 @@ export default function RacesTab({ competitionId, competitionDate, competitionEn
 
   /* ── Sheet helpers ───────────────────────────────────── */
 
-  function openCreate() {
-    setEditingRace(null);
+  function resetForm() {
     setEventCode("");
     setRaceDay(competitionDate);
     setStartTime("");
     setNotes("");
+    setRaceType("series");
+    setFinalLetter("");
+    setLane("");
+  }
+
+  function openCreate() {
+    setEditingRace(null);
+    resetForm();
     setSheetOpen(true);
   }
 
@@ -144,6 +167,21 @@ export default function RacesTab({ competitionId, competitionDate, competitionEn
     setRaceDay(race.race_day);
     setStartTime(race.start_time ?? "");
     setNotes(race.notes ?? "");
+    setRaceType((race.race_type as "series" | "finale") || "series");
+    setFinalLetter(race.final_letter ?? "");
+    setLane(race.lane != null ? String(race.lane) : "");
+    setSheetOpen(true);
+  }
+
+  function duplicateAsFinale(race: CompetitionRace) {
+    setEditingRace(null);
+    setEventCode(race.event_code);
+    setRaceDay(race.race_day);
+    setStartTime("");
+    setNotes("");
+    setRaceType("finale");
+    setFinalLetter("A");
+    setLane("");
     setSheetOpen(true);
   }
 
@@ -160,6 +198,9 @@ export default function RacesTab({ competitionId, competitionDate, competitionEn
       race_day: raceDay,
       start_time: startTime || null,
       notes: notes.trim() || null,
+      race_type: raceType,
+      final_letter: raceType === "finale" && finalLetter ? finalLetter : null,
+      lane: lane ? parseInt(lane, 10) : null,
     };
     if (editingRace) {
       updateMutation.mutate({ id: editingRace.id, input });
@@ -194,7 +235,7 @@ export default function RacesTab({ competitionId, competitionDate, competitionEn
           <Trophy className="mx-auto h-8 w-8 text-amber-500/60" />
           <p className="mt-3 text-sm font-semibold text-foreground">Ajoute tes courses</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Configure tes epreuves pour cette competition
+            Configure tes épreuves pour cette compétition
           </p>
         </button>
       ) : (
@@ -203,6 +244,7 @@ export default function RacesTab({ competitionId, competitionDate, competitionEn
           {races.map((race) => {
             const stroke = strokeFromCode(race.event_code);
             const borderColor = stroke ? STROKE_COLORS[stroke] : "border-l-amber-500";
+            const typeLabel = raceTypeLabel(race);
             return (
               <div
                 key={race.id}
@@ -210,15 +252,25 @@ export default function RacesTab({ competitionId, competitionDate, competitionEn
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold truncate">
-                      {eventLabel(race.event_code)}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold truncate">
+                        {eventLabel(race.event_code)}
+                      </p>
+                      {typeLabel && (
+                        <span className="shrink-0 rounded-md bg-orange-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-orange-600 dark:text-orange-400">
+                          {typeLabel}
+                        </span>
+                      )}
+                    </div>
                     <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
                       <span>{formatDayLabel(race.race_day)}</span>
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {race.start_time ? formatTime(race.start_time) : "Heure a definir"}
+                        {race.start_time ? formatTime(race.start_time) : "Heure à définir"}
                       </span>
+                      {race.lane != null && (
+                        <span>Ligne {race.lane}</span>
+                      )}
                     </div>
                     {race.notes && (
                       <p className="mt-1.5 text-xs text-muted-foreground/80 line-clamp-1">
@@ -227,6 +279,17 @@ export default function RacesTab({ competitionId, competitionDate, competitionEn
                     )}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
+                    {race.race_type !== "finale" && (
+                      <button
+                        type="button"
+                        onClick={() => duplicateAsFinale(race)}
+                        className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-orange-500 hover:bg-orange-500/10 transition"
+                        aria-label="Dupliquer en finale"
+                        title="Dupliquer en finale"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => openEdit(race)}
@@ -267,7 +330,7 @@ export default function RacesTab({ competitionId, competitionDate, competitionEn
           <SheetHeader>
             <SheetTitle>{editingRace ? "Modifier la course" : "Ajouter une course"}</SheetTitle>
             <SheetDescription>
-              {editingRace ? "Modifie les details de cette epreuve." : "Choisis ton epreuve et renseigne les details."}
+              {editingRace ? "Modifie les détails de cette épreuve." : "Choisis ton épreuve et renseigne les détails."}
             </SheetDescription>
           </SheetHeader>
 
@@ -275,11 +338,11 @@ export default function RacesTab({ competitionId, competitionDate, competitionEn
             {/* Event selector */}
             <div className="space-y-2">
               <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Epreuve
+                Épreuve
               </Label>
               <Select value={eventCode} onValueChange={setEventCode}>
                 <SelectTrigger className="rounded-xl">
-                  <SelectValue placeholder="Choisis une epreuve" />
+                  <SelectValue placeholder="Choisis une épreuve" />
                 </SelectTrigger>
                 <SelectContent>
                   {FFN_EVENTS.map((code) => (
@@ -290,6 +353,62 @@ export default function RacesTab({ competitionId, competitionDate, competitionEn
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Race type toggle */}
+            <div className="space-y-2">
+              <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Type
+              </Label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRaceType("series")}
+                  className={`flex-1 rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                    raceType === "series"
+                      ? "border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                      : "border-border bg-card text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  Série
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRaceType("finale")}
+                  className={`flex-1 rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                    raceType === "finale"
+                      ? "border-orange-500 bg-orange-500/10 text-orange-700 dark:text-orange-300"
+                      : "border-border bg-card text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  Finale
+                </button>
+              </div>
+            </div>
+
+            {/* Final letter (only for finale) */}
+            {raceType === "finale" && (
+              <div className="space-y-2">
+                <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Lettre de finale
+                </Label>
+                <div className="flex gap-2">
+                  {FINAL_LETTERS.map((letter) => (
+                    <button
+                      key={letter}
+                      type="button"
+                      onClick={() => setFinalLetter(letter)}
+                      className={`h-10 w-10 rounded-xl border text-sm font-semibold transition ${
+                        finalLetter === letter
+                          ? "border-orange-500 bg-orange-500/10 text-orange-700 dark:text-orange-300"
+                          : "border-border bg-card text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {letter}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Day picker */}
             <div className="space-y-2">
@@ -323,6 +442,22 @@ export default function RacesTab({ competitionId, competitionDate, competitionEn
               />
             </div>
 
+            {/* Lane */}
+            <div className="space-y-2">
+              <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Ligne
+              </Label>
+              <Input
+                type="number"
+                min={1}
+                max={10}
+                value={lane}
+                onChange={(e) => setLane(e.target.value)}
+                className="rounded-xl"
+                placeholder="Ex : 4"
+              />
+            </div>
+
             {/* Notes */}
             <div className="space-y-2">
               <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -333,7 +468,7 @@ export default function RacesTab({ competitionId, competitionDate, competitionEn
                 onChange={(e) => setNotes(e.target.value)}
                 className="rounded-xl resize-none"
                 rows={3}
-                placeholder="Serie, couloir, remarques..."
+                placeholder="Remarques..."
               />
             </div>
 
@@ -357,9 +492,10 @@ export default function RacesTab({ competitionId, competitionDate, competitionEn
             <AlertDialogDescription>
               {deleteTarget && (
                 <>
-                  <strong>{eventLabel(deleteTarget.event_code)}</strong> du{" "}
-                  {formatDayLabel(deleteTarget.race_day)} sera supprimee.
-                  Cette action est irreversible.
+                  <strong>{eventLabel(deleteTarget.event_code)}</strong>{" "}
+                  {raceTypeLabel(deleteTarget) && `(${raceTypeLabel(deleteTarget)}) `}
+                  du {formatDayLabel(deleteTarget.race_day)} sera supprimée.
+                  Cette action est irréversible.
                 </>
               )}
             </AlertDialogDescription>
