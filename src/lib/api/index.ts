@@ -243,6 +243,7 @@ export {
   signInterview,
   deleteInterview,
   getPreviousInterview,
+  getAllPendingInterviews,
 } from './interviews';
 
 export {

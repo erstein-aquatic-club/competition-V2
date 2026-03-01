@@ -154,3 +154,21 @@ export async function deleteInterview(id: string): Promise<void> {
     .eq("id", id);
   if (error) throw new Error(error.message);
 }
+
+/** Coach: get all interviews not yet signed, with athlete display_name */
+export async function getAllPendingInterviews(): Promise<
+  (Interview & { athlete_name: string })[]
+> {
+  if (!canUseSupabase()) return [];
+  const { data, error } = await supabase
+    .from("interviews")
+    .select("*, athlete:users!athlete_id(display_name)")
+    .neq("status", "signed")
+    .order("date", { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row: any) => ({
+    ...row,
+    athlete_name: row.athlete?.display_name ?? "?",
+    athlete: undefined,
+  }));
+}
