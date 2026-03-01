@@ -291,19 +291,11 @@ export default function SwimmerObjectivesView({ onBack, embedded = false }: Prop
               Objectifs du coach
             </h3>
           )}
-          {embedded ? (
-            <div className="space-y-1.5">
-              {coachObjectives.map((obj) => (
-                <ObjectiveCard key={obj.id} objective={obj} performances={performances} compact showCoachBadge />
-              ))}
-            </div>
-          ) : (
-            <ObjectiveGrid>
-              {coachObjectives.map((obj) => (
-                <ObjectiveCard key={obj.id} objective={obj} performances={performances} showCoachBadge />
-              ))}
-            </ObjectiveGrid>
-          )}
+          <ObjectiveGrid>
+            {coachObjectives.map((obj) => (
+              <ObjectiveCard key={obj.id} objective={obj} performances={performances} showCoachBadge />
+            ))}
+          </ObjectiveGrid>
         </div>
       )}
 
@@ -315,19 +307,11 @@ export default function SwimmerObjectivesView({ onBack, embedded = false }: Prop
               Mes objectifs personnels
             </h3>
           )}
-          {embedded ? (
-            <div className="space-y-1.5">
-              {personalObjectives.map((obj) => (
-                <ObjectiveCard key={obj.id} objective={obj} performances={performances} onClick={() => openEdit(obj)} compact />
-              ))}
-            </div>
-          ) : (
-            <ObjectiveGrid>
-              {personalObjectives.map((obj) => (
-                <ObjectiveCard key={obj.id} objective={obj} performances={performances} onClick={() => openEdit(obj)} />
-              ))}
-            </ObjectiveGrid>
-          )}
+          <ObjectiveGrid>
+            {personalObjectives.map((obj) => (
+              <ObjectiveCard key={obj.id} objective={obj} performances={performances} onClick={() => openEdit(obj)} />
+            ))}
+          </ObjectiveGrid>
         </div>
       )}
 
