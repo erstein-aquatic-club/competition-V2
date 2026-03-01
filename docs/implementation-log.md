@@ -57,6 +57,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §84 Coach Events Timeline (Tableau de Bord des Échéances) | ✅ Fait | 2026-03-01 |
 | §85 Calendrier créneaux centré séances (Slot-Centric Sessions) | ✅ Fait | 2026-03-01 |
 | §86 Redesign ObjectiveCard + harmonisation Planif nageur | ✅ Fait | 2026-03-01 |
+| §87 Préparation compétition nageur (courses, routines, timeline, checklist) | ✅ Fait | 2026-03-01 |
 | §45 Audit UI/UX — header Strength + login mobile + fixes | ✅ Fait | 2026-02-16 |
 | §46 Harmonisation headers + Login mobile thème clair | ✅ Fait | 2026-02-16 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
@@ -6793,3 +6794,72 @@ Le CoachHome existant était un menu d'applications générique sans personnalit
 **Tests :** 19 tests (normalisation, tri, filtres, urgency, cas limites)
 **Décisions :** Approche hook + composant pur (cohérent avec useCoachCalendarState pattern). Pas de RPC/vue SQL pour ce MVP.
 **Limites :** Brique autonome, pas encore intégrée dans Coach.tsx.
+
+## §87 — Préparation compétition nageur (2026-03-01)
+
+**Branche :** `main`
+**Chantier ROADMAP :** §87 — Vue détail compétition nageur (courses, routines, timeline, checklist)
+
+### Contexte
+Les nageurs avaient des compétitions visibles (bannière dashboard, calendrier, planification) mais aucun outil pour **préparer** leur compétition : configurer leurs courses, définir des routines pré-course, visualiser leur journée de compétition, et tenir une checklist d'affaires.
+
+### Changements réalisés
+
+**Base de données (migration 00055) :**
+- 8 nouvelles tables : `competition_races`, `routine_templates`, `routine_steps`, `race_routines`, `checklist_templates`, `checklist_items`, `competition_checklists`, `competition_checklist_checks`
+- RLS policies avec `app_user_id()` et `app_user_role()` pour chaque table
+- Cascade delete (template → steps/items, checklist → checks)
+
+**API (`src/lib/api/competition-prep.ts` — ~325 lignes) :**
+- 17 fonctions CRUD : races (CRUD), routine templates (create/delete), routine steps, race↔routine linking, checklist templates (create/delete), competition checklists (apply/toggle/remove)
+- Pattern `getAppUserId()` depuis `session.user.app_metadata.app_user_id`
+
+**Types (`src/lib/api/types.ts`) :**
+- 13 nouvelles interfaces TypeScript (CompetitionRace, RoutineTemplate, RoutineStep, etc.)
+
+**UI — 4 onglets dans `CompetitionDetail.tsx` :**
+
+1. **RacesTab** (~380 lignes) : CRUD courses avec Select FFN_EVENTS, couleur par nage (STROKE_COLORS), Sheet add/edit, AlertDialog delete
+2. **RoutinesTab** (~530 lignes) : Assignation routine par course, gestion templates, Sheet création avec steps (offset_minutes + label), picker modal
+3. **TimelineTab** (~235 lignes) : Vue chronologique Jour J, sélecteur jour (multi-jours), fusion courses + étapes routine avec heures absolues calculées, timeline verticale
+4. **ChecklistTab** (~415 lignes) : Template picker, progress bar, checkbox items avec optimistic update, Sheet création template
+
+**Navigation (3 points d'entrée) :**
+- Dashboard : clic jour compétition calendrier → navigation `/competition/:id`
+- Dashboard : clic bannière prochaine compétition → navigation `/competition/:id`
+- Suivi > Planification : bouton ExternalLink sur chaque compétition → navigation `/competition/:id`
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `supabase/migrations/00055_competition_races_routines_checklists.sql` | Créé |
+| `src/lib/api/types.ts` | Modifié (13 interfaces) |
+| `src/lib/api/competition-prep.ts` | Créé (~325 lignes) |
+| `src/lib/api/index.ts` | Modifié (17 exports) |
+| `src/lib/api.ts` | Modifié (re-exports + api object methods) |
+| `src/pages/CompetitionDetail.tsx` | Créé puis finalisé (~210 lignes) |
+| `src/components/competition/RacesTab.tsx` | Créé (~380 lignes) |
+| `src/components/competition/RoutinesTab.tsx` | Créé (~530 lignes) |
+| `src/components/competition/TimelineTab.tsx` | Créé (~235 lignes) |
+| `src/components/competition/ChecklistTab.tsx` | Créé (~415 lignes) |
+| `src/components/shared/InlineBanner.tsx` | Modifié (onClick prop) |
+| `src/pages/Dashboard.tsx` | Modifié (navigation compétition) |
+| `src/components/profile/AthletePerformanceHub.tsx` | Modifié (ExternalLink) |
+| `src/App.tsx` | Modifié (route + lazy import) |
+
+### Tests
+- `npx tsc --noEmit` : 0 erreurs
+- `npm run build` : succès (6.08s, 145 precache entries)
+
+### Décisions prises
+- Courses saisies manuellement par le nageur (pas d'import depuis programme FFN)
+- Routines = templates réutilisables avec offset_minutes relatif au départ de course
+- Timeline calcule les heures absolues (heure course + offset) et fusionne chronologiquement
+- Checklist = template appliqué à une compétition, avec toggle optimistic update
+- Exécution via Agent Team (4 agents parallèles pour les 4 onglets UI)
+
+### Limites / dette
+- Pas de drag-and-drop pour réordonner les steps/items de template
+- Pas de notification push avant les étapes de routine
+- Pas d'export/partage de la timeline Jour J

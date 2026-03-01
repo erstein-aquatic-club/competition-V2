@@ -1,6 +1,6 @@
 # Roadmap de Développement
 
-*Dernière mise à jour : 2026-03-01 (§83 Réorganisation Profil & Gestes mobiles)*
+*Dernière mise à jour : 2026-03-01 (§87 Préparation compétition nageur)*
 
 Ce document décrit les fonctionnalités à implémenter. Il sert de référence pour reprendre le développement dans une future conversation.
 
@@ -58,6 +58,7 @@ Ce document décrit les fonctionnalités à implémenter. Il sert de référence
 | 47 | Coach Events Timeline (Tableau de Bord des Échéances) | Moyenne | Faible | Fait (§84) |
 | 48 | Calendrier créneaux centré séances (Slot-Centric Sessions) | Haute | Haute | Fait (§85) |
 | 49 | Redesign ObjectiveCard + harmonisation Planif nageur | Moyenne | Faible | Fait (§86) |
+| 50 | Préparation compétition nageur (courses, routines, timeline, checklist) | Moyenne | Haute | Fait (§87) |
 
 ---
 

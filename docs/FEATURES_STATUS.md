@@ -1,6 +1,6 @@
 # État des fonctionnalités
 
-*Dernière mise à jour : 2026-03-01 (§80 Sécurité RLS + Import FFN Auto-Sync)*
+*Dernière mise à jour : 2026-03-01 (§87 Préparation compétition nageur)*
 
 ## Légende
 
@@ -145,6 +145,12 @@ Tous les feature flags sont activés.
 | Compteur séances avant compétition | ✅ | `Dashboard.tsx`, `Progress.tsx` | "X séance(s) d'ici là" — créneaux assignés uniques (§62) |
 | SMS groupé coach (compétition) | ✅ | `CoachCompetitionsScreen.tsx` | URI sms: sur mobile, clipboard desktop (§62) |
 | SMS généraliste coach | ✅ | `CoachSmsScreen.tsx` | Écran dédié, tout groupe/nageur, message optionnel (§65) |
+| Vue détail compétition nageur | ✅ | `CompetitionDetail.tsx` | Route `/competition/:id`, header + 4 onglets (§87) |
+| Courses (races) nageur | ✅ | `RacesTab.tsx`, `competition-prep.ts` | CRUD épreuves FFN, jour, heure, notes, couleur par nage (§87) |
+| Routines pré-course | ✅ | `RoutinesTab.tsx`, `competition-prep.ts` | Templates réutilisables, steps offset_minutes, assignation par course (§87) |
+| Timeline Jour J | ✅ | `TimelineTab.tsx`, `competition-prep.ts` | Fusion chronologique courses + étapes routine, heures absolues (§87) |
+| Checklist compétition | ✅ | `ChecklistTab.tsx`, `competition-prep.ts` | Templates réutilisables, progress bar, toggle optimistic (§87) |
+| Navigation vers détail compétition | ✅ | `Dashboard.tsx`, `AthletePerformanceHub.tsx` | 3 entry points : calendrier, bannière, planification (§87) |
 
 ### Absences planifiées
 

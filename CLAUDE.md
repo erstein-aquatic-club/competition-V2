@@ -103,6 +103,12 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 | `src/components/shared/PullToRefresh.tsx` | Composant pull-to-refresh générique framer-motion | ~60 lignes |
 | `src/hooks/useCoachEventsTimeline.ts` | Hook timeline échéances coach (fetch + normalisation) | ~130 lignes |
 | `src/components/coach/CoachEventsTimeline.tsx` | Timeline verticale échéances coach (compétitions, entretiens, cycles) | ~260 lignes |
+| `src/lib/api/competition-prep.ts` | API compétition nageur (races, routines, checklists) | ~325 lignes |
+| `src/pages/CompetitionDetail.tsx` | Page détail compétition nageur (header + 4 onglets) | ~210 lignes |
+| `src/components/competition/RacesTab.tsx` | Onglet courses (CRUD épreuves, Sheet, couleur nage) | ~380 lignes |
+| `src/components/competition/RoutinesTab.tsx` | Onglet routines (templates, steps, assignation par course) | ~530 lignes |
+| `src/components/competition/TimelineTab.tsx` | Onglet Jour J (fusion chronologique courses + routines) | ~235 lignes |
+| `src/components/competition/ChecklistTab.tsx` | Onglet checklist (templates, progress bar, toggle) | ~415 lignes |
 
 ## Edge Functions Supabase
 
@@ -174,6 +180,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 47 | Coach Events Timeline (Tableau de Bord des Échéances) | Moyenne | Fait (§84) |
 | 49 | Redesign ObjectiveCard + harmonisation Planif nageur | Moyenne | Fait (§86) |
 | 48 | Calendrier créneaux centré séances (Slot-Centric Sessions) | Haute | Fait (§85) |
+| 50 | Préparation compétition nageur (courses, routines, timeline, checklist) | Moyenne | Fait (§87) |
 
 Détail complet dans `docs/ROADMAP.md`.
 

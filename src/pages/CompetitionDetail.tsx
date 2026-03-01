@@ -4,6 +4,10 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import RacesTab from "@/components/competition/RacesTab";
+import ChecklistTab from "@/components/competition/ChecklistTab";
+import RoutinesTab from "@/components/competition/RoutinesTab";
+import TimelineTab from "@/components/competition/TimelineTab";
 import {
   ArrowLeft,
   Trophy,
@@ -11,7 +15,6 @@ import {
   CalendarDays,
   ListChecks,
   Timer,
-  Clock,
   Repeat,
 } from "lucide-react";
 
@@ -43,44 +46,6 @@ function countdownBadge(days: number): { label: string; variant: "default" | "se
   if (days < 0) return { label: "Terminée", variant: "outline" };
   if (days === 0) return { label: "Aujourd'hui", variant: "default" };
   return { label: `J-${days}`, variant: "secondary" };
-}
-
-/* ── Placeholder cards ────────────────────────────────────── */
-
-function PlaceholderSection({
-  icon,
-  title,
-  description,
-  items,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  items: string[];
-}) {
-  return (
-    <div className="rounded-3xl border border-dashed border-border bg-card/60 p-5">
-      <div className="flex items-center gap-2.5 text-muted-foreground">
-        {icon}
-        <span className="text-sm font-semibold text-foreground">{title}</span>
-      </div>
-      <p className="mt-2 text-xs text-muted-foreground leading-relaxed">{description}</p>
-      <div className="mt-4 space-y-2">
-        {items.map((item) => (
-          <div
-            key={item}
-            className="flex items-center gap-2.5 rounded-2xl border border-border/60 bg-muted/30 px-3 py-2.5"
-          >
-            <div className="h-2 w-2 rounded-full bg-muted-foreground/20 shrink-0" />
-            <span className="text-xs text-muted-foreground">{item}</span>
-          </div>
-        ))}
-      </div>
-      <div className="mt-4 rounded-xl bg-primary/5 border border-primary/10 px-3 py-2.5 text-center">
-        <span className="text-[11px] font-medium text-primary">Bientôt disponible</span>
-      </div>
-    </div>
-  );
 }
 
 /* ── Tab types ────────────────────────────────────────────── */
@@ -210,58 +175,30 @@ export default function CompetitionDetail() {
 
         {/* ── Courses tab ─────────────────────────────────── */}
         <TabsContent value="courses" className="mt-4">
-          <PlaceholderSection
-            icon={<Trophy className="h-4 w-4 text-amber-500" />}
-            title="Mes courses"
-            description="Configure tes épreuves pour cette compétition : nage, distance et heure de passage."
-            items={[
-              "Ajouter une course (ex : 100m NL à 14h30)",
-              "Modifier ou supprimer une course",
-              "Vue récap de toutes tes épreuves",
-            ]}
+          <RacesTab
+            competitionId={competition.id}
+            competitionDate={competition.date}
+            competitionEndDate={competition.end_date}
           />
         </TabsContent>
 
         {/* ── Routines tab ────────────────────────────────── */}
         <TabsContent value="routines" className="mt-4">
-          <PlaceholderSection
-            icon={<Repeat className="h-4 w-4 text-blue-500" />}
-            title="Routines pré-course"
-            description="Définis ta routine avant chaque course : échauffement, combinaison, concentration..."
-            items={[
-              "Étapes relatives à l'heure de course (ex : -60min, -20min)",
-              "Sauvegarder en template réutilisable",
-              "Appliquer un template à une autre course",
-            ]}
-          />
+          <RoutinesTab competitionId={competition.id} />
         </TabsContent>
 
         {/* ── Timeline tab ────────────────────────────────── */}
         <TabsContent value="timeline" className="mt-4">
-          <PlaceholderSection
-            icon={<Clock className="h-4 w-4 text-emerald-500" />}
-            title="Timeline du jour"
-            description="Vue chronologique de ta journée : toutes tes courses et étapes de routine fusionnées par heure."
-            items={[
-              "Sélection du jour (multi-jours)",
-              "Heures absolues calculées automatiquement",
-              "Rappels visuels pour chaque étape",
-            ]}
+          <TimelineTab
+            competitionId={competition.id}
+            competitionDate={competition.date}
+            competitionEndDate={competition.end_date}
           />
         </TabsContent>
 
         {/* ── Checklist tab ───────────────────────────────── */}
         <TabsContent value="checklist" className="mt-4">
-          <PlaceholderSection
-            icon={<ListChecks className="h-4 w-4 text-violet-500" />}
-            title="Checklist"
-            description="Prépare ta compétition avec une liste de vérification personnalisée."
-            items={[
-              "Créer et cocher des items",
-              "Sauvegarder en template réutilisable",
-              "Barre de progression",
-            ]}
-          />
+          <ChecklistTab competitionId={competition.id} />
         </TabsContent>
       </Tabs>
     </div>
