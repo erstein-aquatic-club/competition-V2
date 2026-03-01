@@ -8,7 +8,7 @@ import type {
   TrainingSlotOverrideInput,
 } from "@/lib/api/types";
 import type { SlotInstance } from "@/hooks/useSlotCalendar";
-import { computeSlotState } from "@/hooks/useSlotCalendar";
+import { computeSlotState, resolveSlotAssignment } from "@/hooks/useSlotCalendar";
 import { deriveScheduledSlot } from "@/lib/api/assignments";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
@@ -1476,18 +1476,6 @@ const CoachTrainingSlotsScreen = ({
     return set;
   }, [weekOverrides]);
 
-  const assignmentsByKey = useMemo(() => {
-    const map = new Map<string, (typeof slotAssignments)[number]>();
-    for (const assignment of slotAssignments) {
-      if (!assignment.training_slot_id) continue;
-      const key = `${assignment.training_slot_id}:${assignment.scheduled_date}`;
-      if (!map.has(key)) {
-        map.set(key, assignment);
-      }
-    }
-    return map;
-  }, [slotAssignments]);
-
   const slotInstancesById = useMemo(() => {
     const map = new Map<string, SlotInstance>();
     const today = todayIso();
@@ -1502,7 +1490,7 @@ const CoachTrainingSlotsScreen = ({
           item.slot_id === slot.id &&
           item.override_date === scheduledDate,
       );
-      const assignment = assignmentsByKey.get(`${slot.id}:${scheduledDate}`);
+      const assignment = resolveSlotAssignment(slot, scheduledDate, slotAssignments);
 
       const state =
         override?.status === "cancelled"
@@ -1520,7 +1508,7 @@ const CoachTrainingSlotsScreen = ({
     }
 
     return map;
-  }, [assignmentsByKey, filteredSlots, weekDates, weekOverrides]);
+  }, [filteredSlots, slotAssignments, weekDates, weekOverrides]);
 
   const handleCreate = () => {
     setEditingSlot(null);

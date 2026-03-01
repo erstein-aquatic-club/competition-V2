@@ -19,6 +19,7 @@ import type {
 // ── Types ────────────────────────────────────────────────────
 
 export type SlotState = "empty" | "draft" | "published" | "cancelled";
+export type SlotScheduleBucket = "morning" | "evening";
 
 /** A single slot-linked assignment row returned by getSlotAssignments */
 export type SlotAssignment = {
@@ -98,8 +99,75 @@ function dayOfWeekToDate(dayOfWeek: number, mondayIso: string): string {
   const [y, m, d] = mondayIso.split("-").map(Number);
   const monday = new Date(y, m - 1, d);
   const target = new Date(monday);
-  target.setDate(monday.getDate() + dayOfWeek);
+  const normalizedOffset =
+    dayOfWeek >= 1 && dayOfWeek <= 7 ? dayOfWeek - 1 : dayOfWeek;
+  target.setDate(monday.getDate() + normalizedOffset);
   return toISODate(target);
+}
+
+export function getSlotScheduleBucket(
+  startTime: string,
+): SlotScheduleBucket | null {
+  const hour = parseInt(startTime.split(":")[0] ?? "", 10);
+  if (!Number.isFinite(hour)) return null;
+  if (hour < 12) return "morning";
+  if (hour >= 13) return "evening";
+  return null;
+}
+
+export function resolveSlotAssignment(
+  slot: TrainingSlot,
+  scheduledDate: string,
+  assignments: SlotAssignment[],
+): SlotAssignment | undefined {
+  const groupIds = slot.assignments.map((assignment) => assignment.group_id);
+
+  const directMatches = assignments.filter(
+    (assignment) =>
+      assignment.training_slot_id === slot.id &&
+      assignment.scheduled_date === scheduledDate,
+  );
+  const directGroupMatch =
+    groupIds.length > 0
+      ? directMatches.find(
+          (assignment) =>
+            assignment.target_group_id != null &&
+            groupIds.includes(assignment.target_group_id),
+        )
+      : undefined;
+  if (directGroupMatch) return directGroupMatch;
+  if (directMatches.length > 0) return directMatches[0];
+
+  const bucket = getSlotScheduleBucket(slot.start_time);
+  if (!bucket) return undefined;
+
+  const fallbackMatches = assignments.filter(
+    (assignment) =>
+      assignment.scheduled_date === scheduledDate &&
+      assignment.training_slot_id == null &&
+      assignment.scheduled_slot === bucket,
+  );
+
+  const fallbackGroupMatch =
+    groupIds.length > 0
+      ? fallbackMatches.find(
+          (assignment) =>
+            assignment.target_group_id != null &&
+            groupIds.includes(assignment.target_group_id),
+        )
+      : undefined;
+  if (fallbackGroupMatch) return fallbackGroupMatch;
+
+  const unscopedFallback = fallbackMatches.find(
+    (assignment) => assignment.target_group_id == null,
+  );
+  if (unscopedFallback) return unscopedFallback;
+
+  if (groupIds.length === 0 && fallbackMatches.length === 1) {
+    return fallbackMatches[0];
+  }
+
+  return undefined;
 }
 
 /**
@@ -123,24 +191,13 @@ export function materializeSlots(
     overrideMap.set(`${o.slot_id}:${o.override_date}`, o);
   }
 
-  // Build assignment lookup: "training_slot_id:scheduled_date" -> first assignment
-  const assignmentMap = new Map<string, SlotAssignment>();
-  for (const a of assignments) {
-    if (!a.training_slot_id) continue;
-    const key = `${a.training_slot_id}:${a.scheduled_date}`;
-    if (!assignmentMap.has(key)) {
-      assignmentMap.set(key, a);
-    }
-  }
-
   const instances: SlotInstance[] = [];
 
   for (const slot of slots) {
     const date = dayOfWeekToDate(slot.day_of_week, mondayIso);
     const overrideKey = `${slot.id}:${date}`;
     const override = overrideMap.get(overrideKey);
-    const assignmentKey = `${slot.id}:${date}`;
-    const assignment = assignmentMap.get(assignmentKey);
+    const assignment = resolveSlotAssignment(slot, date, assignments);
 
     let state: SlotState;
     if (override?.status === "cancelled") {

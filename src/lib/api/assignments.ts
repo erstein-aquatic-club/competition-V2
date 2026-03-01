@@ -383,9 +383,10 @@ export async function getSlotAssignments(params: {
       scheduled_date, scheduled_slot, visible_from, notified_at, status,
       swim_sessions_catalog(name)
     `)
+    .eq("assignment_type", "swim")
     .gte("scheduled_date", params.from)
     .lte("scheduled_date", params.to)
-    .not("training_slot_id", "is", null)
+    .neq("status", "completed")
     .order("scheduled_date");
 
   if (error) throw new Error(error.message);
