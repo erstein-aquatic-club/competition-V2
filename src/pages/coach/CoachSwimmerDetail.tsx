@@ -303,18 +303,18 @@ export default function CoachSwimmerDetail({
         <TabsContent value="suivi" className="mt-4 space-y-4">
           <section className="space-y-2">
             <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold">Ressentis</h2>
-            </div>
-            <SwimmerFeedbackTab athleteId={athleteId} athleteName={displayName} showProgressAction={false} />
-          </section>
-
-          <section className="space-y-2">
-            <div className="flex items-center gap-2">
               <Target className="h-4 w-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">Objectifs</h2>
             </div>
             <SwimmerObjectivesTab athleteId={athleteId} athleteName={displayName} />
+          </section>
+
+          <section className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold">Ressentis</h2>
+            </div>
+            <SwimmerFeedbackTab athleteId={athleteId} athleteName={displayName} showProgressAction={false} />
           </section>
         </TabsContent>
 
