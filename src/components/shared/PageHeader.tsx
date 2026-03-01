@@ -69,7 +69,7 @@ export function PageHeader({
               ) : null}
               <div className="min-w-0">
                 {title ? (
-                  <h1 className="truncate text-lg font-display font-bold uppercase italic tracking-tight text-primary">
+                  <h1 className="text-lg font-display font-bold uppercase italic tracking-tight text-primary">
                     {title}
                   </h1>
                 ) : null}
