@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { eventLabel } from "@/lib/objectiveHelpers";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import RacesTab from "@/components/competition/RacesTab";
@@ -57,7 +58,7 @@ type CompetitionTab = "courses" | "routines" | "timeline" | "checklist";
 export default function CompetitionDetail() {
   const [, params] = useRoute("/competition/:id");
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState<CompetitionTab>("courses");
+  const [activeTab, setActiveTab] = useState<CompetitionTab>("checklist");
 
   const competitionId = params?.id ?? null;
 
@@ -70,6 +71,96 @@ export default function CompetitionDetail() {
     () => competitions.find((c) => c.id === competitionId) ?? null,
     [competitions, competitionId],
   );
+
+  /* ── Queries for notification scheduling (hits React Query cache) ── */
+
+  const { data: races = [] } = useQuery({
+    queryKey: ["competition-races", competitionId],
+    queryFn: () => api.getCompetitionRaces(competitionId!),
+    enabled: !!competitionId,
+  });
+
+  const { data: raceRoutines = [] } = useQuery({
+    queryKey: ["race-routines", competitionId],
+    queryFn: () => api.getRaceRoutines(competitionId!),
+    enabled: !!competitionId,
+  });
+
+  const { data: templates = [] } = useQuery({
+    queryKey: ["routine-templates"],
+    queryFn: () => api.getRoutineTemplates(),
+  });
+
+  /* ── Schedule push notifications for first routine step ── */
+
+  const scheduledRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!competition || races.length === 0) return;
+
+    // Only schedule on competition day(s)
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+    // Build routine map: raceId -> template
+    const routineByRaceId = new Map<string, typeof templates[number]>();
+    for (const rr of raceRoutines) {
+      const tmpl = templates.find((t) => t.id === rr.routine_id);
+      if (tmpl) routineByRaceId.set(rr.race_id, tmpl);
+    }
+
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
+
+    for (const race of races) {
+      if (race.race_day !== todayStr || !race.start_time) continue;
+
+      const routine = routineByRaceId.get(race.id);
+      if (!routine?.steps?.length) continue;
+
+      // Find the earliest step (most negative offset)
+      const firstStep = [...routine.steps].sort((a, b) => a.offset_minutes - b.offset_minutes)[0];
+
+      // Compute absolute time of this step
+      const [rh, rm] = race.start_time.slice(0, 5).split(":").map(Number);
+      const stepMinutes = rh * 60 + rm + firstStep.offset_minutes;
+      const stepDate = new Date(today);
+      stepDate.setHours(Math.floor(stepMinutes / 60), stepMinutes % 60, 0, 0);
+
+      const delayMs = stepDate.getTime() - Date.now();
+      if (delayMs < 0) continue; // Already past
+
+      // Deduplicate — don't re-schedule if already done for this race
+      const key = `${race.id}-${firstStep.offset_minutes}`;
+      if (scheduledRef.current.has(key)) continue;
+      scheduledRef.current.add(key);
+
+      const suffix = race.race_type === "finale"
+        ? race.final_letter ? ` — Finale ${race.final_letter}` : " — Finale"
+        : "";
+      const raceLabel = eventLabel(race.event_code) + suffix;
+      const notifTitle = `🏊 ${raceLabel}`;
+      const notifBody = `${firstStep.label} — c'est parti !`;
+
+      const tid = setTimeout(() => {
+        if (Notification.permission === "granted") {
+          navigator.serviceWorker?.ready.then((reg) => {
+            reg.showNotification(notifTitle, {
+              body: notifBody,
+              icon: "/competition/icon-192.png",
+              badge: "/competition/favicon.png",
+              vibrate: [200, 100, 200],
+              tag: `routine-${race.id}`,
+              data: { url: `#/competition/${competition.id}` },
+            });
+          });
+        }
+      }, delayMs);
+
+      timeouts.push(tid);
+    }
+
+    return () => timeouts.forEach(clearTimeout);
+  }, [competition, races, raceRoutines, templates]);
 
   const days = competition ? daysUntil(competition.date) : null;
   const badge = days != null ? countdownBadge(days) : null;
@@ -144,6 +235,13 @@ export default function CompetitionDetail() {
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as CompetitionTab)}>
         <TabsList className="grid h-auto w-full grid-cols-4 gap-1.5 bg-transparent p-0">
           <TabsTrigger
+            value="checklist"
+            className="rounded-xl border bg-card px-2 py-2 text-[11px] data-[state=active]:border-violet-500 data-[state=active]:bg-violet-500/5 data-[state=active]:text-violet-700 dark:data-[state=active]:text-violet-300"
+          >
+            <ListChecks className="mr-1 h-3 w-3" />
+            Check
+          </TabsTrigger>
+          <TabsTrigger
             value="courses"
             className="rounded-xl border bg-card px-2 py-2 text-[11px] data-[state=active]:border-amber-500 data-[state=active]:bg-amber-500/5 data-[state=active]:text-amber-700 dark:data-[state=active]:text-amber-300"
           >
@@ -164,14 +262,12 @@ export default function CompetitionDetail() {
             <Timer className="mr-1 h-3 w-3" />
             Jour J
           </TabsTrigger>
-          <TabsTrigger
-            value="checklist"
-            className="rounded-xl border bg-card px-2 py-2 text-[11px] data-[state=active]:border-violet-500 data-[state=active]:bg-violet-500/5 data-[state=active]:text-violet-700 dark:data-[state=active]:text-violet-300"
-          >
-            <ListChecks className="mr-1 h-3 w-3" />
-            Check
-          </TabsTrigger>
         </TabsList>
+
+        {/* ── Checklist tab ───────────────────────────────── */}
+        <TabsContent value="checklist" className="mt-4">
+          <ChecklistTab competitionId={competition.id} />
+        </TabsContent>
 
         {/* ── Courses tab ─────────────────────────────────── */}
         <TabsContent value="courses" className="mt-4">
@@ -194,11 +290,6 @@ export default function CompetitionDetail() {
             competitionDate={competition.date}
             competitionEndDate={competition.end_date}
           />
-        </TabsContent>
-
-        {/* ── Checklist tab ───────────────────────────────── */}
-        <TabsContent value="checklist" className="mt-4">
-          <ChecklistTab competitionId={competition.id} />
         </TabsContent>
       </Tabs>
     </div>
