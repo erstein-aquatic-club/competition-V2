@@ -235,8 +235,8 @@ export default function Records() {
   });
 
   const swimRecordsQuery = useQuery({
-    queryKey: ["swim-records", userId, user],
-    queryFn: () => api.getSwimRecords({ athleteId: userId ?? undefined, athleteName: user ?? undefined }),
+    queryKey: ["swim-records", userId, user, swimMode],
+    queryFn: () => api.getSwimRecords({ athleteId: userId ?? undefined, athleteName: user ?? undefined, recordType: swimMode === "comp" ? "comp" : "training" }),
     enabled: !!user && showRecords,
   });
 
@@ -498,12 +498,8 @@ export default function Records() {
     const filtered = list
       .filter((r: SwimRecordWithPool) => {
         const pl = getPoolLen(r);
-        if (!pl) return false;
         if (pl !== poolLen) return false;
-
-        const type = String(r.record_type ?? "training");
-        if (swimMode === "comp") return type === "comp";
-        return type === "training";
+        return true;
       })
       .sort((a: SwimRecordWithPool, b: SwimRecordWithPool) =>
         compareSwimEvents(String(a.event_name ?? ""), String(b.event_name ?? ""))

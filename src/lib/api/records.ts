@@ -350,14 +350,22 @@ export async function importSingleSwimmer(
 export async function getSwimRecords(options: {
   athleteId?: number | null;
   athleteName?: string | null;
+  recordType?: "training" | "comp";
 }) {
   if (canUseSupabase()) {
-    let query = supabase
-      .from("swim_records")
+    // Comp records come from the view (derived from swimmer_performances)
+    // Training records come from the table (manual entries)
+    const table = options.recordType === "comp" ? "swim_records_comp" : "swim_records";
+    let query = (supabase as any)
+      .from(table)
       .select("*")
       .order("record_date", { ascending: false });
     if (options.athleteId) {
       query = query.eq("athlete_id", options.athleteId);
+    }
+    if (table === "swim_records") {
+      // Only training records in the real table
+      query = query.eq("record_type", "training");
     }
     const { data, error } = await query;
     if (error) throw new Error(error.message);
