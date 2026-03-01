@@ -414,30 +414,6 @@ export default function Records() {
     },
   });
 
-  // Sync FFN (only when user clicks "Actualiser")
-  const syncFfnSwimRecords = useMutation({
-    mutationFn: (iuf: string) =>
-      api.syncFfnSwimRecords({
-        athleteId: userId ?? undefined,
-        athleteName: user ?? undefined,
-        iuf,
-      }),
-    onSuccess: (data: { inserted: number; updated: number; skipped: number }) => {
-      queryClient.invalidateQueries({ queryKey: ["swim-records"] });
-      toast({
-        title: "Synchro FFN terminée",
-        description: `${data?.inserted ?? 0} ajouté(s), ${data?.updated ?? 0} mis à jour, ${data?.skipped ?? 0} inchangé(s)`,
-      });
-    },
-    onError: (e: Error) => {
-      toast({
-        title: "Synchro FFN impossible",
-        description: String(e?.message || e),
-        variant: "destructive",
-      });
-    },
-  });
-
   const closeSwimEditor = () => {
     setSwimForm(emptySwimForm);
     setSwimEditorOpenFor(null);

@@ -311,22 +311,6 @@ export const api = {
     };
   },
 
-  // ── FFN Sync (kept in api.ts) ──
-  async syncFfnSwimRecords(params: { athleteId?: number; athleteName?: string; iuf: string }) {
-    if (!canUseSupabase()) {
-      throw new Error("Supabase not configured");
-    }
-    const { data, error } = await supabase.functions.invoke("ffn-sync", {
-      body: {
-        athlete_id: params.athleteId ?? null,
-        athlete_name: params.athleteName ?? null,
-        iuf: params.iuf,
-      },
-    });
-    if (error) throw new Error(error.message);
-    return (data ?? { inserted: 0, updated: 0, skipped: 0 }) as { inserted: number; updated: number; skipped: number };
-  },
-
   // ── Swim Sessions (kept in api.ts) ──
   async syncSession(session: SyncSessionInputWithId): Promise<{ status: string; sessionId: number }> {
     if (canUseSupabase()) {
