@@ -96,6 +96,8 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 | `src/pages/Suivi.tsx` | Page standalone suivi nageur (4 onglets via AthletePerformanceHub) | ~55 lignes |
 | `src/hooks/useSwipeNavigation.ts` | Hook swipe horizontal framer-motion (calendrier) | ~30 lignes |
 | `src/components/shared/PullToRefresh.tsx` | Composant pull-to-refresh générique framer-motion | ~60 lignes |
+| `src/hooks/useCoachEventsTimeline.ts` | Hook timeline échéances coach (fetch + normalisation) | ~130 lignes |
+| `src/components/coach/CoachEventsTimeline.tsx` | Timeline verticale échéances coach (compétitions, entretiens, cycles) | ~260 lignes |
 
 ## Edge Functions Supabase
 
@@ -164,6 +166,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 44 | Audit UX A-H (touch targets, feedback, nav coach, wizard) | Haute | Fait (§81) |
 | 45 | Audit restant (CORS, migrations, RPC, pagination, deep linking) | Moyenne | Fait (§82) |
 | 46 | Réorganisation Profil & Gestes mobiles (E5+E7) | Moyenne | Fait (§83) |
+| 47 | Coach Events Timeline (Tableau de Bord des Échéances) | Moyenne | Fait (§84) |
 
 Détail complet dans `docs/ROADMAP.md`.
 

@@ -221,6 +221,16 @@ Tous les feature flags sont activés.
 | Signature nageur | ✅ | `AthleteInterviewsSection.tsx` | Bouton signer en statut sent, passe à signed (§74) |
 | Historique entretiens | ✅ | `SwimmerInterviewsTab.tsx`, `AthleteInterviewsSection.tsx` | Liste chronologique coach + archive collapsible nageur (§74) |
 
+### Coach Events Timeline (§84)
+
+| Fonctionnalité | Statut | Fichiers | Notes |
+|----------------|--------|----------|-------|
+| Timeline verticale échéances coach | ✅ | `CoachEventsTimeline.tsx`, `useCoachEventsTimeline.ts` | Mois groupés, points colorés lumineux, badges urgency (§84) |
+| Fetch parallèle 3 sources | ✅ | `useCoachEventsTimeline.ts` | Compétitions, entretiens pending, fins de cycles via 3 useQuery (§84) |
+| Normalisation TimelineEvent[] | ✅ | `useCoachEventsTimeline.ts` | Merge + tri chronologique, calcul urgency (now/soon/upcoming) (§84) |
+| Filtres type/période | ✅ | `useCoachEventsTimeline.ts`, `CoachEventsTimeline.tsx` | Filtre par type d'événement et horizon temporel (§84) |
+| getAllPendingInterviews() | ✅ | `interviews.ts`, `api/index.ts`, `api.ts` | Join users pour athlete_name, filtre status != signed (§84) |
+
 ### Créneaux d'entraînement récurrents
 
 | Fonctionnalité | Statut | Fichiers | Notes |

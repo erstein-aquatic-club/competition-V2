@@ -55,6 +55,7 @@ Ce document décrit les fonctionnalités à implémenter. Il sert de référence
 | 42 | Audit UX A-H (touch targets, feedback, nav, wizard) | Haute | Moyenne | Fait (§81) |
 | 43 | Audit restant (CORS, migrations, RPC, pagination, deep linking) | Moyenne | Moyenne | Fait (§82) |
 | 44 | Réorganisation Profil & Gestes mobiles | Moyenne | Moyenne | Fait (§83) |
+| 47 | Coach Events Timeline (Tableau de Bord des Échéances) | Moyenne | Faible | Fait (§84) |
 
 ---
 

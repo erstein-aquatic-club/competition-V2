@@ -54,6 +54,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §81 Audit UX A-H (touch targets, feedback, nav, wizard) | ✅ Fait | 2026-03-01 |
 | §82 Audit restant (CORS, migrations, RPC, pagination, deep linking) | ✅ Fait | 2026-03-01 |
 | §84 Refonte UX CoachHome + CoachSwimmersOverview (Bord de Bassin) | ✅ Fait | 2026-03-01 |
+| §84 Coach Events Timeline (Tableau de Bord des Échéances) | ✅ Fait | 2026-03-01 |
 | §45 Audit UI/UX — header Strength + login mobile + fixes | ✅ Fait | 2026-02-16 |
 | §46 Harmonisation headers + Login mobile thème clair | ✅ Fait | 2026-02-16 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
@@ -6667,3 +6668,21 @@ Le CoachHome existant était un menu d'applications générique sans personnalit
 
 - Le shimmer CTA peut créer un flicker sur très vieux appareils (animation CSS accélérée GPU)
 - SparkBar utilise le max du groupe courant : si un seul nageur visible, toutes ses barres sont au max
+
+## §84 — Coach Events Timeline (Tableau de Bord des Échéances)
+
+**Date :** 2026-03-01
+**Contexte :** Composant autonome consolidant les échéances du coach (compétitions, entretiens, fins de cycles) dans une timeline verticale chronologique premium.
+
+**Changements :**
+- `src/lib/api/interviews.ts` — Ajout `getAllPendingInterviews()` (join users pour athlete_name, filtre status != signed)
+- `src/lib/api/index.ts` — Re-export getAllPendingInterviews
+- `src/lib/api.ts` — Delegation stub getAllPendingInterviews
+- `src/hooks/useCoachEventsTimeline.ts` — Hook: 3 useQuery parallèles, normalisation TimelineEvent[], filtres type/période, calcul urgency
+- `src/components/coach/CoachEventsTimeline.tsx` — UI timeline verticale premium (mois groupés, points lumineux, badges urgency, skeleton, empty state)
+- `src/hooks/__tests__/useCoachEventsTimeline.test.ts` — Tests purs: computeUrgency, normalizers, merge, filters
+
+**Fichiers modifiés :** 6 fichiers (3 modifiés, 3 créés)
+**Tests :** 19 tests (normalisation, tri, filtres, urgency, cas limites)
+**Décisions :** Approche hook + composant pur (cohérent avec useCoachCalendarState pattern). Pas de RPC/vue SQL pour ce MVP.
+**Limites :** Brique autonome, pas encore intégrée dans Coach.tsx.
