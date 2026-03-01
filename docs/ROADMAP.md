@@ -1,6 +1,6 @@
 # Roadmap de Développement
 
-*Dernière mise à jour : 2026-02-28 (§79 Notifications push Web Push VAPID)*
+*Dernière mise à jour : 2026-03-01 (§80 Sécurité RLS + Import FFN Auto-Sync)*
 
 Ce document décrit les fonctionnalités à implémenter. Il sert de référence pour reprendre le développement dans une future conversation.
 
@@ -51,6 +51,7 @@ Ce document décrit les fonctionnalités à implémenter. Il sert de référence
 | 38 | Créneaux d'entraînement récurrents | Moyenne | Moyenne | Fait (§76) |
 | 39 | Créneaux personnalisés par nageur | Moyenne | Moyenne | Fait (§78) |
 | 40 | Notifications push Web Push (VAPID) | Haute | Haute | Fait (§79) |
+| 41 | Sécurité RLS + Import FFN Auto-Sync | Haute | Moyenne | Fait (§80) |
 
 ---
 

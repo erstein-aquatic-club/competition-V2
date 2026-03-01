@@ -98,7 +98,6 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 
 | Fonction | Statut | Chemin |
 |----------|--------|--------|
-| `ffn-sync` | Fonctionnelle | `supabase/functions/ffn-sync/` |
 | `admin-user` | Fonctionnelle | `supabase/functions/admin-user/` |
 | `ffn-performances` | Fonctionnelle | `supabase/functions/ffn-performances/` |
 | `import-club-records` | Fonctionnelle | `supabase/functions/import-club-records/` |
@@ -158,6 +157,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 40 | Créneaux d'entraînement récurrents | Moyenne | Fait (§76) |
 | 41 | Créneaux personnalisés par nageur | Moyenne | Fait (§78) |
 | 42 | Notifications push Web Push (VAPID) | Haute | Fait (§79) |
+| 43 | Sécurité RLS + Import FFN Auto-Sync | Haute | Fait (§80) |
 
 Détail complet dans `docs/ROADMAP.md`.
 

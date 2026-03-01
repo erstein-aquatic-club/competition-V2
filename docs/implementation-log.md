@@ -6328,3 +6328,46 @@ Objectif : envoyer des notifications push gratuites et illimitées via Web Push 
 - L'utilisateur peut refuser la permission push dans le navigateur — fallback sur les notifications in-app
 - Le trigger `notify_push_on_target_insert` a un warning `function_search_path_mutable` (pre-existing pattern)
 - Les triggers automatiques (override créneau, veille compétition, etc.) nécessitent des INSERT dans `notification_targets` côté applicatif — à brancher progressivement
+
+---
+
+## §80 — Sécurité RLS + Import FFN Auto-Sync (2026-03-01)
+
+### Contexte
+
+Audit complet de l'app (UI/UX, Supabase, parcours utilisateurs) a identifié :
+- 4 policies RLS trop permissives (un athlète pouvait modifier les rate limits globaux)
+- `ffn-sync` sans vérification JWT et architecturalement redondant avec `ffn-performances`
+- Besoin d'import automatique post-compétition (les compétitions ont lieu le weekend)
+
+### Changements
+
+1. **RLS Fix (migration 00046)** : Resserrement des policies sur `swimmer_performances` (INSERT), `import_logs` (INSERT/UPDATE), `app_settings` (INSERT/UPDATE), `strength_folders` (INSERT/UPDATE/DELETE) — accès restreint aux rôles admin/coach. Vérifié que les nageurs n'ont pas besoin d'accès direct (tout passe par Edge Functions en service_role).
+
+2. **Vue `swim_records_comp` (migration 00047)** : Les records de compétition sont maintenant dérivés de `swimmer_performances` via `DISTINCT ON` (meilleur temps par épreuve/bassin/nageur). `swim_records` ne sert plus que pour les records d'entraînement saisis manuellement.
+
+3. **Client API modifié** : `getSwimRecords()` accepte un paramètre `recordType` et lit la vue `swim_records_comp` pour les comp, la table `swim_records` pour les training. Records.tsx passe `swimMode` comme clé de query.
+
+4. **Suppression `ffn-sync`** : Edge function, méthode API et mutation UI supprimées. Les records comp viennent de la vue.
+
+5. **Auto-sync configurable (migrations 00048-00049)** : Setting `ffn_auto_sync` dans `app_settings` (jour/heure/enabled). UI admin dans RecordsAdmin avec Switch, sélecteurs jour/heure. `pg_cron` tourne toutes les heures et vérifie si le jour/heure correspondent à la config avant d'appeler `import-club-records`. Guard de 20h contre les doubles exécutions.
+
+### Fichiers modifiés
+
+- `supabase/migrations/00046_fix_permissive_rls.sql` (nouveau)
+- `supabase/migrations/00047_swim_records_comp_view.sql` (nouveau)
+- `supabase/migrations/00048_ffn_auto_sync_setting.sql` (nouveau)
+- `supabase/migrations/00049_ffn_auto_sync_cron.sql` (nouveau)
+- `src/lib/api/records.ts` (getSwimRecords modifié)
+- `src/lib/api.ts` (syncFfnSwimRecords supprimé)
+- `src/pages/Records.tsx` (mutation ffn-sync supprimée, recordType passé)
+- `src/pages/RecordsAdmin.tsx` (UI auto-sync ajoutée)
+- `supabase/functions/ffn-sync/` (supprimé)
+
+### Décisions
+
+- Les 4 indicateurs de ressenti restent obligatoires (valeur clé pour la responsabilisation)
+- Les records d'entraînement (saisie manuelle) restent dans `swim_records`
+- Les records de compétition sont dérivés dynamiquement de `swimmer_performances`
+- Le cron `pg_cron` nécessite le plan Pro Supabase (extensions `pg_cron` + `pg_net`)
+- L'heure est en UTC dans le setting admin

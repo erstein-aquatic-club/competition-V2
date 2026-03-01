@@ -1,6 +1,6 @@
 # État des fonctionnalités
 
-*Dernière mise à jour : 2026-02-28 (§79 Notifications push Web Push VAPID)*
+*Dernière mise à jour : 2026-03-01 (§80 Sécurité RLS + Import FFN Auto-Sync)*
 
 ## Légende
 
@@ -100,14 +100,16 @@ Tous les feature flags sont activés.
 | Fonctionnalité | Statut | Fichiers | Notes |
 |----------------|--------|----------|-------|
 | Records personnels (CRUD) | ✅ | `Records.tsx` | Redesign complet mobile first : nav aplatie, pool toggle unifié 25/50, formulaire compact, empty states (§42) |
-| Sync FFN (records perso) | ✅ | Edge Function `ffn-sync` | Scrape Extranat, meilleur temps par épreuve |
+| Records compétition (vue) | ✅ | Vue `swim_records_comp`, `records.ts` | Dérivés automatiquement de swimmer_performances via DISTINCT ON (§80) |
 | Import toutes performances | ✅ | Edge Function `ffn-performances` | Import historique complet depuis FFN |
+| Auto-sync FFN hebdomadaire | ✅ | `pg_cron`, `RecordsAdmin.tsx`, `app_settings` | Import auto configurable (jour/heure) depuis admin (§80) |
 | Historique performances | ✅ | `Records.tsx` | Cartes dépliables par épreuve, graphique intégré, best time Trophy (§41) |
 | Records club (consultation) | ✅ | `RecordsClub.tsx` | Épuré mobile : filtres 1 ligne (Select dropdown), sections par nage, 1 carte/épreuve, drill-down progressif (§47) |
 | Import records club (FFN) | ✅ | `RecordsAdmin.tsx`, Edge Function `import-club-records` | Import bulk + recalcul records club |
 | Gestion nageurs records | ✅ | `RecordsAdmin.tsx` | Ajout/édition/activation swimmers, card-based mobile first (§36) |
 | Hall of Fame | ✅ | `HallOfFame.tsx` | Podium visuel top 3 + rangs 4-5 compacts, sticky header compact, sélecteur période (7j/30j/3mois/1an), refresh auto après ajout séance (§38, §46, §51) |
 | Gestion coach imports perfs | ✅ | `RecordsAdmin.tsx` | Import individuel par nageur + historique des imports |
+| Sécurité RLS renforcée | ✅ | Migration `00046` | Policies restreintes sur 4 tables (app_settings, swimmer_performances, import_logs, strength_folders) (§80) |
 
 ### Messagerie
 
