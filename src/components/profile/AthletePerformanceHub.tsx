@@ -532,13 +532,18 @@ export default function AthletePerformanceHub({
         </TabsContent>
 
         <TabsContent value="planification" className="mt-0 space-y-4">
-          <section className="space-y-2">
-            <div className="flex items-center gap-2">
-              <CalendarClock className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold">Créneaux</h2>
-            </div>
-            <AthleteSlots athleteId={athleteId} />
-          </section>
+          <Collapsible defaultOpen>
+            <CollapsibleTrigger asChild>
+              <button type="button" className="w-full flex items-center gap-2 group">
+                <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-sm font-semibold">Créneaux</h2>
+                <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2">
+              <AthleteSlots athleteId={athleteId} />
+            </CollapsibleContent>
+          </Collapsible>
 
           <section className="space-y-2">
             <div className="flex items-center gap-2">

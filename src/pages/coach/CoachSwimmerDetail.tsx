@@ -6,7 +6,8 @@ import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, CalendarClock, CalendarRange, Clock, MessageSquare, Target } from "lucide-react";
+import { ArrowLeft, CalendarClock, CalendarRange, ChevronRight, Clock, MessageSquare, Target } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import SwimmerFeedbackTab from "./SwimmerFeedbackTab";
 import SwimmerObjectivesTab from "./SwimmerObjectivesTab";
 import SwimmerPlanningTab from "./SwimmerPlanningTab";
@@ -327,17 +328,22 @@ export default function CoachSwimmerDetail({
         </TabsContent>
 
         <TabsContent value="planif" className="mt-4 space-y-4">
-          <section className="space-y-2">
-            <div className="flex items-center gap-2">
-              <CalendarClock className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold">Créneaux</h2>
-            </div>
-            <SwimmerSlotsTab
-              athleteId={athleteId}
-              athleteName={displayName}
-              groupId={profile?.group_id ?? 0}
-            />
-          </section>
+          <Collapsible defaultOpen>
+            <CollapsibleTrigger asChild>
+              <button type="button" className="w-full flex items-center gap-2 group">
+                <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-sm font-semibold">Créneaux</h2>
+                <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2">
+              <SwimmerSlotsTab
+                athleteId={athleteId}
+                athleteName={displayName}
+                groupId={profile?.group_id ?? 0}
+              />
+            </CollapsibleContent>
+          </Collapsible>
 
           <section className="space-y-2">
             <div className="flex items-center gap-2">
