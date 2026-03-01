@@ -40,7 +40,7 @@ import {
   formatTime,
   parseTime,
 } from "@/lib/objectiveHelpers";
-import { ObjectiveCard } from "@/components/shared/ObjectiveCard";
+import { ObjectiveCard, ObjectiveGrid } from "@/components/shared/ObjectiveCard";
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -536,9 +536,11 @@ const SwimmerObjectivesTab = ({ athleteId, athleteName }: Props) => {
       {/* Objectives list */}
       {showObjectivesList && !objectivesLoading && objectives.length > 0 && (
         <div className="space-y-2">
-          {objectives.map((obj) => (
-            <ObjectiveCard key={obj.id} objective={obj} performances={performances} onClick={() => handleEdit(obj)} />
-          ))}
+          <ObjectiveGrid>
+            {objectives.map((obj) => (
+              <ObjectiveCard key={obj.id} objective={obj} performances={performances} onClick={() => handleEdit(obj)} />
+            ))}
+          </ObjectiveGrid>
           <p className="text-[10px] text-muted-foreground/60 italic text-center pt-1">
             Les temps « Actuel » correspondent à la meilleure performance des 360 derniers jours sur l'épreuve.
           </p>

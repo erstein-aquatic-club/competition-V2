@@ -830,7 +830,7 @@ const CoachInterviewCard = ({
                 {objectives.length > 0 && (
                   <div className="space-y-1.5">
                     {objectives.map((obj) => (
-                      <ObjectiveCard key={obj.id} objective={obj} performances={performances} />
+                      <ObjectiveCard key={obj.id} objective={obj} performances={performances} compact />
                     ))}
                   </div>
                 )}
@@ -885,7 +885,7 @@ const CoachInterviewCard = ({
                 {objectives.length > 0 && (
                   <div className="space-y-1.5">
                     {objectives.map((obj) => (
-                      <ObjectiveCard key={obj.id} objective={obj} performances={performances} />
+                      <ObjectiveCard key={obj.id} objective={obj} performances={performances} compact />
                     ))}
                   </div>
                 )}

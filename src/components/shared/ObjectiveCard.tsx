@@ -1,13 +1,14 @@
 /**
- * Shared ObjectiveCard — athletic minimal design.
+ * Shared ObjectiveCard — card-based grid design.
  *
- * SVG progress ring as the focal visual element (replaces border + bar).
- * Two-line layout: event + times. Minimal labels. Maximum clarity.
+ * Top color bar (stroke), SVG progress ring, vertical layout for 2x2 grid.
+ * Date of best perf shown as relative "time ago" badge inside the card.
  *
  * Used across: SwimmerObjectivesView, SwimmerObjectivesTab,
  * CoachObjectivesScreen, AthleteInterviewsSection, SwimmerInterviewsTab.
  */
 
+import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import type { Objective } from "@/lib/api";
 import {
@@ -16,10 +17,12 @@ import {
   strokeFromCode,
   findBestPerformance,
   computeProgress,
+  progressBarColor,
   daysUntil,
+  STROKE_COLORS,
 } from "@/lib/objectiveHelpers";
 
-// ── Stroke colors (hex for SVG) ─────────────────────────────────
+// ── Stroke colors ───────────────────────────────────────────────
 
 const RING_HEX: Record<string, string> = {
   NL: "#3b82f6",
@@ -30,10 +33,47 @@ const RING_HEX: Record<string, string> = {
 };
 const RING_DEFAULT = "#a1a1aa";
 
+const STROKE_BORDER_TOP: Record<string, string> = {
+  NL: "border-t-blue-500",
+  DOS: "border-t-emerald-500",
+  BR: "border-t-rose-500",
+  PAP: "border-t-violet-500",
+  QN: "border-t-amber-500",
+};
+
+// ── Helpers ─────────────────────────────────────────────────────
+
+const FR_MONTHS = ["jan", "fév", "mar", "avr", "mai", "jun", "jul", "aoû", "sep", "oct", "nov", "déc"];
+
+/** "12 fév" or "3 jan 24" if different year. */
+function fmtShortDate(iso: string): string {
+  const p = iso.split("-");
+  if (p.length !== 3) return iso;
+  const day = parseInt(p[2]);
+  const month = FR_MONTHS[parseInt(p[1]) - 1] ?? p[1];
+  const year = parseInt(p[0]);
+  const currentYear = new Date().getFullYear();
+  if (year !== currentYear) return `${day} ${month} ${String(year).slice(2)}`;
+  return `${day} ${month}`;
+}
+
+/** "il y a Xj" for recent, "il y a Xm" for older. */
+function timeAgo(iso: string): string {
+  const d = new Date(iso + "T00:00:00");
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const days = Math.round((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+  if (days <= 0) return "aujourd'hui";
+  if (days === 1) return "hier";
+  if (days < 60) return `il y a ${days}j`;
+  const months = Math.round(days / 30);
+  return `il y a ${months}m`;
+}
+
 // ── Progress Ring (SVG) ─────────────────────────────────────────
 
 function ProgressRing({
-  size = 36,
+  size = 40,
   strokeWidth = 3,
   progress,
   color,
@@ -56,7 +96,6 @@ function ProgressRing({
       className="shrink-0"
       aria-hidden
     >
-      {/* Background track */}
       <circle
         cx={size / 2}
         cy={size / 2}
@@ -66,7 +105,6 @@ function ProgressRing({
         strokeWidth={strokeWidth}
         className="text-muted-foreground/10"
       />
-      {/* Filled arc */}
       {progress != null && (
         <circle
           cx={size / 2}
@@ -82,16 +120,20 @@ function ProgressRing({
           className="transition-all duration-700"
         />
       )}
-      {/* Center dot when no progress data */}
       {progress == null && (
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={3}
-          fill={color}
-        />
+        <circle cx={size / 2} cy={size / 2} r={3} fill={color} />
       )}
     </svg>
+  );
+}
+
+// ── Grid wrapper ────────────────────────────────────────────────
+
+export function ObjectiveGrid({ children }: { children: ReactNode }) {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {children}
+    </div>
   );
 }
 
@@ -124,6 +166,8 @@ export function ObjectiveCard({
   const hasChrono = !!objective.event_code;
   const stroke = hasChrono ? strokeFromCode(objective.event_code!) : null;
   const ringColor = stroke ? RING_HEX[stroke] ?? RING_DEFAULT : RING_DEFAULT;
+  const topBorder = stroke ? STROKE_BORDER_TOP[stroke] ?? "" : "";
+  const leftBorder = stroke ? STROKE_COLORS[stroke] ?? "" : "";
 
   const bestPerf = hasChrono
     ? findBestPerformance(performances, objective.event_code!, objective.pool_length)
@@ -141,20 +185,19 @@ export function ObjectiveCard({
 
   const Tag = onClick ? "button" : "div";
 
-  // ── Compact (embedded in Suivi) ──
+  // ── Compact (embedded in Suivi — single row, left border) ──
   if (compact) {
     return (
       <Tag
         type={onClick ? "button" : undefined}
-        className="w-full text-left flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted/40 active:scale-[0.995]"
+        className={[
+          "w-full text-left flex items-center gap-2.5 rounded-lg border-l-4 px-2.5 py-1.5",
+          leftBorder || "border-l-muted-foreground/20",
+          "bg-card transition-colors hover:bg-muted/30 active:scale-[0.995]",
+        ].join(" ")}
         onClick={onClick}
       >
-        <ProgressRing
-          size={24}
-          strokeWidth={2.5}
-          progress={progressPct}
-          color={ringColor}
-        />
+        <ProgressRing size={22} strokeWidth={2.5} progress={progressPct} color={ringColor} />
         <div className="flex-1 min-w-0 flex items-baseline gap-1.5">
           <span className="text-xs font-semibold truncate">
             {hasChrono ? eventLabel(objective.event_code!) : (objective.text ?? "—")}
@@ -170,94 +213,105 @@ export function ObjectiveCard({
         )}
         {delta != null && (
           <span className={`text-[10px] font-mono tabular-nums shrink-0 ${delta <= 0 ? "text-emerald-500 font-semibold" : "text-muted-foreground/60"}`}>
-            {delta <= 0 ? "OK" : `+${delta.toFixed(1)}`}
+            {delta <= 0 ? "OK" : `+${delta.toFixed(2)}`}
           </span>
         )}
         {showCoachBadge && (
-          <Badge variant="secondary" className="text-[8px] px-1 py-0 leading-tight shrink-0">
-            C
-          </Badge>
+          <Badge variant="secondary" className="text-[8px] px-1 py-0 leading-tight shrink-0">C</Badge>
         )}
       </Tag>
     );
   }
 
-  // ── Normal ──
+  // ── Card (for grid layout) ──
   return (
     <Tag
       type={onClick ? "button" : undefined}
-      className="w-full text-left flex items-start gap-3 rounded-xl px-3 py-3 transition-colors hover:bg-muted/30 active:scale-[0.995]"
+      className={[
+        "w-full text-left rounded-xl border shadow-sm bg-card overflow-hidden",
+        topBorder ? `border-t-[3px] ${topBorder}` : "",
+        "transition-all hover:shadow-md active:scale-[0.98]",
+      ].join(" ")}
       onClick={onClick}
     >
-      {/* Ring */}
-      <div className="pt-0.5">
-        <ProgressRing
-          size={36}
-          strokeWidth={3}
-          progress={progressPct}
-          color={ringColor}
-        />
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 min-w-0 space-y-0.5">
-        {/* Line 1: event + pool */}
-        <div className="flex items-baseline gap-2 min-w-0">
-          <span className="text-sm font-semibold truncate">
-            {hasChrono ? eventLabel(objective.event_code!) : (objective.text ? "Objectif" : "—")}
-          </span>
-          {hasChrono && objective.pool_length && (
-            <span className="text-xs text-muted-foreground/50 shrink-0">{objective.pool_length}m</span>
-          )}
+      <div className="px-3 pt-3 pb-2.5 space-y-2">
+        {/* Header: event name + badge */}
+        <div className="flex items-start justify-between gap-1">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold truncate leading-tight">
+              {hasChrono ? eventLabel(objective.event_code!) : "Objectif"}
+            </p>
+            {hasChrono && objective.pool_length && (
+              <p className="text-[10px] text-muted-foreground/50 mt-0.5">{objective.pool_length}m</p>
+            )}
+          </div>
           {showCoachBadge && (
-            <Badge variant="secondary" className="text-[9px] px-1 py-0 leading-tight ml-auto shrink-0">
+            <Badge variant="secondary" className="text-[9px] px-1 py-0 leading-tight shrink-0">
               Coach
             </Badge>
           )}
         </div>
 
         {/* Text objective */}
-        {objective.text && hasChrono && (
-          <p className="text-xs text-muted-foreground line-clamp-1">{objective.text}</p>
+        {objective.text && (
+          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{objective.text}</p>
         )}
 
-        {/* Line 2: times (target → current + delta) */}
+        {/* Ring + times block */}
         {objective.target_time_seconds != null && (
-          <div className="flex items-baseline gap-2 font-mono tabular-nums text-xs mt-1">
-            <span className="text-primary font-medium">
-              {formatTime(objective.target_time_seconds)}
-            </span>
-            {bestPerf && (
-              <>
-                <span className="text-muted-foreground/40">→</span>
-                <span className="text-muted-foreground">
+          <div className="flex items-center gap-2.5">
+            <ProgressRing size={40} strokeWidth={3} progress={progressPct} color={ringColor} />
+            <div className="flex-1 min-w-0 space-y-0.5">
+              {/* Target time */}
+              <p className="text-sm font-mono tabular-nums text-primary font-semibold leading-none">
+                {formatTime(objective.target_time_seconds)}
+              </p>
+              {/* Current time + date */}
+              {bestPerf && (
+                <p className="text-xs font-mono tabular-nums text-muted-foreground leading-none">
                   {formatTime(bestPerf.time)}
-                </span>
-                {delta != null && (
-                  <span className={delta <= 0 ? "text-emerald-500 font-semibold" : "text-muted-foreground/50"}>
-                    {delta <= 0 ? "Atteint" : `+${delta.toFixed(1)}s`}
-                  </span>
-                )}
-              </>
-            )}
+                  {bestPerf.date && (
+                    <span className="text-[10px] text-muted-foreground/40 font-sans ml-1.5">
+                      {timeAgo(bestPerf.date)}
+                    </span>
+                  )}
+                </p>
+              )}
+              {/* Delta */}
+              {delta != null && (
+                <p className={`text-xs font-mono tabular-nums font-semibold leading-none ${delta <= 0 ? "text-emerald-500" : "text-amber-500"}`}>
+                  {delta <= 0 ? "Atteint" : `+${delta.toFixed(2)}s`}
+                </p>
+              )}
+              {/* No perf */}
+              {!bestPerf && performances.length > 0 && (
+                <p className="text-[10px] text-muted-foreground/40 italic">Pas encore de temps</p>
+              )}
+            </div>
           </div>
         )}
 
-        {/* No perf yet */}
-        {hasChrono && objective.target_time_seconds != null && !bestPerf && performances.length > 0 && (
-          <p className="text-[10px] text-muted-foreground/40 mt-0.5 italic">
-            Pas encore de temps
-          </p>
+        {/* Text-only: ring only if no chrono */}
+        {!hasChrono && (
+          <div className="flex items-center gap-2.5">
+            <ProgressRing size={40} strokeWidth={3} progress={null} color={ringColor} />
+            <p className="text-[10px] text-muted-foreground/40 italic">Objectif qualitatif</p>
+          </div>
         )}
 
-        {/* Text-only objective (no chrono) */}
-        {!hasChrono && objective.text && (
-          <p className="text-xs text-muted-foreground line-clamp-2">{objective.text}</p>
+        {/* Progress bar */}
+        {progressPct != null && (
+          <div className="h-1 w-full rounded-full bg-black/5 dark:bg-white/5 overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${progressBarColor(progressPct)}`}
+              style={{ width: `${Math.min(progressPct, 100)}%` }}
+            />
+          </div>
         )}
 
         {/* Competition countdown */}
         {hasCompetition && (
-          <p className="text-[10px] text-muted-foreground/50 mt-0.5">
+          <p className="text-[10px] text-muted-foreground/50 truncate">
             {objective.competition_name}
             {leftDays != null && leftDays > 0 && <span> · J-{leftDays}</span>}
           </p>

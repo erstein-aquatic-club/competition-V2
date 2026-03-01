@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Target } from "lucide-react";
 import { FFN_EVENTS, eventLabel, formatTime, parseTime } from "@/lib/objectiveHelpers";
-import { ObjectiveCard } from "@/components/shared/ObjectiveCard";
+import { ObjectiveCard, ObjectiveGrid } from "@/components/shared/ObjectiveCard";
 
 /** Fetch the auth UUID for a public.users integer ID via RPC. */
 async function fetchAuthUidForUser(userId: number): Promise<string | null> {
@@ -452,6 +452,24 @@ const CoachObjectivesScreen = ({
     enabled: !!selectedAthleteAuthId,
   });
 
+  // Fetch athlete IUF for performance lookup
+  const { data: selectedAthleteProfile } = useQuery({
+    queryKey: ["profile", selectedUserId],
+    queryFn: () => api.getProfile({ userId: Number(selectedUserId) }),
+    enabled: !!selectedUserId,
+  });
+  const athleteIuf = selectedAthleteProfile?.ffn_iuf ?? null;
+  const perfFromDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 360);
+    return d.toISOString().slice(0, 10);
+  }, []);
+  const { data: performances = [] } = useQuery({
+    queryKey: ["swimmer-performances-recent", athleteIuf],
+    queryFn: () => api.getSwimmerPerformances({ iuf: athleteIuf!, fromDate: perfFromDate }),
+    enabled: !!athleteIuf,
+  });
+
   // Group athletes by group_label for the select
   const groupedAthletes = useMemo(() => {
     const valid = athletes.filter((a) => a.id != null);
@@ -594,11 +612,11 @@ const CoachObjectivesScreen = ({
       )}
 
       {showObjectivesList && !objectivesLoading && objectives.length > 0 && (
-        <div className="space-y-2">
+        <ObjectiveGrid>
           {objectives.map((obj) => (
-            <ObjectiveCard key={obj.id} objective={obj} onClick={() => handleEdit(obj)} />
+            <ObjectiveCard key={obj.id} objective={obj} performances={performances} onClick={() => handleEdit(obj)} />
           ))}
-        </div>
+        </ObjectiveGrid>
       )}
 
       {/* Form sheet */}

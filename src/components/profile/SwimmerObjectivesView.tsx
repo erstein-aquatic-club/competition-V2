@@ -41,7 +41,7 @@ import {
   formatTime,
   parseTime,
 } from "@/lib/objectiveHelpers";
-import { ObjectiveCard } from "@/components/shared/ObjectiveCard";
+import { ObjectiveCard, ObjectiveGrid } from "@/components/shared/ObjectiveCard";
 
 type Props = {
   onBack?: () => void;
@@ -285,41 +285,49 @@ export default function SwimmerObjectivesView({ onBack, embedded = false }: Prop
 
       {/* Coach objectives (read-only) */}
       {coachObjectives.length > 0 && (
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           {!embedded && (
             <h3 className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
               Objectifs du coach
             </h3>
           )}
-          {coachObjectives.map((obj) => (
-            <ObjectiveCard
-              key={obj.id}
-              objective={obj}
-              performances={performances}
-              compact={embedded}
-              showCoachBadge
-            />
-          ))}
+          {embedded ? (
+            <div className="space-y-1.5">
+              {coachObjectives.map((obj) => (
+                <ObjectiveCard key={obj.id} objective={obj} performances={performances} compact showCoachBadge />
+              ))}
+            </div>
+          ) : (
+            <ObjectiveGrid>
+              {coachObjectives.map((obj) => (
+                <ObjectiveCard key={obj.id} objective={obj} performances={performances} showCoachBadge />
+              ))}
+            </ObjectiveGrid>
+          )}
         </div>
       )}
 
       {/* Personal objectives (editable) */}
       {personalObjectives.length > 0 && (
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           {!embedded && (
             <h3 className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
               Mes objectifs personnels
             </h3>
           )}
-          {personalObjectives.map((obj) => (
-            <ObjectiveCard
-              key={obj.id}
-              objective={obj}
-              performances={performances}
-              onClick={() => openEdit(obj)}
-              compact={embedded}
-            />
-          ))}
+          {embedded ? (
+            <div className="space-y-1.5">
+              {personalObjectives.map((obj) => (
+                <ObjectiveCard key={obj.id} objective={obj} performances={performances} onClick={() => openEdit(obj)} compact />
+              ))}
+            </div>
+          ) : (
+            <ObjectiveGrid>
+              {personalObjectives.map((obj) => (
+                <ObjectiveCard key={obj.id} objective={obj} performances={performances} onClick={() => openEdit(obj)} />
+              ))}
+            </ObjectiveGrid>
+          )}
         </div>
       )}
 
