@@ -800,7 +800,6 @@ export default function Coach() {
           <CoachSlotCalendar
             onBack={() => setActiveSection("home")}
             onOpenLibrary={() => setActiveSection("swim-library")}
-            onOpenSlot={() => {/* Handled internally by CoachSlotCalendar + SlotSessionSheet */}}
           />
         </Suspense>
       ) : null}

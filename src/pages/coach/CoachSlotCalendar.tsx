@@ -1,16 +1,21 @@
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft, ChevronRight, Plus, Calendar, BookOpen, MapPin, Clock } from "lucide-react";
 import { useSlotCalendar, type SlotInstance, type SlotState } from "@/hooks/useSlotCalendar";
+import SlotSessionSheet from "./SlotSessionSheet";
+import { SlotTemplatePicker } from "./SlotTemplatePicker";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { bulkCreateSlotAssignments, deriveScheduledSlot } from "@/lib/api/assignments";
+import { useAuth } from "@/lib/auth";
 
 // ── Props ──────────────────────────────────────────────────
 
 interface CoachSlotCalendarProps {
   onBack: () => void;
   onOpenLibrary: () => void;
-  onOpenSlot: (instance: SlotInstance) => void;
+  onOpenSlot?: (instance: SlotInstance) => void;
 }
 
 // ── Helpers ────────────────────────────────────────────────
@@ -238,7 +243,6 @@ function FilledSlotCard({
 export default function CoachSlotCalendar({
   onBack,
   onOpenLibrary,
-  onOpenSlot,
 }: CoachSlotCalendarProps) {
   const {
     weekOffset,
@@ -252,6 +256,64 @@ export default function CoachSlotCalendar({
     nextWeek,
   } = useSlotCalendar();
 
+  const { userId } = useAuth();
+  const queryClient = useQueryClient();
+
+  // ── Sheet state ────────────────────────────────────────
+  const [selectedInstance, setSelectedInstance] = useState<SlotInstance | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  // Store the instance context for template selection
+  const [templateTargetInstance, setTemplateTargetInstance] = useState<SlotInstance | null>(null);
+
+  const handleOpenSlot = useCallback((instance: SlotInstance) => {
+    setSelectedInstance(instance);
+    setSheetOpen(true);
+  }, []);
+
+  const handleCreateNew = useCallback((_inst: SlotInstance) => {
+    // Navigate to SwimCatalog — for V1, just go to library
+    onOpenLibrary();
+  }, [onOpenLibrary]);
+
+  const handleEditSession = useCallback((sessionId: number) => {
+    // Navigate to SwimCatalog with session — for V1, just go to library
+    onOpenLibrary();
+  }, [onOpenLibrary]);
+
+  const handlePickTemplate = useCallback((inst: SlotInstance) => {
+    setTemplateTargetInstance(inst);
+    setSheetOpen(false);
+    setTemplatePickerOpen(true);
+  }, []);
+
+  // Mutation: assign a template to a slot
+  const assignTemplateMutation = useMutation({
+    mutationFn: async ({ catalogId, inst }: { catalogId: number; inst: SlotInstance }) => {
+      const groupIds = inst.groups.map((g) => g.group_id);
+      if (groupIds.length === 0 || !userId) return;
+      await bulkCreateSlotAssignments({
+        swimCatalogId: catalogId,
+        trainingSlotId: inst.slot.id,
+        scheduledDate: inst.date,
+        groupIds,
+        scheduledSlot: deriveScheduledSlot(inst.slot.start_time),
+        visibleFrom: inst.date, // Default: visible on slot date
+        assignedBy: userId,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["slot-assignments"] });
+      setTemplatePickerOpen(false);
+      setTemplateTargetInstance(null);
+    },
+  });
+
+  const handleTemplateSelect = useCallback((catalogId: number, _sessionName: string) => {
+    if (!templateTargetInstance) return;
+    assignTemplateMutation.mutate({ catalogId, inst: templateTargetInstance });
+  }, [templateTargetInstance, assignTemplateMutation]);
+
   const today = useMemo(() => todayIso(), []);
   const weekLabel = useMemo(
     () => formatWeekRange(mondayIso, sundayIso),
@@ -259,6 +321,7 @@ export default function CoachSlotCalendar({
   );
 
   return (
+    <>
     <div className="space-y-0 pb-24">
       {/* ── Header ── */}
       <div className="sticky top-0 z-20 -mx-4 bg-background/95 backdrop-blur border-b px-4 pb-3 pt-3 space-y-3">
@@ -339,7 +402,7 @@ export default function CoachSlotCalendar({
                 label={label}
                 isToday={isToday}
                 slots={slots}
-                onOpenSlot={onOpenSlot}
+                onOpenSlot={handleOpenSlot}
               />
             );
           })
@@ -362,6 +425,25 @@ export default function CoachSlotCalendar({
           </div>
         )}
     </div>
+
+    {/* ── Bottom Sheets ── */}
+    {selectedInstance && (
+      <SlotSessionSheet
+        instance={selectedInstance}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onCreateNew={handleCreateNew}
+        onEditSession={handleEditSession}
+        onPickTemplate={handlePickTemplate}
+      />
+    )}
+
+    <SlotTemplatePicker
+      open={templatePickerOpen}
+      onOpenChange={setTemplatePickerOpen}
+      onSelect={handleTemplateSelect}
+    />
+    </>
   );
 }
 
