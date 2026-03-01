@@ -153,16 +153,11 @@ const CoachHome = ({
           0%, 100% { opacity: 0.55; transform: scale(1); }
           50%       { opacity: 0.85; transform: scale(1.06); }
         }
-        @keyframes cta-breathe-alert {
-          0%, 100% { opacity: 0.45; }
-          50%       { opacity: 0.85; }
-        }
         @keyframes shimmer-slide {
           0%   { transform: translateX(-100%) skewX(-12deg); }
           100% { transform: translateX(300%) skewX(-12deg); }
         }
         .cta-glow     { animation: cta-breathe 3.5s ease-in-out infinite; }
-        .cta-glow-alert { animation: cta-breathe-alert 1.4s ease-in-out infinite; }
         .cta-shimmer  { animation: shimmer-slide 2.8s ease-in-out infinite 0.8s; }
       `}</style>
 
@@ -202,20 +197,13 @@ const CoachHome = ({
         <button
           type="button"
           onClick={primaryAction.action}
-          className={[
-            "relative w-full overflow-hidden rounded-3xl text-white transition-all duration-200 active:scale-[0.97]",
-            hasAlerts
-              ? "bg-gradient-to-br from-rose-500 via-red-500 to-orange-500"
-              : "bg-gradient-to-br from-primary via-primary/80 to-primary/60",
-          ].join(" ")}
+          className="relative w-full overflow-hidden rounded-3xl text-white transition-all duration-200 active:scale-[0.97] bg-gradient-to-br from-primary via-primary/80 to-primary/60"
         >
           {/* Radial background glow */}
           <div
-            className={hasAlerts ? "cta-glow-alert absolute inset-0" : "cta-glow absolute inset-0"}
+            className="cta-glow absolute inset-0"
             style={{
-              background: hasAlerts
-                ? "radial-gradient(ellipse at 20% 60%, rgba(255,80,60,0.6) 0%, transparent 65%)"
-                : "radial-gradient(ellipse at 20% 60%, rgba(255,255,255,0.2) 0%, transparent 65%)",
+              background: "radial-gradient(ellipse at 20% 60%, rgba(255,255,255,0.2) 0%, transparent 65%)",
             }}
           />
           {/* Diagonal shimmer stripe */}
@@ -226,22 +214,11 @@ const CoachHome = ({
 
           <div className="relative flex items-center gap-4 px-6 py-7">
             <div className="min-w-0 flex-1">
-              {hasAlerts && (
-                <div className="mb-2.5 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1">
-                  <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
-                  </span>
-                  <span className="text-[9px] font-black uppercase tracking-[0.22em]">Attention requise</span>
-                </div>
-              )}
               <p className="text-[1.6rem] font-bold leading-tight tracking-tight">{primaryAction.label}</p>
               <p className="mt-1.5 text-sm opacity-75">{primaryAction.detail}</p>
             </div>
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm border border-white/20">
-              {hasAlerts
-                ? <HeartPulse className="h-7 w-7 animate-pulse" />
-                : <Waves className="h-7 w-7" />}
+              <Waves className="h-7 w-7" />
             </div>
           </div>
         </button>
