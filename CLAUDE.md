@@ -93,6 +93,9 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 | `src/components/shared/PWAInstallGate.tsx` | Gate installation PWA mobile | ~130 lignes |
 | `src/components/shared/PushPermissionBanner.tsx` | Banner permission push post-login | ~70 lignes |
 | `public/push-handler.js` | Service Worker push event handler | ~40 lignes |
+| `src/pages/Suivi.tsx` | Page standalone suivi nageur (4 onglets via AthletePerformanceHub) | ~55 lignes |
+| `src/hooks/useSwipeNavigation.ts` | Hook swipe horizontal framer-motion (calendrier) | ~30 lignes |
+| `src/components/shared/PullToRefresh.tsx` | Composant pull-to-refresh générique framer-motion | ~60 lignes |
 
 ## Edge Functions Supabase
 
@@ -160,6 +163,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 43 | Sécurité RLS + Import FFN Auto-Sync | Haute | Fait (§80) |
 | 44 | Audit UX A-H (touch targets, feedback, nav coach, wizard) | Haute | Fait (§81) |
 | 45 | Audit restant (CORS, migrations, RPC, pagination, deep linking) | Moyenne | Fait (§82) |
+| 46 | Réorganisation Profil & Gestes mobiles (E5+E7) | Moyenne | Fait (§83) |
 
 Détail complet dans `docs/ROADMAP.md`.
 

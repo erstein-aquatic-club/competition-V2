@@ -54,6 +54,7 @@ const Admin = lazyWithRetry(() => import("@/pages/Admin"));
 const Administratif = lazyWithRetry(() => import("@/pages/Administratif"));
 const Comite = lazyWithRetry(() => import("@/pages/Comite"));
 const Strength = lazyWithRetry(() => import("@/pages/Strength"));
+const Suivi = lazyWithRetry(() => import("@/pages/Suivi"));
 const Profile = lazyWithRetry(() => import("@/pages/Profile"));
 const Records = lazyWithRetry(() => import("@/pages/Records"));
 const RecordsAdmin = lazyWithRetry(() => import("@/pages/RecordsAdmin"));
@@ -252,6 +253,7 @@ function AppRouter() {
             <Route path="/records-club" component={RecordsClub} />
             <Route path="/swim-session" component={SwimSessionView} />
             <Route path="/s/:token" component={SharedSwimSession} />
+            <Route path="/suivi" component={Suivi} />
             <Route path="/profile" component={Profile} />
             <Route path="/coming-soon" component={ComingSoon} />
             <Route component={NotFound} />

@@ -13,7 +13,7 @@ import { BellRing, ChevronRight, Dot, Inbox, ArrowLeft, Trash2 } from "lucide-re
 type Props = {
   userId: number;
   onBack: () => void;
-  onOpenProfileSection: (section: "home" | "interviews" | "objectives" | "messages") => void;
+  onOpenProfileSection: (section: "home" | "messages") => void;
 };
 
 const getDismissedStorageKey = (userId: number) => `profile-notifications-dismissed:${userId}`;
@@ -109,14 +109,6 @@ export default function SwimmerMessagesView({
     const href = resolveNotificationHref(notification);
 
     if (href === "/profile?section=messages") return;
-    if (href === "/profile?section=interviews") {
-      onOpenProfileSection("interviews");
-      return;
-    }
-    if (href === "/profile?section=objectives") {
-      onOpenProfileSection("objectives");
-      return;
-    }
 
     if (href === "/") {
       window.location.hash = "#/";

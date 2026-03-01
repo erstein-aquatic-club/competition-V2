@@ -1,4 +1,4 @@
-import { Waves, TrendingUp, Trophy, User, Dumbbell, Settings, FileText, Users, CalendarDays, LayoutGrid, type LucideIcon } from "lucide-react";
+import { Waves, TrendingUp, Target, User, Dumbbell, Settings, FileText, Users, CalendarDays, LayoutGrid, type LucideIcon } from "lucide-react";
 import { FEATURES } from "@/lib/features";
 
 type NavItem = {
@@ -40,9 +40,7 @@ export const getNavItemsForRole = (role: string | null): NavItem[] => {
     athleteItems.push({ href: "/strength", icon: Dumbbell, label: "Muscu" });
   }
 
-  if (FEATURES.hallOfFame) {
-    athleteItems.push({ href: "/hall-of-fame", icon: Trophy, label: "Club" });
-  }
+  athleteItems.push({ href: "/suivi", icon: Target, label: "Suivi" });
 
   athleteItems.push({ href: "/profile", icon: User, label: "Profil" });
 

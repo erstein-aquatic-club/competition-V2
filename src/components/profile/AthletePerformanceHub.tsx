@@ -29,7 +29,9 @@ interface Props {
   athleteId: number;
   athleteName: string;
   groupLabel?: string | null;
-  onBack: () => void;
+  onBack?: () => void;
+  standalone?: boolean;
+  defaultTab?: string;
 }
 
 function formatDate(dateStr: string): string {
@@ -329,14 +331,18 @@ export default function AthletePerformanceHub({
   athleteName,
   groupLabel,
   onBack,
+  standalone,
+  defaultTab,
 }: Props) {
   return (
     <div className="mx-auto max-w-4xl space-y-4 pb-24">
       <div className="rounded-[1.75rem] border bg-gradient-to-br from-primary/[0.12] via-background to-amber-500/[0.08] p-4 shadow-sm">
-        <Button variant="ghost" size="sm" className="-ml-2 mb-2" onClick={onBack}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" />
-          Retour
-        </Button>
+        {!standalone && onBack && (
+          <Button variant="ghost" size="sm" className="-ml-2 mb-2" onClick={onBack}>
+            <ArrowLeft className="mr-1.5 h-4 w-4" />
+            Retour
+          </Button>
+        )}
         <div className="flex items-start gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-primary">
             <Trophy className="h-5 w-5" />
@@ -362,7 +368,7 @@ export default function AthletePerformanceHub({
         </div>
       </div>
 
-      <Tabs defaultValue="objectifs" className="space-y-4">
+      <Tabs defaultValue={defaultTab || "objectifs"} className="space-y-4">
         <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-2xl bg-transparent p-0 sm:grid-cols-4">
           <TabsTrigger value="objectifs" className="gap-1 rounded-2xl border border-border bg-card px-3 py-2.5 text-xs data-[state=active]:border-primary/30 data-[state=active]:bg-primary/5 data-[state=active]:text-primary">
             <Target className="hidden h-3.5 w-3.5 sm:block" />

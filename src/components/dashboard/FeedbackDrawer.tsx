@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useDragControls } from "framer-motion";
 import { X, Waves, Power, Check, Circle, UserX, FileText, UserCheck, Minus, Plus, Sun, Moon, ChevronDown, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { BottomActionBar, type SaveState } from "@/components/shared/BottomActionBar";
@@ -379,6 +379,7 @@ export function FeedbackDrawer({
   onMarkDayAbsent,
   onRemoveDayAbsence,
 }: FeedbackDrawerProps) {
+  const dragControls = useDragControls();
   const [, setLocation] = useLocation();
   const [unexpectedExpanded, setUnexpectedExpanded] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -416,11 +417,25 @@ export function FeedbackDrawer({
             initial="hidden"
             animate="visible"
             exit="exit"
+            drag="y"
+            dragControls={dragControls}
+            dragListener={false}
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0.05, bottom: 0.3 }}
+            dragSnapToOrigin={true}
+            onDragEnd={(_, info) => {
+              if (info.offset.y > 100 || info.velocity.y > 500) {
+                onClose();
+              }
+            }}
             role="dialog"
             aria-modal="true"
           >
             <div className="flex h-full flex-col">
-              <div className="px-5 pt-3 sm:hidden">
+              <div
+                className="px-5 pt-3 sm:hidden touch-none"
+                onPointerDown={(e) => dragControls.start(e)}
+              >
                 <div className="mx-auto h-1.5 w-12 rounded-full bg-muted" />
               </div>
 

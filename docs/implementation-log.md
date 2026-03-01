@@ -6526,3 +6526,82 @@ Reset automatique du compteur au changement de filtre/recherche.
 
 - Les Edge Functions doivent être redéployées pour que le CORS prenne effet (les migrations seules ne suffisent pas)
 - La pagination est purement client-side — si les volumes augmentent fortement (1000+ items), il faudra paginer côté API
+
+---
+
+## 2026-03-01 — §83 Réorganisation Profil & Gestes mobiles (E5 + E7)
+
+### Contexte
+
+Dernières recommandations de l'audit EAC. E5 scinde la page Profil monolithique (1041 lignes, 7 sections) en deux pages distinctes. E7 ajoute 3 gestes mobiles natifs via framer-motion.
+
+### Changements — E5 (Réorganisation Profil)
+
+**Nouvelle page Suivi (`/suivi`)** :
+- Créé `src/pages/Suivi.tsx` — page standalone qui rend `AthletePerformanceHub` avec 4 onglets (objectifs, entretiens, planification, ressentis)
+- Modifié `AthletePerformanceHub.tsx` — ajout props `standalone`, `defaultTab`, `onBack` optionnel ; masque le bouton retour en mode standalone
+- Route `/suivi` ajoutée dans `App.tsx` avec lazy import
+
+**Navigation mise à jour** :
+- `navItems.ts` — nav nageur passe de "Club" (hall-of-fame) à "Suivi" (icône Target) : `Accueil | Analyse | Muscu | Suivi | Profil`
+- La route `/hall-of-fame` reste accessible via URL directe et tuile "Club" dans Profil
+
+**Routing notifications** :
+- `notificationRouting.ts` — interviews → `/suivi?tab=entretiens`, objectifs → `/suivi?tab=objectifs`
+- `SwimmerMessagesView.tsx` — simplifié `onOpenProfileSection` type à `"home" | "messages"`, navigation directe vers `/suivi`
+
+**Profile.tsx allégé (1041 → 964 lignes)** :
+- Retiré types `"performance-hub"`, `"objectives"`, `"interviews"` de ProfileSection
+- Retiré queries `interviewSummary`, `objectiveSummary` et derived counts
+- Retiré 3 blocs de rendu conditionnels + imports inutilisés
+- Carte "Maintenant" simplifiée (seulement messages non lus)
+- Grille "Accès rapides" : "Mon suivi" → navigate `/suivi`, nouvelle tuile "Club" → `/hall-of-fame`
+- Redirect de compatibilité : `?section=performance-hub|objectives|interviews` → `/suivi?tab=...`
+
+### Changements — E7 (Gestes mobiles)
+
+**Swipe calendrier** :
+- Créé `src/hooks/useSwipeNavigation.ts` — hook réutilisable framer-motion drag avec seuils distance (50px) et vélocité (500px/s), filtrage scroll vertical
+- Modifié `CalendarGrid.tsx` — wrapper `motion.div` avec swipe props
+- Modifié `Dashboard.tsx` — `onSwipeLeft={nextMonth}` `onSwipeRight={prevMonth}`
+
+**Drag-to-dismiss FeedbackDrawer** :
+- Modifié `FeedbackDrawer.tsx` — `useDragControls` avec handle zone `touch-none`, `dragListener={false}` pour ne pas interférer avec le scroll du contenu, dismiss si offset.y > 100 ou velocity.y > 500
+
+**Pull-to-refresh Dashboard** :
+- Créé `src/components/shared/PullToRefresh.tsx` — composant générique avec spinner animé (opacity/scale liés à useTransform), `overscroll-behavior-y: contain`, seuil configurable
+- Modifié `Dashboard.tsx` — wrapper contenu principal, `handlePullRefresh` invalidate queries sessions/assignments/competitions/absences
+
+### Fichiers modifiés/créés
+
+| Fichier | Action |
+|---------|--------|
+| `src/pages/Suivi.tsx` | Créé — page standalone suivi nageur |
+| `src/components/profile/AthletePerformanceHub.tsx` | Modifié — props standalone/defaultTab/onBack optionnel |
+| `src/App.tsx` | Modifié — route /suivi + lazy import |
+| `src/components/layout/navItems.ts` | Modifié — "Suivi" remplace "Club" dans nav nageur |
+| `src/lib/notificationRouting.ts` | Modifié — redirections vers /suivi |
+| `src/components/profile/SwimmerMessagesView.tsx` | Modifié — navigation directe /suivi |
+| `src/pages/Profile.tsx` | Modifié — allégé, tuile Club, redirects compat |
+| `src/hooks/useSwipeNavigation.ts` | Créé — hook swipe framer-motion |
+| `src/components/dashboard/CalendarGrid.tsx` | Modifié — swipe navigation |
+| `src/components/dashboard/FeedbackDrawer.tsx` | Modifié — drag-to-dismiss |
+| `src/components/shared/PullToRefresh.tsx` | Créé — pull-to-refresh générique |
+| `src/pages/Dashboard.tsx` | Modifié — swipe calendrier + pull-to-refresh |
+
+### Tests
+
+- [x] `npx tsc --noEmit` : 0 nouvelles erreurs
+- [ ] Test manuel mobile : nav 5 items, /suivi 4 onglets, swipe calendrier, drag drawer, pull-to-refresh
+
+### Décisions
+
+- Nav nageur : "Suivi" (Target) remplace "Club" (Trophy) — le suivi est plus utilisé au quotidien ; Club reste accessible via Profil
+- framer-motion uniquement (v12.23.24 déjà installée) — aucune nouvelle dépendance
+- `dragListener={false}` sur le FeedbackDrawer — seul le handle déclenche le drag, le contenu scrollable n'est pas affecté
+- Redirect de compatibilité dans Profile.tsx — les anciennes URLs `?section=...` continuent de fonctionner
+
+### Limites
+
+- Le pull-to-refresh ne distingue pas le scroll interne vs page — fonctionne uniquement quand la page est en haut
+- Le swipe calendrier peut interférer avec le scroll horizontal d'éléments internes (peu probable vu le layout actuel)

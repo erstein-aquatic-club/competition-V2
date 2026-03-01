@@ -17,7 +17,7 @@ export function resolveNotificationHref(notification: NotificationLinkInput): st
   const haystack = `${title} ${message}`;
 
   if (type === "interview" || haystack.includes("entretien")) {
-    return "/profile?section=interviews";
+    return "/suivi?tab=entretiens";
   }
 
   if (type === "assignment") {
@@ -25,7 +25,7 @@ export function resolveNotificationHref(notification: NotificationLinkInput): st
   }
 
   if (type === "objective" || haystack.includes("objectif")) {
-    return "/profile?section=objectives";
+    return "/suivi?tab=objectifs";
   }
 
   return "/profile?section=messages";
@@ -33,8 +33,8 @@ export function resolveNotificationHref(notification: NotificationLinkInput): st
 
 export function resolveNotificationActionLabel(notification: NotificationLinkInput): string | null {
   const href = resolveNotificationHref(notification);
-  if (href === "/profile?section=interviews") return "Ouvrir l'entretien";
-  if (href === "/profile?section=objectives") return "Ouvrir les objectifs";
+  if (href === "/suivi?tab=entretiens") return "Ouvrir l'entretien";
+  if (href === "/suivi?tab=objectifs") return "Ouvrir les objectifs";
   if (href === "/") return "Ouvrir l'accueil";
   if (href === "/profile?section=messages") return null;
   return "Ouvrir";

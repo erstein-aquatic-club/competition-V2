@@ -23,9 +23,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion } from "framer-motion";
 import { fadeIn } from "@/lib/animations";
-import SwimmerObjectivesView from "@/components/profile/SwimmerObjectivesView";
-import AthleteInterviewsSection from "@/components/profile/AthleteInterviewsSection";
-import AthletePerformanceHub from "@/components/profile/AthletePerformanceHub";
 import SwimmerMessagesView from "@/components/profile/SwimmerMessagesView";
 import { NeurotypQuiz } from "@/components/neurotype/NeurotypQuiz";
 import NeurotypResultView from "@/components/neurotype/NeurotypResult";
@@ -35,9 +32,6 @@ import type { NeurotypResult as NeurotypResultType, NeurotypCode } from "@/lib/a
 type ProfileSection =
   | "home"
   | "messages"
-  | "performance-hub"
-  | "objectives"
-  | "interviews"
   | "neurotype-quiz"
   | "neurotype-result";
 
@@ -47,11 +41,19 @@ function readProfileSectionFromHash(): ProfileSection {
   const match = hash.match(/[?&]section=([^&]+)/);
   const requested = match?.[1];
 
+  // Redirect old sections to /suivi
+  if (requested === "performance-hub" || requested === "objectives" || requested === "interviews") {
+    const tabMap: Record<string, string> = {
+      "performance-hub": "objectifs",
+      objectives: "objectifs",
+      interviews: "entretiens",
+    };
+    window.location.hash = `#/suivi?tab=${tabMap[requested]}`;
+    return "home";
+  }
+
   switch (requested) {
     case "messages":
-    case "performance-hub":
-    case "objectives":
-    case "interviews":
     case "neurotype-quiz":
     case "neurotype-result":
       return requested;
@@ -383,17 +385,6 @@ export default function Profile() {
     enabled: isSwimmerProfile && !!userId,
   });
 
-  const { data: interviewSummary = [] } = useQuery({
-    queryKey: ["profile-interviews-summary"],
-    queryFn: () => api.getMyInterviews(),
-    enabled: isSwimmerProfile && !!user,
-  });
-
-  const { data: objectiveSummary = [] } = useQuery({
-    queryKey: ["profile-objectives-summary"],
-    queryFn: () => api.getAthleteObjectives(),
-    enabled: isSwimmerProfile && !!user,
-  });
 
   const avatarSrc = useMemo(() => {
     const src = profile?.avatar_url;
@@ -416,43 +407,6 @@ export default function Profile() {
     [visibleNotifications],
   );
 
-  const pendingInterviewCount = useMemo(
-    () =>
-      interviewSummary.filter(
-        (interview) => interview.status === "draft_athlete" || interview.status === "sent",
-      ).length,
-    [interviewSummary],
-  );
-
-  const activeObjectiveCount = objectiveSummary.length;
-
-  const nextObjectiveDate = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    return objectiveSummary
-      .map((objective) => objective.competition_date ?? null)
-      .filter((value): value is string => Boolean(value))
-      .filter((value) => {
-        const date = new Date(`${value}T00:00:00`);
-        return !Number.isNaN(date.getTime()) && date >= today;
-      })
-      .sort((a, b) => a.localeCompare(b))[0] ?? null;
-  }, [objectiveSummary]);
-
-  const nextObjectiveCountdown = useMemo(() => {
-    if (!nextObjectiveDate) return null;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const target = new Date(`${nextObjectiveDate}T00:00:00`);
-    const delta = target.getTime() - today.getTime();
-    return Math.max(0, Math.round(delta / (1000 * 60 * 60 * 24)));
-  }, [nextObjectiveDate]);
-
-  const quickActionCount =
-    (unreadMessageCount > 0 ? 1 : 0)
-    + (pendingInterviewCount > 0 ? 1 : 0)
-    + (nextObjectiveCountdown !== null ? 1 : 0);
 
   const updateProfile = useMutation({
     mutationFn: (data: ProfileEditForm) =>
@@ -667,14 +621,6 @@ export default function Profile() {
     );
   }
 
-  if (activeSection === "interviews") {
-    return <AthleteInterviewsSection onBack={() => setActiveSection("home")} />;
-  }
-
-  if (activeSection === "objectives") {
-    return <SwimmerObjectivesView onBack={() => setActiveSection("home")} />;
-  }
-
   if (activeSection === "messages") {
     return (
       <SwimmerMessagesView
@@ -685,16 +631,6 @@ export default function Profile() {
     );
   }
 
-  if (activeSection === "performance-hub") {
-    return (
-      <AthletePerformanceHub
-        athleteId={userId ?? 0}
-        athleteName={profile?.display_name || user || "Nageur"}
-        groupLabel={groupLabel}
-        onBack={() => setActiveSection("home")}
-      />
-    );
-  }
 
   return (
     <motion.div
@@ -721,29 +657,17 @@ export default function Profile() {
       </div>
 
       <div className="space-y-4">
-        {isSwimmerProfile && quickActionCount > 0 ? (
+        {isSwimmerProfile && unreadMessageCount > 0 ? (
           <Card className="overflow-hidden border-primary/15 bg-gradient-to-r from-primary/[0.08] via-card to-amber-500/[0.08] shadow-sm">
             <CardContent className="space-y-3 py-4">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Maintenant</p>
-                <Badge className="text-[10px]">{quickActionCount}</Badge>
+                <Badge className="text-[10px]">1</Badge>
               </div>
               <div className="flex flex-wrap gap-2">
-                {unreadMessageCount > 0 ? (
-                  <Button size="sm" variant="outline" className="rounded-full" onClick={() => setActiveSection("messages")}>
-                    {unreadMessageCount} message{unreadMessageCount > 1 ? "s" : ""}
-                  </Button>
-                ) : null}
-                {pendingInterviewCount > 0 ? (
-                  <Button size="sm" variant="outline" className="rounded-full" onClick={() => setActiveSection("interviews")}>
-                    {pendingInterviewCount} entretien{pendingInterviewCount > 1 ? "s" : ""}
-                  </Button>
-                ) : null}
-                {nextObjectiveCountdown !== null ? (
-                  <Button size="sm" variant="outline" className="rounded-full" onClick={() => setActiveSection("performance-hub")}>
-                    J-{nextObjectiveCountdown}
-                  </Button>
-                ) : null}
+                <Button size="sm" variant="outline" className="rounded-full" onClick={() => setActiveSection("messages")}>
+                  {unreadMessageCount} message{unreadMessageCount > 1 ? "s" : ""}
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -765,21 +689,20 @@ export default function Profile() {
               <ProfileActionTile
                 icon={Clock}
                 title="Mon suivi"
-                meta={
-                  pendingInterviewCount > 0
-                    ? `${pendingInterviewCount} entretien${pendingInterviewCount > 1 ? "s" : ""}`
-                    : activeObjectiveCount > 0
-                      ? `${activeObjectiveCount} objectif${activeObjectiveCount > 1 ? "s" : ""}`
-                      : "Plan et ressentis"
-                }
-                badgeLabel={nextObjectiveCountdown !== null ? `J-${nextObjectiveCountdown}` : null}
-                onClick={() => setActiveSection("performance-hub")}
+                meta="Plan et ressentis"
+                onClick={() => navigate("/suivi")}
               />
               <ProfileActionTile
                 icon={Trophy}
                 title="Records"
                 meta="Performances"
                 onClick={() => navigate("/records")}
+              />
+              <ProfileActionTile
+                icon={Trophy}
+                title="Club"
+                meta="Hall of Fame"
+                onClick={() => navigate("/hall-of-fame")}
               />
               <ProfileActionTile
                 icon={Brain}

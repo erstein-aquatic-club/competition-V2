@@ -15,6 +15,7 @@ import { CalendarGrid } from "@/components/dashboard/CalendarGrid";
 import { FeedbackDrawer } from "@/components/dashboard/FeedbackDrawer";
 import { SwimExerciseLogsHistory } from "@/components/dashboard/SwimExerciseLogsHistory";
 import { InlineBanner } from "@/components/shared/InlineBanner";
+import { PullToRefresh } from "@/components/shared/PullToRefresh";
 import {
   Settings2,
   Waves,
@@ -116,6 +117,22 @@ export default function Dashboard() {
   const userId = useAuth((s) => s.userId);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const handlePullRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({
+      queryKey: ["sessions"],
+    });
+    await queryClient.invalidateQueries({
+      queryKey: ["assignments"],
+    });
+    await queryClient.invalidateQueries({
+      queryKey: ["competitions"],
+    });
+    await queryClient.invalidateQueries({
+      queryKey: ["absences"],
+    });
+  }, [queryClient]);
+
   const [, navigate] = useLocation();
   const [saveState, setSaveState] = React.useState<SaveState>("idle");
   const [historyExpanded, setHistoryExpanded] = React.useState(false);
@@ -688,6 +705,7 @@ export default function Dashboard() {
         </div>
       </div>
 
+      <PullToRefresh onRefresh={handlePullRefresh}>
       <div className="mx-auto max-w-6xl px-3 sm:px-4 pt-20 pb-5 sm:py-8">
         {/* Desktop: inline header in content flow */}
         <div className="hidden sm:flex items-center justify-between">
@@ -745,6 +763,8 @@ export default function Dashboard() {
             today={today}
             onDayClick={openDay}
             onKeyDown={handleCalendarKeyDown}
+            onSwipeLeft={nextMonth}
+            onSwipeRight={prevMonth}
           />
         </div>
 
@@ -886,6 +906,7 @@ export default function Dashboard() {
           onRemoveDayAbsence={() => removeAbsenceMutation.mutate(selectedISO)}
         />
       </div>
+      </PullToRefresh>
     </div>
   );
 }
