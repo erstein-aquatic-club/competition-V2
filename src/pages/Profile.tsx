@@ -741,6 +741,13 @@ export default function Profile() {
             <ProfileActionRow
               icon={Download}
               title="Mettre à jour l'app"
+              description={(() => {
+                const ts = (window as any).__eacBuildTimestamp as string | undefined;
+                if (!ts) return undefined;
+                try {
+                  return `v${new Date(ts).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}`;
+                } catch { return undefined; }
+              })()}
               badgeLabel={isCheckingUpdate ? "en cours" : null}
               onClick={handleCheckUpdate}
             />

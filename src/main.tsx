@@ -5,6 +5,7 @@ import "./index.css";
 
 declare const __BUILD_TIMESTAMP__: string;
 console.log(`[EAC] Build: ${__BUILD_TIMESTAMP__}`);
+(window as any).__eacBuildTimestamp = __BUILD_TIMESTAMP__;
 
 // vite-plugin-pwa: prompt mode – show notification when new SW is waiting
 const updateSW = registerSW({
