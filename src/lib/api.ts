@@ -394,10 +394,10 @@ export const api = {
       time_slot: params.slot,
       distance: 0,
       duration: 0,
-      rpe: 5,
-      performance: 5,
-      engagement: 5,
-      fatigue: 5,
+      rpe: 10,
+      performance: 10,
+      engagement: 10,
+      fatigue: 10,
     };
     if (params.athleteId) payload.athlete_id = Number(params.athleteId);
 

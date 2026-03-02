@@ -69,7 +69,6 @@ export const normalizeScaleToFive = (value: number | null | undefined): number |
   if (value === null || value === undefined) return null;
   const num = Number(value);
   if (!Number.isFinite(num)) return null;
-  if (num <= 5) return Math.max(1, Math.round(num));
   return Math.min(5, Math.max(1, Math.round(num / 2)));
 };
 
