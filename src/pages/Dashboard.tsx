@@ -14,7 +14,6 @@ import { CalendarHeader } from "@/components/dashboard/CalendarHeader";
 import { CalendarGrid } from "@/components/dashboard/CalendarGrid";
 import { FeedbackDrawer } from "@/components/dashboard/FeedbackDrawer";
 import { InlineBanner } from "@/components/shared/InlineBanner";
-import { PullToRefresh } from "@/components/shared/PullToRefresh";
 import {
   Settings2,
   Waves,
@@ -132,20 +131,6 @@ export default function Dashboard() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const handlePullRefresh = useCallback(async () => {
-    await queryClient.invalidateQueries({
-      queryKey: ["sessions"],
-    });
-    await queryClient.invalidateQueries({
-      queryKey: ["assignments"],
-    });
-    await queryClient.invalidateQueries({
-      queryKey: ["competitions"],
-    });
-    await queryClient.invalidateQueries({
-      queryKey: ["absences"],
-    });
-  }, [queryClient]);
 
   const [, navigate] = useLocation();
   const [saveState, setSaveState] = React.useState<SaveState>("idle");
@@ -728,7 +713,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <PullToRefresh onRefresh={handlePullRefresh}>
       <div className="mx-auto max-w-6xl px-3 sm:px-4 pt-14 pb-5 sm:py-8">
         {/* Desktop: inline header in content flow */}
         <div className="hidden sm:flex items-center justify-between">
@@ -935,7 +919,6 @@ export default function Dashboard() {
           onRemoveDayAbsence={() => removeAbsenceMutation.mutate(selectedISO)}
         />
       </div>
-      </PullToRefresh>
     </div>
   );
 }
