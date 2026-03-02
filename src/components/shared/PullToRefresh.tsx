@@ -1,5 +1,4 @@
-import { type ReactNode, useRef, useState } from "react";
-import { motion, useMotionValue, useTransform } from "framer-motion";
+import { type ReactNode, useCallback, useRef, useState } from "react";
 
 interface PullToRefreshProps {
   onRefresh: () => Promise<void>;
@@ -13,51 +12,74 @@ export function PullToRefresh({
   pullThreshold = 80,
 }: PullToRefreshProps) {
   const [refreshing, setRefreshing] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const y = useMotionValue(0);
+  const [pullDistance, setPullDistance] = useState(0);
+  const touchStartY = useRef(0);
+  const isPulling = useRef(false);
 
-  const spinnerOpacity = useTransform(y, [0, pullThreshold], [0, 1]);
-  const spinnerScale = useTransform(y, [0, pullThreshold], [0.5, 1]);
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      if (refreshing) return;
+      // Only activate pull-to-refresh when at the very top of the page
+      if (window.scrollY > 5) return;
+      touchStartY.current = e.touches[0].clientY;
+      isPulling.current = true;
+    },
+    [refreshing],
+  );
 
-  const handleDragEnd = async () => {
-    const currentY = y.get();
-    // Check that we're at the top of scroll
-    const scrollTop = containerRef.current?.scrollTop ?? 0;
-    if (scrollTop > 5 || currentY < pullThreshold) return;
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (!isPulling.current || refreshing) return;
+      // Re-check scroll position — if user scrolled down since touchstart, abort
+      if (window.scrollY > 5) {
+        isPulling.current = false;
+        setPullDistance(0);
+        return;
+      }
+      const delta = e.touches[0].clientY - touchStartY.current;
+      if (delta > 0) {
+        // Apply diminishing elastic factor
+        setPullDistance(Math.min(delta * 0.4, pullThreshold * 1.5));
+      }
+    },
+    [refreshing, pullThreshold],
+  );
 
-    setRefreshing(true);
-    try {
-      await onRefresh();
-    } finally {
-      setRefreshing(false);
+  const handleTouchEnd = useCallback(async () => {
+    if (!isPulling.current) return;
+    isPulling.current = false;
+    if (pullDistance >= pullThreshold && !refreshing) {
+      setRefreshing(true);
+      try {
+        await onRefresh();
+      } finally {
+        setRefreshing(false);
+      }
     }
-  };
+    setPullDistance(0);
+  }, [pullDistance, pullThreshold, refreshing, onRefresh]);
+
+  const spinnerOpacity = refreshing ? 1 : Math.min(pullDistance / pullThreshold, 1);
+  const spinnerScale = refreshing ? 1 : 0.5 + 0.5 * Math.min(pullDistance / pullThreshold, 1);
 
   return (
     <div
-      ref={containerRef}
       className="relative"
-      style={{ overscrollBehaviorY: "contain" }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
       {/* Spinner indicator */}
-      <motion.div
+      <div
         className="pointer-events-none absolute left-1/2 top-0 z-10 flex -translate-x-1/2 items-center justify-center"
-        style={{ opacity: refreshing ? 1 : spinnerOpacity, scale: refreshing ? 1 : spinnerScale }}
+        style={{ opacity: spinnerOpacity, transform: `scale(${spinnerScale})` }}
       >
         <div className={`mt-2 h-8 w-8 rounded-full border-2 border-primary border-t-transparent ${refreshing ? "animate-spin" : ""}`} />
-      </motion.div>
+      </div>
 
-      <motion.div
-        drag="y"
-        dragConstraints={{ top: 0, bottom: 0 }}
-        dragElastic={{ top: 0, bottom: 0.4 }}
-        dragSnapToOrigin
-        style={{ y }}
-        onDragEnd={handleDragEnd}
-        dragListener={!refreshing}
-      >
+      <div style={{ transform: `translateY(${pullDistance}px)`, transition: isPulling.current ? "none" : "transform 0.3s ease" }}>
         {children}
-      </motion.div>
+      </div>
     </div>
   );
 }

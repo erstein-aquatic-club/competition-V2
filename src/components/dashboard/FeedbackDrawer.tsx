@@ -394,6 +394,18 @@ export function FeedbackDrawer({
     setAdvancedOpen(false);
   }, [activeSessionId]);
 
+  // Lock body scroll when drawer is open — prevents background scroll bleed-through
+  useEffect(() => {
+    if (!open) return;
+    const scrollY = window.scrollY;
+    const orig = document.body.style.cssText;
+    document.body.style.cssText = `${orig}; overflow: hidden; position: fixed; top: -${scrollY}px; left: 0; right: 0;`;
+    return () => {
+      document.body.style.cssText = orig;
+      window.scrollTo(0, scrollY);
+    };
+  }, [open]);
+
   return (
     <AnimatePresence>
       {open && (
@@ -453,7 +465,7 @@ export function FeedbackDrawer({
                 </IconButton>
               </div>
 
-              <div className="flex-1 overflow-auto p-4 sm:p-5">
+              <div className="flex-1 overflow-auto overscroll-contain touch-pan-y p-4 sm:p-5">
                 {/* Header jour minimal */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
