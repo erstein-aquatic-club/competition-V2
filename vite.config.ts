@@ -71,7 +71,7 @@ export default defineConfig(({ mode }) => ({
         start_url: '/competition/#/',
         scope: '/competition/',
         display: 'standalone',
-        orientation: 'portrait-primary',
+        orientation: 'any',
         theme_color: '#E30613',
         background_color: '#ffffff',
         icons: [
