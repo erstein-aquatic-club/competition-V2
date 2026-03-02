@@ -168,6 +168,7 @@ export function WorkoutRunner({
   const [isResting, setIsResting] = useState(false);
   const [isRestPaused, setIsRestPaused] = useState(false);
   const restEndRef = useRef(0);
+  const [restType, setRestType] = useState<"set" | "exercise">("set");
   const [autoRest, setAutoRest] = useState(true);
   const [difficulty, setDifficulty] = useState(3);
   const [fatigue, setFatigue] = useState(3);
@@ -390,10 +391,11 @@ export function WorkoutRunner({
     onStepChange?.(nextStep);
   };
 
-  const startRestTimer = (duration: number) => {
+  const startRestTimer = (duration: number, type: "set" | "exercise" = "set") => {
     if (duration <= 0) return;
     restEndRef.current = Date.now() + duration * 1000;
     setRestTimer(duration);
+    setRestType(type);
     setIsResting(true);
     setIsRestPaused(false);
   };
@@ -439,12 +441,18 @@ export function WorkoutRunner({
     } finally {
       isLoggingRef.current = false;
     }
-    if (autoRest && currentBlock.rest_seconds > 0) {
-      startRestTimer(currentBlock.rest_seconds);
-    }
-    if (currentSetIndex >= currentBlock.sets) {
+    const isLastSet = currentSetIndex >= currentBlock.sets;
+    if (isLastSet) {
+      // Last set of exercise: advance first, then optionally show inter-exercise timer
       await advanceExercise();
+      if (autoRest && currentBlock.rest_seconds > 0) {
+        startRestTimer(currentBlock.rest_seconds, "exercise");
+      }
       return;
+    }
+    // Not the last set: show inter-set rest timer, then move to next set
+    if (autoRest && currentBlock.rest_seconds > 0) {
+      startRestTimer(currentBlock.rest_seconds, "set");
     }
     setCurrentSetIndex((prev) => Math.min(currentBlock.sets, prev + 1));
   };
@@ -493,11 +501,38 @@ export function WorkoutRunner({
 
   const selectInputType = (type: "weight" | "reps") => {
     if (!currentBlock) return;
+    // Save current draft before switching input type and compute updated inputs
+    let updatedInputs = currentSetInputs;
+    if (draftValue) {
+      let valueToSave: number | undefined;
+      if (activeInput === "weight" && draftValue === String(BODYWEIGHT_SENTINEL)) {
+        valueToSave = BODYWEIGHT_SENTINEL;
+      } else {
+        const parsed =
+          activeInput === "weight"
+            ? Number(draftValue.replace(",", "."))
+            : Number(draftValue);
+        if (Number.isFinite(parsed)) {
+          valueToSave = parsed;
+        }
+      }
+      if (valueToSave !== undefined) {
+        updatedInputs = {
+          ...currentSetInputs,
+          [currentSetIndex - 1]: {
+            ...currentSetInputs[currentSetIndex - 1],
+            [activeInput]: valueToSave,
+          },
+        };
+        setCurrentSetInputs(updatedInputs);
+      }
+    }
     setActiveInput(type);
+    // Use updatedInputs (which includes the just-saved value) to load the next field
     const nextValue =
       type === "weight"
-        ? currentSetInputs[currentSetIndex - 1]?.weight ?? targetWeight ?? ""
-        : currentSetInputs[currentSetIndex - 1]?.reps ?? currentBlock?.reps ?? "";
+        ? updatedInputs[currentSetIndex - 1]?.weight ?? targetWeight ?? ""
+        : updatedInputs[currentSetIndex - 1]?.reps ?? currentBlock?.reps ?? "";
     setDraftValue(nextValue ? String(nextValue) : "");
     setShouldReplace(Boolean(nextValue));
   };
@@ -796,7 +831,7 @@ export function WorkoutRunner({
             type="button"
             variant="outline"
             className="h-12 rounded-xl px-3 flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-transform"
-            onClick={() => { if (restDuration > 0) startRestTimer(restDuration); }}
+            onClick={() => { if (restDuration > 0) startRestTimer(restDuration, "set"); }}
             disabled={restDuration <= 0}
             aria-label="Démarrer le repos"
           >
@@ -821,9 +856,13 @@ export function WorkoutRunner({
           <div className="flex items-start justify-between border-b px-6 py-4">
             <div>
               <div className="text-xs font-semibold text-muted-foreground">Timer</div>
-              <div className="text-lg font-semibold">Transition inter-exercice</div>
+              <div className="text-lg font-semibold">
+                {restType === "exercise" ? "Transition inter-exercice" : "Repos inter-série"}
+              </div>
               <div className="text-sm text-muted-foreground">
-                Prochain exercice : {nextExerciseDef?.nom_exercice ?? "À venir"}
+                {restType === "exercise"
+                  ? `Prochain exercice : ${nextExerciseDef?.nom_exercice ?? "À venir"}`
+                  : `Série ${currentSetIndex}/${formatStrengthValue(currentBlock?.sets)} · ${currentExerciseDef?.nom_exercice ?? ""}`}
               </div>
             </div>
             <Button
