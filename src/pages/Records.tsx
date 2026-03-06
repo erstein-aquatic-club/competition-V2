@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { shouldShowRecords } from "@/pages/Profile";
 import { Check, ChevronDown, ChevronRight, Dumbbell, Edit2, Download, RefreshCw, StickyNote, Trophy, Waves, X, AlertCircle } from "lucide-react";
 import { InlineBanner } from "@/components/shared/InlineBanner";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { motion, useReducedMotion } from "framer-motion";
 import { staggerChildren, listItem, successBounce, fadeIn } from "@/lib/animations";
 import { compareSwimEvents } from "@/lib/swim-sort";
@@ -270,6 +270,13 @@ export default function Records() {
 
   const { data: performances, isLoading: perfLoading, isError: perfIsError } = performancesQuery;
 
+  // Objectives query (for target line on chart)
+  const { data: objectives = [] } = useQuery({
+    queryKey: ["athlete-objectives"],
+    queryFn: () => api.getAthleteObjectives(),
+    enabled: showRecords,
+  });
+
   // Import performances mutation
   const importPerformances = useMutation({
     mutationFn: () => {
@@ -354,6 +361,15 @@ export default function Records() {
     () => groupedPerformances.find((group) => group.eventCode === histExpandedEvent) ?? null,
     [groupedPerformances, histExpandedEvent],
   );
+
+  // Target time from objective for the expanded event
+  const chartTargetTime = useMemo(() => {
+    if (!histExpandedEvent) return null;
+    const obj = objectives.find(
+      (o) => o.event_code === histExpandedEvent && o.pool_length === histPoolLen && o.target_time_seconds,
+    );
+    return obj?.target_time_seconds ?? null;
+  }, [histExpandedEvent, histPoolLen, objectives]);
 
   const { data: oneRMs, isLoading: oneRmLoading, isError: oneRmIsError } = oneRmQuery;
   const { data: exercises, isLoading: exercisesLoading, isError: exercisesIsError } = exercisesQuery;
@@ -1102,6 +1118,20 @@ export default function Records() {
                                     dot={{ r: 3 }}
                                     activeDot={{ r: 5 }}
                                   />
+                                  {chartTargetTime && (
+                                    <ReferenceLine
+                                      y={chartTargetTime}
+                                      stroke="hsl(var(--chart-4, 142 71% 45%))"
+                                      strokeDasharray="6 3"
+                                      strokeWidth={1.5}
+                                      label={{
+                                        value: `Objectif ${formatTimeSeconds(chartTargetTime)}`,
+                                        position: "insideTopRight",
+                                        fontSize: 10,
+                                        fill: "hsl(var(--chart-4, 142 71% 45%))",
+                                      }}
+                                    />
+                                  )}
                                 </LineChart>
                               </ResponsiveContainer>
                             </div>
