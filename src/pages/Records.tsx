@@ -20,6 +20,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { staggerChildren, listItem, successBounce, fadeIn } from "@/lib/animations";
 import { compareSwimEvents } from "@/lib/swim-sort";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { eventCodeFromFfnName } from "@/lib/objectiveHelpers";
 
 type OneRmRecord = {
   exercise_id: number;
@@ -365,11 +366,13 @@ export default function Records() {
   // Target time from objective for the expanded event
   const chartTargetTime = useMemo(() => {
     if (!histExpandedEvent) return null;
+    const objCode = eventCodeFromFfnName(histExpandedEvent);
+    if (!objCode) return null;
     const obj = objectives.find(
-      (o) => o.event_code === histExpandedEvent && o.pool_length === histPoolLen && o.target_time_seconds,
+      (o) => o.event_code === objCode && o.target_time_seconds,
     );
     return obj?.target_time_seconds ?? null;
-  }, [histExpandedEvent, histPoolLen, objectives]);
+  }, [histExpandedEvent, objectives]);
 
   const { data: oneRMs, isLoading: oneRmLoading, isError: oneRmIsError } = oneRmQuery;
   const { data: exercises, isLoading: exercisesLoading, isError: exercisesIsError } = exercisesQuery;

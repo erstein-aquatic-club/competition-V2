@@ -61,6 +61,18 @@ const EVENT_CODE_TO_NAMES: Record<string, string[]> = {
   "400QN": ["400 4 Nages", "400 4N", "400 4 N."],
 };
 
+/**
+ * Reverse lookup: given a FFN display name (e.g. "100 NL", "50 Pap."),
+ * return the compact objective event_code (e.g. "100NL", "50PAP") or null.
+ */
+export function eventCodeFromFfnName(ffnName: string): string | null {
+  const lower = ffnName.toLowerCase();
+  for (const [code, names] of Object.entries(EVENT_CODE_TO_NAMES)) {
+    if (names.some((n) => n.toLowerCase() === lower)) return code;
+  }
+  return null;
+}
+
 /** Stroke color class (border-left) keyed by stroke suffix. */
 export const STROKE_COLORS: Record<string, string> = {
   NL: "border-l-blue-500",
