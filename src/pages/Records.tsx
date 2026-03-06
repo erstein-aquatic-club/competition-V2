@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { api, type Exercise, type SwimmerPerformance } from "@/lib/api";
+import type { SwimRecordWithPool } from "@/lib/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,7 @@ import { InlineBanner } from "@/components/shared/InlineBanner";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { motion, useReducedMotion } from "framer-motion";
 import { staggerChildren, listItem, successBounce } from "@/lib/animations";
+import { compareSwimEvents } from "@/lib/swim-sort";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { eventCodeFromFfnName } from "@/lib/objectiveHelpers";
 
@@ -167,6 +169,12 @@ export default function Records() {
     queryKey: ["exercises"],
     queryFn: () => api.getExercises(),
     enabled: showRecords,
+  });
+
+  const swimRecordsQuery = useQuery({
+    queryKey: ["swim-records", userId, user, "training"],
+    queryFn: () => api.getSwimRecords({ athleteId: userId ?? undefined, athleteName: user ?? undefined, recordType: "training" }),
+    enabled: !!user && showRecords && swimMode === "training",
   });
 
   // Profile query (for IUF)
@@ -357,9 +365,21 @@ export default function Records() {
 
   const { data: oneRMs, isLoading: oneRmLoading, isError: oneRmIsError } = oneRmQuery;
   const { data: exercises, isLoading: exercisesLoading, isError: exercisesIsError } = exercisesQuery;
+  const { data: swimRecords, isLoading: swimLoading, isError: swimIsError } = swimRecordsQuery;
 
   const activePoolLen = histPoolLen;
-  const isMpp = swimMode !== "history";
+
+  // Training swim records filtered by pool length
+  const filteredSwimRecords = useMemo(() => {
+    const list = (swimRecords as { records?: SwimRecordWithPool[] } | undefined)?.records ?? [];
+    return list
+      .filter((r) => {
+        const pl = r?.pool_length ?? r?.poolLength ?? r?.poolLen;
+        const n = typeof pl === "number" ? pl : Number(pl);
+        return n === histPoolLen;
+      })
+      .sort((a, b) => compareSwimEvents(String(a.event_name ?? ""), String(b.event_name ?? "")));
+  }, [swimRecords, histPoolLen]);
 
   // --- SOURCE OF TRUTH: mutations / invalidateQueries unchanged ---
   const update1RM = useMutation({
@@ -533,6 +553,53 @@ export default function Records() {
             ) : null}
 
             <TabsContent value="swim" className="mt-0">
+              {swimMode === "training" ? (
+                <div className="mt-3 space-y-2">
+                  {swimLoading ? (
+                    <div className="grid gap-3">
+                      <SkeletonRow />
+                      <SkeletonRow />
+                      <SkeletonRow />
+                    </div>
+                  ) : swimIsError ? (
+                    <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+                      Impossible de charger les records d&apos;entraînement.
+                    </div>
+                  ) : filteredSwimRecords.length === 0 ? (
+                    <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+                      <Waves className="h-8 w-8 mx-auto text-muted-foreground/30" />
+                      <p className="mt-2">Aucun record en {histPoolLen}m</p>
+                    </div>
+                  ) : (
+                    <motion.div
+                      className="space-y-2 motion-reduce:animate-none"
+                      variants={prefersReducedMotion ? undefined : staggerChildren}
+                      initial={prefersReducedMotion ? false : "hidden"}
+                      animate={prefersReducedMotion ? false : "visible"}
+                    >
+                      {filteredSwimRecords.map((record) => (
+                        <motion.div key={record.id} variants={listItem}>
+                          <Card className="rounded-2xl">
+                            <CardContent className="p-0">
+                              <div className="flex items-center justify-between gap-3 px-3 py-3">
+                                <span className="text-sm font-semibold truncate">{record.event_name}</span>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <span className="text-[11px] text-muted-foreground tabular-nums">
+                                    ({formatDateShort(record.record_date)})
+                                  </span>
+                                  <span className="font-mono text-primary font-bold tabular-nums text-sm">
+                                    {formatTimeSeconds(record.time_seconds)}
+                                  </span>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </motion.div>
+                      ))}
+                    </motion.div>
+                  )}
+                </div>
+              ) : (
                 <div className="mt-3 space-y-3">
                   {/* Alerts */}
                   <InlineBanner
@@ -855,6 +922,7 @@ export default function Records() {
                     </SheetContent>
                   </Sheet>
                 </div>
+              )}
 
               <div className="h-6" />
             </TabsContent>
