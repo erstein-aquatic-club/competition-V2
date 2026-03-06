@@ -192,6 +192,7 @@ export default function Records() {
   const [histPoolLen, setHistPoolLen] = useState<25 | 50>(25);
   const [histExpandedEvent, setHistExpandedEvent] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState<boolean>(false);
+  const [histDays, setHistDays] = useState<number | null>(360); // null = all time
 
   const showRecords = shouldShowRecords(role);
 
@@ -302,11 +303,22 @@ export default function Records() {
     },
   });
 
+  // Cutoff date for history filter
+  const histCutoff = useMemo(() => {
+    if (histDays == null) return null;
+    const d = new Date();
+    d.setDate(d.getDate() - histDays);
+    return d.toISOString().slice(0, 10);
+  }, [histDays]);
+
   // Group performances by event_code, sorted by stroke+distance
   const groupedPerformances = useMemo(() => {
     if (!performances?.length) return [];
+    const filtered = histCutoff
+      ? performances.filter((p) => (p.competition_date ?? "") >= histCutoff)
+      : performances;
     const map = new Map<string, SwimmerPerformance[]>();
-    for (const p of performances) {
+    for (const p of filtered) {
       const list = map.get(p.event_code) ?? [];
       list.push(p);
       map.set(p.event_code, list);
@@ -341,7 +353,7 @@ export default function Records() {
         if (sa !== sb) return sa - sb;
         return distance(a.eventCode) - distance(b.eventCode);
       });
-  }, [performances]);
+  }, [performances, histCutoff]);
 
   // Chart data for expanded event (ascending date order)
   const chartData = useMemo(() => {
@@ -980,6 +992,32 @@ export default function Records() {
                     visible={!profileQuery.isError && !userIuf && !profileQuery.isLoading}
                     animate={false}
                   />
+
+                  {/* Timeline filter pills */}
+                  {!perfLoading && !perfIsError && !!userIuf && (
+                    <div className="flex gap-1.5 overflow-x-auto pb-1">
+                      {([
+                        { label: "90j", days: 90 },
+                        { label: "6 mois", days: 180 },
+                        { label: "1 an", days: 360 },
+                        { label: "2 ans", days: 730 },
+                        { label: "Tout", days: null },
+                      ] as const).map((opt) => (
+                        <button
+                          key={opt.label}
+                          type="button"
+                          className={`flex-shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                            histDays === opt.days
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          }`}
+                          onClick={() => setHistDays(opt.days)}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Event-grouped performance cards */}
                   {perfLoading ? (
