@@ -679,7 +679,10 @@ export default function Records() {
                                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                                   <XAxis dataKey="date" tick={{ fontSize: 10 }} className="text-muted-foreground" />
                                   <YAxis
-                                    domain={["auto", "auto"]}
+                                    domain={[
+                                      (dataMin: number) => chartTargetTime != null ? Math.min(dataMin, chartTargetTime) - 0.5 : dataMin,
+                                      (dataMax: number) => chartTargetTime != null ? Math.max(dataMax, chartTargetTime) + 0.5 : dataMax,
+                                    ]}
                                     tick={{ fontSize: 10 }}
                                     className="text-muted-foreground"
                                     reversed
