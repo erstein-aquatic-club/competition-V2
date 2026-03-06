@@ -18,7 +18,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Link2, Plus, RotateCcw, Trash2, Clock, MapPin, Ban } from "lucide-react";
+import { Link2, Plus, RotateCcw, Trash2, Clock, MapPin, Ban, ChevronLeft, ChevronRight } from "lucide-react";
 
 const DAYS_FR = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
 const DAYS_SHORT = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
@@ -56,18 +56,20 @@ export default function SwimmerSlotsTab({ athleteId, athleteName, groupId }: Pro
   const { toast } = useToast();
   const qc = useQueryClient();
 
-  // ── Absences for this week ─────────────────────
+  // ── Week offset (0 = current week, +1 = next, etc.) ──
+  const [weekOffset, setWeekOffset] = useState(0);
+
   const weekRange = useMemo(() => {
     const now = new Date();
     const jsDay = now.getDay(); // 0=Sun
     const mondayOffset = jsDay === 0 ? -6 : 1 - jsDay;
     const monday = new Date(now);
-    monday.setDate(now.getDate() + mondayOffset);
+    monday.setDate(now.getDate() + mondayOffset + weekOffset * 7);
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
     const fmt = (d: Date) => d.toISOString().slice(0, 10);
-    return { from: fmt(monday), to: fmt(sunday) };
-  }, []);
+    return { from: fmt(monday), to: fmt(sunday), monday, sunday };
+  }, [weekOffset]);
 
   const { data: absences = [] } = useQuery({
     queryKey: ["planned-absences", athleteId, weekRange.from],
@@ -231,13 +233,46 @@ export default function SwimmerSlotsTab({ athleteId, athleteName, groupId }: Pro
         </div>
       )}
 
+      {/* ── Week navigation ── */}
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          className="h-8 w-8 rounded-lg border border-border bg-card flex items-center justify-center hover:bg-muted transition active:scale-95"
+          onClick={() => setWeekOffset((o) => o - 1)}
+          aria-label="Semaine précédente"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          className="text-xs font-medium text-muted-foreground hover:text-foreground transition"
+          onClick={() => setWeekOffset(0)}
+          title="Revenir à cette semaine"
+        >
+          {weekOffset === 0
+            ? "Cette semaine"
+            : `${weekRange.monday.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} – ${weekRange.sunday.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}`}
+        </button>
+        <button
+          type="button"
+          className="h-8 w-8 rounded-lg border border-border bg-card flex items-center justify-center hover:bg-muted transition active:scale-95"
+          onClick={() => setWeekOffset((o) => o + 1)}
+          aria-label="Semaine suivante"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+
       {/* ── 7-column week strip ── */}
       <div className="grid grid-cols-7 gap-0 rounded-xl border border-border bg-card overflow-hidden">
         {[1, 2, 3, 4, 5, 6, 7].map((dow) => {
-          const isToday = dow === todayDow;
+          const isToday = weekOffset === 0 && dow === todayDow;
           const isSelected = dow === selectedDay;
           const daySlots = slotsByDay.get(dow) ?? [];
           const dayAbsence = absenceByDay.get(dow);
+          const dayDate = new Date(weekRange.monday);
+          dayDate.setDate(weekRange.monday.getDate() + (dow - 1));
+          const dayNum = dayDate.getDate();
 
           return (
             <button
@@ -257,6 +292,11 @@ export default function SwimmerSlotsTab({ athleteId, athleteName, groupId }: Pro
                 dayAbsence ? "text-red-500" : isToday ? "text-primary" : "text-muted-foreground"
               }`}>
                 {DAYS_SHORT[dow - 1]}
+              </span>
+              <span className={`text-[9px] tabular-nums ${
+                dayAbsence ? "text-red-400" : "text-muted-foreground/60"
+              }`}>
+                {dayNum}
               </span>
 
               {/* Slot count dot */}
@@ -310,6 +350,15 @@ export default function SwimmerSlotsTab({ athleteId, athleteName, groupId }: Pro
       <div className="space-y-2">
         <h3 className="text-sm font-semibold text-foreground px-0.5">
           {DAYS_FR[selectedDay - 1]}
+          {weekOffset !== 0 && (
+            <span className="text-muted-foreground font-normal ml-1">
+              {(() => {
+                const d = new Date(weekRange.monday);
+                d.setDate(weekRange.monday.getDate() + (selectedDay - 1));
+                return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+              })()}
+            </span>
+          )}
         </h3>
 
         {/* Absence banner */}

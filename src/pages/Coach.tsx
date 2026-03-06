@@ -850,7 +850,7 @@ export default function Coach() {
           <CoachSwimmerDetail
             athleteId={selectedCoachAthlete?.id ?? null}
             athleteName={selectedCoachAthlete?.display_name ?? null}
-            onBack={() => setActiveSection("home")}
+            onBack={() => setActiveSection("swimmers")}
           />
         </Suspense>
       ) : null}
