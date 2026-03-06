@@ -1124,9 +1124,32 @@ export default function Records() {
 
                           return (
                             <motion.div key={ex.id} className="px-3 py-2.5 motion-reduce:animate-none" variants={listItem}>
-                              {/* Line 1: Exercise name + weight + edit */}
+                              {/* Line 1: Exercise name + note icon + weight + edit */}
                               <div className="flex items-center justify-between gap-2">
-                                <span className="text-sm font-semibold truncate">{ex.nom_exercice}</span>
+                                <div className="flex items-center gap-1 min-w-0">
+                                  <span className="text-sm font-semibold truncate">{ex.nom_exercice}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (isEditingNote) {
+                                        setEditingNoteExerciseId(null);
+                                        setNoteDraft("");
+                                      } else {
+                                        setEditingNoteExerciseId(ex.id);
+                                        setNoteDraft(exerciseNote ?? "");
+                                      }
+                                    }}
+                                    className={cx(
+                                      "inline-flex items-center justify-center h-6 w-6 rounded-lg transition shrink-0",
+                                      exerciseNote
+                                        ? "text-primary hover:text-primary/80"
+                                        : "text-muted-foreground/40 hover:text-muted-foreground",
+                                    )}
+                                    aria-label={exerciseNote ? "Modifier la note" : "Ajouter une note"}
+                                  >
+                                    <StickyNote className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
                                 <div className="flex items-center gap-2 shrink-0">
                                   <span className={cx(
                                     "font-mono font-bold tabular-nums text-sm",
@@ -1147,7 +1170,7 @@ export default function Records() {
                                 </div>
                               </div>
 
-                              {/* Line 2: Date + note + % toggle */}
+                              {/* Line 2: Date + note text + % toggle */}
                               <div className="flex items-center justify-between mt-0.5">
                                 <div className="flex items-center gap-2 text-xs text-muted-foreground min-w-0">
                                   <span className="tabular-nums shrink-0">{formatDateShort(recordDate)}</span>
@@ -1166,27 +1189,6 @@ export default function Records() {
                                   ) : null}
                                 </div>
                                 <div className="flex items-center gap-1 shrink-0">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      if (isEditingNote) {
-                                        setEditingNoteExerciseId(null);
-                                        setNoteDraft("");
-                                      } else {
-                                        setEditingNoteExerciseId(ex.id);
-                                        setNoteDraft(exerciseNote ?? "");
-                                      }
-                                    }}
-                                    className={cx(
-                                      "inline-flex items-center justify-center h-7 w-7 rounded-lg transition",
-                                      exerciseNote
-                                        ? "text-primary hover:text-primary/80"
-                                        : "text-muted-foreground/40 hover:text-muted-foreground",
-                                    )}
-                                    aria-label={exerciseNote ? "Modifier la note" : "Ajouter une note"}
-                                  >
-                                    <StickyNote className="h-3.5 w-3.5" />
-                                  </button>
                                   {recordWeight > 0 && !isEditing ? (
                                     <button
                                       type="button"
