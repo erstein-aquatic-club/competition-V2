@@ -193,6 +193,7 @@ export default function Records() {
   const [histExpandedEvent, setHistExpandedEvent] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState<boolean>(false);
   const [histDays, setHistDays] = useState<number | null>(360); // null = all time
+  const [histComparePool, setHistComparePool] = useState(false);
 
   const showRecords = shouldShowRecords(role);
 
@@ -267,10 +268,24 @@ export default function Records() {
         iuf: userIuf || undefined,
         poolLength: histPoolLen,
       }),
-    enabled: !!userIuf && showRecords && swimMode === "history",
+    enabled: !!userIuf && showRecords,
   });
 
   const { data: performances, isLoading: perfLoading, isError: perfIsError } = performancesQuery;
+
+  // Other pool performances (for comparison overlay)
+  const otherPoolLen = histPoolLen === 25 ? 50 : 25;
+  const otherPoolQuery = useQuery<SwimmerPerformance[]>({
+    queryKey: ["swimmer-performances", userId, userIuf, otherPoolLen],
+    queryFn: () =>
+      api.getSwimmerPerformances({
+        userId: userId ?? undefined,
+        iuf: userIuf || undefined,
+        poolLength: otherPoolLen,
+      }),
+    enabled: !!userIuf && showRecords,
+    staleTime: 5 * 60 * 1000,
+  });
 
   // Objectives query (for target line on chart)
   const { data: objectives = [] } = useQuery({
@@ -311,14 +326,11 @@ export default function Records() {
     return d.toISOString().slice(0, 10);
   }, [histDays]);
 
-  // Group performances by event_code, sorted by stroke+distance
+  // Group performances by event_code, sorted by stroke+distance (all time for list)
   const groupedPerformances = useMemo(() => {
     if (!performances?.length) return [];
-    const filtered = histCutoff
-      ? performances.filter((p) => (p.competition_date ?? "") >= histCutoff)
-      : performances;
     const map = new Map<string, SwimmerPerformance[]>();
-    for (const p of filtered) {
+    for (const p of performances) {
       const list = map.get(p.event_code) ?? [];
       list.push(p);
       map.set(p.event_code, list);
@@ -353,22 +365,54 @@ export default function Records() {
         if (sa !== sb) return sa - sb;
         return distance(a.eventCode) - distance(b.eventCode);
       });
-  }, [performances, histCutoff]);
+  }, [performances]);
 
   // Chart data for expanded event (ascending date order)
   const chartData = useMemo(() => {
     if (!histExpandedEvent) return [];
     const group = groupedPerformances.find((g) => g.eventCode === histExpandedEvent);
     if (!group) return [];
-    return [...group.performances]
-      .filter((p) => p.competition_date)
+
+    // Build main pool data points (filtered by timeline cutoff)
+    const mainPoints = [...group.performances]
+      .filter((p) => p.competition_date && (!histCutoff || p.competition_date >= histCutoff))
       .sort((a, b) => (a.competition_date ?? "").localeCompare(b.competition_date ?? ""))
       .map((p) => ({
+        rawDate: p.competition_date ?? "",
         date: formatDateShort(p.competition_date),
         time: p.time_seconds,
+        timeOther: undefined as number | undefined,
         display: p.time_display ?? formatTimeSeconds(p.time_seconds),
       }));
-  }, [histExpandedEvent, groupedPerformances]);
+
+    if (!histComparePool || !otherPoolQuery.data) return mainPoints;
+
+    // Build other pool data points for the same event
+    const otherPerfs = otherPoolQuery.data
+      .filter((p) => p.event_code === histExpandedEvent && p.competition_date)
+      .filter((p) => !histCutoff || (p.competition_date ?? "") >= histCutoff);
+    if (otherPerfs.length === 0) return mainPoints;
+
+    // Merge into a single timeline
+    const map = new Map<string, (typeof mainPoints)[0]>();
+    for (const pt of mainPoints) map.set(pt.rawDate, pt);
+    for (const p of otherPerfs) {
+      const key = p.competition_date ?? "";
+      const existing = map.get(key);
+      if (existing) {
+        existing.timeOther = p.time_seconds;
+      } else {
+        map.set(key, {
+          rawDate: key,
+          date: formatDateShort(p.competition_date),
+          time: undefined as unknown as number,
+          timeOther: p.time_seconds,
+          display: "",
+        });
+      }
+    }
+    return [...map.values()].sort((a, b) => a.rawDate.localeCompare(b.rawDate));
+  }, [histExpandedEvent, groupedPerformances, histComparePool, otherPoolQuery.data, histCutoff]);
 
   const selectedHistoryGroup = useMemo(
     () => groupedPerformances.find((group) => group.eventCode === histExpandedEvent) ?? null,
@@ -993,32 +1037,6 @@ export default function Records() {
                     animate={false}
                   />
 
-                  {/* Timeline filter pills */}
-                  {!perfLoading && !perfIsError && !!userIuf && (
-                    <div className="flex gap-1.5 overflow-x-auto pb-1">
-                      {([
-                        { label: "90j", days: 90 },
-                        { label: "6 mois", days: 180 },
-                        { label: "1 an", days: 360 },
-                        { label: "2 ans", days: 730 },
-                        { label: "Tout", days: null },
-                      ] as const).map((opt) => (
-                        <button
-                          key={opt.label}
-                          type="button"
-                          className={`flex-shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                            histDays === opt.days
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted text-muted-foreground hover:bg-muted/80"
-                          }`}
-                          onClick={() => setHistDays(opt.days)}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
                   {/* Event-grouped performance cards */}
                   {perfLoading ? (
                     <div className="grid gap-3">
@@ -1119,8 +1137,21 @@ export default function Records() {
                         <div className="mt-5 space-y-4">
                           {chartData.length > 1 ? (
                             <div className="rounded-2xl border border-border bg-muted/20 px-2 pt-3 pb-1">
-                              <div className="text-xs text-muted-foreground mb-2 px-2">
-                                Courbe de progression
+                              <div className="flex items-center justify-between mb-2 px-2">
+                                <span className="text-xs text-muted-foreground">
+                                  Courbe de progression
+                                </span>
+                                <button
+                                  type="button"
+                                  className={`rounded-full px-2.5 py-0.5 text-[10px] font-medium transition-colors ${
+                                    histComparePool
+                                      ? "bg-orange-500 text-white"
+                                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                                  }`}
+                                  onClick={() => setHistComparePool((v) => !v)}
+                                >
+                                  {histComparePool ? `${histPoolLen}m + ${otherPoolLen}m` : `+ ${otherPoolLen}m`}
+                                </button>
                               </div>
                               <ResponsiveContainer width="100%" height={180}>
                                 <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
@@ -1139,14 +1170,15 @@ export default function Records() {
                                     }}
                                   />
                                   <Tooltip
-                                    formatter={(value: number) => {
+                                    formatter={(value: number, name: string) => {
                                       const min = Math.floor(value / 60);
                                       const sec = Math.floor(value % 60);
                                       const cs = Math.round((value % 1) * 100);
                                       const display = min > 0
                                         ? `${min}:${String(sec).padStart(2, "0")}.${String(cs).padStart(2, "0")}`
                                         : `${sec}.${String(cs).padStart(2, "0")}`;
-                                      return [display, "Temps"];
+                                      const label = name === "timeOther" ? `${otherPoolLen}m` : `${histPoolLen}m`;
+                                      return [display, label];
                                     }}
                                     labelStyle={{ fontSize: 11 }}
                                     contentStyle={{ borderRadius: 12, fontSize: 12 }}
@@ -1154,11 +1186,26 @@ export default function Records() {
                                   <Line
                                     type="monotone"
                                     dataKey="time"
+                                    name="time"
                                     stroke="hsl(var(--primary))"
                                     strokeWidth={2}
                                     dot={{ r: 3 }}
                                     activeDot={{ r: 5 }}
+                                    connectNulls
                                   />
+                                  {histComparePool && (
+                                    <Line
+                                      type="monotone"
+                                      dataKey="timeOther"
+                                      name="timeOther"
+                                      stroke="hsl(var(--chart-2, 25 95% 53%))"
+                                      strokeWidth={2}
+                                      strokeDasharray="4 2"
+                                      dot={{ r: 2.5 }}
+                                      activeDot={{ r: 4 }}
+                                      connectNulls
+                                    />
+                                  )}
                                   {chartTargetTime && (
                                     <ReferenceLine
                                       y={chartTargetTime}
@@ -1175,6 +1222,41 @@ export default function Records() {
                                   )}
                                 </LineChart>
                               </ResponsiveContainer>
+                              {histComparePool && (
+                                <div className="flex items-center justify-center gap-4 px-2 pb-2 pt-1">
+                                  <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                                    <span className="inline-block w-3 h-0.5 rounded-full bg-primary" />
+                                    {histPoolLen}m
+                                  </span>
+                                  <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                                    <span className="inline-block w-3 h-0.5 rounded-full" style={{ background: "hsl(var(--chart-2, 25 95% 53%))" }} />
+                                    {otherPoolLen}m
+                                  </span>
+                                </div>
+                              )}
+                              {/* Timeline filter pills */}
+                              <div className="flex gap-1.5 overflow-x-auto px-2 pb-2 pt-1">
+                                {([
+                                  { label: "90j", days: 90 },
+                                  { label: "6 mois", days: 180 },
+                                  { label: "1 an", days: 360 },
+                                  { label: "2 ans", days: 730 },
+                                  { label: "Tout", days: null },
+                                ] as const).map((opt) => (
+                                  <button
+                                    key={opt.label}
+                                    type="button"
+                                    className={`flex-shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-medium transition-colors ${
+                                      histDays === opt.days
+                                        ? "bg-primary text-primary-foreground"
+                                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                                    }`}
+                                    onClick={() => setHistDays(opt.days)}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                ))}
+                              </div>
                             </div>
                           ) : null}
 
