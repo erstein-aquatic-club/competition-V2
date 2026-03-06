@@ -651,23 +651,23 @@ export default function Records() {
                     </div>
                   ) : (
                     <motion.div
-                      className="space-y-2 motion-reduce:animate-none"
+                      className="grid grid-cols-2 gap-2 motion-reduce:animate-none"
                       variants={prefersReducedMotion ? undefined : staggerChildren}
                       initial={prefersReducedMotion ? false : "hidden"}
                       animate={prefersReducedMotion ? false : "visible"}
                     >
                       {filteredSwimRecords.map((record) => (
                         <motion.div key={record.id} variants={listItem}>
-                          <Card className="rounded-2xl">
+                          <Card className="rounded-2xl h-full">
                             <CardContent className="p-0">
-                              <div className="flex items-center justify-between gap-3 px-3 py-3">
+                              <div className="flex flex-col gap-1 px-3 py-3">
                                 <span className="text-sm font-semibold truncate">{record.event_name}</span>
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <span className="text-[11px] text-muted-foreground tabular-nums">
-                                    ({formatDateShort(record.record_date)})
-                                  </span>
+                                <div className="flex items-center gap-2">
                                   <span className="font-mono text-primary font-bold tabular-nums text-sm">
                                     {formatTimeSeconds(record.time_seconds)}
+                                  </span>
+                                  <span className="text-[11px] text-muted-foreground tabular-nums">
+                                    {formatDateShort(record.record_date)}
                                   </span>
                                 </div>
                               </div>
