@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useAuth } from "@/lib/auth";
 import { api, type Exercise, type SwimmerPerformance } from "@/lib/api";
 import type { SwimRecordWithPool } from "@/lib/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -52,6 +54,22 @@ function formatTimeSeconds(value?: number | null) {
   return `${seconds}.${String(centi).padStart(2, "0")}`;
 }
 
+/** Parser: accepts "75.32", "1:02.34", "0:59.9" -> seconds (float) */
+function parseTimeInputToSeconds(raw: string): number | null {
+  const s = raw.trim();
+  if (!s) return null;
+  if (s.includes(":")) {
+    const [mPart, secPartRaw] = s.split(":");
+    const m = Number(mPart);
+    if (!Number.isFinite(m) || m < 0) return null;
+    const sec = Number(secPartRaw.replace(",", "."));
+    if (!Number.isFinite(sec) || sec < 0) return null;
+    return m * 60 + sec;
+  }
+  const v = Number(s.replace(",", "."));
+  if (!Number.isFinite(v) || v < 0) return null;
+  return v;
+}
 
 function InlineEditBar({
   value,
@@ -132,7 +150,18 @@ export default function Records() {
     return "swim";
   });
 
-  const [swimMode, setSwimMode] = useState<SwimMode>("training");
+  const emptySwimForm = {
+    id: null as number | null,
+    event_name: "",
+    pool_length: "",
+    time_seconds: "",
+    record_date: "",
+    notes: "",
+  };
+
+  const [swimMode, setSwimMode] = useState<SwimMode>("comp");
+  const [swimForm, setSwimForm] = useState(emptySwimForm);
+  const [swimSheetOpen, setSwimSheetOpen] = useState(false);
   const [editingExerciseId, setEditingExerciseId] = useState<number | null>(null);
   const [editingOneRmValue, setEditingOneRmValue] = useState<string>("");
   const [expandedExerciseId, setExpandedExerciseId] = useState<number | null>(null);
@@ -399,6 +428,54 @@ export default function Records() {
     },
   });
 
+  const upsertSwimRecord = useMutation({
+    mutationFn: (data: Parameters<typeof api.upsertSwimRecord>[0]) => api.upsertSwimRecord(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["swim-records"] });
+      setSwimForm(emptySwimForm);
+      setSwimSheetOpen(false);
+      toast({ title: "Record mis à jour" });
+    },
+  });
+
+  const openAddSwim = () => {
+    setSwimForm({ ...emptySwimForm, pool_length: String(histPoolLen) });
+    setSwimSheetOpen(true);
+  };
+
+  const submitSwimForm = () => {
+    if (!swimForm.event_name.trim()) {
+      toast({ title: "Nom d'épreuve requis", variant: "destructive" });
+      return;
+    }
+    if (!swimForm.pool_length) {
+      toast({ title: "Bassin requis", variant: "destructive" });
+      return;
+    }
+    const seconds = parseTimeInputToSeconds(swimForm.time_seconds);
+    if (seconds === null) {
+      toast({ title: "Temps invalide", description: "Ex: 1:02.34 ou 62.34", variant: "destructive" });
+      return;
+    }
+    upsertSwimRecord.mutate({
+      id: swimForm.id || null,
+      athlete_id: userId,
+      athleteName: user,
+      athlete_name: user,
+      event_name: swimForm.event_name,
+      pool_length: parseInt(swimForm.pool_length, 10),
+      time_seconds: seconds,
+      record_date: swimForm.record_date || null,
+      notes: swimForm.notes || null,
+      record_type: "training",
+    });
+  };
+
+  const handleSwimSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    submitSwimForm();
+  };
+
   const setModeSafe = (mode: SwimMode) => {
     setSwimMode(mode);
   };
@@ -598,6 +675,87 @@ export default function Records() {
                       ))}
                     </motion.div>
                   )}
+
+                  <Button type="button" size="sm" variant="outline" onClick={openAddSwim} className="w-full rounded-xl text-xs h-8 gap-1">
+                    Ajouter un record
+                  </Button>
+
+                  <Sheet open={swimSheetOpen} onOpenChange={setSwimSheetOpen}>
+                    <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto rounded-t-3xl">
+                      <SheetHeader className="text-left">
+                        <SheetTitle>Ajouter un record</SheetTitle>
+                        <SheetDescription>
+                          Saisis un meilleur temps d&apos;entraînement.
+                        </SheetDescription>
+                      </SheetHeader>
+                      <form onSubmit={handleSwimSubmit} className="mt-5">
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="col-span-2">
+                              <Label className="text-xs mb-1.5 block">Épreuve</Label>
+                              <Input
+                                value={swimForm.event_name}
+                                onChange={(e) => setSwimForm({ ...swimForm, event_name: e.target.value })}
+                                placeholder="Ex: 100 NL, 200 Dos"
+                                className="h-10 rounded-xl"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs mb-1.5 block">Bassin</Label>
+                              <Select
+                                value={swimForm.pool_length}
+                                onValueChange={(value) => setSwimForm({ ...swimForm, pool_length: value })}
+                              >
+                                <SelectTrigger className="h-10 rounded-xl">
+                                  <SelectValue placeholder="—" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="25">25m</SelectItem>
+                                  <SelectItem value="50">50m</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label className="text-xs mb-1.5 block">Temps</Label>
+                              <Input
+                                value={swimForm.time_seconds}
+                                inputMode="decimal"
+                                placeholder="1:02.34"
+                                onChange={(e) => setSwimForm({ ...swimForm, time_seconds: e.target.value })}
+                                className="h-10 rounded-xl"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs mb-1.5 block">Date</Label>
+                              <Input
+                                type="date"
+                                value={swimForm.record_date}
+                                onChange={(e) => setSwimForm({ ...swimForm, record_date: e.target.value })}
+                                className="h-10 rounded-xl"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs mb-1.5 block">Notes</Label>
+                              <Input
+                                value={swimForm.notes}
+                                onChange={(e) => setSwimForm({ ...swimForm, notes: e.target.value })}
+                                placeholder="Optionnel"
+                                className="h-10 rounded-xl"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex justify-end gap-2 pb-2">
+                            <Button type="button" variant="outline" onClick={() => setSwimSheetOpen(false)} className="rounded-xl">
+                              Annuler
+                            </Button>
+                            <Button type="submit" disabled={upsertSwimRecord.isPending} className="rounded-xl">
+                              {upsertSwimRecord.isPending ? "Ajout..." : "Ajouter"}
+                            </Button>
+                          </div>
+                        </div>
+                      </form>
+                    </SheetContent>
+                  </Sheet>
                 </div>
               ) : (
                 <div className="mt-3 space-y-3">
