@@ -934,12 +934,13 @@ export default function Records() {
                                     labelStyle={{ fontSize: 11 }}
                                     contentStyle={{ borderRadius: 12, fontSize: 12 }}
                                   />
-                                  {chartTargetTime && (
+                                  {chartTargetTime != null && (
                                     <ReferenceLine
                                       y={chartTargetTime}
-                                      stroke="url(#objLine)"
+                                      stroke="#f59e0b"
                                       strokeWidth={2}
                                       strokeDasharray="8 4"
+                                      ifOverflow="extendDomain"
                                     />
                                   )}
                                   <Line
