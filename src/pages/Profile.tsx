@@ -744,7 +744,7 @@ export default function Profile() {
               badgeLabel={isCheckingUpdate ? "en cours" : (() => {
                 const ts = (window as any).__eacBuildTimestamp as string | undefined;
                 if (!ts) return null;
-                try { return new Date(ts).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }); }
+                try { const d = new Date(ts); return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) + " " + d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }); }
                 catch { return null; }
               })()}
               onClick={handleCheckUpdate}
