@@ -584,7 +584,6 @@ export default function Records() {
                       {groupedPerformances.map((group) => {
                         const bestPerformance =
                           group.performances.find((perf) => perf.id === group.bestId) ?? group.performances[0];
-                        const latestPerformance = group.performances[0];
 
                         return (
                           <motion.div key={group.eventCode} variants={listItem}>
@@ -604,18 +603,11 @@ export default function Records() {
                                         {group.performances.length}
                                       </span>
                                     </div>
-                                    <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-                                      <span>
-                                        Meilleur: {formatDateShort(bestPerformance?.competition_date)}
-                                      </span>
-                                      {latestPerformance?.competition_date && latestPerformance.id !== bestPerformance?.id ? (
-                                        <span>
-                                          Dernier: {formatDateShort(latestPerformance.competition_date)}
-                                        </span>
-                                      ) : null}
-                                    </div>
                                   </div>
                                   <div className="flex items-center gap-2 shrink-0">
+                                    <span className="text-[11px] text-muted-foreground tabular-nums">
+                                      ({formatDateShort(bestPerformance?.competition_date)})
+                                    </span>
                                     <span className="font-mono text-primary font-bold tabular-nums text-sm">
                                       {formatTimeSeconds(group.bestTime)}
                                     </span>
