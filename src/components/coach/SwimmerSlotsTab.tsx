@@ -18,7 +18,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Link2, Plus, RotateCcw, Trash2, Clock, MapPin } from "lucide-react";
+import { Link2, Plus, RotateCcw, Trash2, Clock, MapPin, Ban } from "lucide-react";
 
 const DAYS_FR = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
 const DAYS_SHORT = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
@@ -55,6 +55,36 @@ export default function SwimmerSlotsTab({ athleteId, athleteName, groupId }: Pro
   const { userId } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
+
+  // ── Absences for this week ─────────────────────
+  const weekRange = useMemo(() => {
+    const now = new Date();
+    const jsDay = now.getDay(); // 0=Sun
+    const mondayOffset = jsDay === 0 ? -6 : 1 - jsDay;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + mondayOffset);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const fmt = (d: Date) => d.toISOString().slice(0, 10);
+    return { from: fmt(monday), to: fmt(sunday) };
+  }, []);
+
+  const { data: absences = [] } = useQuery({
+    queryKey: ["planned-absences", athleteId, weekRange.from],
+    queryFn: () => api.getPlannedAbsences({ userId: athleteId, from: weekRange.from, to: weekRange.to }),
+  });
+
+  // Map day_of_week (1=Mon) → absence for the current week
+  const absenceByDay = useMemo(() => {
+    const map = new Map<number, { date: string; reason?: string | null }>();
+    for (const a of absences) {
+      const d = new Date(a.date + "T00:00:00");
+      const jsDay = d.getDay(); // 0=Sun
+      const dow = jsDay === 0 ? 7 : jsDay;
+      map.set(dow, { date: a.date, reason: a.reason });
+    }
+    return map;
+  }, [absences]);
 
   // ── Queries ─────────────────────────────────────
   const { data: customSlots, isLoading } = useQuery({
@@ -207,34 +237,39 @@ export default function SwimmerSlotsTab({ athleteId, athleteName, groupId }: Pro
           const isToday = dow === todayDow;
           const isSelected = dow === selectedDay;
           const daySlots = slotsByDay.get(dow) ?? [];
+          const dayAbsence = absenceByDay.get(dow);
 
           return (
             <button
               key={dow}
               type="button"
               className={`flex flex-col items-center py-2 transition-colors relative ${
-                isSelected
-                  ? "bg-primary/8"
-                  : "hover:bg-muted/50 active:bg-muted"
+                dayAbsence
+                  ? isSelected ? "bg-red-500/8" : "bg-red-500/5"
+                  : isSelected
+                    ? "bg-primary/8"
+                    : "hover:bg-muted/50 active:bg-muted"
               }`}
               onClick={() => setSelectedDay(dow)}
             >
               {/* Day label */}
               <span className={`text-[10px] font-semibold uppercase tracking-wider ${
-                isToday ? "text-primary" : "text-muted-foreground"
+                dayAbsence ? "text-red-500" : isToday ? "text-primary" : "text-muted-foreground"
               }`}>
                 {DAYS_SHORT[dow - 1]}
               </span>
 
               {/* Slot count dot */}
-              <span className={`text-xs font-bold tabular-nums mt-0.5 h-7 w-7 flex items-center justify-center rounded-full ${
-                isToday
-                  ? "bg-primary text-primary-foreground"
-                  : isSelected
-                    ? "text-foreground"
-                    : "text-foreground/80"
+              <span className={`relative text-xs font-bold tabular-nums mt-0.5 h-7 w-7 flex items-center justify-center rounded-full ${
+                dayAbsence
+                  ? "bg-red-500/15 text-red-600 dark:text-red-400"
+                  : isToday
+                    ? "bg-primary text-primary-foreground"
+                    : isSelected
+                      ? "text-foreground"
+                      : "text-foreground/80"
               }`}>
-                {daySlots.length || "·"}
+                {dayAbsence ? <Ban className="h-3.5 w-3.5" /> : (daySlots.length || "·")}
               </span>
 
               {/* Mini slot bars */}
@@ -276,6 +311,21 @@ export default function SwimmerSlotsTab({ athleteId, athleteName, groupId }: Pro
         <h3 className="text-sm font-semibold text-foreground px-0.5">
           {DAYS_FR[selectedDay - 1]}
         </h3>
+
+        {/* Absence banner */}
+        {absenceByDay.get(selectedDay) && (
+          <div className="rounded-lg border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/30 px-3 py-2 flex items-start gap-2">
+            <Ban className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-red-700 dark:text-red-300">Absence déclarée</p>
+              {absenceByDay.get(selectedDay)?.reason && (
+                <p className="text-xs text-red-600/80 dark:text-red-400/80 mt-0.5">
+                  {absenceByDay.get(selectedDay)!.reason}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         {selectedDaySlots.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 py-8 text-center">
