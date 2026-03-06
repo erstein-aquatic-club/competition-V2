@@ -1,24 +1,19 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { api, type Exercise, type SwimmerPerformance } from "@/lib/api";
-import type { SwimRecordWithPool } from "@/lib/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { shouldShowRecords } from "@/pages/Profile";
 import { Check, ChevronDown, ChevronRight, Dumbbell, Edit2, Download, RefreshCw, StickyNote, Trophy, Waves, X, AlertCircle } from "lucide-react";
 import { InlineBanner } from "@/components/shared/InlineBanner";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { motion, useReducedMotion } from "framer-motion";
-import { staggerChildren, listItem, successBounce, fadeIn } from "@/lib/animations";
-import { compareSwimEvents } from "@/lib/swim-sort";
+import { staggerChildren, listItem, successBounce } from "@/lib/animations";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { eventCodeFromFfnName } from "@/lib/objectiveHelpers";
 
@@ -30,9 +25,7 @@ type OneRmRecord = {
   notes?: string | null;
 };
 
-type SwimMode = "training" | "comp" | "history";
-type SwimEditorOpenFor = "add" | number | null;
-
+type SwimMode = "training" | "comp";
 const cx = (...c: Array<string | false | null | undefined>) => c.filter(Boolean).join(" ");
 
 function formatDateShort(value?: string | null) {
@@ -55,38 +48,6 @@ function formatTimeSeconds(value?: number | null) {
     return `${minutes}:${String(seconds).padStart(2, "0")}.${String(centi).padStart(2, "0")}`;
   }
   return `${seconds}.${String(centi).padStart(2, "0")}`;
-}
-
-/** Parser: accepts "75.32", "1:02.34", "0:59.9" -> seconds (float) */
-function parseTimeInputToSeconds(raw: string): number | null {
-  const s = raw.trim();
-  if (!s) return null;
-
-  // mm:ss(.cc)
-  if (s.includes(":")) {
-    const [mPart, secPartRaw] = s.split(":");
-    const m = Number(mPart);
-    if (!Number.isFinite(m) || m < 0) return null;
-
-    const secPart = secPartRaw.replace(",", ".");
-    const sec = Number(secPart);
-    if (!Number.isFinite(sec) || sec < 0) return null;
-
-    return m * 60 + sec;
-  }
-
-  // plain seconds
-  const v = Number(s.replace(",", "."));
-  if (!Number.isFinite(v) || v < 0) return null;
-  return v;
-}
-
-function parseFfnPointsFromNotes(notes?: string | null): number | null {
-  if (!notes) return null;
-  const m = notes.match(/FFN\s*\((\d+)\s*pts\)/i);
-  if (!m) return null;
-  const n = Number(m[1]);
-  return Number.isFinite(n) ? n : null;
 }
 
 
@@ -159,15 +120,6 @@ export default function Records() {
   const queryClient = useQueryClient();
   const prefersReducedMotion = useReducedMotion();
 
-  const emptySwimForm = {
-    id: null as number | null,
-    event_name: "",
-    pool_length: "",
-    time_seconds: "",
-    record_date: "",
-    notes: "",
-  };
-
   const [mainTab, setMainTab] = useState<"swim" | "1rm">(() => {
     const hash = window.location.hash;
     const qIdx = hash.indexOf("?");
@@ -178,10 +130,7 @@ export default function Records() {
     return "swim";
   });
 
-  const [swimForm, setSwimForm] = useState(emptySwimForm);
-  const [swimMode, setSwimMode] = useState<SwimMode>("training");
-  const [poolLen, setPoolLen] = useState<25 | 50>(25);
-  const [swimEditorOpenFor, setSwimEditorOpenFor] = useState<SwimEditorOpenFor>(null);
+  const [swimMode, setSwimMode] = useState<SwimMode>("comp");
   const [editingExerciseId, setEditingExerciseId] = useState<number | null>(null);
   const [editingOneRmValue, setEditingOneRmValue] = useState<string>("");
   const [expandedExerciseId, setExpandedExerciseId] = useState<number | null>(null);
@@ -207,23 +156,6 @@ export default function Records() {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, []);
 
-  // Robust pool reader: supports snake_case + camelCase payloads
-  const getPoolLen = (r: SwimRecordWithPool): 25 | 50 | null => {
-    const raw = r?.pool_length ?? r?.poolLength ?? r?.poolLen ?? r?.pool;
-    if (raw === null || raw === undefined) return null;
-
-    if (typeof raw === "number") {
-      return raw === 25 || raw === 50 ? raw : null;
-    }
-
-    const s = String(raw);
-    const m = s.match(/\b(25|50)\b/);
-    if (!m) return null;
-
-    const pl = Number(m[1]);
-    return pl === 25 || pl === 50 ? (pl as 25 | 50) : null;
-  };
-
   // --- SOURCE OF TRUTH: queries / keys / endpoints unchanged ---
   const oneRmQuery = useQuery<OneRmRecord[]>({
     queryKey: ["1rm", user, userId],
@@ -237,12 +169,6 @@ export default function Records() {
     enabled: showRecords,
   });
 
-  const swimRecordsQuery = useQuery({
-    queryKey: ["swim-records", userId, user, swimMode],
-    queryFn: () => api.getSwimRecords({ athleteId: userId ?? undefined, athleteName: user ?? undefined, recordType: swimMode === "comp" ? "comp" : "training" }),
-    enabled: !!user && showRecords,
-  });
-
   // Profile query (for IUF)
   const profileQuery = useQuery({
     queryKey: ["profile", userId],
@@ -251,11 +177,10 @@ export default function Records() {
   });
   const userIuf = String(profileQuery.data?.ffn_iuf ?? "").trim();
 
-  const mainError = oneRmQuery.error || exercisesQuery.error || swimRecordsQuery.error || profileQuery.error;
+  const mainError = oneRmQuery.error || exercisesQuery.error || profileQuery.error;
   const refetchAll = () => {
     oneRmQuery.refetch();
     exercisesQuery.refetch();
-    swimRecordsQuery.refetch();
     profileQuery.refetch();
   };
 
@@ -432,29 +357,8 @@ export default function Records() {
 
   const { data: oneRMs, isLoading: oneRmLoading, isError: oneRmIsError } = oneRmQuery;
   const { data: exercises, isLoading: exercisesLoading, isError: exercisesIsError } = exercisesQuery;
-  const {
-    data: swimRecords,
-    isLoading: swimLoading,
-    isFetching: swimFetching,
-    isError: swimIsError,
-    refetch: refetchSwimRecords,
-  } = swimRecordsQuery;
 
-  const reloadSwimRecords = () => {
-    // Refetch DB. Never triggers FFN sync.
-    refetchSwimRecords();
-  };
-
-  // Auto-refetch when entering competition view (DB refresh only)
-  useEffect(() => {
-    if (swimMode === "comp") {
-      reloadSwimRecords();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [swimMode]);
-
-  const activePoolLen = swimMode === "history" ? histPoolLen : poolLen;
-  const isMpp = swimMode !== "history";
+  const activePoolLen = histPoolLen;
 
   // --- SOURCE OF TRUTH: mutations / invalidateQueries unchanged ---
   const update1RM = useMutation({
@@ -474,94 +378,8 @@ export default function Records() {
     },
   });
 
-  const upsertSwimRecord = useMutation({
-    mutationFn: (data: Parameters<typeof api.upsertSwimRecord>[0]) => api.upsertSwimRecord(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["swim-records"] });
-      setSwimForm(emptySwimForm);
-      setSwimEditorOpenFor(null);
-      toast({ title: "Record mis à jour" });
-    },
-  });
-
-  const closeSwimEditor = () => {
-    setSwimForm(emptySwimForm);
-    setSwimEditorOpenFor(null);
-  };
-
-  const startSwimEdit = (record: SwimRecordWithPool) => {
-    const pl = getPoolLen(record);
-    setSwimForm({
-      id: record.id,
-      event_name: record.event_name ?? "",
-      pool_length: pl ? String(pl) : "",
-      time_seconds: record.time_seconds != null ? formatTimeSeconds(Number(record.time_seconds)) : "",
-      record_date: record.record_date ? String(record.record_date).split("T")[0] : "",
-      notes: record.notes ?? "",
-    });
-    setSwimEditorOpenFor(record.id);
-  };
-
-  const submitSwimForm = () => {
-    if (!swimForm.event_name.trim()) {
-      toast({ title: "Nom d'épreuve requis", variant: "destructive" });
-      return;
-    }
-    if (!swimForm.pool_length) {
-      toast({ title: "Bassin requis", variant: "destructive" });
-      return;
-    }
-
-    const seconds = parseTimeInputToSeconds(swimForm.time_seconds);
-    if (seconds === null) {
-      toast({ title: "Temps invalide", description: "Ex: 1:02.34 ou 62.34", variant: "destructive" });
-      return;
-    }
-
-    upsertSwimRecord.mutate({
-      id: swimForm.id || null,
-      athlete_id: userId,
-      athleteName: user,
-      athlete_name: user,
-      event_name: swimForm.event_name,
-      pool_length: parseInt(swimForm.pool_length, 10),
-      time_seconds: seconds,
-      record_date: swimForm.record_date || null,
-      notes: swimForm.notes || null,
-      record_type: swimMode,
-    });
-  };
-
-  const handleSwimSubmit = (event: FormEvent) => {
-    event.preventDefault();
-    submitSwimForm();
-  };
-
-  // ✅ Single source for the list: strict local filter (no FFN refresh)
-  const filteredSwimRecords = useMemo(() => {
-    const list = (swimRecords as { records?: SwimRecordWithPool[] } | undefined)?.records ?? [];
-
-    const filtered = list
-      .filter((r: SwimRecordWithPool) => {
-        const pl = getPoolLen(r);
-        if (pl !== poolLen) return false;
-        return true;
-      })
-      .sort((a: SwimRecordWithPool, b: SwimRecordWithPool) =>
-        compareSwimEvents(String(a.event_name ?? ""), String(b.event_name ?? ""))
-      );
-
-    return filtered;
-  }, [swimRecords, poolLen, swimMode]);
-
-  const openAddSwim = () => {
-    setSwimForm({ ...emptySwimForm, pool_length: String(poolLen) });
-    setSwimEditorOpenFor("add");
-  };
-
   const setModeSafe = (mode: SwimMode) => {
     setSwimMode(mode);
-    closeSwimEditor();
   };
 
   const openOneRmEdit = (exerciseId: number, current?: number | null) => {
@@ -676,19 +494,12 @@ export default function Records() {
                       </button>
                     );
                   })}
-                  <div className="ml-auto flex gap-1.5">
+                  <div className="ml-auto flex items-center gap-1.5">
                     {([25, 50] as const).map((v) => (
                       <button
                         key={v}
                         type="button"
-                        onClick={() => {
-                          if (swimMode === "history") {
-                            setHistPoolLen(v);
-                          } else {
-                            setPoolLen(v);
-                            closeSwimEditor();
-                          }
-                        }}
+                        onClick={() => setHistPoolLen(v)}
                         className={cx(
                           "rounded-xl border px-3 py-1.5 text-xs font-semibold transition",
                           activePoolLen === v
@@ -699,325 +510,28 @@ export default function Records() {
                         {v}m
                       </button>
                     ))}
-                  </div>
-                </div>
-
-                {/* Row 2: MPP / Historique sub-toggle + action buttons */}
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => { if (!isMpp) setModeSafe("training"); }}
-                    className={cx(
-                      "rounded-xl border px-3 py-1.5 text-xs font-semibold transition",
-                      isMpp
-                        ? "border-primary/30 bg-primary/5 text-primary"
-                        : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground",
-                    )}
-                    aria-pressed={isMpp}
-                  >
-                    MPP
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setModeSafe("history"); }}
-                    className={cx(
-                      "rounded-xl border px-3 py-1.5 text-xs font-semibold transition",
-                      swimMode === "history"
-                        ? "border-primary/30 bg-primary/5 text-primary"
-                        : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground",
-                    )}
-                    aria-pressed={swimMode === "history"}
-                  >
-                    Historique
-                  </button>
-
-                  <div className="ml-auto flex items-center gap-2">
-                    {swimMode === "training" ? (
-                      <Button type="button" size="sm" onClick={openAddSwim} className="rounded-xl text-xs h-8 gap-1">
-                        Ajouter
+                    <motion.div variants={successBounce} animate={importSuccess ? "visible" : "hidden"}>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => importPerformances.mutate()}
+                        disabled={importPerformances.isPending || !userIuf}
+                        className="rounded-xl text-xs h-8 gap-1"
+                      >
+                        {importPerformances.isPending ? (
+                          <RefreshCw className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Download className="h-3 w-3" />
+                        )}
+                        {importPerformances.isPending ? "Import..." : "Importer"}
                       </Button>
-                    ) : null}
-                    {swimMode === "history" ? (
-                      <motion.div variants={successBounce} animate={importSuccess ? "visible" : "hidden"}>
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => importPerformances.mutate()}
-                          disabled={importPerformances.isPending || !userIuf}
-                          className="rounded-xl text-xs h-8 gap-1"
-                        >
-                          {importPerformances.isPending ? (
-                            <RefreshCw className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Download className="h-3 w-3" />
-                          )}
-                          {importPerformances.isPending ? "Import..." : "Importer"}
-                        </Button>
-                      </motion.div>
-                    ) : null}
+                    </motion.div>
                   </div>
                 </div>
               </div>
             ) : null}
 
-            <Sheet
-              open={swimMode === "training" && swimEditorOpenFor === "add"}
-              onOpenChange={(open) => {
-                if (!open && swimEditorOpenFor === "add") {
-                  closeSwimEditor();
-                }
-              }}
-            >
-              <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto rounded-t-3xl">
-                <SheetHeader className="text-left">
-                  <SheetTitle>Ajouter un record</SheetTitle>
-                  <SheetDescription>
-                    Saisis rapidement un meilleur temps d&apos;entraînement sans quitter la liste.
-                  </SheetDescription>
-                </SheetHeader>
-
-                <form onSubmit={handleSwimSubmit} className="mt-5">
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="col-span-2">
-                        <Label className="text-xs mb-1.5 block">Épreuve</Label>
-                        <Input
-                          value={swimForm.event_name}
-                          onChange={(e) => setSwimForm({ ...swimForm, event_name: e.target.value })}
-                          placeholder="Ex: 100 NL, 200 Dos"
-                          className="h-10 rounded-xl"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs mb-1.5 block">Bassin</Label>
-                        <Select
-                          value={swimForm.pool_length}
-                          onValueChange={(value) => setSwimForm({ ...swimForm, pool_length: value })}
-                        >
-                          <SelectTrigger className="h-10 rounded-xl">
-                            <SelectValue placeholder="—" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="25">25m</SelectItem>
-                            <SelectItem value="50">50m</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label className="text-xs mb-1.5 block">Temps</Label>
-                        <Input
-                          value={swimForm.time_seconds}
-                          inputMode="decimal"
-                          placeholder="1:02.34"
-                          onChange={(e) => setSwimForm({ ...swimForm, time_seconds: e.target.value })}
-                          className="h-10 rounded-xl"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs mb-1.5 block">Date</Label>
-                        <Input
-                          type="date"
-                          value={swimForm.record_date}
-                          onChange={(e) => setSwimForm({ ...swimForm, record_date: e.target.value })}
-                          className="h-10 rounded-xl"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs mb-1.5 block">Notes</Label>
-                        <Input
-                          value={swimForm.notes}
-                          onChange={(e) => setSwimForm({ ...swimForm, notes: e.target.value })}
-                          placeholder="Optionnel"
-                          className="h-10 rounded-xl"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end gap-2 pb-2">
-                      <Button type="button" variant="outline" onClick={closeSwimEditor} className="rounded-xl">
-                        Annuler
-                      </Button>
-                      <Button type="submit" disabled={upsertSwimRecord.isPending} className="rounded-xl">
-                        {upsertSwimRecord.isPending ? "Ajout..." : "Ajouter"}
-                      </Button>
-                    </div>
-                  </div>
-                </form>
-              </SheetContent>
-            </Sheet>
-
             <TabsContent value="swim" className="mt-0">
-              {swimMode !== "history" ? (
-              <>
-              <div className="mt-3">
-
-              <Card className="w-full min-w-0 rounded-2xl">
-                <CardContent className="p-0">
-                  {swimLoading ? (
-                    <div className="p-4 grid gap-3">
-                      <SkeletonRow />
-                      <SkeletonRow />
-                      <SkeletonRow />
-                    </div>
-                  ) : swimIsError ? (
-                    <div className="mx-4 my-4 rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
-                      Impossible de charger les records natation.
-                    </div>
-                  ) : filteredSwimRecords.length === 0 ? (
-                    <div className="py-8 text-center">
-                      <Waves className="h-8 w-8 mx-auto text-muted-foreground/30" />
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        Aucun record en {poolLen}m
-                      </p>
-                      {swimMode === "training" && (
-                        <Button type="button" size="sm" variant="outline" onClick={openAddSwim} className="mt-3 rounded-xl text-xs h-8">
-                          Ajouter un record
-                        </Button>
-                      )}
-                    </div>
-                  ) : (
-                    <motion.div
-                      className="divide-y divide-border motion-reduce:animate-none"
-                      variants={prefersReducedMotion ? undefined : staggerChildren}
-                      initial={prefersReducedMotion ? false : "hidden"}
-                      animate={prefersReducedMotion ? false : "visible"}
-                    >
-                      {filteredSwimRecords.map((record) => {
-                        const isEditing = swimEditorOpenFor === record.id;
-                        const time = formatTimeSeconds(record.time_seconds);
-                        const date = formatDateShort(record.record_date);
-                        const notes = (record.notes ?? "").trim();
-
-                        const rawPts =
-                          record?.ffn_points ??
-                          record?.ffnPoints ??
-                          record?.points ??
-                          record?.pts ??
-                          null;
-
-                        const ptsNum =
-                          rawPts === null || rawPts === undefined ? NaN : Number(rawPts);
-
-                        const points = Number.isFinite(ptsNum) ? ptsNum : parseFfnPointsFromNotes(record?.notes);
-
-                        const meet =
-                          (record?.meet ?? record?.meet_name ?? record?.meetName ?? record?.competition ?? "").trim?.() ??
-                          "";
-
-                        return (
-                          <motion.div key={record.id} className="px-3 py-2.5 motion-reduce:animate-none" variants={listItem}>
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-sm font-semibold truncate">{record.event_name}</span>
-                              <div className="flex items-center gap-2 shrink-0">
-                                <span className="font-mono text-primary font-bold tabular-nums text-sm">
-                                  {time}
-                                </span>
-                                {swimMode === "training" && (
-                                  <button
-                                    type="button"
-                                    onClick={() => startSwimEdit(record)}
-                                    className="inline-flex items-center justify-center h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/60 transition"
-                                    aria-label={`Modifier ${record.event_name}`}
-                                  >
-                                    <Edit2 className="h-3.5 w-3.5" />
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
-                              {swimMode === "comp" && points != null && (
-                                <span className="tabular-nums">{String(points)} pts</span>
-                              )}
-                              <span className="tabular-nums">{date}</span>
-                              {swimMode === "comp" && meet && (
-                                <span className="truncate">{meet}</span>
-                              )}
-                              {swimMode === "training" && notes && (
-                                <span className="truncate italic">{notes}</span>
-                              )}
-                            </div>
-
-                              {swimMode === "training" && isEditing ? (
-                                <motion.div
-                                  className="mt-3"
-                                  variants={fadeIn}
-                                  initial="hidden"
-                                  animate="visible"
-                                >
-                                  <div className="rounded-2xl bg-muted/30 border border-border p-4 space-y-4">
-                                    <div className="grid gap-4 sm:grid-cols-2">
-                                      <div className="grid gap-2">
-                                        <Label>Temps</Label>
-                                        <Input
-                                          value={swimForm.time_seconds}
-                                          inputMode="decimal"
-                                          placeholder="1:02.34"
-                                          onChange={(e) => setSwimForm({ ...swimForm, time_seconds: e.target.value })}
-                                          className="rounded-xl"
-                                        />
-                                        <div className="text-xs text-muted-foreground">Format: mm:ss.cc ou secondes</div>
-                                      </div>
-
-                                      <div className="grid gap-2">
-                                        <Label>Date</Label>
-                                        <Input
-                                          type="date"
-                                          value={swimForm.record_date}
-                                          onChange={(e) => setSwimForm({ ...swimForm, record_date: e.target.value })}
-                                          className="rounded-xl"
-                                        />
-                                      </div>
-                                    </div>
-
-                                    <div className="grid gap-2">
-                                      <Label>Notes</Label>
-                                      <Textarea
-                                        value={swimForm.notes}
-                                        onChange={(e) => setSwimForm({ ...swimForm, notes: e.target.value })}
-                                        rows={2}
-                                        className="rounded-xl"
-                                      />
-                                    </div>
-
-                                    <div className="flex items-center justify-end gap-2">
-                                      <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={closeSwimEditor}
-                                        className="rounded-2xl gap-2"
-                                      >
-                                        <X className="h-4 w-4" />
-                                        Annuler
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        size="sm"
-                                        onClick={submitSwimForm}
-                                        disabled={upsertSwimRecord.isPending}
-                                        className="rounded-2xl gap-2"
-                                      >
-                                        <Check className="h-4 w-4" />
-                                        Enregistrer
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </motion.div>
-                              ) : null}
-                            </motion.div>
-                        );
-                      })}
-                    </motion.div>
-                  )}
-                </CardContent>
-              </Card>
-
-              </div>
-              </>
-              ) : null}
-
-              {/* ===== HISTORY TAB CONTENT ===== */}
-              {swimMode === "history" ? (
                 <div className="mt-3 space-y-3">
                   {/* Alerts */}
                   <InlineBanner
@@ -1303,7 +817,6 @@ export default function Records() {
                     </SheetContent>
                   </Sheet>
                 </div>
-              ) : null}
 
               <div className="h-6" />
             </TabsContent>
