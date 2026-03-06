@@ -25,7 +25,7 @@ type OneRmRecord = {
   notes?: string | null;
 };
 
-type SwimMode = "training" | "comp";
+type SwimMode = "training" | "comp" | "history";
 const cx = (...c: Array<string | false | null | undefined>) => c.filter(Boolean).join(" ");
 
 function formatDateShort(value?: string | null) {
@@ -130,7 +130,7 @@ export default function Records() {
     return "swim";
   });
 
-  const [swimMode, setSwimMode] = useState<SwimMode>("comp");
+  const [swimMode, setSwimMode] = useState<SwimMode>("training");
   const [editingExerciseId, setEditingExerciseId] = useState<number | null>(null);
   const [editingOneRmValue, setEditingOneRmValue] = useState<string>("");
   const [expandedExerciseId, setExpandedExerciseId] = useState<number | null>(null);
@@ -359,6 +359,7 @@ export default function Records() {
   const { data: exercises, isLoading: exercisesLoading, isError: exercisesIsError } = exercisesQuery;
 
   const activePoolLen = histPoolLen;
+  const isMpp = swimMode !== "history";
 
   // --- SOURCE OF TRUTH: mutations / invalidateQueries unchanged ---
   const update1RM = useMutation({
@@ -667,8 +668,22 @@ export default function Records() {
                                   {histComparePool ? `${histPoolLen}m + ${otherPoolLen}m` : `+ ${otherPoolLen}m`}
                                 </button>
                               </div>
-                              <ResponsiveContainer width="100%" height={180}>
-                                <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                              <ResponsiveContainer width="100%" height={200}>
+                                <LineChart data={chartData} margin={{ top: 8, right: 10, left: 0, bottom: 5 }}>
+                                  <defs>
+                                    <linearGradient id="objLine" x1="0" y1="0" x2="1" y2="0">
+                                      <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.85} />
+                                      <stop offset="50%" stopColor="#10b981" stopOpacity={0.85} />
+                                      <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.85} />
+                                    </linearGradient>
+                                    <filter id="dotGlow">
+                                      <feGaussianBlur stdDeviation="2.5" result="blur" />
+                                      <feMerge>
+                                        <feMergeNode in="blur" />
+                                        <feMergeNode in="SourceGraphic" />
+                                      </feMerge>
+                                    </filter>
+                                  </defs>
                                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                                   <XAxis dataKey="date" tick={{ fontSize: 10 }} className="text-muted-foreground" />
                                   <YAxis
@@ -697,13 +712,32 @@ export default function Records() {
                                     labelStyle={{ fontSize: 11 }}
                                     contentStyle={{ borderRadius: 12, fontSize: 12 }}
                                   />
+                                  {chartTargetTime && (
+                                    <ReferenceLine
+                                      y={chartTargetTime}
+                                      stroke="url(#objLine)"
+                                      strokeWidth={2}
+                                      strokeDasharray="8 4"
+                                    />
+                                  )}
                                   <Line
                                     type="monotone"
                                     dataKey="time"
                                     name="time"
                                     stroke="hsl(var(--primary))"
                                     strokeWidth={2}
-                                    dot={{ r: 3 }}
+                                    dot={(props: any) => {
+                                      const { cx: dx, cy: dy, payload, key } = props;
+                                      if (payload.time == null) return <g key={key} />;
+                                      const beats = chartTargetTime != null && payload.time <= chartTargetTime;
+                                      return beats ? (
+                                        <g key={key} filter="url(#dotGlow)">
+                                          <circle cx={dx} cy={dy} r={4.5} fill="#10b981" stroke="#fff" strokeWidth={1.5} />
+                                        </g>
+                                      ) : (
+                                        <circle key={key} cx={dx} cy={dy} r={3} fill="hsl(var(--primary))" stroke="#fff" strokeWidth={1} />
+                                      );
+                                    }}
                                     activeDot={{ r: 5 }}
                                     connectNulls
                                   />
@@ -720,24 +754,22 @@ export default function Records() {
                                       connectNulls
                                     />
                                   )}
-                                  {chartTargetTime && (
-                                    <ReferenceLine
-                                      y={chartTargetTime}
-                                      stroke="hsl(var(--chart-4, 142 71% 45%))"
-                                      strokeDasharray="6 3"
-                                      strokeWidth={1.5}
-                                      label={{
-                                        value: `Objectif ${formatTimeSeconds(chartTargetTime)}`,
-                                        position: "insideTopRight",
-                                        fontSize: 10,
-                                        fill: "hsl(var(--chart-4, 142 71% 45%))",
-                                      }}
-                                    />
-                                  )}
                                 </LineChart>
                               </ResponsiveContainer>
+                              {/* Objective badge */}
+                              {chartTargetTime && (
+                                <div className="flex items-center justify-center px-2 pt-1 pb-1">
+                                  <div className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-amber-500/10 border border-amber-400/25 dark:border-amber-500/20 px-3 py-1">
+                                    <span className="inline-block w-4 h-[2px] rounded-full bg-gradient-to-r from-amber-500 via-emerald-500 to-amber-500" />
+                                    <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">Objectif</span>
+                                    <span className="text-[11px] font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                                      {formatTimeSeconds(chartTargetTime)}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
                               {histComparePool && (
-                                <div className="flex items-center justify-center gap-4 px-2 pb-2 pt-1">
+                                <div className="flex items-center justify-center gap-4 px-2 pb-1 pt-0.5">
                                   <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                                     <span className="inline-block w-3 h-0.5 rounded-full bg-primary" />
                                     {histPoolLen}m
@@ -778,10 +810,14 @@ export default function Records() {
                             <div className="divide-y divide-border">
                               {selectedHistoryGroup.performances.map((perf) => {
                                 const isBest = perf.id === selectedHistoryGroup.bestId;
+                                const beatsObjective = chartTargetTime != null && perf.time_seconds <= chartTargetTime;
                                 return (
                                   <div
                                     key={perf.id}
-                                    className={cx("px-3 py-2.5", isBest && "bg-primary/5")}
+                                    className={cx(
+                                      "px-3 py-2.5",
+                                      beatsObjective ? "bg-emerald-500/5" : isBest ? "bg-primary/5" : undefined,
+                                    )}
                                   >
                                     <div className="flex items-center justify-between gap-2">
                                       <div className="flex items-center gap-1.5 min-w-0">
@@ -790,14 +826,21 @@ export default function Records() {
                                           {formatDateShort(perf.competition_date)}
                                         </span>
                                       </div>
-                                      <span
-                                        className={cx(
-                                          "font-mono tabular-nums text-sm shrink-0",
-                                          isBest ? "text-primary font-bold" : "font-medium",
+                                      <div className="flex items-center gap-1.5 shrink-0">
+                                        {beatsObjective && (
+                                          <Check className="h-3.5 w-3.5 text-emerald-500" />
                                         )}
-                                      >
-                                        {perf.time_display ?? formatTimeSeconds(perf.time_seconds)}
-                                      </span>
+                                        <span
+                                          className={cx(
+                                            "font-mono tabular-nums text-sm",
+                                            beatsObjective
+                                              ? "text-emerald-600 dark:text-emerald-400 font-bold"
+                                              : isBest ? "text-primary font-bold" : "font-medium",
+                                          )}
+                                        >
+                                          {perf.time_display ?? formatTimeSeconds(perf.time_seconds)}
+                                        </span>
+                                      </div>
                                     </div>
                                     <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
                                       {perf.ffn_points != null ? (
