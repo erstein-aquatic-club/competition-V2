@@ -397,7 +397,8 @@ export function WorkoutRunner({
       setCurrentSetInputs((prev: Record<number, SetInputValues>) =>
         Object.keys(prev).length ? {} : prev,
       );
-      setCurrentStep((prev: number) => (prev === 0 ? prev : 0));
+      // Keep step at 1 (first exercise) when starting fresh — don't reset to 0
+      setCurrentStep((prev: number) => (prev >= 1 ? prev : 1));
       return;
     }
     const blocks = session.items || [];
