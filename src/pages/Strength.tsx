@@ -97,10 +97,10 @@ const resolveStrengthItems = (
     const params = resolveExerciseParams(exerciseLookup.get(item.exercise_id), cycle);
     return {
       ...item,
-      sets: params.sets ?? 0,
-      reps: params.reps ?? 0,
-      rest_seconds: params.restSeries ?? 0,
-      percent_1rm: params.percent1rm ?? 0,
+      sets: params.sets ?? item.sets ?? 0,
+      reps: params.reps ?? item.reps ?? 0,
+      rest_seconds: params.restSeries ?? item.rest_seconds ?? 0,
+      percent_1rm: params.percent1rm ?? item.percent_1rm ?? 0,
     };
   });
 
@@ -481,13 +481,6 @@ export default function Strength() {
       });
       return;
     }
-    const updatedSession = {
-      ...activeSession,
-      cycle: cycleType,
-      items: activeFilteredItems,
-    };
-    setActiveSession(updatedSession);
-
     // Auto-start the run so WorkoutRunner skips step 0
     if (!activeRunId) {
       const sessionId = activeAssignment?.session_id ?? activeSession?.id ?? null;
@@ -506,7 +499,7 @@ export default function Strength() {
           athleteName: user ?? undefined,
           progress_pct: 0,
           session_id: sessionId,
-          cycle_type: updatedSession.cycle,
+          cycle_type: cycleType,
         });
         if (res?.run_id) {
           setActiveRunId(res.run_id);
@@ -517,6 +510,12 @@ export default function Strength() {
       }
     }
 
+    // Update session with resolved items and enter focus — batched to avoid double-render
+    setActiveSession({
+      ...activeSession,
+      cycle: cycleType,
+      items: activeFilteredItems,
+    });
     setActiveRunnerStep(1);
     setScreenMode("focus");
   };

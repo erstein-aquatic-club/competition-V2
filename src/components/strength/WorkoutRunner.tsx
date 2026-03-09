@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   Dumbbell,
   RotateCcw,
+  StickyNote,
   X,
 } from "lucide-react";
 import { BottomActionBar } from "@/components/shared/BottomActionBar";
@@ -734,7 +735,8 @@ export function WorkoutRunner({
         </div>
         {/* Inline note input */}
         {onUpdateNote && currentBlock && (
-          <div className="-mt-1">
+          <div className="-mt-0.5 flex items-center gap-1.5 rounded-lg border border-dashed border-border/60 bg-muted/30 px-2.5 py-1.5">
+            <StickyNote className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
             <input
               type="text"
               value={localNote}
@@ -742,8 +744,8 @@ export function WorkoutRunner({
                 setLocalNote(e.target.value);
                 handleNoteChange(currentBlock.exercise_id, e.target.value || null);
               }}
-              placeholder="Réglages machine, repères..."
-              className="w-full bg-transparent text-xs italic text-muted-foreground placeholder:text-muted-foreground/40 border-none outline-none focus:text-foreground py-1"
+              placeholder="Note : réglages machine, repères..."
+              className="w-full bg-transparent text-xs italic text-muted-foreground placeholder:text-muted-foreground/50 border-none outline-none focus:text-foreground"
             />
           </div>
         )}
