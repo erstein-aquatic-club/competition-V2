@@ -98,10 +98,10 @@ export function BottomActionBar({
 
       <div
         className={cn(
-          "flex w-full items-center justify-between gap-2 border-t bg-background px-4 py-3",
-          position === "fixed" && "mx-auto max-w-md shadow-[0_-2px_10px_rgba(0,0,0,0.1)]",
-          position === "fixed" && "md:supports-[padding:env(safe-area-inset-bottom)]:pb-[calc(env(safe-area-inset-bottom)+0.75rem)]",
-          position === "static" && "supports-[padding:env(safe-area-inset-bottom)]:pb-[calc(env(safe-area-inset-bottom)+0.75rem)]",
+          "flex w-full items-center justify-between gap-2 border-t bg-background/95 backdrop-blur-sm px-4 py-3",
+          position === "fixed" && "mx-auto max-w-md rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.08)]",
+          position === "fixed" && "pb-[max(0.75rem,env(safe-area-inset-bottom))]",
+          position === "static" && "pb-[max(0.75rem,env(safe-area-inset-bottom))]",
           containerClassName,
         )}
       >
