@@ -89,9 +89,6 @@ export default function SharedSwimSession() {
           <h1 className="mt-1 font-display text-2xl font-bold uppercase tracking-tight">
             {data.name}
           </h1>
-          {data.description ? (
-            <p className="mt-1 text-sm text-muted-foreground">{data.description}</p>
-          ) : null}
         </div>
       </div>
 
