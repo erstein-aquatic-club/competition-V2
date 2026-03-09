@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, StrengthCycleType, StrengthSessionTemplate, StrengthSessionItem, Exercise, Assignment } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -221,6 +221,42 @@ export default function Strength() {
     enabled: !!user,
   });
 
+  // Task 11: Exercise substitution state
+  const [substitutions, setSubstitutions] = useState<Map<number, { originalIndex: number; exercise: Exercise }>>(new Map());
+  const [originalItemCount, setOriginalItemCount] = useState(0);
+
+  const handleSubstitute = (itemIndex: number, newExercise: Exercise) => {
+    setSubstitutions((prev) => {
+      const next = new Map(prev);
+      next.set(itemIndex, { originalIndex: itemIndex, exercise: newExercise });
+      return next;
+    });
+    setActiveSession((prev) => {
+      if (!prev?.items) return prev;
+      const items = [...prev.items];
+      items[itemIndex] = { ...items[itemIndex], exercise_id: newExercise.id, exercise_name: newExercise.nom_exercice };
+      return { ...prev, items };
+    });
+  };
+
+  // Task 12: Add exercise handler
+  const handleAddExercise = (exercise: Exercise) => {
+    setActiveSession((prev) => {
+      if (!prev) return prev;
+      const newItem = {
+        exercise_id: exercise.id,
+        exercise_name: exercise.nom_exercice,
+        order_index: (prev.items?.length ?? 0),
+        sets: 3,
+        reps: 10,
+        rest_seconds: 90,
+        percent_1rm: 0,
+        cycle_type: cycleType,
+      };
+      return { ...prev, items: [...(prev.items ?? []), newItem] };
+    });
+  };
+
   const exerciseNotes = useMemo(() => {
     const map: Record<number, string | null> = {};
     (oneRMs ?? []).forEach((entry: OneRmEntry) => {
@@ -277,11 +313,13 @@ export default function Strength() {
   const logStrengthSet = useMutation({
     mutationFn: (data: Parameters<typeof api.logStrengthSet>[0]) => api.logStrengthSet(data),
     onMutate: () => {
-      setSaveState("saving");
+      if (screenMode !== "focus") setSaveState("saving");
     },
     onSuccess: (data) => {
-      setSaveState("saved");
-      setTimeout(() => setSaveState("idle"), 2000);
+      if (screenMode !== "focus") {
+        setSaveState("saved");
+        setTimeout(() => setSaveState("idle"), 2000);
+      }
       if (data?.one_rm_updated) {
         queryClient.invalidateQueries({ queryKey: ["1rm", user, userId] });
         toast({
@@ -304,11 +342,13 @@ export default function Strength() {
   const updateRun = useMutation({
     mutationFn: (data: UpdateStrengthRunInput) => api.updateStrengthRun(data),
     onMutate: () => {
-      setSaveState("saving");
+      if (screenMode !== "focus") setSaveState("saving");
     },
     onSuccess: (_data, variables) => {
-      setSaveState("saved");
-      setTimeout(() => setSaveState("idle"), 2000);
+      if (screenMode !== "focus") {
+        setSaveState("saved");
+        setTimeout(() => setSaveState("idle"), 2000);
+      }
       setIsFinishing(false);
       queryClient.invalidateQueries({ queryKey: ["strength_history"] });
       if (variables?.status !== "completed") {
@@ -402,6 +442,9 @@ export default function Strength() {
     handleStartAssignment(assign, cycleType);
     setActiveRunId(null);
     setActiveRunLogs(null);
+    setSubstitutions(new Map());
+    const items = resolveStrengthItems(sessionItems, cycleType, exerciseLookup);
+    setOriginalItemCount(items.length);
   };
 
   const startCatalogSession = (session: StrengthSessionTemplate) => {
@@ -425,6 +468,8 @@ export default function Strength() {
     setActiveRunLogs(null);
     setActiveRunnerStep(0);
     setScreenMode("reader");
+    setSubstitutions(new Map());
+    setOriginalItemCount(items.length);
   };
 
   const handleLaunchFocus = async () => {
@@ -554,34 +599,8 @@ export default function Strength() {
               isFinishing={isFinishing}
               onStepChange={(step) => setActiveRunnerStep(step)}
               onExitFocus={() => setScreenMode("reader")}
-              onStart={async () => {
-                if (activeRunId) return;
-                const sessionId = activeAssignment?.session_id ?? activeSession?.id ?? null;
-                if (!sessionId) {
-                  toast({
-                    title: "Session manquante",
-                    description: "Impossible de démarrer sans session associée.",
-                    variant: "destructive",
-                  });
-                  return;
-                }
-                const payload = {
-                  assignment_id: activeAssignment?.id ?? null,
-                  athlete_id: userId ?? null,
-                  athleteName: user ?? undefined,
-                  progress_pct: 0,
-                  session_id: sessionId,
-                  cycle_type: activeSession?.cycle,
-                };
-                try {
-                  const res = await startRun.mutateAsync(payload);
-                  if (res?.run_id) {
-                    setActiveRunId(res.run_id);
-                  }
-                } catch {
-                  return;
-                }
-              }}
+              onAddExercise={handleAddExercise}
+              onSubstitute={handleSubstitute}
               onLogSets={async (blockLogs) => {
                 if (!activeRunId) return;
                 setActiveRunLogs((prev) => [...(prev ?? []), ...blockLogs]);
@@ -689,6 +708,10 @@ export default function Strength() {
                   saveState={saveState}
                   onBack={() => setScreenMode("list")}
                   onLaunch={handleLaunchFocus}
+                  substitutions={substitutions}
+                  onSubstitute={handleSubstitute}
+                  originalItemCount={originalItemCount}
+                  onAddExercise={handleAddExercise}
                 />
               )}
             </TabsContent>

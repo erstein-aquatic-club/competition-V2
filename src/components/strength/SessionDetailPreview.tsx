@@ -1,14 +1,47 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { StrengthSessionTemplate, StrengthSessionItem, Exercise, Assignment, StrengthCycleType } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ChevronLeft, ChevronRight, Dumbbell, Calendar, Play } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { motion } from "framer-motion";
 import { fadeIn } from "@/lib/animations";
 import { BottomActionBar, SaveState } from "@/components/shared/BottomActionBar";
+import { ExercisePicker } from "@/components/strength/ExercisePicker";
+import { cn } from "@/lib/utils";
 import type { OneRmEntry } from "@/lib/types";
+
+const cycleDescriptions: Record<string, { color: string; bgColor: string; borderColor: string; description: string }> = {
+  endurance: {
+    color: "text-blue-700 dark:text-blue-300",
+    bgColor: "bg-blue-50 dark:bg-blue-950/40",
+    borderColor: "border-blue-200 dark:border-blue-800",
+    description: "Charges légères, séries longues, récupération courte. Travail d'endurance musculaire.",
+  },
+  hypertrophie: {
+    color: "text-amber-700 dark:text-amber-300",
+    bgColor: "bg-amber-50 dark:bg-amber-950/40",
+    borderColor: "border-amber-200 dark:border-amber-800",
+    description: "Charges modérées, séries moyennes. Travail de volume et de développement musculaire.",
+  },
+  force: {
+    color: "text-red-700 dark:text-red-300",
+    bgColor: "bg-red-50 dark:bg-red-950/40",
+    borderColor: "border-red-200 dark:border-red-800",
+    description: "Charges lourdes, peu de répétitions, récupération longue entre les séries.",
+  },
+};
 
 const formatStrengthValue = (value?: number | null) => {
   const numeric = Number(value);
@@ -32,6 +65,10 @@ interface SessionDetailPreviewProps {
   saveState: SaveState;
   onBack: () => void;
   onLaunch: () => void;
+  substitutions?: Map<number, { originalIndex: number; exercise: Exercise }>;
+  onSubstitute?: (itemIndex: number, exercise: Exercise) => void;
+  originalItemCount?: number;
+  onAddExercise?: (exercise: Exercise) => void;
 }
 
 export function SessionDetailPreview({
@@ -44,6 +81,10 @@ export function SessionDetailPreview({
   saveState,
   onBack,
   onLaunch,
+  substitutions,
+  onSubstitute,
+  originalItemCount,
+  onAddExercise,
 }: SessionDetailPreviewProps) {
   const exerciseLookup = useMemo(() => {
     return new Map(exercises.map((exercise) => [exercise.id, exercise]));
@@ -51,9 +92,22 @@ export function SessionDetailPreview({
 
   const items = session.items ?? [];
 
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerTargetIndex, setPickerTargetIndex] = useState<number | null>(null);
+  const [addPickerOpen, setAddPickerOpen] = useState(false);
+  const [disclaimerShown, setDisclaimerShown] = useState(false);
+  const [disclaimerOpen, setDisclaimerOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+
+  const withDisclaimer = (action: () => void) => {
+    if (disclaimerShown) { action(); return; }
+    setPendingAction(() => action);
+    setDisclaimerOpen(true);
+  };
+
   return (
     <motion.div
-      className="space-y-5 pb-36"
+      className="space-y-5 pb-48"
       variants={fadeIn}
       initial="hidden"
       animate="visible"
@@ -75,6 +129,32 @@ export function SessionDetailPreview({
           <h1 className="text-xl font-bold tracking-tight truncate">{session.title}</h1>
         </div>
       </div>
+
+      {/* Cycle context banner */}
+      {(() => {
+        const desc = cycleDescriptions[cycleType] ?? cycleDescriptions.endurance;
+        const cycleLabel = cycleOptions.find((o) => o.value === cycleType)?.label ?? cycleType;
+        const assignedCycle = assignment?.cycle;
+        const hasCoachRecommendation = assignedCycle && assignedCycle !== cycleType;
+        return (
+          <div className={cn("rounded-2xl border p-4 space-y-2", desc.bgColor, desc.borderColor)}>
+            <div className={cn("text-sm font-bold", desc.color)}>
+              Cycle {cycleLabel} sélectionné
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {desc.description}
+            </p>
+            {hasCoachRecommendation && (
+              <p className="text-xs font-semibold text-muted-foreground">
+                Recommandé par le coach :{" "}
+                <span className={desc.color}>
+                  {cycleOptions.find((o) => o.value === assignedCycle)?.label ?? assignedCycle}
+                </span>
+              </p>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Hero card avec infos clés */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 p-5">
@@ -176,10 +256,35 @@ export function SessionDetailPreview({
 
                   {/* Titre exercice */}
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate">
-                      {exercise?.nom_exercice ?? item.exercise_name ?? "Exercice"}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-semibold text-sm truncate">
+                        {exercise?.nom_exercice ?? item.exercise_name ?? "Exercice"}
+                      </p>
+                      {substitutions?.has(index) && (
+                        <span className="shrink-0 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 text-[10px] font-bold">Modifié</span>
+                      )}
+                      {originalItemCount !== undefined && index >= originalItemCount && (
+                        <span className="shrink-0 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 text-[10px] font-bold">Ajouté</span>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Replace button */}
+                  {onSubstitute && (
+                    <button
+                      type="button"
+                      className="shrink-0 text-[10px] font-semibold text-primary px-1.5 py-0.5 rounded-md hover:bg-primary/10 active:scale-95 transition-all"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        withDisclaimer(() => {
+                          setPickerTargetIndex(index);
+                          setPickerOpen(true);
+                        });
+                      }}
+                    >
+                      Remplacer
+                    </button>
+                  )}
 
                   {/* Stats compactes: séries×reps | repos */}
                   <div className="flex items-center gap-2 shrink-0 text-xs font-medium text-muted-foreground">
@@ -221,6 +326,7 @@ export function SessionDetailPreview({
                         className="w-full h-full max-h-36 object-contain"
                         loading="lazy"
                         decoding="async"
+                        fetchPriority="low"
                       />
                     </div>
                   )}
@@ -276,6 +382,61 @@ export function SessionDetailPreview({
           </div>
         )}
       </div>
+
+      {onAddExercise && (
+        <button
+          type="button"
+          className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-muted-foreground/20 py-3 text-sm font-semibold text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors active:scale-[0.98]"
+          onClick={() => withDisclaimer(() => setAddPickerOpen(true))}
+        >
+          + Ajouter un exercice
+        </button>
+      )}
+
+      {onSubstitute && (
+        <ExercisePicker
+          open={pickerOpen}
+          onOpenChange={setPickerOpen}
+          exercises={exercises}
+          onSelect={(exercise) => {
+            if (pickerTargetIndex !== null) onSubstitute(pickerTargetIndex, exercise);
+            setPickerTargetIndex(null);
+          }}
+          title="Remplacer l'exercice"
+        />
+      )}
+
+      {onAddExercise && (
+        <ExercisePicker
+          open={addPickerOpen}
+          onOpenChange={setAddPickerOpen}
+          exercises={exercises}
+          onSelect={(exercise) => onAddExercise(exercise)}
+          title="Ajouter un exercice"
+        />
+      )}
+
+      <AlertDialog open={disclaimerOpen} onOpenChange={setDisclaimerOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Attention</AlertDialogTitle>
+            <AlertDialogDescription>
+              Toute modification se fait sous ta responsabilité. Le coach aura accès à la séance réelle effectuée. Des changements incohérents avec le travail demandé peuvent entraîner des risques de blessure ou une perte de performance.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingAction(null)}>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              setDisclaimerShown(true);
+              setDisclaimerOpen(false);
+              pendingAction?.();
+              setPendingAction(null);
+            }}>
+              J'ai compris
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Bottom action bar fixe — couvre le dock mobile */}
       <BottomActionBar saveState={saveState} className="bottom-0">

@@ -1,12 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,18 +18,13 @@ import {
 import {
   Check,
   CheckCircle2,
-  ChevronRight,
   Dumbbell,
-  Loader2,
-  Pause,
   RotateCcw,
-  StickyNote,
-  Timer,
   X,
 } from "lucide-react";
 import { BottomActionBar } from "@/components/shared/BottomActionBar";
-import { ScrollContainer } from "@/components/shared/ScrollContainer";
 import { ScaleSelector5 } from "@/components/shared/ScaleSelector5";
+import { ExercisePicker } from "@/components/strength/ExercisePicker";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { colors } from "@/lib/design-tokens";
@@ -125,7 +118,6 @@ export function WorkoutRunner({
   exercises,
   oneRMs,
   onFinish,
-  onStart,
   onLogSets,
   onProgress,
   initialLogs,
@@ -137,12 +129,13 @@ export function WorkoutRunner({
   onExitFocus,
   exerciseNotes,
   onUpdateNote,
+  onAddExercise,
+  onSubstitute,
 }: {
   session: StrengthSessionTemplate;
   exercises: Exercise[];
   oneRMs: OneRmEntry[];
   onFinish: (data: WorkoutFinishData) => void;
-  onStart?: () => Promise<void> | void;
   onLogSets?: (logs: SetLogEntry[]) => Promise<void> | void;
   onProgress?: (progressPct: number) => Promise<void> | void;
   initialLogs?: SetLogEntry[] | null;
@@ -154,10 +147,22 @@ export function WorkoutRunner({
   onExitFocus?: () => void;
   exerciseNotes?: Record<number, string | null>;
   onUpdateNote?: (exerciseId: number, note: string | null) => void;
+  onAddExercise?: (exercise: Exercise) => void;
+  onSubstitute?: (itemIndex: number, exercise: Exercise) => void;
 }) {
   const { toast } = useToast();
   const isLoggingRef = useRef(false);
-  const [currentStep, setCurrentStep] = useState(initialStep ?? 0);
+
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  useEffect(() => {
+    const on = () => setIsOnline(true);
+    const off = () => setIsOnline(false);
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
+  }, []);
+
+  const [currentStep, setCurrentStep] = useState(initialStep ?? 1);
   const [logs, setLogs] = useState<SetLogEntry[]>([]);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [isActive, setIsActive] = useState(true);
@@ -181,10 +186,33 @@ export function WorkoutRunner({
   const [draftValue, setDraftValue] = useState("");
   const [shouldReplace, setShouldReplace] = useState(false);
   const [isGifOpen, setIsGifOpen] = useState(false);
-  const [isStarting, setIsStarting] = useState(false);
   const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
-  const [noteSheetOpen, setNoteSheetOpen] = useState(false);
-  const [noteDraft, setNoteDraft] = useState("");
+
+  // Inline note state (refs only - effects defined after currentBlock)
+  const [localNote, setLocalNote] = useState("");
+  const noteTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const handleNoteChange = (exerciseId: number, value: string | null) => {
+    clearTimeout(noteTimerRef.current);
+    noteTimerRef.current = setTimeout(() => {
+      onUpdateNote?.(exerciseId, value);
+    }, 800);
+  };
+
+  // Task 13: Continue from completion
+  const [continuePickerOpen, setContinuePickerOpen] = useState(false);
+
+  // Task 14: Substitution in focus mode
+  const [substitutePickerOpen, setSubstitutePickerOpen] = useState(false);
+  const [focusDisclaimerShown, setFocusDisclaimerShown] = useState(false);
+  const [focusDisclaimerOpen, setFocusDisclaimerOpen] = useState(false);
+  const [focusPendingAction, setFocusPendingAction] = useState<(() => void) | null>(null);
+
+  const withFocusDisclaimer = (action: () => void) => {
+    if (focusDisclaimerShown) { action(); return; }
+    setFocusPendingAction(() => action);
+    setFocusDisclaimerOpen(true);
+  };
 
   useEffect(() => {
     if (!isActive) return;
@@ -253,6 +281,14 @@ export function WorkoutRunner({
     return Array.isArray(raw) ? raw : [];
   })();
   const restDuration = currentBlock?.rest_seconds ?? 0;
+
+  // Sync local note when exercise changes
+  useEffect(() => {
+    if (currentBlock) {
+      setLocalNote(exerciseNotes?.[currentBlock.exercise_id] ?? "");
+    }
+  }, [currentBlock?.exercise_id, exerciseNotes]);
+
   const progressPct = workoutPlan.length
     ? Math.min(100, Math.max(0, Math.round(((currentStep - 1) / workoutPlan.length) * 100)))
     : 0;
@@ -379,6 +415,14 @@ export function WorkoutRunner({
     }
     setCurrentStep((prev) => (prev === resolvedStep ? prev : resolvedStep));
   }, [initialLogs, session.items]);
+
+  // Task 15: preload next exercise GIF
+  useEffect(() => {
+    if (nextExerciseDef?.illustration_gif) {
+      const img = new Image();
+      img.src = nextExerciseDef.illustration_gif;
+    }
+  }, [nextExerciseDef?.illustration_gif]);
 
   useEffect(() => {
     if (currentStep <= workoutPlan.length || hasCelebrated) return;
@@ -537,51 +581,6 @@ export function WorkoutRunner({
     setShouldReplace(Boolean(nextValue));
   };
 
-  if (currentStep === 0) {
-    return (
-      <div className="space-y-6 text-center py-8 animate-in zoom-in duration-300">
-        <div className="h-24 w-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto animate-pulse">
-          <Dumbbell className="h-10 w-10 text-primary ml-1" />
-        </div>
-        <div>
-          <h2 className="text-3xl font-bold font-display uppercase">{session.title}</h2>
-          <p className="text-muted-foreground text-lg">{session.description}</p>
-          <div className="flex gap-2 justify-center mt-4">
-            <Badge variant="outline" className="text-sm px-3 py-1">
-              {session.cycle}
-            </Badge>
-            <Badge variant="secondary" className="text-sm px-3 py-1">
-              {workoutPlan.length} Exercices
-            </Badge>
-          </div>
-        </div>
-        <Button
-          size="lg"
-          className="w-full text-xl h-14 font-bold uppercase tracking-wider shadow-lg hover:scale-[1.02] transition-transform"
-          disabled={isStarting}
-          onClick={async () => {
-            setIsStarting(true);
-            try {
-              await onStart?.();
-              updateStep(1);
-            } finally {
-              setIsStarting(false);
-            }
-          }}
-        >
-          {isStarting ? (
-            <>
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              CHARGEMENT...
-            </>
-          ) : (
-            "COMMENCER SÉANCE"
-          )}
-        </Button>
-      </div>
-    );
-  }
-
   if (currentStep > workoutPlan.length) {
     return (
       <div className="space-y-6 animate-in fade-in">
@@ -607,6 +606,16 @@ export function WorkoutRunner({
                 <div className="text-xs uppercase font-bold text-muted-foreground">Séries</div>
                 <div className="text-2xl font-mono font-bold">{logs.length}</div>
               </div>
+            </div>
+
+            <div className="border-t pt-4">
+              <Button
+                variant="outline"
+                className="w-full rounded-2xl h-12"
+                onClick={() => setContinuePickerOpen(true)}
+              >
+                + Continuer — ajouter des exercices
+              </Button>
             </div>
 
             <div className="space-y-3">
@@ -682,8 +691,9 @@ export function WorkoutRunner({
                 src={currentExerciseDef.illustration_gif}
                 alt=""
                 className="h-full w-full object-cover"
-                loading="lazy"
+                loading="eager"
                 decoding="async"
+                fetchPriority="high"
               />
             ) : (
               <Dumbbell className="h-5 w-5 text-muted-foreground" />
@@ -692,18 +702,16 @@ export function WorkoutRunner({
           <h2 className="flex-1 min-w-0 text-lg font-semibold tracking-tight truncate">
             {currentExerciseDef?.nom_exercice ?? "Exercice"}
           </h2>
-          {onUpdateNote && currentBlock && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 shrink-0"
-              onClick={() => {
-                setNoteDraft(exerciseNotes?.[currentBlock.exercise_id] ?? "");
-                setNoteSheetOpen(true);
-              }}
-              aria-label="Notes personnelles"
+          <div className={cn(
+            "h-2 w-2 shrink-0 rounded-full transition-colors",
+            isOnline ? "bg-emerald-500" : "bg-red-500"
+          )} aria-label={isOnline ? "En ligne" : "Hors ligne"} />
+          {onSubstitute && (
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"
+              onClick={() => withFocusDisclaimer(() => setSubstitutePickerOpen(true))}
+              aria-label="Remplacer l'exercice"
             >
-              <StickyNote className={cn("h-4 w-4", exerciseNotes?.[currentBlock?.exercise_id] ? "text-primary" : "text-muted-foreground")} />
+              <RotateCcw className="h-4 w-4" />
             </Button>
           )}
           {onExitFocus && (
@@ -724,11 +732,20 @@ export function WorkoutRunner({
             </Button>
           )}
         </div>
-        {/* Notes perso inline */}
-        {currentBlock && exerciseNotes?.[currentBlock.exercise_id] && (
-          <p className="text-xs italic text-muted-foreground line-clamp-2 -mt-1">
-            {exerciseNotes[currentBlock.exercise_id]}
-          </p>
+        {/* Inline note input */}
+        {onUpdateNote && currentBlock && (
+          <div className="-mt-1">
+            <input
+              type="text"
+              value={localNote}
+              onChange={(e) => {
+                setLocalNote(e.target.value);
+                handleNoteChange(currentBlock.exercise_id, e.target.value || null);
+              }}
+              placeholder="Réglages machine, repères..."
+              className="w-full bg-transparent text-xs italic text-muted-foreground placeholder:text-muted-foreground/40 border-none outline-none focus:text-foreground py-1"
+            />
+          </div>
         )}
         {/* Ligne 2 : badges + progress */}
         <div className="flex items-center gap-2">
@@ -763,10 +780,11 @@ export function WorkoutRunner({
           <div className="text-sm font-semibold">
             Série {currentSetIndex}/{formatStrengthValue(currentBlock?.sets)} · {formatStrengthValue(currentBlock?.reps)} reps
           </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Switch checked={autoRest} onCheckedChange={setAutoRest} className="scale-90" />
-            <span>Auto repos</span>
-          </div>
+          {restDuration > 0 && (
+            <span className="text-xs text-muted-foreground">
+              Repos {restDuration}s
+            </span>
+          )}
         </div>
         <div className="grid grid-cols-2 gap-3">
           <button
@@ -817,132 +835,123 @@ export function WorkoutRunner({
       </Button>
 
       {!inputSheetOpen && !isResting ? (
-        <BottomActionBar 
+        <BottomActionBar
           className="bottom-0 z-modal"
-          containerClassName="gap-3 py-4"
+          containerClassName="flex-col gap-2 py-4"
         >
           <Button
-            className="flex-1 min-w-0 h-12 rounded-xl text-sm font-bold shadow-lg active:scale-95 transition-transform"
+            className="w-full h-14 rounded-2xl text-base font-bold shadow-lg active:scale-[0.97] transition-transform"
             onClick={handleValidateSet}
           >
-            <Check className="mr-2 h-5 w-5" /> Valider série
+            <Check className="mr-2 h-5 w-5" />
+            {currentLoggedSet ? "Série suivante" : "Valider série"}
           </Button>
-          <Button
+          <button
             type="button"
-            variant="outline"
-            className="h-12 rounded-xl px-3 flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-transform"
-            onClick={() => { if (restDuration > 0) startRestTimer(restDuration, "set"); }}
-            disabled={restDuration <= 0}
-            aria-label="Démarrer le repos"
-          >
-            <Timer className="h-4 w-4" />
-            <span className="text-[10px] font-semibold leading-none">Repos</span>
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="h-12 rounded-xl px-3 flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-transform"
+            className="text-xs text-muted-foreground font-medium py-1 active:text-foreground transition-colors"
             onClick={() => advanceExercise()}
-            aria-label="Exercice suivant"
           >
-            <ChevronRight className="h-4 w-4" />
-            <span className="text-[10px] font-semibold leading-none">Passer</span>
-          </Button>
+            Passer cet exercice
+          </button>
         </BottomActionBar>
       ) : null}
 
       {isResting && (
-        <div className="fixed inset-0 z-modal flex flex-col bg-background/95 pb-[env(safe-area-inset-bottom)]">
-          <div className="flex items-start justify-between border-b px-6 py-4">
-            <div>
-              <div className="text-xs font-semibold text-muted-foreground">Timer</div>
-              <div className="text-lg font-semibold">
-                {restType === "exercise" ? "Transition inter-exercice" : "Repos inter-série"}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                {restType === "exercise"
-                  ? `Prochain exercice : ${nextExerciseDef?.nom_exercice ?? "À venir"}`
-                  : `Série ${currentSetIndex}/${formatStrengthValue(currentBlock?.sets)} · ${currentExerciseDef?.nom_exercice ?? ""}`}
+        <div className="fixed inset-0 z-modal flex flex-col bg-background pb-[env(safe-area-inset-bottom)]">
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-3">
+            <div className="text-sm font-semibold text-muted-foreground">
+              {restType === "exercise" ? "Transition" : "Repos"}
+            </div>
+            <button
+              type="button"
+              className="rounded-full p-2 text-muted-foreground hover:bg-muted active:scale-95 transition-all"
+              onClick={() => { setIsResting(false); setIsRestPaused(false); }}
+              aria-label="Fermer"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Circular timer — tap to skip */}
+          <button
+            type="button"
+            className="flex-1 flex flex-col items-center justify-center gap-2 px-6 active:opacity-80 transition-opacity"
+            onClick={() => {
+              restEndRef.current = 0;
+              setIsResting(false);
+              setRestTimer(0);
+              setIsRestPaused(false);
+            }}
+            aria-label="Passer le repos"
+          >
+            <div className="relative">
+              <svg className="h-52 w-52 -rotate-90" viewBox="0 0 200 200">
+                <circle cx="100" cy="100" r="90" fill="none" stroke="currentColor" className="text-muted/30" strokeWidth="8" />
+                <circle
+                  cx="100" cy="100" r="90" fill="none" stroke="currentColor"
+                  className="text-primary transition-all duration-1000"
+                  strokeWidth="8" strokeLinecap="round"
+                  strokeDasharray={2 * Math.PI * 90}
+                  strokeDashoffset={restDuration ? 2 * Math.PI * 90 * (1 - restTimer / restDuration) : 0}
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-5xl font-bold tabular-nums tracking-tight">
+                  {Math.floor(restTimer / 60)}:{String(restTimer % 60).padStart(2, "0")}
+                </span>
+                <span className="text-xs text-muted-foreground mt-1">tap pour passer</span>
               </div>
             </div>
             <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => {
-                setIsResting(false);
-                setIsRestPaused(false);
+              variant="outline"
+              size="sm"
+              className="rounded-full px-5 mt-2"
+              onClick={(e) => {
+                e.stopPropagation();
+                restEndRef.current += 30 * 1000;
+                setRestTimer((prev) => prev + 30);
               }}
-              aria-label="Fermer le timer de repos"
             >
-              <X className="h-4 w-4" />
+              +30s
             </Button>
-          </div>
-          <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-8">
-            <Card className="w-full max-w-sm rounded-3xl border p-6 shadow-sm">
-              <div className="text-sm text-muted-foreground">Temps restant</div>
-              <div className="mt-2 text-5xl font-semibold tracking-tight">
-                {Math.floor(restTimer / 60)}:{String(restTimer % 60).padStart(2, "0")}
+          </button>
+
+          {/* Next exercise card */}
+          {(() => {
+            const nextEx = restType === "exercise" ? nextExerciseDef : currentExerciseDef;
+            const nextItem = restType === "exercise" ? nextBlock : currentBlock;
+            if (!nextEx || !nextItem) return null;
+            const noteText = exerciseNotes?.[nextEx.id];
+            return (
+              <div className="mx-5 mb-6 rounded-2xl border bg-card p-4 shadow-sm">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                  {restType === "exercise" ? "Prochain exercice" : "Exercice en cours"}
+                </div>
+                <div className="flex items-center gap-3">
+                  {nextEx.illustration_gif ? (
+                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl border bg-muted/20">
+                      <img src={nextEx.illustration_gif} alt="" className="h-full w-full object-cover" loading="eager" decoding="async" />
+                    </div>
+                  ) : (
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border bg-muted/20">
+                      <Dumbbell className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm truncate">{nextEx.nom_exercice}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatStrengthValue(nextItem.sets)}×{formatStrengthValue(nextItem.reps)}
+                      {nextItem.percent_1rm ? ` · ${formatStrengthValue(nextItem.percent_1rm)}% 1RM` : ""}
+                    </p>
+                    {noteText && (
+                      <p className="text-xs italic text-muted-foreground/70 truncate mt-0.5">{noteText}</p>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div className="mt-6 h-3 w-full overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-primary"
-                  style={{
-                    width: restDuration ? `${(restTimer / restDuration) * 100}%` : "0%",
-                  }}
-                />
-              </div>
-              <div className="mt-6 flex gap-3">
-                <Button
-                  variant="outline"
-                  className="flex-1 h-12 rounded-full text-base font-semibold"
-                  onClick={() => {
-                    restEndRef.current += 30 * 1000;
-                    setRestTimer((prev) => prev + 30);
-                  }}
-                >
-                  +30s
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex-1 h-12 rounded-full text-base font-semibold"
-                  onClick={() => {
-                    restEndRef.current = Date.now() + restDuration * 1000;
-                    setRestTimer(restDuration);
-                  }}
-                >
-                  <RotateCcw className="mr-2 h-4 w-4" /> Reset
-                </Button>
-              </div>
-            </Card>
-            <div className="flex w-full max-w-sm flex-wrap gap-3">
-              <Button
-                className="flex-1 rounded-full py-6 text-base font-semibold"
-                onClick={() => {
-                  if (!isRestPaused) {
-                    // Pausing: ref stays as-is, interval will stop via deps
-                  } else {
-                    // Resuming: recalculate end time from current restTimer state
-                    restEndRef.current = Date.now() + restTimer * 1000;
-                  }
-                  setIsRestPaused((prev) => !prev);
-                }}
-              >
-                <Pause className="mr-2 h-4 w-4" /> {isRestPaused ? "Reprendre" : "Pause"}
-              </Button>
-              <Button
-                variant="outline"
-                className="rounded-full px-6 py-6 text-base font-semibold"
-                onClick={() => {
-                  restEndRef.current = 0;
-                  setIsResting(false);
-                  setRestTimer(0);
-                  setIsRestPaused(false);
-                }}
-              >
-                Passer <ChevronRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+            );
+          })()}
         </div>
       )}
 
@@ -976,40 +985,48 @@ export function WorkoutRunner({
       )}
 
       <Sheet open={seriesSheetOpen} onOpenChange={setSeriesSheetOpen}>
-        <SheetContent side="bottom" className="max-h-[80vh] overflow-y-auto">
+        <SheetContent side="bottom" className="max-h-[80vh] rounded-t-3xl">
           <SheetHeader>
             <SheetTitle>Aperçu séance</SheetTitle>
           </SheetHeader>
-          <div className="mt-4 space-y-4">
+          <div
+            className="mt-4 space-y-2 overflow-y-auto overscroll-contain pb-8"
+            style={{ maxHeight: "calc(80vh - 5rem)", WebkitOverflowScrolling: "touch" }}
+          >
             {workoutPlan.map((item, index) => {
               const exercise = exercises.find((ex) => ex.id === item.exercise_id);
               const loggedSets = Array.from({ length: item.sets }).filter((_, setIndex) =>
                 logLookup.get(`${item.exercise_id}-${setIndex + 1}`),
               ).length;
-              const pct = item.sets ? Math.round((loggedSets / item.sets) * 100) : 0;
+              const isActive = index === currentExerciseIndex;
+              const isDone = loggedSets >= item.sets;
               return (
-                <Card
+                <div
                   key={`${item.exercise_id}-${index}`}
-                  className="rounded-3xl border bg-muted/10 p-4 shadow-sm"
+                  className={cn(
+                    "flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors",
+                    isActive && "border-primary bg-primary/5",
+                    isDone && !isActive && "opacity-50",
+                  )}
                 >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-base font-semibold">
-                        {exercise?.nom_exercice ?? item.exercise_name}
-                      </div>
-                      <div className="mt-1 text-sm text-muted-foreground">
-                        {formatStrengthValue(item.sets)}x{formatStrengthValue(item.reps)} ·{" "}
-                        {item.percent_1rm ? `${formatStrengthValue(item.percent_1rm)} 1RM` : "—"}
-                      </div>
-                    </div>
-                    <div className="rounded-full bg-muted px-3 py-1 text-sm font-semibold">
-                      {loggedSets}/{formatStrengthValue(item.sets)}
-                    </div>
+                  <div className={cn(
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold",
+                    isDone ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+                  )}>
+                    {isDone ? <Check className="h-3.5 w-3.5" /> : index + 1}
                   </div>
-                  <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-muted">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate">
+                      {exercise?.nom_exercice ?? item.exercise_name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatStrengthValue(item.sets)}×{formatStrengthValue(item.reps)}
+                    </p>
                   </div>
-                </Card>
+                  <span className="text-xs font-mono font-semibold text-muted-foreground shrink-0">
+                    {loggedSets}/{formatStrengthValue(item.sets)}
+                  </span>
+                </div>
               );
             })}
           </div>
@@ -1209,31 +1226,53 @@ export function WorkoutRunner({
         </AlertDialog>
       )}
 
-      {onUpdateNote && (
-        <Sheet open={noteSheetOpen} onOpenChange={(open) => {
-          if (!open && currentBlock) {
-            const trimmed = noteDraft.trim() || null;
-            const existing = exerciseNotes?.[currentBlock.exercise_id] ?? null;
-            if (trimmed !== existing) {
-              onUpdateNote(currentBlock.exercise_id, trimmed);
-            }
-          }
-          setNoteSheetOpen(open);
-        }}>
-          <SheetContent side="bottom" className="max-h-[60vh]">
-            <SheetHeader>
-              <SheetTitle>Notes — {currentExerciseDef?.nom_exercice}</SheetTitle>
-            </SheetHeader>
-            <textarea
-              value={noteDraft}
-              onChange={(e) => setNoteDraft(e.target.value)}
-              placeholder="Réglages machine, repères personnels..."
-              rows={4}
-              className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm mt-4 resize-none ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            />
-          </SheetContent>
-        </Sheet>
+      {/* Task 13: Continue picker from completion */}
+      {onAddExercise && (
+        <ExercisePicker
+          open={continuePickerOpen}
+          onOpenChange={setContinuePickerOpen}
+          exercises={exercises}
+          onSelect={(exercise) => {
+            onAddExercise(exercise);
+            setHasCelebrated(false);
+            updateStep(workoutPlan.length + 1);
+          }}
+          title="Ajouter un exercice"
+        />
       )}
+
+      {/* Task 14: Substitute picker in focus mode */}
+      {onSubstitute && (
+        <ExercisePicker
+          open={substitutePickerOpen}
+          onOpenChange={setSubstitutePickerOpen}
+          exercises={exercises}
+          onSelect={(exercise) => onSubstitute(currentExerciseIndex, exercise)}
+          title="Remplacer l'exercice"
+        />
+      )}
+
+      <AlertDialog open={focusDisclaimerOpen} onOpenChange={setFocusDisclaimerOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Attention</AlertDialogTitle>
+            <AlertDialogDescription>
+              Toute modification se fait sous ta responsabilité. Le coach aura accès à la séance réelle effectuée.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setFocusPendingAction(null)}>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              setFocusDisclaimerShown(true);
+              setFocusDisclaimerOpen(false);
+              focusPendingAction?.();
+              setFocusPendingAction(null);
+            }}>
+              J'ai compris
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
