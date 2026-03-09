@@ -59,6 +59,7 @@ Ce document trace l'avancement de **chaque patch** du projet. Il est la source d
 | §86 Redesign ObjectiveCard + harmonisation Planif nageur | ✅ Fait | 2026-03-01 |
 | §87 Notes techniques enrichies (épreuve, bassin, équipement) | ✅ Fait | 2026-03-01 |
 | §87 Préparation compétition nageur (courses, routines, timeline, checklist) | ✅ Fait | 2026-03-01 |
+| §89 Strength UX Overhaul (audit + refonte mobile-first) | ✅ Fait | 2026-03-09 |
 | §45 Audit UI/UX — header Strength + login mobile + fixes | ✅ Fait | 2026-02-16 |
 | §46 Harmonisation headers + Login mobile thème clair | ✅ Fait | 2026-02-16 |
 | §6 Fix timers PWA iOS | ✅ Fait | 2026-02-09 |
@@ -6907,4 +6908,65 @@ Les notes techniques (swim_exercise_logs) étaient enregistrées uniquement comm
 ### Limites / dette
 - Pas de vue "progression" par épreuve (graphique chronologique des temps)
 - Pas de filtrage/recherche dans les notes
+
+---
+
+## 2026-03-09 — §89 Strength UX Overhaul (audit + refonte mobile-first)
+
+**Branche** : `main`
+**Chantier ROADMAP** : §89 — Refonte UX parcours musculation nageur
+
+### Contexte — Pourquoi ce patch
+
+Audit complet et refonte UX/UI du parcours musculation nageur (mobile-first). Le flow existant (sélection de séance, preview, mode focus) présentait des frictions UX importantes : barre d'action cachée sous le clavier, étapes inutiles, timer de repos basique, pas de substitution d'exercice, scroll cassé en mode focus, et toasts intrusifs pendant l'effort.
+
+Design doc : `docs/plans/2026-03-09-strength-ux-overhaul-design.md`
+Plan d'exécution : `docs/plans/2026-03-09-strength-ux-overhaul-plan.md`
+
+### Changements réalisés
+
+**10 points de design implémentés :**
+
+1. **Cycle banner** — Bannière contextuelle affichant le cycle en cours et la progression
+2. **Bottom bar fix** — Barre d'action fixe en bas, jamais masquée par le clavier virtuel
+3. **Step 0 removal** — Suppression de l'étape intermédiaire inutile avant le lancement de séance
+4. **Focus bottom bar refonte** — Refonte complète de la barre d'action en mode focus (WorkoutRunner)
+5. **Enriched rest timer** — Timer de repos enrichi avec visualisation et contrôles améliorés
+6. **Scroll fix** — Correction du scroll en mode focus pour un défilement fluide entre exercices
+7. **Toast suppression** — Suppression des toasts pendant l'effort pour ne pas interrompre le nageur
+8. **Connection indicator** — Indicateur de connexion/sync visible pendant la séance
+9. **GIF optimization** — Optimisation du chargement des GIFs d'exercice (lazy loading, compression)
+10. **Exercise substitution/addition** — Nouveau composant ExercisePicker pour substituer ou ajouter des exercices à la volée
+
+**3 bug fixes post-déploiement :**
+
+1. **Empty exercises after substitution** — Correction du bug où les exercices apparaissaient vides après une substitution
+2. **Double preview on launch** — Correction de la double preview affichée au lancement d'une séance
+3. **Invisible note field** — Correction du champ de note invisible en mode focus
+
+### Fichiers modifiés
+
+| Fichier | Nature |
+|---------|--------|
+| `src/components/strength/WorkoutRunner.tsx` | Rewrite majeur (bottom bar, rest timer, scroll, toasts, connection) |
+| `src/components/strength/SessionDetailPreview.tsx` | Modifié (step 0 removal, preview refonte) |
+| `src/pages/Strength.tsx` | Modifié (cycle banner, flow simplification) |
+| `src/components/strength/BottomActionBar.tsx` | Modifié (refonte barre d'action, keyboard fix) |
+| `src/components/strength/ExercisePicker.tsx` | Créé (nouveau composant substitution/ajout exercices) |
+
+### Tests
+- `npx tsc --noEmit` : pas d'erreurs nouvelles
+- `npm run build` : succès
+- Tests manuels : flow complet séance muscu sur mobile (iOS Safari, Android Chrome)
+
+### Décisions prises
+- Suppression de l'étape 0 (step 0) pour réduire les frictions — le nageur va directement à la preview
+- Timer de repos enrichi avec contrôles inline plutôt qu'un modal séparé
+- ExercisePicker comme composant réutilisable dans `src/components/strength/`
+- Toasts supprimés uniquement en mode focus (conservés ailleurs dans l'app)
+- GIFs chargés en lazy avec placeholder pour éviter les layout shifts
+
+### Limites / dette
+- Les GIFs d'exercice restent côté client (pas de CDN dédié)
+- Le composant ExercisePicker ne supporte pas encore le filtrage par groupe musculaire
 - Pas d'export des notes par épreuve

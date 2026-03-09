@@ -1,6 +1,6 @@
 # Roadmap de Développement
 
-*Dernière mise à jour : 2026-03-01 (§87 Préparation compétition nageur)*
+*Dernière mise à jour : 2026-03-09 (§89 Strength UX Overhaul)*
 
 Ce document décrit les fonctionnalités à implémenter. Il sert de référence pour reprendre le développement dans une future conversation.
 
@@ -59,6 +59,7 @@ Ce document décrit les fonctionnalités à implémenter. Il sert de référence
 | 48 | Calendrier créneaux centré séances (Slot-Centric Sessions) | Haute | Haute | Fait (§85) |
 | 49 | Redesign ObjectiveCard + harmonisation Planif nageur | Moyenne | Faible | Fait (§86) |
 | 50 | Préparation compétition nageur (courses, routines, timeline, checklist) | Moyenne | Haute | Fait (§87) |
+| 52 | Strength UX Overhaul — refonte parcours musculation nageur | Haute | Haute | Fait (§89) |
 
 ---
 
@@ -864,3 +865,52 @@ Moyenne — 16-20h. Executed with 2 parallel agents in ~3 hours.
 - Add visual regression testing (Chromatic or Percy)
 - Extract remaining CSS values (border-radius, box-shadow)
 - Add ESLint rule to prevent future hardcoded values
+
+---
+
+## 52. Strength UX Overhaul — Refonte parcours musculation nageur (§89)
+
+### Contexte
+
+Audit complet et refonte UX/UI du parcours musculation nageur (mobile-first). Le flow existant présentait des frictions UX majeures identifiées lors de tests terrain : barre d'action masquée par le clavier, étape intermédiaire inutile, timer de repos basique, impossibilité de substituer un exercice, scroll cassé en mode focus, toasts intrusifs pendant l'effort.
+
+### Objectif
+
+Un parcours musculation fluide et sans friction sur mobile, de la sélection de séance jusqu'à la fin de l'effort, avec des contrôles adaptés au contexte (mode focus vs navigation).
+
+### Implémentation
+
+**Design doc** : `docs/plans/2026-03-09-strength-ux-overhaul-design.md`
+**Plan** : `docs/plans/2026-03-09-strength-ux-overhaul-plan.md`
+
+**10 points de design :**
+1. Cycle banner — progression contextuelle
+2. Bottom bar fix — jamais masquée par le clavier
+3. Step 0 removal — accès direct à la preview
+4. Focus bottom bar refonte — contrôles adaptés au mode focus
+5. Enriched rest timer — visualisation et contrôles améliorés
+6. Scroll fix — défilement fluide entre exercices
+7. Toast suppression — pas d'interruption pendant l'effort
+8. Connection indicator — état sync visible
+9. GIF optimization — lazy loading, compression
+10. Exercise substitution/addition — ExercisePicker (nouveau composant)
+
+**3 bug fixes post-déploiement :**
+- Empty exercises after substitution
+- Double preview on launch
+- Invisible note field in focus mode
+
+**Fichiers clés :**
+- `src/components/strength/WorkoutRunner.tsx` — Rewrite majeur
+- `src/components/strength/SessionDetailPreview.tsx` — Modifié
+- `src/pages/Strength.tsx` — Modifié
+- `src/components/strength/BottomActionBar.tsx` — Modifié
+- `src/components/strength/ExercisePicker.tsx` — Créé (nouveau)
+
+### Complexité estimée
+
+Haute — refonte complète du flow musculation + 3 hotfixes.
+
+### Statut
+
+Fait — 2026-03-09

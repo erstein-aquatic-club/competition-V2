@@ -109,6 +109,7 @@ Application web de suivi d'entraînement (natation + musculation) pour l'Erstein
 | `src/components/competition/RoutinesTab.tsx` | Onglet routines (templates, steps, assignation par course) | ~530 lignes |
 | `src/components/competition/TimelineTab.tsx` | Onglet Jour J (fusion chronologique courses + routines) | ~235 lignes |
 | `src/components/competition/ChecklistTab.tsx` | Onglet checklist (templates, progress bar, toggle) | ~415 lignes |
+| `src/components/strength/ExercisePicker.tsx` | Picker substitution/ajout exercices en mode focus (§89) | |
 
 ## Edge Functions Supabase
 
@@ -182,6 +183,7 @@ Lire ces fichiers dans cet ordre pour reprendre le contexte :
 | 48 | Calendrier créneaux centré séances (Slot-Centric Sessions) | Haute | Fait (§85) |
 | 50 | Préparation compétition nageur (courses, routines, timeline, checklist) | Moyenne | Fait (§87) |
 | 51 | Notes techniques enrichies (épreuve, bassin, équipement) | Moyenne | Fait (§88) |
+| 52 | Strength UX Overhaul — refonte parcours musculation nageur | Haute | Fait (§89) |
 
 Détail complet dans `docs/ROADMAP.md`.
 
