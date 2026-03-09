@@ -9,6 +9,13 @@ export function PWAInstallGate({ children }: { children: React.ReactNode }) {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
+    // Bypass gate for shared public links (e.g. /#/s/<token>)
+    const hash = window.location.hash;
+    if (hash.startsWith("#/s/")) {
+      setShowGate(false);
+      return;
+    }
+
     const p = detectPlatform(navigator.userAgent);
     setPlatform(p);
     setShowGate(shouldShowInstallGate(p, isStandalone()));
