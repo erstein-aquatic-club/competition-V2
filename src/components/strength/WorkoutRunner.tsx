@@ -269,20 +269,6 @@ export function WorkoutRunner({
   const currentExerciseDef = currentBlock
     ? exercises.find((e) => e.id === currentBlock.exercise_id)
     : null;
-  console.log("[WorkoutRunner] render —", {
-    currentStep,
-    workoutPlanLength: workoutPlan.length,
-    currentBlockId: currentBlock?.exercise_id,
-    currentBlockSets: currentBlock?.sets,
-    currentBlockReps: currentBlock?.reps,
-    currentBlockName: currentBlock?.exercise_name,
-    exerciseDefFound: !!currentExerciseDef,
-    exerciseDefName: currentExerciseDef?.nom_exercice,
-    sessionItemsCount: session.items?.length,
-    firstItemId: session.items?.[0]?.exercise_id,
-    firstItemSets: session.items?.[0]?.sets,
-    firstItemReps: session.items?.[0]?.reps,
-  });
   const nextBlock = currentStep < workoutPlan.length ? workoutPlan[currentStep] : null;
   const nextExerciseDef = nextBlock
     ? exercises.find((e) => e.id === nextBlock.exercise_id)

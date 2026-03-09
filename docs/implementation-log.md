@@ -6938,11 +6938,12 @@ Plan d'exécution : `docs/plans/2026-03-09-strength-ux-overhaul-plan.md`
 9. **GIF optimization** — Optimisation du chargement des GIFs d'exercice (lazy loading, compression)
 10. **Exercise substitution/addition** — Nouveau composant ExercisePicker pour substituer ou ajouter des exercices à la volée
 
-**3 bug fixes post-déploiement :**
+**4 bug fixes post-déploiement :**
 
-1. **Empty exercises after substitution** — Correction du bug où les exercices apparaissaient vides après une substitution
-2. **Double preview on launch** — Correction de la double preview affichée au lancement d'une séance
-3. **Invisible note field** — Correction du champ de note invisible en mode focus
+1. **Empty exercises after substitution** — `resolveStrengthItems` écrasait sets/reps avec les params cycle du nouvel exercice (null → 0). Fix : fallback chain `params.sets ?? item.sets ?? 0`
+2. **Double preview on launch** — `handleLaunchFocus` appelait `setActiveSession` avant l'async `startRun`, causant un re-render en mode reader. Fix : déplacé après l'await
+3. **Invisible note field** — Input note transparent invisible. Fix : ajout bordure pointillée, fond `muted/30`, icône StickyNote
+4. **currentStep reset to 0** — Le `useEffect([initialLogs, session.items])` resetait `currentStep` à 0 quand `initialLogs` était vide (nouvelle séance), rendant `currentBlock` null → exercice vide en focus. Fix : garder `currentStep >= 1` quand pas de logs existants
 
 ### Fichiers modifiés
 
