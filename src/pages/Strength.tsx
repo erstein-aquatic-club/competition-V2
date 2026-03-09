@@ -94,14 +94,23 @@ const resolveStrengthItems = (
   exerciseLookup: Map<number, Exercise>,
 ) =>
   getCycleItems(items, cycle).map((item) => {
-    const params = resolveExerciseParams(exerciseLookup.get(item.exercise_id), cycle);
-    return {
+    const exerciseDef = exerciseLookup.get(item.exercise_id);
+    const params = resolveExerciseParams(exerciseDef, cycle);
+    const resolved = {
       ...item,
       sets: params.sets ?? item.sets ?? 0,
       reps: params.reps ?? item.reps ?? 0,
       rest_seconds: params.restSeries ?? item.rest_seconds ?? 0,
       percent_1rm: params.percent1rm ?? item.percent_1rm ?? 0,
     };
+    console.log("[Strength] resolveStrengthItems —", {
+      exerciseId: item.exercise_id,
+      exerciseFound: !!exerciseDef,
+      paramSets: params.sets, paramReps: params.reps,
+      itemSets: item.sets, itemReps: item.reps,
+      resolvedSets: resolved.sets, resolvedReps: resolved.reps,
+    });
+    return resolved;
   });
 
 export const resetStrengthRunState = (setters: {
@@ -234,7 +243,14 @@ export default function Strength() {
     setActiveSession((prev) => {
       if (!prev?.items) return prev;
       const items = [...prev.items];
-      items[itemIndex] = { ...items[itemIndex], exercise_id: newExercise.id, exercise_name: newExercise.nom_exercice };
+      const original = items[itemIndex];
+      items[itemIndex] = { ...original, exercise_id: newExercise.id, exercise_name: newExercise.nom_exercice };
+      console.log("[Strength] handleSubstitute —", {
+        index: itemIndex,
+        originalSets: original?.sets, originalReps: original?.reps,
+        newExerciseId: newExercise.id, newExerciseName: newExercise.nom_exercice,
+        resultSets: items[itemIndex].sets, resultReps: items[itemIndex].reps,
+      });
       return { ...prev, items };
     });
   };
@@ -511,6 +527,12 @@ export default function Strength() {
     }
 
     // Update session with resolved items and enter focus — batched to avoid double-render
+    console.log("[Strength] handleLaunchFocus — activeFilteredItems:", JSON.stringify(activeFilteredItems.map(i => ({
+      id: i.exercise_id, name: i.exercise_name, sets: i.sets, reps: i.reps, rest: i.rest_seconds, cycle: i.cycle_type,
+    }))));
+    console.log("[Strength] handleLaunchFocus — raw activeSession.items:", JSON.stringify((activeSession.items ?? []).map(i => ({
+      id: i.exercise_id, name: i.exercise_name, sets: i.sets, reps: i.reps, rest: i.rest_seconds, cycle: i.cycle_type,
+    }))));
     setActiveSession({
       ...activeSession,
       cycle: cycleType,
